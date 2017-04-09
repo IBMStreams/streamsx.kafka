@@ -1,4 +1,4 @@
-## README --  IBMStreams/streamsx.messaging
+## README --  IBMStreams/streamsx.kafka
 
 The IBMStreams/streamsx.kafka toolkit project is an open source Streams toolkit project focused on the development of operators and functions that extend IBM InfoSphere Streams ability to interact with Kafka messaging systems.
 

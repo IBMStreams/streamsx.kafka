@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="spldoc_index">
+<title>Namespaces: com.ibm.streamsx.kafka 5.1.1</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; Namespaces</p>
+</section>
+<section>
+  <title outputclass="splhead-1">Namespaces</title>
+<dl>
+<dlentry>
+  <dt><xref href="ns$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka</xref></dt>
+  <dd></dd>
+</dlentry>
+</dl>
+</section>
+</refbody>
+</reference>
+

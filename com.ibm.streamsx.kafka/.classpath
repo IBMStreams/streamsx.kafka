@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" output="impl/java/bin" path="impl/java/src"/>
+	<classpathentry exported="true" kind="con" path="com.ibm.streams.java/com.ibm.streams.operator"/>
+	<classpathentry exported="true" kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="opt/downloaded/kafka-clients-0.10.0.0.jar"/>
+	<classpathentry kind="lib" path="opt/downloaded/lz4-1.3.0.jar"/>
+	<classpathentry kind="lib" path="opt/downloaded/slf4j-api-1.7.21.jar"/>
+	<classpathentry kind="lib" path="opt/downloaded/snappy-java-1.1.2.4.jar"/>
+	<classpathentry kind="lib" path="opt/messagehub/jackson-core-2.5.4.jar"/>
+	<classpathentry kind="lib" path="opt/messagehub/messagehub.login-1.0.0.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

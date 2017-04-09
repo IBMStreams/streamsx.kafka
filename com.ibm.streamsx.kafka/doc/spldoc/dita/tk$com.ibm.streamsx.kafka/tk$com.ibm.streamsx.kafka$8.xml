@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>Destination element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$7.xml">Access_specification element</xref> &gt; Destination element</p>
+</section>
+
+<section>
+<p>The &lt;destination&gt; element specifies the queue or topic that is used by the Messaging Toolkit operators.  The element also specifies some parameters that control the behavior of the operator.
+</p>
+<p>For WebSphere MQ, the &lt;destination&gt; element does not actually contain this information, instead it specifies the information indirectly by referencing an XMS or JMS administered object that is held in an external directory service.  For Apache ActiveMQ, the &lt;destination&gt; element can directly refer to a queue or a topic.
+</p>
+<p>The following example shows an access specification that contains a &lt;destination&gt; element for the WebSphere MQ messaging system:
+</p>
+<p>
+<codeblock>
+<![CDATA[<access_specifications>
+  <access_specification name="Outtrading22">
+    <destination identifier="TestDestination2" delivery_mode="persistent"
+    message_class="stream"/>
+    <uses_connection connection="wbe2" />
+    <native_schema>
+      <attribute name="cntr" type="Long"/>
+    </native_schema>
+  </access_specification>
+</access_specifications>
+]]></codeblock>
+
+</p>
+<p>The following example shows an access specification that contains a &lt;destination&gt; element that directly refers to an ActiveMQ queue:
+</p>
+<p>
+<codeblock>
+<![CDATA[<access_specifications>
+  <access_specification name="amqAccess">
+    <destination identifier="dynamicQueues/MapQueue" 
+    delivery_mode="persistent" message_class="stream" />
+    <uses_connection connection="amqConn"/>
+    <native_schema>
+      <attribute name="cntr" type="Long" />
+    </native_schema>
+  </access_specification>
+</access_specifications>
+]]></codeblock>
+
+</p>
+<p>The &lt;destination&gt; element has three attributes:
+<ul>
+<li> identifier
+<ul>
+<li> This attribute value is the name of the destination administered object that is used.     In particular, it is an administered object within the directory service context that is     specified by the initial_context attribute in the connection specification.     The destination administered object can be either a JMS queue object or a JMS topic object. This attribute is required.</li>
+<li> If the messaging provider is Apache ActiveMQ, this attribute can represent the queue or topic that must be created     when accessing the messaging provider.</li>
+</ul></li>
+<li> delivery_mode
+<ul>
+<li> This attribute value specifies the quality of service that is applied by the messaging provider,     if it is not overridden by the messaging provider administration.     The value can be persistent or non_persistent, as defined by the JMS specification.     If this attribute is not specified, the default value is non_persistent.</li>
+</ul></li>
+<li> message_class
+<ul>
+<li> This attribute value specifies how a stream tuple is serialized into a WebSphere MQ or an Apache ActiveMQ message.     It operates with the &lt;native_schema&gt; element. The value can be: bytes, empty, map, stream, wbe, wbe22, or xml.</li>
+</ul></li>
+</ul>
+</p>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$9.xml">Message class formats in the Messaging Toolkit</xref>
+</dt><dd>
+</dd></dlentry></dl>
+</section>
+</refbody>
+</reference>

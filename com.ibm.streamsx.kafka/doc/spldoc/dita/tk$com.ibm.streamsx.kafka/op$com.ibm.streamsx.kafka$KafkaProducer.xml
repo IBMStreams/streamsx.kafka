@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="spldoc_operator">
+<title>Operator <tt>KafkaProducer</tt></title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="ns$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka</xref> &gt; KafkaProducer</p>
+</section>
+<section outputclass="splprimop">
+  <image href="../../image/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaProducer.svg" width="672" height="112">
+    <alt>Primitive operator image not displayed. Problem loading file: ../../image/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaProducer.svg
+</alt>
+  </image>
+</section>
+<section>
+
+<p>This operator acts as a Kafka producer sending tuples as messages to a Kafka broker. The broker is assumed to be already configured and running. The incoming stream can have three attributes: topic, key and message. The message is a required attribute. A topic can be specified as either an input stream attribute or as a parameter. Specify properties as described here: http://kafka.apache.org/documentation.html#configuration. If you are using Java security modules for login/authentication, ensure that they are compatible with IBM Java, as IBM Streams only runs with IBM Java. The SPL Attribute Types supported are rstring, ustring, and blob. The topic must be of type rstring/ustring, while the key and message must be of the same type (rstring, ustring, or blob). 
+</p>
+<p><b>Kafka 0.9 Server Support</b>: By default this toolkit builds with Kafka 0.10 client JARs. The Kafka 0.10 client is not compatible with Kafka 0.9 brokers. To use this operator with Kafka 0.9 brokers, you must rebuild with the kafka-0.9 target after cleaning. From the toolkit root directory: 
+</p>
+<p> ant clean
+</p>
+<p> ant kafka-0.9
+</p>
+<p><b>AppConfig</b>: You must provide properties for the operator using at least one of the following parameters: kafkaProperty, propertiesFile, or appConfigName. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. 
+</p>
+<p><b>Behavior in a Consistent Region</b> This operator can participate in a consistent region.  This operator cannot be placed at the start of a consistent region. The KafkaProducer guarantees at-least-once delivery of messages to a Kafka topic.
+</p>
+</section>
+<section>
+<title outputclass="splhead-1">Summary</title>
+<dl compact="yes">
+ <dlentry>
+  <dt>Ports</dt>
+  <dd>This operator has 1 input port and 0 output port.</dd>
+ </dlentry>
+ <dlentry>
+  <dt>Windowing</dt>
+  <dd>This operator does not accept any windowing configurations.</dd>
+ </dlentry>
+ <dlentry>
+  <dt>Parameters</dt>
+  <dd>This operator supports 10 parameters.
+<p> Optional: 
+<xref href="#spldoc_operator/parameter__appConfigName">appConfigName</xref>, <xref href="#spldoc_operator/parameter__appConfigPropertyName">appConfigPropertyName</xref>, <xref href="#spldoc_operator/parameter__jaasFile">jaasFile</xref>, <xref href="#spldoc_operator/parameter__jaasFilePropName">jaasFilePropName</xref>, <xref href="#spldoc_operator/parameter__kafkaProperty">kafkaProperty</xref>, <xref href="#spldoc_operator/parameter__keyAttribute">keyAttribute</xref>, <xref href="#spldoc_operator/parameter__messageAttribute">messageAttribute</xref>, <xref href="#spldoc_operator/parameter__propertiesFile">propertiesFile</xref>, <xref href="#spldoc_operator/parameter__topic">topic</xref>, <xref href="#spldoc_operator/parameter__topicAttribute">topicAttribute</xref>
+
+</p></dd>
+ </dlentry>
+ <dlentry>
+  <dt>Metrics</dt>
+  <dd>This operator does not report any metrics.</dd>
+ </dlentry>
+</dl></section>
+<section>
+<title outputclass="splhead-1">Properties</title>
+<dl compact="yes">
+ <dlentry>
+  <dt>Implementation</dt>
+  <dd>Java</dd>
+ </dlentry>
+</dl>
+</section>
+<section>
+<p outputclass="splhead-1"><b><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/input_port_set">Input Ports</xref></b></p><dl>
+  <dlentry>
+   <dt>Ports (0)</dt>
+   <dd>
+
+<p>The tuples arriving on this port are expected to contain three attributes "key", "topic" and "message". Out of these "message", is a required attribute.
+</p>   </dd>
+  </dlentry>
+    <dlentry>
+      <dt>Properties</dt>
+      <dd>
+   <sl>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/input_port_set__optional">Optional</xref>: false
+     </sli>
+   </sl>
+   <sl>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/input_port_set__controlport">ControlPort</xref>: false
+</sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/input_port_set__windowingmode">WindowingMode</xref>: NonWindowed
+</sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/input_port_set__windowpunctuationinputmode">WindowPunctuationInputMode</xref>: Oblivious
+</sli>
+   </sl>
+      </dd>
+    </dlentry>
+</dl>
+</section>
+<section>
+<p outputclass="splhead-1"><b><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters">Parameters</xref></b></p>This operator supports 10 parameters.
+<p> Optional: 
+<xref href="#spldoc_operator/parameter__appConfigName">appConfigName</xref>, <xref href="#spldoc_operator/parameter__appConfigPropertyName">appConfigPropertyName</xref>, <xref href="#spldoc_operator/parameter__jaasFile">jaasFile</xref>, <xref href="#spldoc_operator/parameter__jaasFilePropName">jaasFilePropName</xref>, <xref href="#spldoc_operator/parameter__kafkaProperty">kafkaProperty</xref>, <xref href="#spldoc_operator/parameter__keyAttribute">keyAttribute</xref>, <xref href="#spldoc_operator/parameter__messageAttribute">messageAttribute</xref>, <xref href="#spldoc_operator/parameter__propertiesFile">propertiesFile</xref>, <xref href="#spldoc_operator/parameter__topic">topic</xref>, <xref href="#spldoc_operator/parameter__topicAttribute">topicAttribute</xref>
+
+</p><dl>
+<dlentry id="parameter__appConfigName">
+<dt><tt>appConfigName</tt></dt>
+<dd>
+<p>This parameter specifies the name of application configuration that stores client properties, the property specified via application configuration is overridden by the properties file and kafkaProperty parameter. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. 
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__cardinality">Cardinality</xref>: 1
+     </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__appConfigPropertyName">
+<dt><tt>appConfigPropertyName</tt></dt>
+<dd>
+<p>List of Kafka properties to retrieve from application configuration. The property name in the application configuration must the same as the Kafka property name. You may also supply jaasFile as a property name to act as the jaasFile parameter value.
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__jaasFile">
+<dt><tt>jaasFile</tt></dt>
+<dd>
+<p>Location of the jaas file to be used for SASL connections. Jaas file is recommended to be stored in the etc directory.  If a relative path is specified, the path is relative to the application directory.This sets the system property java.security.auth.login.config. This can also be set using the appConfig by specifying jaasFile=&lt;jaas.conf location&gt;.
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__cardinality">Cardinality</xref>: 1
+     </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__jaasFilePropName">
+<dt><tt>jaasFilePropName</tt></dt>
+<dd>
+<p>This parameter specifies the property name of the jaasFile location in the application configuration. The default name is jaasFile. 
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__cardinality">Cardinality</xref>: 1
+     </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__kafkaProperty">
+<dt><tt>kafkaProperty</tt></dt>
+<dd>
+<p>Specify a Kafka property "key=value" form. This will override any property specified in the properties file. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. 
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__keyAttribute">
+<dt><tt>keyAttribute</tt></dt>
+<dd>
+<p>Name of the attribute for the key. Default is "key".
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__cardinality">Cardinality</xref>: 1
+     </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__messageAttribute">
+<dt><tt>messageAttribute</tt></dt>
+<dd>
+<p>Name of the attribute for the message. If this parameter is not specified, then by default the operator will look for an attribute named "message". If the "message" attribute is not found, a runtime error will be returned.
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__cardinality">Cardinality</xref>: 1
+     </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__propertiesFile">
+<dt><tt>propertiesFile</tt></dt>
+<dd>
+<p>Properties file containing kafka properties. Properties file is recommended to be stored in the etc directory.  If a relative path is specified, the path is relative to the application directory. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. 
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__cardinality">Cardinality</xref>: 1
+     </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__topic">
+<dt><tt>topic</tt></dt>
+<dd>
+<p>Topic to be published to. A topic can also be specified as an input stream attribute.
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+<dlentry id="parameter__topicAttribute">
+<dt><tt>topicAttribute</tt></dt>
+<dd>
+<p>Name of the attribute for the topic. Default is "topic"
+</p><dl>
+<dlentry>
+ <dt>Properties </dt>
+ <dd>
+  <sl>
+  <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__type">Type</xref>: rstring
+  </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__cardinality">Cardinality</xref>: 1
+     </sli>
+     <sli><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/parameters__parameter__optional">Optional</xref>: true
+     </sli>
+  </sl>
+ </dd>
+</dlentry>
+</dl>
+</dd>
+</dlentry>
+</dl>
+</section>
+<section>
+<p outputclass="splhead-1"><b><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/context__dependencies">Libraries</xref></b></p>
+ <dl>
+ <dlentry>
+  <dt>Operator class library
+  </dt>
+  <dd/>
+  <dd><xref href="../references/OperatorModel.xml#spldoc_reference_operator_model/context__dependencies__managedlibrary__libpath">Library Path</xref>: <tt>../../impl/lib/com.ibm.streamsx.kafka.jar, ../../opt/downloaded/*, ../../opt/*</tt></dd>
+ </dlentry>
+ </dl>
+</section>
+</refbody>
+</reference>
+

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>Native_schema element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$7.xml">Access_specification element</xref> &gt; Native_schema element</p>
+</section>
+
+<section>
+<p>In the Messaging Toolkit, the &lt;native_schema&gt; element specifies the data attributes of the data that is received from or sent to WebSphere MQ or Apache ActiveMQ.  For example, the &lt;native_schema&gt; element identifies the attribute names, data types, and optionally their length.
+</p>
+<p>The following example is an abridged access specification that contains a &lt;native_schema&gt; element:
+<codeblock>
+<![CDATA[<access_specification name="OutTrading">
+  <destination identifier="TestDestination"
+  delivery_mode="persistent" message_class="map" />
+  ...
+  <native_schema>
+    <attribute name="id" type="Int" />
+    <attribute name="fname" type="String" />
+    <attribute name="lname" type="String" />
+  </native_schema>
+</access_specification>
+]]></codeblock>
+
+</p>
+<p>The &lt;native_schema&gt; element has no attributes; it has &lt;attribute&gt; elements.
+</p>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$12.xml">Attribute element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+</section>
+</refbody>
+</reference>

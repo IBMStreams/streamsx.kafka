@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>Message class formats in the Messaging Toolkit</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$7.xml">Access_specification element</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$8.xml">Destination element</xref> &gt; Message class formats in the Messaging Toolkit</p>
+</section>
+
+<section>
+<p>The message class specifies the type of XMS or JMS message that is output or expected by the operators in the Messaging Toolkit.  It also affects how the message payload is converted to tuples or vice versa.
+</p>
+<p>The Messaging Toolkit supports the following values for the message_class attribute in the &lt;destination&gt; element: bytes, empty, map, stream, wbe, wbe22, and xml.
+</p>
+<p>When the message_class attribute value is <tt>bytes</tt>:
+<ul>
+<li> The <tt>XMSSink</tt> operator constructs an XMS BytesMessage.   The <tt>JMSSink</tt> operator constructs a JMS BytesMessage.   The BytesMessage is a stream of binary data that contains values that are taken from the input stream.   The values are serialized into the message in the order  that is specified in the &lt;native_schema&gt; element   and they use the data types from that element.</li>
+<li> <b>Note</b>: The <tt>XMSSink</tt> operator can handle String and blob attributes that do not have lengths that are specified    in the &lt;native_schema&gt; element. The operator serializes such attributes directly into the BytesMessage,   and uses the actual length of the attribute at run time.   For example, if the blob has three entries, then it uses up 3 bytes in the BytesMessage.   If the &lt;native_schema&gt; element contains a length for a String  or blob attribute,   then the <tt>XMSSink</tt> operator pads or truncates the run time attribute value to make it fit this length.   Blob attributes are padded with nulls and String attributes are padded with spaces.</li>
+<li> The <tt>JMSSink</tt> operator raises a runtime error if the &lt;native_schema&gt; element does not specify the length   for all String and blob attributes or if a negative length other than -2 or -4 is specified.   If the length is positive, the operator pads or truncates the run time attributes to make it fit this length.   Blob attributes are padded with null values and String attributes are padded with spaces.   For String attributes, length is measured in number of bytes.</li>
+<li> The <tt>XMSSource</tt> operator expects an XMS BytesMessage. The <tt>JMSSource</tt> operator expects a JMS BytesMessage.   The BytesMessage contains the values of the elements that are listed in the &lt;native_schema&gt;.   The values of the elements must occur in the order that is specified in the &lt;native_schema&gt; element.   The data types must match the types that are specified in the schema.   If the data in the message is insufficient, the operator discards the entire message and logs a run time error.
+<ul>
+<li> <b>Note</b>: The &lt;native_schema&gt; element must specify the length of all the String and blob attributes,     unless the attribute is the final attribute in the &lt;native_schema&gt; element.
+<ul>
+<li> If the attribute is the final attribute in the &lt;native_schema&gt; element and a length is not specified,       the operators assume that the attribute takes all the bytes that remain in the XMS message.</li>
+<li> For an <tt>XMSSource</tt> operator, if the attribute is not the final attribute in the &lt;native_schema&gt; element       and a length is not specified, a compile-time error occurs.       For a <tt>JMSSource</tt> operator, if the attribute is not the final attribute in the &lt;native_schema&gt; element       and a length is not specified, a run-time error occurs.</li>
+<li> For an <tt>XMSSource</tt> operator, if the length of the &lt;attribute&gt; element is -2, -4 or -8,       the operator assumes that the data that appears in the XMS message starts with a signed 2, 4, or 8-byte length field.       This length field is an integer that is encoded in the same way as any other integer attribute in the message.       If the length value is incomplete, negative, or absent from the message, or there are insufficient bytes       remaining in the XMS message, the operator discards the entire message and logs a run-time error.</li>
+<li> For a <tt>JMSSource</tt> operator, if the length of the &lt;attribute&gt; element is -2 or -4,       the operator assume that the data that appears in the JMS message starts with a signed 2 or 4-byte length field.       This length field is an integer that is encoded in the same way as any other integer attribute in the message.       If the length value is incomplete, negative, or absent from the message, or there are insufficient bytes       remaining in the JMS message, the operator discards the entire message and logs a run-time error.</li>
+<li> If the length of the &lt;attribute&gt; element is non-negative, then the operators attempt to read exactly       that number of bytes from the BytesMessage.       If there are insufficient bytes remaining in the XMS or JMS message, the operators discard the entire message and logs a run time error.</li>
+<li> For an <tt>XMSSource</tt> operator, if the length attribute value is not a supported value, a compile-time error occurs.       For a <tt>JMSSource</tt> operator, if the length attribute value is not a supported value, a run-time error occurs.</li>
+</ul></li>
+</ul></li>
+</ul>
+</p>
+<p>When the message_class attribute value is <tt>empty</tt>:
+<ul>
+<li> The <tt>XMSSink</tt> operator construct an empty XMS message. The <tt>JMSSink</tt> operator construct an empty JMS message.   For example, you can use an empty XMS message to verify that your InfoSphere Streams application can connect   to the WebSphere MQ server and that the message reaches its destination.   <b>Note</b>: This message_class value cannot be used with a &lt;native_schema&gt; element.</li>
+<li> The <tt>XMSSource</tt> operator expects an empty XMS message. It emits a tuple with attribute values that are assigned by the SPL program.   This behavior is not supported if a &lt;native_schema&gt; element is defined or if there are any unassigned attributes.   The <tt>JMSSource</tt> operator expects an empty JMS message.</li>
+</ul>
+</p>
+<p>When the message_class attribute value is <tt>map</tt>:
+<ul>
+<li> The <tt>XMSSink</tt> operator produces an XMS MapMessage. The <tt>JMSSink</tt> operator produces a JMS MapMessage.   The MapMessage is a collection of name, type and value triplets.   The triplets contain elements whose names and types are taken from the &lt;native_schema&gt; element.   Their values are taken from the operator input stream.</li>
+<li> The <tt>XMSSource</tt> operator expects an XMS MapMessage that contains elements whose names and types appear in the &lt;native_schema&gt; element.   The <tt>JMSSource</tt> operator expects a JMS MapMessage that contains elements whose names and types appear in the &lt;native_schema&gt; element.
+<ul>
+<li> If the schema contains an attribute which is not present in the MapMessage, the operator discards the entire message and logs a run time error.</li>
+<li> If the MapMessage contains an attribute whose type does not match the data type in the &lt;native_schema&gt;,     the operators attempt to convert it using the standard XMS or JMS conversion rules.     If this conversion fails, the entire message is discarded and an error message is logged.</li>
+<li> If the MapMessage contains an attribute with a null value, the corresponding output stream attribute is set to the default value for its type.</li>
+<li> If the MapMessage contains attributes that are not listed in the &lt;native_schema&gt;, the attributes are ignored.</li>
+</ul></li>
+</ul>
+</p>
+<p>When the message_class attribute value is <tt>stream</tt>:
+<ul>
+<li> The <tt>XMSSink</tt> operator constructs an XMS StreamMessage. The <tt>JMSSink</tt> operator constructs a JMS StreamMessage.   The StreamMessage is an ordered list of type and value pairs. The pairs contain values that are taken from the input stream.   The values are serialized into the message in the order in which they are specified in the &lt;native_schema&gt; element.   The values use the data types from the &lt;native_schema&gt; element.</li>
+<li> The <tt>XMSSource</tt> operator expects an XMS StreamMessage. The <tt>JMSSource</tt> operator expects a JMS StreamMessage.   The StreamMessage contains the values of the elements that are listed in the &lt;native_schema&gt; element.   The values must occur in the order that is specified in the &lt;native_schema&gt; element.   The values must also have the data types that are specified in that schema.
+<ul>
+<li> If the operator encounters an attribute in the StreamMessage that does not have the expected data type,     it attempts to convert the attribute to the data type specified by the &lt;native_schema&gt; element.     If they conversion fails, the operator discards the entire message and logs a run time error.</li>
+<li> If the StreamMessage contains more attributes than the &lt;native_schema&gt;, the attributes are ignored and a tuple is emitted.</li>
+<li> If the StreamMessage does not contain enough attributes, the operator discards the entire message and logs a run-time error.</li>
+<li> If the StreamMessage contains an attribute with a null value, the corresponding output stream attribute is set     to the default value for its type.</li>
+</ul></li>
+</ul>
+</p>
+<p>When the message_class attribute value is <tt>wbe</tt>:
+<ul>
+<li> The <tt>XMSSink</tt> operator constructs an XMS TextMessage. The <tt>JMSSink</tt> operator constructs a JMS TextMessage.   The TextMessage contains an XML document in the WebSphere Business Events (WBE) event packet format.
+<p>  The XML document contains a single &lt;connector-bundle&gt; of type Event.   The XML namespace is <tt>http://wbe.ibm.com/6.2/Event/xxx</tt> where <i>xxx</i> is the input stream name.   The input port is used as the connector-bundle name attribute and also as a wrapper element that contains the stream attribute values.   The XML document contains a field for each attribute that is listed in the &lt;native_schema&gt; element.
+</p>
+<p>  <b>Restriction</b>: The blob data type is not a supported when you use the wbe message class.
+</p></li>
+<li> The <tt>XMSSource</tt> and the <tt>JMSSource</tt> operators do not support the use of the wbe message_class attribute value.    If the operators encounters a message of class wbe, the operators discard the message.</li>
+</ul>
+</p>
+<p>When the message_class attribute value is <tt>wbe22</tt>:
+<ul>
+<li> The <tt>XMSSink</tt> operator constructs an XMS TextMessage. The <tt>JMSSink</tt> operator constructs a JMS TextMessage.   The TextMessage contains an XML document in the WebSphere Business Events 2.2 event packet format.
+<p>  The XML document contains a single "connector-object" (event).    The input stream name is used for both the WBE event-name and event-object name.   The document contains a field for each attribute that is listed in the &lt;native_schema&gt; element.
+</p>
+<p>  <b>Restriction</b>: The blob data type is not supported when you use the wbe22 message class.
+</p></li>
+<li> The <tt>XMSSource</tt> and the <tt>JMSSource</tt> operators do not support the use of the wbe22 message_class attribute value.   If the operators encounter a message of class wbe22, the operators discard the message.</li>
+</ul>
+</p>
+<p>When the message_class attribute value is <tt>xml</tt>:
+<ul>
+<li> The <tt>XMSSink</tt> operator constructs an XMS message that contains a generic XML message.   The <tt>JMSSink</tt> operator constructs a JMS message that contains a generic XML message.</li>
+<li> The <tt>XMSSource</tt> and <tt>JMSSource</tt> operators do not support the use of the xml message_class attribute value.   If the operators encounter a message of class xml, it discards the message.</li>
+</ul>
+</p>
+<p>If the operators encounter a message that does not match the message_class, the operators discard the message and log an error.  This situation happens, for example, when the message_class is set to map and the <tt>XMSSource</tt> operator encounters an XMS Stream message.
+</p>
+<p>The following is an example of the XML document that is generated for an input stream named StockCashMergerArbitrageStatus_T_SBC and a message_class value of wbe:
+</p>
+<p>
+<codeblock>
+<![CDATA[<connector 
+xmlns='http://wbe.ibm.com/6.2/Event/StockCashMergerArbitrageStatus_T_SBC' 
+name='System S' version='6.2'>
+  <connector-bundle 
+  name='StockCashMergerArbitrageStatus_T_SBC'
+  type='Event'>
+  <StockCashMergerArbitrageStatus_T_SBC'>
+  <date data-type='string'>01-FEB-2005</date>
+  <time data-type='string'>14:45:21.335</time>
+  <ratio data-type='real'>0.747079</ratio>
+  <alertType data-type='string'>IN</alertType>
+  <dayNum data-type='integer'>12815</dayNum>
+  <flag data-type='boolean'>true</flag>
+  </StockCashMergerArbitrageStatus_T_SBC'>
+  </connector-bundle>
+</connector>
+]]></codeblock>
+
+</p>
+<p>The following is an example of the XML document that is generated for an input stream named iport$0 and a message_class value of wbe22:
+</p>
+<p>
+<codeblock>
+<![CDATA[<connector name='System S' version='2.2'>
+  <connector-bundle 
+  name='iport$0' 
+  type='Event'>
+    <connector-object name='iport$0'>
+      <field name='uintdata'>100</field>
+      <field name='somethingID'>Yes</field>
+      <field name='somethingid'>YesToo</field>
+    </connector-object>
+  </connector-bundle>
+</connector>
+]]></codeblock>
+
+</p>
+</section>
+</refbody>
+</reference>

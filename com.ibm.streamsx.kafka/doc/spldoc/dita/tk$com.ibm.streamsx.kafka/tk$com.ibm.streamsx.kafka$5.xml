@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>MQTT element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$3.xml">Connection_specification element</xref> &gt; MQTT element</p>
+</section>
+
+<section>
+<p>The &lt;MQTT&gt; element specifies the information that is needed by the <tt>MQTTSink</tt> and <tt>MQTTSource</tt> operators to establish a connection with MQTT-based messaging systems.
+</p>
+<p>The following example shows a &lt;connection_specification&gt; element that contains an &lt;MQTT&gt; element:
+</p>
+<p>
+<codeblock>
+<![CDATA[<connection_specifications>
+  <connection_specification name="mqttconn">
+    <MQTT serverURI="ssl://hostname:1883" trustStore="etc/trustFile.jks"/>
+  </connection_specification>
+</connection_specifications>
+]]></codeblock>
+
+</p>
+<p>The &lt;MQTT&gt; element has the following attributes:
+<ul>
+<li> keyStorePassword
+<ul>
+<li> This optional attribute specifies the password for the keystore file.     This attribute is specified when the keyStore attribute is specified and the keystore file it is protected by a password.     If the keyStorePassword is invalid the operator terminates.</li>
+</ul></li>
+<li> keyStore
+<ul>
+<li> This optional attribute specifies the name of the keystore file, which is in one of the supported format by the JDK being used.     The keystore file must contain the public certificate and the private key of the MQTT server that you want to connect to.     If the keystore file does not exist, the operator terminates. The location of the keystore file can be absolute path     or a path that is relative to the application directory.</li>
+</ul></li>
+<li> serverURI
+<ul>
+<li> This required attribute specifies the URI of the MQTT server that you want to connect to.     The serverURI has the following format: <i>protocol</i>://<i>hostname</i> or <i>IP address</i>:<i>portnumber</i></li>
+<li> The supported protocols are SSL and TCP.      By default, the protocol is set to <tt>tcp</tt>, and the operators use the TCP protocol to connect to an MQTT server.</li>
+<li> To use SSL authentication, set the protocol to ssl.     You must also specify a value for the following attributes based on the type of SSL authentication:
+<ul>
+<li> For client SSL authentication, if a password is set for the keystore,       set the keyStore and keyStorePassword attributes in the MQTT element.</li>
+<li> For server SSL authentication, set the trustStore attribute in the MQTT element.</li>
+<li> For mutual SSL authentication, if a password is set for the keystore, set the trustStore, keyStore,       and keyStorePassword attributes in the MQTT element.</li>
+</ul></li>
+<li> If you do not set the appropriate attributes, a run time error occurs. </li>
+</ul></li>
+<li> trustStore
+<ul>
+<li> This optional attribute specifies the name of the truststore file, which is in one of the supported format by the JDK being used.     You can specify an absolute path or a path that is relative to the application directory.     The truststore file must contain the public certificates of all the trusted MQTT servers.     If the truststore does not contain a public certificate for an MQTT server, the connection to that server is terminated.</li>
+</ul></li>
+</ul>
+</p>
+</section>
+</refbody>
+</reference>

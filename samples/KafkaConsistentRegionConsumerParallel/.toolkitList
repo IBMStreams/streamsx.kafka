@@ -1,0 +1,7 @@
+ConsistentRegionConsumerParallel/1.0.0
+spl/1.3.0
+ConsistentRegionConsumerSimple/1.0.0
+KafkaSASLSample/1.0.0
+KafkaSample/1.0.0
+PerformanceBenchmarks/1.0.0
+com.ibm.streamsx.kafka/1.0.0

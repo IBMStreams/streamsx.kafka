@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>Connection specifications document</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; Connection specifications document</p>
+</section>
+
+<section>
+<p>A connection specifications document is an XML document that describes how operators in the Messaging Toolkit connect to and access messaging systems. Each document contains a collection of &lt;connection_specification&gt; elements and &lt;access_specification&gt; elements.
+</p>
+<p>The relationship between connection specifications and access specifications is many-to-many. Operators can connect to the same messaging system (one connection specification) and access several different queues or topics from that service (many access specifications). For example, an operator can connect to a single queue or a single topic in the messaging system.
+</p>
+<p>Alternatively, operators can access equivalent data (one access specification) from several different messaging systems (many connection specifications), for example, accessing data from both a test system and a production system.
+</p>
+<p>When the SPL compiler encounters an operator declaration for an <tt>XMSSink</tt> and <tt>XMSSource</tt> operators, the compiler reads the connection specifications document that is named by the <b>connectionDocument</b> parameter for that operator. If this parameter is not specified, the operator looks for a <tt>etc/connections.xml</tt> file, where the path is relative to the root of the application directory.
+</p>
+<p>The compiler checks that the document conforms to the semantic rules of the XML schema that is defined for these documents. The SPL compiler uses the information that is given in the connection and access specifications to configure the operator.  The compiler does not attempt to connect to the messaging system or access its data to verify correct configuration at compile time.  The operators have run-time checks to validate configuration; if the configuration is incorrect these checks might result in run time failures, which are captured in the processing element logs.
+</p>
+<p>For <tt>MQTTSink</tt> and <tt>MQTTSource</tt> operators, the connection specifications document that is named by <b>connectionDocument</b> parameter contains only a &lt;connection_specification&gt; element. It does not contain an &lt;access_specification&gt; element.  The <b>connectionDocument</b> parameter is not mandatory. You can specify the connection information as parameters to the operator.
+</p>
+<p>The <tt>JMSSource</tt> and <tt>JMSSink</tt> operators parse the connection specifications document that is named by <b>connectionDocument</b> parameter at run time. If this parameter is not specified, the operator looks for a <tt>etc/connections.xml</tt> file, where the path is relative to the application root directory directory.
+</p>
+<p>A valid connection specifications document consists of a connections root element which contains one &lt;connection_specifications&gt; element and one &lt;access_specifications&gt; element. These elements serve as containers for the connection specifications and access specifications. Here is an abridged example of a complete connection specifications document, with all &lt;connection_specification&gt; and &lt;access_specification&gt; elements omitted:
+</p>
+<p>
+<codeblock>
+<![CDATA[<?xml version="1.0" encoding="UTF-8"?>
+<st:connections xmlns:st="http://www.ibm.com/xmlns/prod/streams/adapters"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <connection_specifications>
+  ...
+  </connection_specifications>
+  <access_specifications>
+  ...
+  </access_specifications>
+</st:connections>
+]]></codeblock>
+
+</p>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$3.xml">Connection_specification element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$7.xml">Access_specification element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+</section>
+</refbody>
+</reference>

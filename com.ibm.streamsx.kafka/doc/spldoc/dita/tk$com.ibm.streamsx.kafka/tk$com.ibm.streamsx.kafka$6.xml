@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>XMS element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$3.xml">Connection_specification element</xref> &gt; XMS element</p>
+</section>
+
+<section>
+<p>The &lt;XMS&gt; element specifies the information that is needed by the <tt>XMSSink</tt> and <tt>XMSSource</tt> operators to establish a connection to messaging system.  The &lt;XMS&gt; element does not actually contain the information; rather, it references an XMS or JMS administered object, which is held in an external directory service.  The information about how to make the connection is held in this administered object.
+</p>
+<p>Here is an example connection specification that contains an &lt;XMS&gt; element:
+</p>
+<p>
+<codeblock>
+<![CDATA[<connection_specification name="wbe">
+  <XMS initial_context="file:///opt/InitialContext/" 
+    connection_factory="TestConFac" 
+    user="user1"
+    password="password1" />
+</connection_specification>
+]]></codeblock>
+
+</p>
+<p>The &lt;XMS&gt; element has four attributes:
+<ul>
+<li> initial_context
+<ul>
+<li> This mandatory attribute value is a URL that points to the directory service that contains the administered objects.     It uses the reference JNDI implementation, which stores objects in the file system.     The syntax of the URL can take four forms:
+<ul>
+<li> <tt>file:///xxx/yyy/zzz</tt>:       This format specifies that the JNDI objects are stored in a file that is called <tt>zzz</tt>, which is in the directory <tt>xxx/yyy</tt>.</li>
+<li> <tt>file:xxx/yyy/zzz</tt>:       This format specifies that the JNDI objects are stored in a file that is called <tt>zzz</tt>, which is in the directory <tt>xxx/yyy</tt> relative to the application directory.</li>
+<li> <tt>file:///xxx/yyy/</tt>:       This format specifies that the JNDI objects are stored in a file that is called <tt>.bindings</tt>, which is in the directory <tt>xxx/yyy</tt>.</li>
+<li> <tt>file:xxx/yyy/</tt>:       This format specifies that the JNDI objects are stored in a file that is called <tt>.bindings</tt>, which is in the directory <tt>xxx/yyy</tt> relative to the application directory.       By default, the MQExplorer tool puts its entries in a file called <tt>.bindings</tt>.</li>
+</ul></li>
+</ul></li>
+<li> connection_factory
+<ul>
+<li> This mandatory attribute value is the name of the ConnectionFactory administered object.     In particular, it is the administered object within the directory service context that is specified by the initial_context attribute,     and it is used to make the connection.</li>
+</ul></li>
+<li> user
+<ul>
+<li> This optional attribute value provides the user identification that is used to connect to the messaging provider.      If this attribute is not specified, a NULL value is used for the corresponding parameter in the XMS <tt>connect()</tt> function call.</li>
+</ul></li>
+<li> password
+<ul>
+<li> This optional attribute value provides the authentication credentials (password) for the user ID.     If this attribute is not specified, a NULL value is used for the corresponding parameter in the XMS <tt>connect()</tt> function call.</li>
+</ul></li>
+</ul>
+</p>
+</section>
+</refbody>
+</reference>

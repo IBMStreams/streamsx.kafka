@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>Uses_connection element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$7.xml">Access_specification element</xref> &gt; Uses_connection element</p>
+</section>
+
+<section>
+<p>A &lt;uses_connection&gt; element identifies a connection specification that can be used with the access specification.
+</p>
+<p>Here is an example of an abridged access specification that contains &lt;uses_connection&gt; elements:
+</p>
+<p>
+<codeblock>
+<![CDATA[<access_specification name="PersonSink">
+...
+  <uses_connection connection="testSysten" />
+  <uses_connection connection="productionSystem" />
+  ...
+</access_specification>
+]]></codeblock>
+
+</p>
+<p>The &lt;uses_connection&gt; element has a single attribute, connection, whose value is the name of a &lt;connection_specification&gt; element in the same connection specifications document. An &lt;access_specification&gt; element must have at least one &lt;uses_connection&gt; element.
+</p>
+</section>
+</refbody>
+</reference>

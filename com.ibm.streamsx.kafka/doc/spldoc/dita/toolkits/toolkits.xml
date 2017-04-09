@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="spldoc_toolkits">
+<title>IBMStreams com.ibm.streamsx.kafka Toolkit</title>
+<refbody>
+<section>
+  <title outputclass="splhead-1">Indexes</title>
+  <dl>
+    <dlentry><dt></dt><dd></dd></dlentry>
+    <dlentry><dt><xref href="ix$Namespace.xml">Namespaces</xref></dt><dd></dd></dlentry>
+    <dlentry><dt><xref href="ix$Operator.xml">Operators</xref></dt><dd></dd></dlentry>
+  </dl>
+</section>
+<section>
+  <title outputclass="splhead-1">Toolkits</title>
+<dl>
+<dlentry>
+  <dt><xref href="../tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref></dt>
+  <dd>The Messaging toolkit project is an open source IBM InfoSphere Streams toolkit project.</dd>
+</dlentry>
+</dl>
+</section>
+<section>
+  <title outputclass="splhead-1">References</title>
+  <dl>
+    <dlentry><dt><xref href="../references/OperatorModel.xml">Operator Model</xref></dt><dd></dd></dlentry>
+  </dl>
+</section>
+</refbody>
+</reference>
+

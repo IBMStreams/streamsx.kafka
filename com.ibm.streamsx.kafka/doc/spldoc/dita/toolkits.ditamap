@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+<map id="spldoc_map">
+<title>IBMStreams com.ibm.streamsx.kafka Toolkit</title>
+<topicref navtitle="IBMStreams com.ibm.streamsx.kafka Toolkit" locktitle="yes" href="toolkits/toolkits.xml" toc="yes" linking="normal">
+<topicref navtitle="Namespaces" locktitle="yes" href="toolkits/ix$Namespace.xml" toc="yes" linking="none">
+</topicref>
+<topicref navtitle="Operators" locktitle="yes" href="toolkits/ix$Operator.xml" toc="yes" linking="none">
+</topicref>
+<topicref navtitle="com.ibm.streamsx.kafka 5.1.1" locktitle="yes" href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka.xml" toc="yes" linking="none">
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$1.xml" toc="yes" linking="none">
+</topicref>
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$2.xml" toc="yes" linking="none">
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$3.xml" toc="yes" linking="none">
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$4.xml" toc="yes" linking="none">
+</topicref>
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$5.xml" toc="yes" linking="none">
+</topicref>
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$6.xml" toc="yes" linking="none">
+</topicref>
+</topicref>
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$7.xml" toc="yes" linking="none">
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$8.xml" toc="yes" linking="none">
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$9.xml" toc="yes" linking="none">
+</topicref>
+</topicref>
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$10.xml" toc="yes" linking="none">
+</topicref>
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$11.xml" toc="yes" linking="none">
+<topicref href="tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka$12.xml" toc="yes" linking="none">
+</topicref>
+</topicref>
+</topicref>
+</topicref>
+<topicref navtitle="Namespaces" locktitle="yes" href="tk$com.ibm.streamsx.kafka/ix$Namespace.xml" toc="yes" linking="none">
+</topicref>
+<topicref navtitle="Operators" locktitle="yes" href="tk$com.ibm.streamsx.kafka/ix$Operator.xml" toc="yes" linking="none">
+</topicref>
+<topicref navtitle="com.ibm.streamsx.kafka" locktitle="yes" href="tk$com.ibm.streamsx.kafka/ns$com.ibm.streamsx.kafka.xml" toc="yes" linking="none">
+<topicref navtitle="KafkaConsumer" locktitle="yes" href="tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaConsumer.xml" toc="yes" linking="none">
+</topicref>
+<topicref navtitle="KafkaProducer" locktitle="yes" href="tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaProducer.xml" toc="yes" linking="none">
+</topicref>
+</topicref>
+</topicref>
+<topicref navtitle="Operator Model" locktitle="yes" href="references/OperatorModel.xml" toc="yes" linking="none">
+</topicref>
+</topicref>
+</map>
+

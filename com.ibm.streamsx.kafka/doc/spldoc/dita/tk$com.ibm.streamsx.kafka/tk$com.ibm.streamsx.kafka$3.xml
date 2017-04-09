@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>Connection_specification element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; Connection_specification element</p>
+</section>
+
+<section>
+<p>A &lt;connection_specifications&gt; element is a sequence of zero or more &lt;connection_specification&gt; elements.
+</p>
+<p>Each &lt;connection_specification&gt; element has a single attribute, name. This name value is used in the <b>connection</b> parameter of Messaging Toolkit operators.
+</p>
+<p>A &lt;connection_specification&gt; element must have exactly one element. For the Messaging Toolkit, this element is an XMS, JMS, or a MQTT element. Use the following &lt;connection_specification&gt; elements for each of the Messaging Toolkit operators:
+<ul>
+<li> XMS: <tt>XMSSink</tt> and <tt>XMSSource</tt> operators</li>
+<li> JMS: <tt>JMSSink</tt> and <tt>JMSSource</tt> operators</li>
+<li> MQTT: <tt>MQTTSink</tt> and <tt>MQTTSource</tt> operators</li>
+</ul>
+</p>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$4.xml">JMS element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$5.xml">MQTT element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$6.xml">XMS element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+</section>
+</refbody>
+</reference>

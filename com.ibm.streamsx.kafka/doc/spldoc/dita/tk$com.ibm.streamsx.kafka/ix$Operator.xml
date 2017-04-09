@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="spldoc_index">
+<title>Operators: com.ibm.streamsx.kafka 5.1.1</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; Operators</p>
+</section>
+<section>
+  <title outputclass="splhead-1">Operators</title>
+<dl>
+<dlentry>
+  <dt><xref href="op$com.ibm.streamsx.kafka$KafkaConsumer.xml">KafkaConsumer</xref></dt>
+  <dd>This operator acts as a Kafka consumer receiving messages for one or more topics.</dd>
+</dlentry>
+<dlentry>
+  <dt><xref href="op$com.ibm.streamsx.kafka$KafkaProducer.xml">KafkaProducer</xref></dt>
+  <dd>This operator acts as a Kafka producer sending tuples as messages to a Kafka broker.</dd>
+</dlentry>
+</dl>
+</section>
+</refbody>
+</reference>
+

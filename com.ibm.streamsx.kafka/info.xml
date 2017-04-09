@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (C) 2010,2012-2014, International Business Machines Corporation -->
+<!-- All Rights Reserved                                                   -->
+<info:toolkitInfoModel xmlns:common="http://www.ibm.com/xmlns/prod/streams/spl/common" xmlns:info="http://www.ibm.com/xmlns/prod/streams/spl/toolkitInfo">
+  <info:identity>
+    <info:name>com.ibm.streamsx.kafka</info:name>
+    <info:description>
+The Kafka toolkit project is an open source IBM InfoSphere Streams toolkit project.
+It is focused on the development of operators and functions that help you use InfoSphere Streams
+to interact with Kafka messaging systems. 
+
+The operators provide the ability for InfoSphere Streams applications to send and receive data
+from a queue or topic that is posted on Kafka server.
+
+
+The `KafkaProducer` and `KafkaConsumer` operators support Kafka v0.10.0.0 brokers. For 0.9 brokers, you make rebuild the toolkit for Kafka 0.9 by running the following commands:
+`ant clean; ant kafka-0.9` For older versions of Kafka brokers, you must use older versions of this toolkit.  
+
+For example:
+* The `CreateProducer` API creates a message producer to send messages to the specified destination.
+* The `CreateConsumer` API creates a message consumer for the specified destination.
+* The `CreateConnection` API creates a connection that uses a specified user identity. The specified user identifier and password are used to authenticate the application.
+
+
++ Developing and running applications that use the Kafka Toolkit
+
+To create applications that use the Kafka Toolkit, you must configure either Streams Studio
+or the SPL compiler to be aware of the location of the toolkit. 
+
+# Before you begin
+
+* Install IBM InfoSphere Streams.  Configure the product environment variables by entering the following command: 
+      source product-installation-root-directory/4.0.0.0/bin/streamsprofile.sh
+  
+  The toolkit ships with a set of required clients, and therefore this configuration
+  is not needed.
+  
+
+# About this task
+
+After the location of the toolkit is communicated to the compiler, the SPL artifacts that are specified in the toolkit
+can be used by an application. The application can include a use directive to bring the necessary namespaces into scope.
+Alternatively, you can fully qualify the operators that are provided by toolkit with their namespaces as prefixes.
+
+# Procedure
+
+1. Review the list of restrictions for the InfoSphere Streams specialized toolkits in the product documentation.
+
+2. Verify that the appropriate environment variables are set for the Kafka messaging systems that you use.
+
+3. Configure the SPL compiler to find the toolkit root directory. Use one of the following methods:
+  * Set the **STREAMS_SPLPATH** environment variable to the root directory of a toolkit or multiple toolkits (with : as a separator).
+    For example:
+        export STREAMS_SPLPATH=$STREAMS_INSTALL/toolkits/com.ibm.streamsx.kafka
+  * Specify the **-t** or **--spl-path** command parameter when you run the **sc** command. For example:
+        sc -t $STREAMS_INSTALL/toolkits/com.ibm.streamsx.kafka -M MyMain
+    where MyMain is the name of the SPL main composite.
+    **Note**: These command parameters override the **STREAMS_SPLPATH** environment variable.
+  * Add the toolkit location in InfoSphere Streams Studio.
+4. Develop your application. To avoid the need to fully qualify the operators, add a use directive in your application. 
+  * For example, you can add the following clause in your SPL source file:
+        use com.ibm.streamsx.kafka::*;
+    You can also specify a use clause for individual operators by replacing the asterisk (\*) with the operator name. For example: 
+        use com.ibm.streamsx.kafka::KafkaConsumer;
+5. Build your application.  You can use the **sc** command or Streams Studio.  
+6. Start the InfoSphere Streams instance. 
+7. Run the application. You can submit the application as a job by using the **streamtool submitjob** command or by using Streams Studio. 
+</info:description>
+    <info:version>1.0.0</info:version>
+    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
+  </info:identity>
+  <info:dependencies/>
+  <info:resources>
+    <info:messageSet name="MessagingResource">
+      <info:lang default="true">en_US/MessagingResource.xlf</info:lang>
+    </info:messageSet>
+  </info:resources>
+</info:toolkitInfoModel>

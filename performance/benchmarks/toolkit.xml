@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<toolkitModel xmlns="http://www.ibm.com/xmlns/prod/streams/spl/toolkit" productVersion="4.2.0.2" xmlns:common="http://www.ibm.com/xmlns/prod/streams/spl/common" xmlns:ti="http://www.ibm.com/xmlns/prod/streams/spl/toolkitInfo" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <toolkit name="PerformanceBenchmarks" requiredProductVersion="4.2.0.0" version="1.0.0">
+    <description>Performance benchmarks used in report. </description>
+    <uriTable>
+      <uri index="3" value="com.ibm.streamsx.perf.kafka/ParallelConsumerBenchmark.spl"/>
+      <uri index="2" value="com.ibm.streamsx.perf.kafka/ConsumerRStringBenchmark.spl"/>
+      <uri index="5" value="com.ibm.streamsx.perf.kafka/ProducerRStringBenchmark.spl"/>
+      <uri index="1" value="com.ibm.streamsx.perf.kafka/ConsumerBlobBenchmark.spl"/>
+      <uri index="6" value="com.ibm.streamsx.perf.kafka/perfUtils.spl"/>
+      <uri index="4" value="com.ibm.streamsx.perf.kafka/ProducerBlobBenchmark.spl"/>
+    </uriTable>
+    <namespace name="com.ibm.streamsx.perf.kafka">
+      <compositeOp column="11" line="11" name="ConsumerBlobBenchmark" potentialMain="true" uriIndex="1">
+        <parameter defaultValue="&quot;ConsumerTest1&quot;" metaType="Expression" name="topic" optional="true" type="&lt;rstring>"/>
+      </compositeOp>
+      <compositeOp column="11" line="11" name="ConsumerRStringBenchmark" potentialMain="true" uriIndex="2">
+        <parameter defaultValue="&quot;ConsumerTest2&quot;" metaType="Expression" name="topic" optional="true" type="&lt;rstring>"/>
+      </compositeOp>
+      <compositeOp column="11" line="11" name="ParallelConsumerBenchmark" potentialMain="true" uriIndex="3">
+        <parameter defaultValue="&quot;3partition&quot;" metaType="Expression" name="topic" optional="true" type="&lt;rstring>"/>
+        <parameter defaultValue="3" metaType="Expression" name="partitions" optional="true" type="&lt;int32>"/>
+      </compositeOp>
+      <compositeOp column="11" line="26" name="ParallelConsumer" potentialMain="false" uriIndex="3">
+        <parameter metaType="Expression" name="partition" optional="false" type="&lt;int32>"/>
+        <parameter metaType="Expression" name="topic" optional="false" type="&lt;rstring>"/>
+      </compositeOp>
+      <compositeOp column="11" line="11" name="ProducerBlobBenchmark" potentialMain="true" uriIndex="4">
+        <parameter defaultValue="&quot;ProducerTest1&quot;" metaType="Expression" name="topic" optional="true" type="&lt;rstring>"/>
+      </compositeOp>
+      <compositeOp column="11" line="11" name="ProducerRStringBenchmark" potentialMain="true" uriIndex="5">
+        <parameter defaultValue="&quot;ProducerTest1&quot;" metaType="Expression" name="topic" optional="true" type="&lt;rstring>"/>
+      </compositeOp>
+      <compositeOp column="11" line="3" name="PerfBlobDataGenerator" potentialMain="false" uriIndex="6">
+        <parameter metaType="Expression" name="packetSize" optional="false" type="&lt;int32>"/>
+        <parameter defaultValue="-1" metaType="Expression" name="numTuples" optional="true" type="&lt;int32>"/>
+        <outputPort name="Out0" portIndex="0"/>
+      </compositeOp>
+      <compositeOp column="18" line="49" name="PerfDataGenerator" potentialMain="false" public="true" uriIndex="6">
+        <parameter metaType="Expression" name="packetSize" optional="false" type="&lt;int32>"/>
+        <parameter defaultValue="-1" metaType="Expression" name="numTuples" optional="true" type="&lt;int32>"/>
+        <outputPort name="Out0" portIndex="0"/>
+      </compositeOp>
+      <compositeOp column="18" line="94" name="FlowCalculator" potentialMain="false" public="true" uriIndex="6">
+        <parameter metaType="Expression" name="period" optional="false" type="&lt;float64>"/>
+        <inputPort name="In0" portIndex="0"/>
+        <outputPort name="Out0" portIndex="0"/>
+      </compositeOp>
+      <compositeOp column="18" line="142" name="FlowCalculatorNoOutput" potentialMain="false" public="true" uriIndex="6">
+        <parameter metaType="Expression" name="period" optional="false" type="&lt;float64>"/>
+        <inputPort name="In0" portIndex="0"/>
+      </compositeOp>
+    </namespace>
+    <dependency>
+      <common:name>com.ibm.streamsx.kafka</common:name>
+      <common:version>[1.0.0,6.0.0)</common:version>
+    </dependency>
+    <sabFiles>
+      <ti:include path="toolkit.xml" root="toolkitDir"/>
+      <ti:include path="impl/java/lib/**" root="toolkitDir"/>
+      <ti:include path="impl/java/bin/**" root="toolkitDir"/>
+      <ti:include path="impl/bin/**" root="toolkitDir"/>
+      <ti:include path="impl/lib/**" root="toolkitDir"/>
+      <ti:include path="impl/nl/*.dat" root="toolkitDir"/>
+      <ti:include path="etc/**" root="toolkitDir"/>
+      <ti:include path="lib/**" root="toolkitDir"/>
+      <ti:include path="nl/**" root="toolkitDir"/>
+      <ti:include path="opt/**" root="toolkitDir"/>
+    </sabFiles>
+  </toolkit>
+
+</toolkitModel>

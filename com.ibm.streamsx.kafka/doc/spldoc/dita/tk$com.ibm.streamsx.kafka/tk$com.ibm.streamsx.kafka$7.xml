@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>Access_specification element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; Access_specification element</p>
+</section>
+
+<section>
+<p>A sequence of one or more &lt;access_specification&gt; elements make up an &lt;access_specifications&gt; element.  In the Messaging Toolkit, the &lt;access_specification&gt; element includes a &lt;destination&gt; element.
+</p>
+<p>Each &lt;access_specification&gt; element has a single attribute, name. The name value can be specified in the access parameter of a Messaging Toolkit operator.
+</p>
+<p><b>Note</b>: The <tt>MQTTSource</tt> and <tt>MQTTSink</tt> operators do not support the &lt;access_specification&gt; element.
+</p>
+<p>In the Messaging Toolkit, an &lt;access_specification&gt; element has:
+<ul>
+<li> A &lt;destination&gt; element;</li>
+<li> One or more &lt;uses_connection&gt; elements;</li>
+<li> No more than one &lt;native_schema&gt; element.</li>
+</ul>
+</p>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$8.xml">Destination element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$10.xml">Uses_connection element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+  <dl><dlentry><dt><xref href="tk$com.ibm.streamsx.kafka$11.xml">Native_schema element</xref>
+</dt><dd>
+</dd></dlentry></dl>
+</section>
+</refbody>
+</reference>

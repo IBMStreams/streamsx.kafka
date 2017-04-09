@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+
+<reference id="spldoc_page">
+<title>JMS element</title>
+<refbody>
+<section>
+<p>
+<xref href="../toolkits/toolkits.xml">IBMStreams com.ibm.streamsx.kafka Toolkit</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka.xml">com.ibm.streamsx.kafka 5.1.1</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$2.xml">Connection specifications document</xref> &gt; <xref href="tk$com.ibm.streamsx.kafka$3.xml">Connection_specification element</xref> &gt; JMS element</p>
+</section>
+
+<section>
+<p>The &lt;JMS&gt; element specifies the information that is needed by the <tt>JMSSink</tt> and <tt>JMSSource</tt> operators to establish a connection to messaging system.
+</p>
+<p>The following example shows connection specification that contains a &lt;JMS&gt; element:
+</p>
+<p>
+<codeblock>
+<![CDATA[<connection_specifications>
+  <connection_specification name="amqConn">
+    <JMS initial_context="org.apache.activemq.jndi.ActiveMQInitialContextFactory"
+    provider_url = "tcp://machinename.com:61616"
+    connection_factory = "ConnectionFactory"/>
+    user="user1"
+    password="password1"
+  </connection_specification>
+</connection_specifications>
+]]></codeblock>
+
+</p>
+<p>The &lt;JMS&gt; element has the following attributes:
+<ul>
+<li> connection_factory
+<ul>
+<li> This mandatory attribute value is the name of the ConnectionFactory administered object.     This administered object is within the directory service context that is specified by the initial_context attribute,     and it is used to establish the connection. For applications that use Apache ActiveMQ,     you can use the default administered object called ConnectionFactory.</li>
+</ul></li>
+<li> initial_context
+<ul>
+<li> This mandatory attribute represents the class name of the factory class that creates an initial context.     The following example shows the initial_context when the messaging provider is WebSphere MQ and it uses the <tt>.bindings</tt> file:      <tt>com.sun.jndi.fscontext.RefFSContextFactory</tt></li>
+<li> The following example shows the initial_context when the messaging provider is Apache ActiveMQ:      <tt>org.apache.activemq.jndi.ActiveMQInitialContextFactory</tt></li>
+</ul></li>
+<li> password
+<ul>
+<li> The password attribute contains the authentication credentials (password) for the user ID. This attribute is optional.</li>
+</ul></li>
+<li> provider_url
+<ul>
+<li> This mandatory attribute is a URL that points to the directory service that contains the administered objects     or the JNDI URL that stores the objects in the file system. The syntax of the URL varies based on the messaging provider.
+<ul>
+<li> <tt>file:///homes/abc/xyz/wef</tt>:        Use this format if your application sends data to or receive messages from a WebSphere MQ queue or topic.        This format specifies that the administered objects are stored in a file called <tt>.bindings</tt>,        which is in the <tt>/homes/abc/xyz/wef</tt> directory.</li>
+<li> <tt>file:abc/xyz/wef</tt>:        Use this format if your application sends data to or receive messages from a WebSphere MQ queue or topic.        This format specifies that the administered objects are stored in a file called <tt>.bindings</tt>,        which is in the <tt>abc/xyz/wef</tt> directory relative to the application directory.</li>
+<li> <tt>tcp://machinename.com:61616</tt>:        Use this format if your application sends data to or receives messages from Apache ActiveMQ.</li>
+</ul></li>
+</ul></li>
+<li> user
+<ul>
+<li> The value of the user attribute provides the user identification under which the connection to the messaging provider is attempted.     This attribute is optional.</li>
+</ul></li>
+</ul>
+</p>
+</section>
+</refbody>
+</reference>

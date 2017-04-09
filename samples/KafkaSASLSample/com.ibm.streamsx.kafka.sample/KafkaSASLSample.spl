@@ -1,0 +1,67 @@
+// *******************************************************************************
+// * Copyright (C)2016, International Business Machines Corporation and *
+// * others. All Rights Reserved. *
+// *******************************************************************************
+//
+namespace com.ibm.streamsx.kafka.sample;
+
+use com.ibm.streamsx.kafka::*;
+
+/**
+ * Example of using a [KafkaProducer] and [KafkaConsumer]
+ * This assumes that the topic has already been created
+ * If you are not using the java default truststore, you must specify the 
+ * following properties in your consumer.properties and producer.properties files:
+ * ssl.truststore.location=<truststore.jks-location>
+ * ssl.truststore.password=<passw0rd>
+ *
+ * To use with Message Hub:
+ *    1.  Obtain the Message Hub service credentials.  You will need the username, 
+ *        password and the  list of SASL brokers.
+ *    2.  Replace the bootstrap.servers list with the SASL broker list in 
+ *        the etc/consumers.properties and etc/producer.properties files
+ *    3.  Specify username and password in the jaas.conf file
+ *    4.  Build the application
+ * 
+ */
+
+composite KafkaSASLSample {
+	param 
+		expression<rstring> $topic : "sampleTopic" ;
+		expression<rstring> $jaasFile : "etc/jaas.conf" ;
+    graph
+
+	  //create some messages and send to Kafka
+		stream<rstring topic, rstring key, rstring message> OutputStream = Beacon() {
+			param
+				initDelay : 5.0;
+				period : 0.2;
+			output OutputStream: topic = $topic, message = "Whenever anyone says 'theorectically,' they really mean, 'not really.'" , key = "Dave Parnas";
+		}
+
+
+		() as KafkaSinkOp = KafkaProducer(OutputStream) {
+			param
+				propertiesFile : getThisToolkitDir() + "/etc/producer.properties";
+				jaasFile: $jaasFile;
+		}
+		
+		stream<rstring key, rstring message> KafkaStream = KafkaConsumer()
+		{
+			param
+				propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+				topic : $topic;
+				jaasFile: $jaasFile;
+		}
+
+		() as SinkOp = Custom(KafkaStream)
+		{
+		
+			logic
+				onTuple KafkaStream :
+				{
+					printStringLn("Message: " + (rstring) KafkaStream) ;
+				}
+			
+		}
+}

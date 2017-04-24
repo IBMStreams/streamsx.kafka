@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<toolkitModel xmlns="http://www.ibm.com/xmlns/prod/streams/spl/toolkit" productVersion="4.2.0.2" xmlns:common="http://www.ibm.com/xmlns/prod/streams/spl/common" xmlns:ti="http://www.ibm.com/xmlns/prod/streams/spl/toolkitInfo" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <toolkit name="KafkaSample" requiredProductVersion="4.2.0.0" version="1.0.0">
+    <description>Sample application showing a Streams Kafka Producer and Consumer</description>
+    <uriTable>
+      <uri index="1" value="com.ibm.streamsx.kafka.sample/KafkaSample.spl"/>
+    </uriTable>
+    <namespace name="com.ibm.streamsx.kafka.sample">
+      <compositeOp column="11" line="16" name="KafkaSample" potentialMain="true" uriIndex="1">
+        <parameter defaultValue="&quot;sampleTopic&quot;" metaType="Expression" name="topic" optional="true" type="&lt;rstring>"/>
+      </compositeOp>
+    </namespace>
+    <dependency>
+      <common:name>com.ibm.streamsx.kafka</common:name>
+      <common:version>[1.0.0,6.0.0)</common:version>
+    </dependency>
+    <sabFiles>
+      <ti:include path="toolkit.xml" root="toolkitDir"/>
+      <ti:include path="impl/java/lib/**" root="toolkitDir"/>
+      <ti:include path="impl/java/bin/**" root="toolkitDir"/>
+      <ti:include path="impl/bin/**" root="toolkitDir"/>
+      <ti:include path="impl/lib/**" root="toolkitDir"/>
+      <ti:include path="impl/nl/*.dat" root="toolkitDir"/>
+      <ti:include path="etc/**" root="toolkitDir"/>
+      <ti:include path="lib/**" root="toolkitDir"/>
+      <ti:include path="nl/**" root="toolkitDir"/>
+      <ti:include path="opt/**" root="toolkitDir"/>
+    </sabFiles>
+  </toolkit>
+
+</toolkitModel>

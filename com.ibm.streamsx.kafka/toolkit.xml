@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<toolkitModel xmlns="http://www.ibm.com/xmlns/prod/streams/spl/toolkit" productVersion="4.2.0.2" xmlns:common="http://www.ibm.com/xmlns/prod/streams/spl/common" xmlns:ti="http://www.ibm.com/xmlns/prod/streams/spl/toolkitInfo" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <toolkit name="com.ibm.streamsx.kafka" requiredProductVersion="4.2.0.0" version="1.0.0">
+    <description>
+The Kafka toolkit project is an open source IBM InfoSphere Streams toolkit project.
+It is focused on the development of operators and functions that help you use InfoSphere Streams
+to interact with Kafka messaging systems. 
+
+The operators provide the ability for InfoSphere Streams applications to send and receive data
+from a queue or topic that is posted on Kafka server.
+
+
+The `KafkaProducer` and `KafkaConsumer` operators support Kafka v0.10.0.0 brokers. For 0.9 brokers, you make rebuild the toolkit for Kafka 0.9 by running the following commands:
+`ant clean; ant kafka-0.9` For older versions of Kafka brokers, you must use older versions of this toolkit.  
+
+For example:
+* The `CreateProducer` API creates a message producer to send messages to the specified destination.
+* The `CreateConsumer` API creates a message consumer for the specified destination.
+* The `CreateConnection` API creates a connection that uses a specified user identity. The specified user identifier and password are used to authenticate the application.
+
+
++ Developing and running applications that use the Kafka Toolkit
+
+To create applications that use the Kafka Toolkit, you must configure either Streams Studio
+or the SPL compiler to be aware of the location of the toolkit. 
+
+# Before you begin
+
+* Install IBM InfoSphere Streams.  Configure the product environment variables by entering the following command: 
+      source product-installation-root-directory/4.0.0.0/bin/streamsprofile.sh
+  
+  The toolkit ships with a set of required clients, and therefore this configuration
+  is not needed.
+  
+
+# About this task
+
+After the location of the toolkit is communicated to the compiler, the SPL artifacts that are specified in the toolkit
+can be used by an application. The application can include a use directive to bring the necessary namespaces into scope.
+Alternatively, you can fully qualify the operators that are provided by toolkit with their namespaces as prefixes.
+
+# Procedure
+
+1. Review the list of restrictions for the InfoSphere Streams specialized toolkits in the product documentation.
+
+2. Verify that the appropriate environment variables are set for the Kafka messaging systems that you use.
+
+3. Configure the SPL compiler to find the toolkit root directory. Use one of the following methods:
+  * Set the **STREAMS_SPLPATH** environment variable to the root directory of a toolkit or multiple toolkits (with : as a separator).
+    For example:
+        export STREAMS_SPLPATH=$STREAMS_INSTALL/toolkits/com.ibm.streamsx.kafka
+  * Specify the **-t** or **--spl-path** command parameter when you run the **sc** command. For example:
+        sc -t $STREAMS_INSTALL/toolkits/com.ibm.streamsx.kafka -M MyMain
+    where MyMain is the name of the SPL main composite.
+    **Note**: These command parameters override the **STREAMS_SPLPATH** environment variable.
+  * Add the toolkit location in InfoSphere Streams Studio.
+4. Develop your application. To avoid the need to fully qualify the operators, add a use directive in your application. 
+  * For example, you can add the following clause in your SPL source file:
+        use com.ibm.streamsx.kafka::*;
+    You can also specify a use clause for individual operators by replacing the asterisk (\*) with the operator name. For example: 
+        use com.ibm.streamsx.kafka::KafkaConsumer;
+5. Build your application.  You can use the **sc** command or Streams Studio.  
+6. Start the InfoSphere Streams instance. 
+7. Run the application. You can submit the application as a job by using the **streamtool submitjob** command or by using Streams Studio. 
+</description>
+    <uriTable>
+      <uri index="1" value="com.ibm.streamsx.kafka/KafkaProducer"/>
+      <uri index="5" value="com.ibm.streamsx.kafka/KafkaConsumer/KafkaConsumer_16.gif"/>
+      <uri index="3" value="com.ibm.streamsx.kafka/KafkaProducer/KafkaProducer_32.gif"/>
+      <uri index="6" value="com.ibm.streamsx.kafka/KafkaConsumer/KafkaConsumer_32.gif"/>
+      <uri index="4" value="com.ibm.streamsx.kafka/KafkaConsumer"/>
+      <uri index="2" value="com.ibm.streamsx.kafka/KafkaProducer/KafkaProducer_16.gif"/>
+    </uriTable>
+    <namespace name="com.ibm.streamsx.kafka">
+      <primitiveOp language="Java" modelUriIndex="1" name="KafkaProducer" public="true">
+        <description>This operator acts as a Kafka producer sending tuples as messages to a Kafka broker. The broker is assumed to be already configured and running. The incoming stream can have three attributes: topic, key and message. The message is a required attribute. A topic can be specified as either an input stream attribute or as a parameter. Specify properties as described here: http://kafka.apache.org/documentation.html#configuration. If you are using Java security modules for login/authentication, ensure that they are compatible with IBM Java, as IBM Streams only runs with IBM Java. The SPL Attribute Types supported are rstring, ustring, and blob. The topic must be of type rstring/ustring, while the key and message must be of the same type (rstring, ustring, or blob). 
+
+**Kafka 0.9 Server Support**: By default this toolkit builds with Kafka 0.10 client JARs. The Kafka 0.10 client is not compatible with Kafka 0.9 brokers. To use this operator with Kafka 0.9 brokers, you must rebuild with the kafka-0.9 target after cleaning. From the toolkit root directory: 
+
+ ant clean
+
+ ant kafka-0.9
+
+**AppConfig**: You must provide properties for the operator using at least one of the following parameters: kafkaProperty, propertiesFile, or appConfigName. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. 
+
+**Behavior in a Consistent Region**
+This operator can participate in a consistent region.  This operator cannot be placed at the start of a consistent region. The KafkaProducer guarantees at-least-once delivery of messages to a Kafka topic.</description>
+        <images>
+          <image size="16" uriIndex="2"/>
+          <image size="32" uriIndex="3"/>
+        </images>
+        <parameter expressionMode="Constant" name="vmArg" optional="true" type="rstring">
+          <description>
+Specifies command-line arguments that are passed to the Java virtual machine that the operator runs within.
+</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="appConfigName" optional="true" type="rstring">
+          <description>This parameter specifies the name of application configuration that stores client properties, the property specified via application configuration is overridden by the properties file and kafkaProperty parameter. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. </description>
+        </parameter>
+        <parameter cardinality="-1" expressionMode="AttributeFree" name="appConfigPropertyName" optional="true" type="rstring">
+          <description>List of Kafka properties to retrieve from application configuration. The property name in the application configuration must the same as the Kafka property name. You may also supply jaasFile as a property name to act as the jaasFile parameter value.</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="jaasFile" optional="true" type="rstring">
+          <description>Location of the jaas file to be used for SASL connections. Jaas file is recommended to be stored in the etc directory.  If a relative path is specified, the path is relative to the application directory.This sets the system property java.security.auth.login.config. This can also be set using the appConfig by specifying jaasFile=&lt;jaas.conf location&gt;.</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="jaasFilePropName" optional="true" type="rstring">
+          <description>This parameter specifies the property name of the jaasFile location in the application configuration. The default name is jaasFile. </description>
+        </parameter>
+        <parameter cardinality="-1" expressionMode="AttributeFree" name="kafkaProperty" optional="true" type="rstring">
+          <description>Specify a Kafka property "key=value" form. This will override any property specified in the properties file. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. </description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="keyAttribute" optional="true" type="rstring">
+          <description>Name of the attribute for the key. Default is "key".</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="messageAttribute" optional="true" type="rstring">
+          <description>Name of the attribute for the message. If this parameter is not specified, then by default the operator will look for an attribute named "message". If the "message" attribute is not found, a runtime error will be returned.</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="propertiesFile" optional="true" type="rstring">
+          <description>Properties file containing kafka properties. Properties file is recommended to be stored in the etc directory.  If a relative path is specified, the path is relative to the application directory. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. </description>
+        </parameter>
+        <parameter cardinality="-1" expressionMode="AttributeFree" name="topic" optional="true" type="rstring">
+          <description>Topic to be published to. A topic can also be specified as an input stream attribute.</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="topicAttribute" optional="true" type="rstring">
+          <description>Name of the attribute for the topic. Default is "topic"</description>
+        </parameter>
+        <inputPort maxNumPorts="1" minNumPorts="1" optional="false" windowPunctInputMode="Oblivious">
+          <description>The tuples arriving on this port are expected to contain three attributes "key", "topic" and "message". Out of these "message", is a required attribute.</description>
+          <windowPolicy>NonWindowed</windowPolicy>
+        </inputPort>
+      </primitiveOp>
+      <primitiveOp language="Java" modelUriIndex="4" name="KafkaConsumer" public="true">
+        <description>This operator acts as a Kafka consumer receiving messages for one or more topics. Ordering of messages is only guaranteed per Kafka topic partition. Specify properties as described here: http://kafka.apache.org/documentation.html#configuration. If you are using Java security modules for login/authentication, ensure that they are compatible with IBM Java, as IBM Streams only runs with IBM Java. The SPL Attribute Types supported are rstring, ustring, and blob. The topic must be of type rstring/ustring, while the key and message must be of the same type (rstring, ustring, or blob). 
+
+**Kafka 0.9 Server Support**: By default this toolkit builds with Kafka 0.10 client JARs. The Kafka 0.10 client is not compatible with Kafka 0.9 brokers. To use this operator with Kafka 0.9 brokers, you must rebuild with the kafka-0.9 target after cleaning. From the toolkit root directory: 
+
+ ant clean
+
+ ant kafka-0.9
+
+**AppConfig**: You must provide properties for the operator using at least one of the following parameters: kafkaProperty, propertiesFile, or appConfigName. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. The threadsPerTopic parameter has been removed since the upgrade to Kafka 0.9. This is because the new KafkaConsumer is single-threaded. Due to a bug in Kafka (eventually getting resolved by KAFKA-1894), when authentication failure occurs or connection to Kafka brokers is lost, we will not be able to pick up new properties from the PropertyProvider. The workaround is to manually restart the KafkaConsumer PE after properties have been updated. New properties will then be picked up. 
+
+**Behavior in a Consistent Region**
+This operator can be used inside a consistent region. Operator driven and periodical checkpointing are supported. Partitions to be read from must be specified. Resetting to initial state is not supported because the intial offset cannot be saved and may not be present in the Kafka log. In the case of a reset to initial state after operator crash, messages will start being read from the time of reset.</description>
+        <images>
+          <image size="16" uriIndex="5"/>
+          <image size="32" uriIndex="6"/>
+        </images>
+        <parameter expressionMode="Constant" name="vmArg" optional="true" type="rstring">
+          <description>
+Specifies command-line arguments that are passed to the Java virtual machine that the operator runs within.
+</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="appConfigName" optional="true" type="rstring">
+          <description>This parameter specifies the name of application configuration that stores client properties, the property specified via application configuration is overridden by the properties file and kafkaProperty parameter. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. </description>
+        </parameter>
+        <parameter cardinality="-1" expressionMode="AttributeFree" name="appConfigPropertyName" optional="true" type="rstring">
+          <description>List of Kafka properties to retrieve from application configuration. The property name in the application configuration must the same as the Kafka property name. You may also supply jaasFile as a property name to act as the jaasFile parameter value.</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="consumerPollTimeout" optional="true" type="int32">
+          <description>The time, in milliseconds, spent waiting in poll if data is not available. If 0, returns immediately with any records that are available now. Must not be negative. Default is 100.</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="jaasFile" optional="true" type="rstring">
+          <description>Location of the jaas file to be used for SASL connections. Jaas file is recommended to be stored in the etc directory.  If a relative path is specified, the path is relative to the application directory.This sets the system property java.security.auth.login.config. This can also be set using the appConfig by specifying jaasFile=&lt;jaas.conf location&gt;.</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="jaasFilePropName" optional="true" type="rstring">
+          <description>This parameter specifies the property name of the jaasFile location in the application configuration. The default name is jaasFile. </description>
+        </parameter>
+        <parameter cardinality="-1" expressionMode="AttributeFree" name="kafkaProperty" optional="true" type="rstring">
+          <description>Specify a Kafka property "key=value" form. This will override any property specified in the properties file. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. </description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="keyAttribute" optional="true" type="rstring">
+          <description>Name of the attribute for the key. Default is "key".</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="messageAttribute" optional="true" type="rstring">
+          <description>Name of the attribute for the message. If this parameter is not specified, then by default the operator will look for an attribute named "message". If the "message" attribute is not found, a runtime error will be returned.</description>
+        </parameter>
+        <parameter cardinality="-1" expressionMode="AttributeFree" name="partition" optional="true" type="int32">
+          <description>Partition to be subscribed to. 1 or more can be provided using comma separation. You may only specify 1 topic if you are specifying partitions. Ex: 0,2,3</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="propertiesFile" optional="true" type="rstring">
+          <description>Properties file containing kafka properties. Properties file is recommended to be stored in the etc directory.  If a relative path is specified, the path is relative to the application directory. The hierarchy of properties goes: properties from appConfig beat out kafkaProperty parameter properties, which beat out properties from the propertiesFile. </description>
+        </parameter>
+        <parameter cardinality="-1" expressionMode="AttributeFree" name="topic" optional="false" type="rstring">
+          <description>Topic to be subscribed to. 1 or more can be provided using comma separation. Ex: "mytopic1","mytopic2"</description>
+        </parameter>
+        <parameter cardinality="1" expressionMode="AttributeFree" name="triggerCount" optional="true" type="int32">
+          <description>Approximate number of messages between checkpointing for consistent region. This is only relevant to operator driven checkpointing. Checkpointing is done after a buffer of messages is submitted, so actual triggerCount at checkpoint time may be slightly above specified triggerCount.</description>
+        </parameter>
+        <outputPort expressionMode="Nonexistent" maxNumPorts="1" minNumPorts="1" optional="false" windowPunctOutputMode="Free">
+          <description>Messages received from Kafka are sent on this output port.</description>
+        </outputPort>
+      </primitiveOp>
+    </namespace>
+    <sabFiles>
+      <ti:include path="toolkit.xml" root="toolkitDir"/>
+      <ti:include path="impl/java/lib/**" root="toolkitDir"/>
+      <ti:include path="impl/java/bin/**" root="toolkitDir"/>
+      <ti:include path="impl/bin/**" root="toolkitDir"/>
+      <ti:include path="impl/lib/**" root="toolkitDir"/>
+      <ti:include path="impl/nl/*.dat" root="toolkitDir"/>
+      <ti:include path="etc/**" root="toolkitDir"/>
+      <ti:include path="lib/**" root="toolkitDir"/>
+      <ti:include path="nl/**" root="toolkitDir"/>
+      <ti:include path="opt/**" root="toolkitDir"/>
+    </sabFiles>
+  </toolkit>
+
+</toolkitModel>

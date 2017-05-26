@@ -2,8 +2,10 @@ package com.ibm.streamsx.kafka.test;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
@@ -11,6 +13,7 @@ import org.junit.Test;
 
 import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
+import com.ibm.streams.operator.Tuple;
 import com.ibm.streamsx.kafka.test.utils.Constants;
 import com.ibm.streamsx.kafka.test.utils.Delay;
 import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
@@ -61,9 +64,12 @@ public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
 		SPLStream msgStream2 = createConsumer(topo, 1);
 		SPLStream msgStream3 = createConsumer(topo, 2);
 		
-		SPLStream unionStream = KafkaSPLStreamsUtils.union(Arrays.asList(msgStream1, msgStream2, msgStream3), KafkaSPLStreamsUtils.STRING_SCHEMA);
-		SPLStream msgStream = SPLStreams.stringToSPLStream(unionStream.convert(t -> t.getString("message")));
-		
+		Set<TStream<Tuple>> s = new HashSet<>();
+		s.add(msgStream2);
+		s.add(msgStream3);
+		TStream<String> unionStream = msgStream1.union(s).transform(t -> t.getString("message"));
+		SPLStream msgStream = SPLStreams.stringToSPLStream(unionStream);
+				
 		StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);		
 		Tester tester = topo.getTester();
 		
@@ -73,48 +79,14 @@ public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
 		
 		// check the results
 		Assert.assertTrue(condition.getResult().size() > 0);
-		Assert.assertTrue(condition.getResult().toString(), condition.valid());		
-		
-		
-//		// create the consumers
-//		SPLStream consumerStream1 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaConsumerParams(), SCHEMA);
-//		SPLStream msgStream1 = SPLStreams.stringToSPLStream(consumerStream1.convert(t -> t.getString("message")));
-//
-//		SPLStream consumerStream2 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaConsumerParams(), SCHEMA);
-//		SPLStream msgStream2 = SPLStreams.stringToSPLStream(consumerStream2.convert(t -> t.getString("message")));
-//		
-//		SPLStream consumerStream3 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaConsumerParams(), SCHEMA);
-//		SPLStream msgStream3 = SPLStreams.stringToSPLStream(consumerStream3.convert(t -> t.getString("message")));
-//				
-//		
-//		// test the output of the consumer
-//
-//		Tester tester = topo.getTester();
-//
-//		Condition<List<String>> condition1 = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream1, expectedArr1);
-//		Condition<List<String>> condition2 = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream2, expectedArr2);
-//		Condition<List<String>> condition3 = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream3, expectedArr3);
-//
-//		tester.complete(context, condition1, 30, TimeUnit.SECONDS);
-//		tester.complete(context, condition2, 30, TimeUnit.SECONDS);
-//		tester.complete(context, condition3, 30, TimeUnit.SECONDS);
-//
-//		// check the results
-//		Assert.assertTrue(condition1.getResult().size() > 0);
-//		Assert.assertTrue(condition1.getResult().toString(), condition1.valid());		
-//		
-//		Assert.assertTrue(condition2.getResult().size() > 0);
-//		Assert.assertTrue(condition2.getResult().toString(), condition2.valid());		
-//		
-//		Assert.assertTrue(condition3.getResult().size() > 0);
-//		Assert.assertTrue(condition3.getResult().toString(), condition3.valid());		
+		Assert.assertTrue(condition.getResult().toString(), condition.valid());				
 	}
 
 	private SPLStream createConsumer(Topology topo, int consumerNum) throws Exception {
 		SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaConsumerParams(consumerNum), SCHEMA);
-		SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> t.getString("message")));
+		//SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> t.getString("message")));
 		
-		return msgStream;
+		return consumerStream;
 	}
 	
 	private Map<String, Object> getKafkaProducerParams() {

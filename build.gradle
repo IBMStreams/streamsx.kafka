@@ -1,0 +1,15 @@
+apply plugin: 'java'
+apply from: "$rootDir/common.gradle"
+
+repositories {
+    jcenter()
+}
+
+sourceSets {
+    test {
+        java {
+            srcDirs = ['tests/KafkaTests/src/test/java']
+        }
+        output.classesDir = 'tests/KafkaTests/bin'
+    }   
+}

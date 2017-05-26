@@ -1,0 +1,52 @@
+namespace com.ibm.streamsx.kafka.sample ;
+
+use com.ibm.streamsx.kafka::KafkaConsumer ;
+use com.ibm.streamsx.kafka::KafkaProducer ;
+
+/*
+ * This sample uses a Blob for the key and message. The
+ * Kafka operators will automatically use the correct 
+ * serializer and deserializer by examining the key and message types. 
+ */
+composite KafkaBlobSample
+{
+	type
+		Message = blob key, blob message;
+	graph
+		(stream<Message> KafkaConsumer_1_out0) as KafkaConsumer_1 =
+			KafkaConsumer()
+		{
+			param
+				topic : "test" ;
+				appConfigName : "kafka-samples" ;
+		}
+
+		() as Custom_2 = Custom(KafkaConsumer_1_out0)
+		{
+			logic
+				onTuple KafkaConsumer_1_out0:
+				{
+					println("key=" + convertFromBlob(KafkaConsumer_1_out0.key) + 
+						", message=" + convertFromBlob(KafkaConsumer_1_out0.message));
+				}
+		}
+
+		() as KafkaProducer_3 = KafkaProducer(Beacon_4_out0)
+		{
+			param
+				topic : "test" ;
+				appConfigName : "kafka-samples" ;
+		}
+
+		(stream<Message> Beacon_4_out0) as Beacon_4 = Beacon()
+		{
+			param
+				iterations : 10u;
+				initDelay : 5f;
+			output Beacon_4_out0:
+				key = convertToBlob("key_" + (rstring)IterationCount()),
+				message = convertToBlob("msg_" + (rstring)IterationCount());
+		}
+
+}
+

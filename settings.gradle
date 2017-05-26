@@ -1,0 +1,4 @@
+include 'com.ibm.streamsx.kafka'
+include 'tests/KafkaTests'
+
+rootProject.name = 'streamsx.kafka'

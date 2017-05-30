@@ -1,4 +1,6 @@
 include 'com.ibm.streamsx.kafka'
 include 'tests/KafkaTests'
+include 'topology/java'
+include 'samples/KafkaJavaTopologySample'
 
 rootProject.name = 'streamsx.kafka'

@@ -2,3 +2,5 @@ output/
 .toolkitList
 toolkit.xml
 .gradle
+*.sab
+test

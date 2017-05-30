@@ -64,23 +64,23 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
 	public <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
 			KafkaOperatorProperties kafkaProperties, Collection<String> topics, StartPosition startPosition) throws Exception {
 		this.kafkaProperties = kafkaProperties;
-		if (!this.kafkaProperties.contains(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
+		if (!this.kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
 			this.kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeserializer(keyClass));
 		}
 
-		if (!kafkaProperties.contains(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)) {
+		if (!kafkaProperties.containsKey(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)) {
 			this.kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, getDeserializer(valueClass));
 		}
 		
 		// create a random group ID for the consumer if one is not specified
-		if(!kafkaProperties.contains(ConsumerConfig.GROUP_ID_CONFIG)) {
+		if(!kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
 			this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GENERATED_GROUPID_PREFIX));
 		}
 		
 		// Create a random client ID for the consumer if one is not specified.
 		// This is important, otherwise running multiple consumers from the same
 		// application will result in a KafkaException when registering the client
-		if(!kafkaProperties.contains(ConsumerConfig.CLIENT_ID_CONFIG)) {
+		if(!kafkaProperties.containsKey(ConsumerConfig.CLIENT_ID_CONFIG)) {
 			this.kafkaProperties.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_CLIENTID_PREFIX));
 		}
 		

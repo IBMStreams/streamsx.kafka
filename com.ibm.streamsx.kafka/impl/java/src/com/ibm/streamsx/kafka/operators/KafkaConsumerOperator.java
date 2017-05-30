@@ -176,6 +176,7 @@ public class KafkaConsumerOperator extends AbstractKafkaOperator {
         Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName) : String.class; // default to String.class for key type
         Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
+        logger.debug("kafkaProperties: " + kafkaProperties);
         
         if(topics != null)
         	registerForDataGovernance(context, topics);

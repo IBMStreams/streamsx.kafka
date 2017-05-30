@@ -33,18 +33,18 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
 	
 	public <K, V> KafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass, KafkaOperatorProperties kafkaProperties) throws Exception {
 		this.kafkaProperties = kafkaProperties;
-		if(!this.kafkaProperties.contains(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
+		if(!this.kafkaProperties.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
 			this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(keyClass));
 		}
 		
-		if(!kafkaProperties.contains(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)) {
+		if(!kafkaProperties.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)) {
 			this.kafkaProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, getSerializer(valueClass));
 		}		
 
 		// Create a random client ID for the producer if one is not specified.
 		// This is important, otherwise running multiple producers from the same
 		// application will result in a KafkaException when registering the client
-		if(!kafkaProperties.contains(ProducerConfig.CLIENT_ID_CONFIG)) {
+		if(!kafkaProperties.containsKey(ProducerConfig.CLIENT_ID_CONFIG)) {
 			this.kafkaProperties.put(ProducerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_PRODUCERID_PREFIX));
 		}
 		

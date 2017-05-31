@@ -9,39 +9,39 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
 
-	private static final Logger logger = Logger.getLogger(AtLeastOnceKafkaProducerClient.class);
-	
-	public <K, V> AtLeastOnceKafkaProducerClient(OperatorContext operatorContext, Class<?> keyType, Class<?> messageType,
-			KafkaOperatorProperties props) throws Exception {
-		super(operatorContext, keyType, messageType, props);
-	}
+    private static final Logger logger = Logger.getLogger(AtLeastOnceKafkaProducerClient.class);
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	@Override
-	public boolean processTuple(ProducerRecord producerRecord) throws Exception {
-		logger.trace("Sending: " + producerRecord);
-		producer.send(producerRecord);
-		return true;
-	}
+    public <K, V> AtLeastOnceKafkaProducerClient(OperatorContext operatorContext, Class<?> keyType,
+            Class<?> messageType, KafkaOperatorProperties props) throws Exception {
+        super(operatorContext, keyType, messageType, props);
+    }
 
-	@Override
-	public void drain() throws Exception {
-		logger.debug("AtLeastOnceKafkaProducer -- DRAIN");
-		flush();
-	}
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Override
+    public boolean processTuple(ProducerRecord producerRecord) throws Exception {
+        logger.trace("Sending: " + producerRecord);
+        producer.send(producerRecord);
+        return true;
+    }
 
-	@Override
-	public void checkpoint(Checkpoint checkpoint) throws Exception {
-		logger.debug("AtLeastOnceKafkaProducer -- CHECKPOINT id=" + checkpoint.getSequenceId());
-	}
+    @Override
+    public void drain() throws Exception {
+        logger.debug("AtLeastOnceKafkaProducer -- DRAIN");
+        flush();
+    }
 
-	@Override
-	public void reset(Checkpoint checkpoint) throws Exception {
-		logger.debug("AtLeastOnceKafkaProducer -- RESET id=" + checkpoint.getSequenceId());
-	}
+    @Override
+    public void checkpoint(Checkpoint checkpoint) throws Exception {
+        logger.debug("AtLeastOnceKafkaProducer -- CHECKPOINT id=" + checkpoint.getSequenceId());
+    }
 
-	@Override
-	public void resetToInitialState() throws Exception {
-		logger.debug("AtLeastOnceKafkaProducer -- RESET_TO_INIT");
-	}
+    @Override
+    public void reset(Checkpoint checkpoint) throws Exception {
+        logger.debug("AtLeastOnceKafkaProducer -- RESET id=" + checkpoint.getSequenceId());
+    }
+
+    @Override
+    public void resetToInitialState() throws Exception {
+        logger.debug("AtLeastOnceKafkaProducer -- RESET_TO_INIT");
+    }
 }

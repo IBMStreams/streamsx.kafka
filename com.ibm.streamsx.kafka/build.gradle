@@ -18,6 +18,7 @@ sourceSets {
     }
 }
 
+version = "0.1.0.0"
 libsDirName = '../impl/lib'
 
 processResources {
@@ -60,7 +61,7 @@ task deleteDeps(type: Delete) {
     delete "output"
     delete "com.ibm.streamsx.kafka"
     delete "com.ibm.streamsx.kafka.messagehub"
-    delete "impl/lib/com.ibm.streamsx.kafka.jar"
+    delete "impl/lib/com.ibm.streamsx.kafka*.jar"
 }
 
 task buildToolkit() {

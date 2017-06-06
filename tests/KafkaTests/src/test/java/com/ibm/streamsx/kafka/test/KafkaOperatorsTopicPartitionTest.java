@@ -103,7 +103,8 @@ public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
 	private Map<String, Object> getKafkaConsumerParams(int partitionNum) {
 		Map<String, Object> params = new HashMap<String, Object>();
 		
-		params.put("topic", Constants.TOPIC_TEST + ":" + partitionNum);
+		params.put("topic", Constants.TOPIC_TEST);
+		params.put("partitions", partitionNum);
 		params.put("appConfigName", Constants.APP_CONFIG);
 		
 		return params;

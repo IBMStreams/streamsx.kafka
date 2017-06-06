@@ -60,8 +60,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
 
     private Thread eventThread;
 
-    public <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties, Collection<String> topics, StartPosition startPosition)
+    private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
+            KafkaOperatorProperties kafkaProperties, Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition)
                     throws Exception {
         this.kafkaProperties = kafkaProperties;
         if (!this.kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
@@ -98,7 +98,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
                     consumer = new KafkaConsumer<>(kafkaProperties);
 
                     offsetManager = new OffsetManager(consumer);
-                    subscribeToTopics(topics, startPosition);
+                    subscribeToTopics(topics, partitions, startPosition);
 
                     // create control variables
                     ControlPlaneContext controlPlaneContext = operatorContext
@@ -118,31 +118,19 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         eventThread.start();
     }
 
-    private void subscribeToTopics(Collection<String> topics, StartPosition startPosition) {
+    private void subscribeToTopics(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) {
         // Kafka's group management feature can only be used in the following
         // scenarios:
         // - startPosition = End
         // - none of the topics have partitions assignments
         // - operator is not in a consistent region
 
-        if (startPosition == StartPosition.Beginning || crContext != null) {
-            assign(topics, startPosition);
+        if (startPosition == StartPosition.Beginning || 
+        		crContext != null ||
+        		(partitions != null && !partitions.isEmpty())) {
+            assign(topics, partitions, startPosition);
         } else {
-            boolean doSubscribe = true;
-            // check if any of the topics are being assigned to a specific set
-            // of partitions
-            for (String topic : topics) {
-                if (topic.split(":").length > 1) { //$NON-NLS-1$
-                    doSubscribe = false;
-                    break;
-                }
-            }
-
-            if (doSubscribe) {
-                subscribe(topics);
-            } else {
-                assign(topics, startPosition);
-            }
+        	subscribe(topics);
         }
     }
 
@@ -170,26 +158,15 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
      * "topicB:2,4,5"
      * 
      */
-    private void assign(Collection<String> topics, StartPosition startPosition) {
-        logger.debug("Assigning: topics=" + topics + ", startPosition=" + startPosition); //$NON-NLS-1$ //$NON-NLS-2$
-        for (String topicStr : topics) {
-            String[] tokens = topicStr.split(":"); //$NON-NLS-1$
-
-            String topic = tokens[0];
-            offsetManager.addTopic(topic, false);
-
-            List<TopicPartition> topicPartitions = new ArrayList<TopicPartition>();
-            // assign consumer to all partitions
-            if (tokens.length == 1) {
-                topicPartitions.addAll(offsetManager.getTopicPartitions(topic));
-            } else {
-                String[] partitions = tokens[1].split(","); //$NON-NLS-1$
-                for (String partStr : partitions) {
-                    topicPartitions.add(new TopicPartition(topic, Integer.valueOf(partStr)));
-                }
-            }
-            consumer.assign(topicPartitions);
-        }
+    private void assign(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) {
+        logger.debug("Assigning: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition); //$NON-NLS-1$ //$NON-NLS-2$
+        
+        List<TopicPartition> topicPartitions = new ArrayList<TopicPartition>();
+        topics.forEach(topic -> {
+        	offsetManager.addTopic(topic, false);
+        	partitions.forEach(partition -> topicPartitions.add(new TopicPartition(topic, partition)));
+        });
+        consumer.assign(topicPartitions);
 
         // passing in an empty list means seek to
         // the beginning/end of ALL assigned partitions
@@ -400,6 +377,55 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
             refreshFromCluster();
         } finally {
             resettingLatch.countDown();
+        }
+    }
+    
+    public static class KafkaConsumerClientBuilder {
+    	private OperatorContext operatorContext;
+    	private Class<?> keyClass;
+    	private Class<?> valueClass;
+        private KafkaOperatorProperties kafkaProperties;
+        private Collection<String> topics;
+        private Collection<Integer> partitions;
+        private StartPosition startPosition;
+        
+        public KafkaConsumerClientBuilder setKafkaProperties(KafkaOperatorProperties kafkaProperties) {
+			this.kafkaProperties = kafkaProperties;
+			return this;
+		}
+        
+        public KafkaConsumerClientBuilder setKeyClass(Class<?> keyClass) {
+			this.keyClass = keyClass;
+			return this;
+		}
+        
+        public KafkaConsumerClientBuilder setOperatorContext(OperatorContext operatorContext) {
+			this.operatorContext = operatorContext;
+			return this;
+		}
+        
+        public KafkaConsumerClientBuilder setPartitions(Collection<Integer> partitions) {
+			this.partitions = partitions;
+			return this;
+		}
+        
+        public KafkaConsumerClientBuilder setStartPosition(StartPosition startPosition) {
+			this.startPosition = startPosition;
+			return this;
+		}
+        
+        public KafkaConsumerClientBuilder setTopics(Collection<String> topics) {
+			this.topics = topics;
+			return this;
+		}
+        
+        public KafkaConsumerClientBuilder setValueClass(Class<?> valueClass) {
+			this.valueClass = valueClass;
+			return this;
+		}
+        
+        public KafkaConsumerClient build() throws Exception {
+        	return new KafkaConsumerClient(operatorContext, keyClass, valueClass, kafkaProperties, topics, partitions, startPosition);
         }
     }
 }

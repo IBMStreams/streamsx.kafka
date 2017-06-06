@@ -16,5 +16,5 @@ public interface Constants {
 	public static final Long PRODUCER_DELAY = 5000l;
 	
 	public static final String[] STRING_DATA = {"dog", "cat", "bird", "fish", "lion", "wolf", "elephant", "zebra", "monkey", "bat"};
-	public static final Object PROPERTIES_FILE_PATH = "etc/kafka.properties";
+	public static final String PROPERTIES_FILE_PATH = "etc/brokers.properties";
 }

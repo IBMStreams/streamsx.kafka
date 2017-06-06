@@ -103,7 +103,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingOutputs().get(0).getStreamSchema();
         Set<String> paramNames = checker.getOperatorContext().getParameterNames();
 
-        String messageAttrName = paramNames.contains("oututMessageAttrName") ? //$NON-NLS-1$
+        String messageAttrName = paramNames.contains("outputMessageAttrName") ? //$NON-NLS-1$
                 checker.getOperatorContext().getParameterValues("outputMessageAttrName").get(0) //$NON-NLS-1$
                 : DEFAULT_OUTPUT_MESSAGE_ATTR_NAME;
 

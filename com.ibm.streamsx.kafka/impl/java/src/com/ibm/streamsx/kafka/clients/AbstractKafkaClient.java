@@ -33,7 +33,7 @@ public abstract class AbstractKafkaClient {
             return DoubleSerializer.class.getCanonicalName();
         } else if (clazz.equals(Blob.class)) {
             return ByteArraySerializer.class.getCanonicalName();
-        } else if (clazz.equals(Integer.class) || clazz.equals(Short.class) || clazz.equals(Byte.class)) {
+        } else if (clazz.equals(Integer.class)) {
             return IntegerSerializer.class.getCanonicalName();
         } else {
             throw new Exception("Unable to find serializer for: " + clazz.toString()); //$NON-NLS-1$
@@ -65,7 +65,7 @@ public abstract class AbstractKafkaClient {
             return DoubleDeserializer.class.getCanonicalName();
         } else if (clazz.equals(Blob.class)) {
             return ByteArrayDeserializer.class.getCanonicalName();
-        } else if (clazz.equals(Integer.class) || clazz.equals(Short.class) || clazz.equals(Byte.class)) {
+        } else if (clazz.equals(Integer.class)) {
             return IntegerDeserializer.class.getCanonicalName();
         } else {
             throw new Exception("Unable to find deserializer for: " + clazz.toString()); //$NON-NLS-1$

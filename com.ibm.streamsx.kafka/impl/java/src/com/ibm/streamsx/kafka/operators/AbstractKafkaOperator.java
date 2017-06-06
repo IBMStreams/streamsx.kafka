@@ -36,9 +36,11 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
     private static final Logger logger = Logger.getLogger(AbstractKafkaOperator.class);
 
     private static final String DEFAULT_USER_LIB_DIR = "/etc/libs/*"; //$NON-NLS-1$
-    protected static final MetaType[] SUPPORTED_ATTR_TYPES = { MetaType.RSTRING, MetaType.INT8, MetaType.INT16,
-            MetaType.INT32, MetaType.INT64, MetaType.UINT8, MetaType.UINT16, MetaType.UINT32, MetaType.UINT64,
-            MetaType.FLOAT64, MetaType.BLOB };
+    protected static final MetaType[] SUPPORTED_ATTR_TYPES = { 
+    		MetaType.RSTRING, MetaType.INT32, 
+    		MetaType.INT64, MetaType.UINT32, MetaType.UINT64,
+            MetaType.FLOAT64, MetaType.BLOB 
+    };
 
     protected String propertiesFile;
     protected String appConfigName;

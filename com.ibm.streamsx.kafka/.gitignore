@@ -3,3 +3,6 @@
 /.toolkitList
 /bin/
 impl/lib
+build
+com.ibm.streamsx.kafka
+opt

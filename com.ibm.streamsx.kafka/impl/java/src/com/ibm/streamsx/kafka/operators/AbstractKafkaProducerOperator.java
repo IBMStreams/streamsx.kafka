@@ -52,8 +52,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         this.keyAttrName = keyAttrName;
     }
 
-    @Parameter(optional = true)
-    public void setTopic(List<String> topics) {
+    @Parameter(optional = true, name="topic")
+    public void setTopics(List<String> topics) {
         this.topics = topics;
     }
 

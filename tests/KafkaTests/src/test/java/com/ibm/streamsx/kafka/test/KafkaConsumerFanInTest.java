@@ -1,6 +1,5 @@
 package com.ibm.streamsx.kafka.test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -10,8 +9,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.ibm.streams.operator.OutputTuple;
-import com.ibm.streams.operator.Tuple;
 import com.ibm.streamsx.kafka.test.utils.Constants;
 import com.ibm.streamsx.kafka.test.utils.Delay;
 import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
@@ -19,7 +16,6 @@ import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
 import com.ibm.streamsx.topology.context.StreamsContext;
 import com.ibm.streamsx.topology.context.StreamsContext.Type;
-import com.ibm.streamsx.topology.function.BiFunction;
 import com.ibm.streamsx.topology.context.StreamsContextFactory;
 import com.ibm.streamsx.topology.spl.SPL;
 import com.ibm.streamsx.topology.spl.SPLStream;

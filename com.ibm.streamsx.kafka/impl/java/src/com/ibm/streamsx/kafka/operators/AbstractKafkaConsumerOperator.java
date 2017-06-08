@@ -63,13 +63,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.startPosition = startPosition;
     }
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name="partition")
     public void setPartitions(int[] partitions) {
     	this.partitions = Ints.asList(partitions);
 	}
     
-    @Parameter(optional = false)
-    public void setTopic(List<String> topics) {
+    @Parameter(optional = false, name="topic")
+    public void setTopics(List<String> topics) {
         this.topics = topics;
     }
 

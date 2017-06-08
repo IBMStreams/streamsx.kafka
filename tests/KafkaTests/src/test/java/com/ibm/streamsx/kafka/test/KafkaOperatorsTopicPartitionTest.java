@@ -1,6 +1,5 @@
 package com.ibm.streamsx.kafka.test;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -104,7 +103,7 @@ public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
 		Map<String, Object> params = new HashMap<String, Object>();
 		
 		params.put("topic", Constants.TOPIC_TEST);
-		params.put("partitions", partitionNum);
+		params.put("partition", partitionNum);
 		params.put("appConfigName", Constants.APP_CONFIG);
 		
 		return params;

@@ -18,7 +18,7 @@ composite KafkaFloatSample
 		{
 			param
 				topic : "test" ;
-				appConfigName : "kafka-samples" ;
+				propertiesFile : "etc/consumer.properties";
 		}
 
 		() as Custom_2 = Custom(KafkaConsumer_1_out0)
@@ -34,7 +34,7 @@ composite KafkaFloatSample
 		{
 			param
 				topic : "test" ;
-				appConfigName : "kafka-samples" ;
+                propertiesFile : "etc/producer.properties" ;
 		}
 
 		(stream<Message> Beacon_4_out0) as Beacon_4 = Beacon()

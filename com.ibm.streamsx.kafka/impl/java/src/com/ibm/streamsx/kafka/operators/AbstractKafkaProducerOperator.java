@@ -33,10 +33,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private static final String DEFAULT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     private static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
 
-    private static final String MESSAGEATTR_PARAM_NAME = "messageAttr";
-    private static final String KEYATTR_PARAM_NAME = "keyAttr";
+    private static final String MESSAGEATTR_PARAM_NAME = "messageAttribute";
+    private static final String KEYATTR_PARAM_NAME = "keyAttribute";
     private static final String TOPIC_PARAM_NAME = "topic";
-    private static final String TOPICATTR_PARAM_NAME = "topicAttr";
+    private static final String TOPICATTR_PARAM_NAME = "topicAttribute";
     
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 

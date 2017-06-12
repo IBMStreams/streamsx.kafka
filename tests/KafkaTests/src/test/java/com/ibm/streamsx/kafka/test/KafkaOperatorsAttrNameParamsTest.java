@@ -59,9 +59,9 @@ public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
 		// create the producer (produces tuples after a short delay)
 		Map<String, Object> producerProps = new HashMap<>();
 		producerProps.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);
-		producerProps.put("messageAttr", producerSchema.getAttribute(PROD_MSG_ATTR_NAME));
-		producerProps.put("keyAttr", producerSchema.getAttribute(PROD_KEY_ATTR_NAME));
-		producerProps.put("topicAttr", producerSchema.getAttribute(PROD_TOPIC_ATTR_NAME));
+		producerProps.put("messageAttribute", producerSchema.getAttribute(PROD_MSG_ATTR_NAME));
+		producerProps.put("keyAttribute", producerSchema.getAttribute(PROD_KEY_ATTR_NAME));
+		producerProps.put("topicAttribute", producerSchema.getAttribute(PROD_TOPIC_ATTR_NAME));
 		TStream<String> srcStream = topo.strings(MSG).modify(new Delay<>(5000));
 		SPL.invokeSink(Constants.KafkaProducerOp, 
 				SPLStreams.convertStream(srcStream, new ProducerConverter(), producerSchema), 

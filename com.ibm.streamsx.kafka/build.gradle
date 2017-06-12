@@ -18,7 +18,7 @@ sourceSets {
     }
 }
 
-version = "0.1.0.0"
+version = getVersion()
 libsDirName = '../impl/lib'
 
 processResources {

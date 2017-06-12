@@ -1,3 +1,11 @@
+//def infoXML = new XmlSlurper().parse("$rootDir/com.ibm.streamsx.kafka/info.xml").declareNamespace('info':'http://www.ibm.com/xmlns/prod/streams/spl/toolkitInfo')
+//ext.version = infoXML.identity.version.text()
+
+ext.getVersion = {
+def infoXML = new XmlSlurper().parse("$rootDir/com.ibm.streamsx.kafka/info.xml").declareNamespace('info':'http://www.ibm.com/xmlns/prod/streams/spl/toolkitInfo')
+return infoXML.identity.version.text()
+}
+
 ext.splMakeToolkit = { 
     exec() {
         commandLine System.getenv("STREAMS_INSTALL") + '/bin/spl-make-toolkit', '-i', '.' 

@@ -18,6 +18,7 @@ sourceSets {
 
 /* Defs */
 def STREAMS_INSTALL = System.getenv("STREAMS_INSTALL")
+def toolkitVersion = ext.getVersion()
 
 dependencies {
     compile fileTree(dir: STREAMS_INSTALL + '/lib', include: ['com.ibm.streams.operator.jar', 'com.ibm.streams.operator.samples.jar'])
@@ -63,6 +64,8 @@ task archive(type: Tar) {
     }
     compression = Compression.GZIP
     destinationDir = file('build/release/output')
+    baseName = "com.ibm.streamsx.kafka"
+    version = toolkitVersion
     doLast {
         ant.checksum file: archivePath
     }

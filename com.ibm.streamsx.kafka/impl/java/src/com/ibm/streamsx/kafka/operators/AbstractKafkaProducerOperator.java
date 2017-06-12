@@ -16,7 +16,9 @@ import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.Tuple;
+import com.ibm.streams.operator.TupleAttribute;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.model.DefaultAttribute;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
@@ -31,81 +33,119 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private static final String DEFAULT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     private static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
 
+    private static final String MESSAGEATTR_PARAM_NAME = "messageAttr";
+    private static final String KEYATTR_PARAM_NAME = "keyAttr";
+    private static final String TOPIC_PARAM_NAME = "topic";
+    private static final String TOPICATTR_PARAM_NAME = "topicAttr";
+    
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
     /* Parameters */
-    protected String messageAttrName = DEFAULT_MESSAGE_ATTR_NAME;
-    protected String keyAttrName = DEFAULT_KEY_ATTR_NAME;
+    protected TupleAttribute<Tuple, ?> keyAttr;
+    protected TupleAttribute<Tuple, ?> messageAttr;
+    protected TupleAttribute<Tuple, String> topicAttr;
+//    protected String messageAttrName = DEFAULT_MESSAGE_ATTR_NAME;
+//    protected String keyAttrName = DEFAULT_KEY_ATTR_NAME;
     protected List<String> topics;
-    protected String topicAttrName = DEFAULT_TOPIC_ATTR_NAME;
+//    protected String topicAttrName = DEFAULT_TOPIC_ATTR_NAME;
 
     private KafkaProducerClient producer;
     private AtomicBoolean isResetting;
     private boolean hasKeyAttr;
 
-    @Parameter(optional = true)
-    public void setMessageAttrName(String messageAttrName) {
-        this.messageAttrName = messageAttrName;
-    }
+    @Parameter(optional = true, name=KEYATTR_PARAM_NAME)
+    public void setKeyAttr(TupleAttribute<Tuple, ?> keyAttr) {
+		this.keyAttr = keyAttr;
+	}
+    
+    @DefaultAttribute(DEFAULT_MESSAGE_ATTR_NAME)
+    @Parameter(optional = true, name=MESSAGEATTR_PARAM_NAME)
+    public void setMessageAttr(TupleAttribute<Tuple, ?> messageAttr) {
+		this.messageAttr = messageAttr;
+	}
 
-    @Parameter(optional = true)
-    public void setKeyAttrName(String keyAttrName) {
-        this.keyAttrName = keyAttrName;
-    }
-
-    @Parameter(optional = true, name="topic")
+    @Parameter(optional = true, name=TOPIC_PARAM_NAME)
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
 
-    @Parameter(optional = true)
-    public void setTopicAttrName(String topicAttrName) {
-        this.topicAttrName = topicAttrName;
-    }
+    @Parameter(optional = true, name=TOPICATTR_PARAM_NAME)
+    public void setTopicAttr(TupleAttribute<Tuple, String> topicAttr) {
+		this.topicAttr = topicAttr;
+	}
 
+    /*
+     * Retrieving the value of a TupleAttribute parameter via OperatorContext.getParameterValues()
+     * returns a string in the form "InputPortName.AttributeName". However, this ends up being the
+     * C++ equivalent String, which looks like: "iport$0.get_myAttr()". 
+     * 
+     * This methods will return "myAttr", which is the name of the attribute that the parameter is
+     * referring to.  
+     */
+    private static String parseFQAttributeName(String attrString) {
+    	return attrString.split("_")[1].replace("()", "");
+    }
+    
     @ContextCheck(runtime = true, compile = false)
-    public static void checkAttributesExist(OperatorContextChecker checker) {
+    public static void checkAttributes(OperatorContextChecker checker) {
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
 
-        List<String> messageParamValues = checker.getOperatorContext().getParameterValues("messageAttrName"); //$NON-NLS-1$
-        String messageAttrName = (messageParamValues != null && !messageParamValues.isEmpty())
-                ? messageParamValues.get(0) : DEFAULT_MESSAGE_ATTR_NAME;
-        Attribute messageAttr = streamSchema.getAttribute(messageAttrName);
-        if (messageAttr == null) {
-            checker.setInvalidContext(Messages.getString("INPUT_ATTRIBUTE_NOT_FOUND", messageAttrName), new Object[0]); //$NON-NLS-1$
-        }
-
-        // validate the message attribute type
-        checker.checkAttributeType(messageAttr, SUPPORTED_ATTR_TYPES);
-
-        List<String> keyParamValues = checker.getOperatorContext().getParameterValues("keyAttrName"); //$NON-NLS-1$
-        Attribute keyAttr;
-        if (keyParamValues != null && !keyParamValues.isEmpty()) {
-            String keyAttrName = keyParamValues.get(0);
-            keyAttr = streamSchema.getAttribute(keyAttrName);
-            if (keyAttr == null) {
-                checker.setInvalidContext(Messages.getString("INPUT_ATTRIBUTE_NOT_FOUND", keyAttrName), new Object[0]); //$NON-NLS-1$
-            }
+        /*
+         * The message attribute must either be defined via the 'messageAttr' parameter, 
+         * or the input schema must contain an attribute named "message". Otherwise, 
+         * a context error is returned.
+         */
+        Attribute msgAttr;
+        List<String> messageAttrParamValues = checker.getOperatorContext().getParameterValues(MESSAGEATTR_PARAM_NAME);
+        if(messageAttrParamValues != null && !messageAttrParamValues.isEmpty()) {
+        	msgAttr = streamSchema.getAttribute(parseFQAttributeName(messageAttrParamValues.get(0)));
         } else {
-            keyAttr = streamSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
+        	// the 'messageAttr' parameter is not specified, so check if input schema contains an attribute named "message"
+        	msgAttr = streamSchema.getAttribute(DEFAULT_MESSAGE_ATTR_NAME);        	        	
         }
+        
+        if(msgAttr != null) {
+            // validate the message attribute type
+            checker.checkAttributeType(msgAttr, SUPPORTED_ATTR_TYPES);
+        } else {
+        	// the operator does not specify a message attribute, so set an invalid context
+        	checker.setInvalidContext(Messages.getString("MESSAGE_ATTRIBUTE_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
+        }
+ 
+        /*
+         * A key attribute can either be specified via the 'keyAttr' parameter,
+         * or the input schema can contain an attribute named "key". If neither is true, 
+         * then a 'null' key will be used when writing records to Kafka (i.e. do not 
+         * set an invalid context) 
+         */
+        List<String> keyParamValues = checker.getOperatorContext().getParameterValues(KEYATTR_PARAM_NAME);
+        Attribute keyAttr = (keyParamValues != null && !keyParamValues.isEmpty()) ? 
+        		streamSchema.getAttribute(parseFQAttributeName(keyParamValues.get(0))) :
+        			streamSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
 
         // validate the key attribute type
         if (keyAttr != null)
             checker.checkAttributeType(keyAttr, SUPPORTED_ATTR_TYPES);
+        
 
-        // if the topic param is not defined, then "topicAttrName"
-        // must point to an existing attribute on the input schema
-        if (!checker.getOperatorContext().getParameterNames().contains("topic")) { //$NON-NLS-1$
-            // check if the attribute name specified by the "topicAttrName"
-            // exists
-            String topicAttrName = checker.getOperatorContext().getParameterNames().contains("topicAttrName") ? //$NON-NLS-1$
-                    checker.getOperatorContext().getParameterValues("topicAttrName").get(0) : DEFAULT_TOPIC_ATTR_NAME; //$NON-NLS-1$
-
-            Attribute topicAttr = streamSchema.getAttribute(topicAttrName);
-            if (topicAttr == null) {
-                checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
-            }
+        /*
+         * For topics, one of the following must be true: 
+         *  * the 'topic' parameter is specified that lists topics to write to
+         *  * the 'topicAttr' parameter is specified that points to an input attribute containing the topic to write to
+         *  * neither of the above parameters are specified but the input schema contains an attribute named "topic"
+         *  
+         * An invalid context is set if none of the above conditions are true
+         */
+        if(!checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM_NAME)) { 
+        	// 'topic' param not specified, check for 'topicAttr' param
+        	if(!checker.getOperatorContext().getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
+        		// 'topicAttr' param also not specified, check for input attribute named "topic"
+        		Attribute topicAttribute = streamSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
+        		if(topicAttribute == null) {
+        			// "topic" input attribute does not exist...set invalid context
+        			checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
+        		}
+        	}
         }
     }
 
@@ -124,15 +164,25 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                 + context.getPE().getJobId());
 
         StreamSchema inputSchema = context.getStreamingInputs().get(0).getStreamSchema();
-        hasKeyAttr = inputSchema.getAttribute(keyAttrName) != null;
 
-        messageType = getAttributeType(context.getStreamingInputs().get(0), messageAttrName);
-        keyType = hasKeyAttr ? getAttributeType(context.getStreamingInputs().get(0), keyAttrName) : String.class; // default
-                                                                                                                    // to
-                                                                                                                    // String.class
-                                                                                                                    // for
-                                                                                                                    // key
-                                                                                                                    // type
+        // check for key attribute and get type
+        Attribute keyAttribute = null;
+        if(keyAttr != null && keyAttr.getAttribute() != null) {
+        	keyAttribute = keyAttr.getAttribute();
+    	} else {
+    		keyAttribute = inputSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
+    	}
+
+        if(keyAttribute != null) {
+        	keyType = keyAttribute.getType().getObjectType();
+        	hasKeyAttr = true;
+        } else {
+        	hasKeyAttr = false;
+        }
+        
+        // get message type
+        messageType = messageAttr.getAttribute().getType().getObjectType();
+        
         initProducer();
 
         registerForDataGovernance(context, topics);
@@ -175,16 +225,43 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             return;
         }
 
-        List<String> topicList = (this.topics != null && !this.topics.isEmpty()) ? this.topics
-                : Arrays.asList(tuple.getString(topicAttrName));
-        Object key = hasKeyAttr ? toJavaPrimitveObject(keyType, tuple.getObject(keyAttrName)) : null;
-        Object value = toJavaPrimitveObject(messageType, tuple.getObject(messageAttrName));
+        List<String> topicList = getTopics(tuple);
+        Object key = hasKeyAttr ? getKey(tuple) : null;
+        Object value = toJavaPrimitveObject(messageType, messageAttr.getValue(tuple));
 
         // send message to all topics
         for (String topic : topicList)
             producer.processTuple(new ProducerRecord(topic, key, value));
     }
 
+    private Object getKey(Tuple tuple) {
+    	Object key;
+    	
+    	if(keyAttr != null && keyAttr.getAttribute() != null) {
+    		key = keyAttr.getValue(tuple);
+    	} else {
+    		key = tuple.getObject(DEFAULT_KEY_ATTR_NAME);
+    	}
+    	
+    	return toJavaPrimitveObject(keyType, key);
+    }
+    
+    private List<String> getTopics(Tuple tuple) {
+    	List<String> topicList;
+    	
+    	if(this.topics != null && !this.topics.isEmpty()) {
+    		topicList = this.topics;
+    	} else if(topicAttr != null) {
+    		topicList = Arrays.asList(topicAttr.getValue(tuple));
+    	} else {
+    		// the context checker guarantees that this will be here
+    		// if the above 2 conditions are false
+    		topicList = Arrays.asList(tuple.getString(DEFAULT_TOPIC_ATTR_NAME));
+    	}
+    	
+    	return topicList;
+    }
+    
     /**
      * Shutdown this operator, which will interrupt the thread executing the
      * <code>produceTuples()</code> method.

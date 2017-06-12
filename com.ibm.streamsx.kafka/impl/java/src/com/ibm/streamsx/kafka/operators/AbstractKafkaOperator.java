@@ -151,10 +151,11 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
     }
 
     protected Object toJavaPrimitveObject(Class<?> type, Object attrObj) {
-        if (type.equals(RString.class))
-            attrObj = ((RString) attrObj).getString();
-        else if (type.equals(Blob.class))
-            attrObj = ((Blob) attrObj).getData();
+    	if(attrObj instanceof RString) {
+    		attrObj = ((RString)attrObj).getString();
+    	} else if(attrObj instanceof Blob) {
+    		attrObj = ((Blob)attrObj).getData();
+    	}
 
         return attrObj;
     }

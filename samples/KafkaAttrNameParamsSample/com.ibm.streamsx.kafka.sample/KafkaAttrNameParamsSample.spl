@@ -35,9 +35,9 @@ composite KafkaAttrNameParamsSample
         () as KafkaProducer_3 = KafkaProducer(Beacon_4_out0)
         {
             param
-                keyAttrName : "myKey";
-                messageAttrName : "myMsg" ;
-                topicAttrName : "myTopic" ;
+                keyAttr : myKey;
+                messageAttr : myMsg ;
+                topicAttr : myTopic ;
                 propertiesFile : "etc/producer.properties";
         }
 

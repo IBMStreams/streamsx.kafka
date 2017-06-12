@@ -14,10 +14,10 @@ import org.apache.log4j.Logger;
 import com.google.common.primitives.Ints;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingOutput;
-import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
@@ -115,7 +115,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             // validate the attribute type
             checker.checkAttributeType(messageAttr, SUPPORTED_ATTR_TYPES);
         }
-
+        
         // check that user-specified key attr name exists
         Attribute keyAttr;
         if (paramNames.contains("outputKeyAttrName")) { //$NON-NLS-1$
@@ -168,7 +168,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         StreamSchema outputSchema = context.getStreamingOutputs().get(0).getStreamSchema();
         hasOutputKey = outputSchema.getAttribute(outputKeyAttrName) != null;
         hasOutputTopic = outputSchema.getAttribute(outputTopicAttrName) != null;
-
+        
         Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
                 : String.class; // default to String.class for key type
         Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
@@ -263,7 +263,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     private void submitRecords(ConsumerRecords<?, ?> records) throws Exception {
         final StreamingOutput<OutputTuple> out = getOutput(0);
-        logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
+        //logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
         Iterator<?> it = records.iterator();
         while (it.hasNext()) {
             ConsumerRecord<?, ?> record = (ConsumerRecord<?, ?>) it.next();
@@ -279,13 +279,16 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 tuple.setString(outputTopicAttrName, record.topic());
             }
 
-            logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
+            //logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
             out.submit(tuple);
             tupleCounter++;
         }
     }
 
     private void setTuple(OutputTuple tuple, String attrName, Object attrValue) throws Exception {
+    	if(attrValue == null)
+    		return; // do nothing
+    	
         if (attrValue instanceof String || attrValue instanceof RString)
             tuple.setString(attrName, (String) attrValue);
         else if (attrValue instanceof Integer)
@@ -298,8 +301,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             tuple.setByte(attrName, (Byte) attrValue);
         else if (attrValue instanceof byte[])
             tuple.setBlob(attrName, ValueFactory.newBlob((byte[]) attrValue));
-        else if (attrValue instanceof Short)
-            tuple.setShort(attrName, (Short) attrValue);
         else
             throw new Exception("Unsupported type exception: " + (attrValue.getClass().getTypeName()));
     }

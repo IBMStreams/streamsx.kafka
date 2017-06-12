@@ -19,7 +19,7 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public boolean processTuple(ProducerRecord producerRecord) throws Exception {
-        logger.trace("Sending: " + producerRecord);
+        //logger.trace("Sending: " + producerRecord);
         producer.send(producerRecord);
         return true;
     }

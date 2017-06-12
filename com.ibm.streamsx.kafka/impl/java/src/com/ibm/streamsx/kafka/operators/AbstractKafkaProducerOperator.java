@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -39,7 +40,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected String topicAttrName = DEFAULT_TOPIC_ATTR_NAME;
 
     private KafkaProducerClient producer;
-    private boolean isResetting;
+    private AtomicBoolean isResetting;
     private boolean hasKeyAttr;
 
     @Parameter(optional = true)
@@ -138,7 +139,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
         crContext = context.getOptionalContext(ConsistentRegionContext.class);
         if (crContext != null) {
-            isResetting = context.getPE().getRelaunchCount() > 0;
+            isResetting = new AtomicBoolean(context.getPE().getRelaunchCount() > 0);
         }
 
         logger.info(">>> Operator initialized! <<<"); //$NON-NLS-1$
@@ -169,7 +170,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public void process(StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
-        if (crContext != null && isResetting) {
+        if (crContext != null && isResetting.get()) {
             logger.debug("Operator is in the middle of resetting...skipping tuple processing!"); //$NON-NLS-1$
             return;
         }
@@ -241,7 +242,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         producer.reset(checkpoint);
 
         // reset complete
-        isResetting = false;
+        isResetting.set(false);
         logger.debug("Reset complete!"); //$NON-NLS-1$
     }
 
@@ -251,7 +252,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
         initProducer();
         producer.resetToInitialState();
-        isResetting = false;
+        isResetting.set(false);
     }
 
     @Override

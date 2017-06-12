@@ -196,7 +196,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
             if (messageQueue.remainingCapacity() > 0) {
-                logger.trace("Polling for records..."); //$NON-NLS-1$
+                //logger.trace("Polling for records..."); //$NON-NLS-1$
                 try {
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
                     if (records != null) {

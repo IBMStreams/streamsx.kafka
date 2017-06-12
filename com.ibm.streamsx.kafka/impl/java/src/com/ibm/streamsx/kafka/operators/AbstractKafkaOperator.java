@@ -70,13 +70,9 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
         super.initialize(context);
+        
+        // load the Kafka properties
         kafkaProperties = new KafkaOperatorProperties();
-
-        File log4jPropsFile = new File(
-                context.getPE().getApplicationDirectory() + "/etc/" + System.getProperty("log4j.properties.file.name")); //$NON-NLS-1$ //$NON-NLS-2$
-        if (log4jPropsFile.exists())
-            PropertyConfigurator.configure(log4jPropsFile.getAbsolutePath());
-
         loadProperties();
 
         if (userLib == null) {

@@ -3,4 +3,4 @@ output/
 toolkit.xml
 .gradle
 *.sab
-test
+/test

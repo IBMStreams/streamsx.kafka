@@ -18,7 +18,7 @@ sourceSets {
     }
 }
 
-version = getVersion()
+version = ext.getVersion()
 libsDirName = '../impl/lib'
 
 processResources {

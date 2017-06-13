@@ -38,7 +38,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private static final String DEFAULT_OUTPUT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
-
+    private static final String OUTPUT_KEY_ATTRIBUTE_NAME_PARAM = "outputKeyAttributeName";
+    private static final String OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM = "outputMessageAttributeName";
+    private static final String OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM = "outputTopicAttributeName";
+    private static final String TRIGGER_COUNT_PARAM = "triggerCount";
+    
     private Thread processThread;
     private KafkaConsumerClient consumer;
     private AtomicBoolean shutdown;
@@ -73,22 +77,22 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.topics = topics;
     }
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name=OUTPUT_KEY_ATTRIBUTE_NAME_PARAM)
     public void setOutputKeyAttrName(String outputKeyAttrName) {
         this.outputKeyAttrName = outputKeyAttrName;
     }
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name=OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM)
     public void setOutputMessageAttrName(String outputMessageAttrName) {
         this.outputMessageAttrName = outputMessageAttrName;
     }
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name=OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM)
     public void setOutputTopicAttrName(String outputTopicAttrName) {
         this.outputTopicAttrName = outputTopicAttrName;
     }
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name=TRIGGER_COUNT_PARAM)
     public void setTriggerCount(int triggerCount) {
         this.triggerCount = triggerCount;
     }
@@ -103,8 +107,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingOutputs().get(0).getStreamSchema();
         Set<String> paramNames = checker.getOperatorContext().getParameterNames();
 
-        String messageAttrName = paramNames.contains("outputMessageAttrName") ? //$NON-NLS-1$
-                checker.getOperatorContext().getParameterValues("outputMessageAttrName").get(0) //$NON-NLS-1$
+        String messageAttrName = paramNames.contains(OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM) ? 
+                checker.getOperatorContext().getParameterValues(OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM).get(0) //$NON-NLS-1$
                 : DEFAULT_OUTPUT_MESSAGE_ATTR_NAME;
 
         // set invalid context if message attribute name does not exist
@@ -118,8 +122,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         
         // check that user-specified key attr name exists
         Attribute keyAttr;
-        if (paramNames.contains("outputKeyAttrName")) { //$NON-NLS-1$
-            String keyAttrName = checker.getOperatorContext().getParameterValues("outputKeyAttrName").get(0); //$NON-NLS-1$
+        if (paramNames.contains(OUTPUT_KEY_ATTRIBUTE_NAME_PARAM)) {
+            String keyAttrName = checker.getOperatorContext().getParameterValues(OUTPUT_KEY_ATTRIBUTE_NAME_PARAM).get(0);
             keyAttr = streamSchema.getAttribute(keyAttrName);
             if (keyAttr == null) {
                 checker.setInvalidContext(Messages.getString("OUTPUT_ATTRIBUTE_NOT_FOUND", keyAttrName), new Object[0]); //$NON-NLS-1$
@@ -134,8 +138,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
         // check that the user-specified topic attr name exists
         Attribute topicAttr;
-        if (paramNames.contains("outputTopicAttrName")) { //$NON-NLS-1$
-            String topicAttrName = checker.getOperatorContext().getParameterValues("outputTopicAttrName").get(0); //$NON-NLS-1$
+        if (paramNames.contains(OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM)) {
+            String topicAttrName = checker.getOperatorContext().getParameterValues(OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM).get(0);
             topicAttr = streamSchema.getAttribute(topicAttrName);
             if (topicAttr == null) {
                 checker.setInvalidContext(Messages.getString("OUTPUT_ATTRIBUTE_NOT_FOUND", topicAttrName), //$NON-NLS-1$
@@ -150,7 +154,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .getOptionalContext(ConsistentRegionContext.class);
         if (crContext != null) {
             if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
-                if (!checker.getOperatorContext().getParameterNames().contains("triggerCount")) { //$NON-NLS-1$
+                if (!checker.getOperatorContext().getParameterNames().contains(TRIGGER_COUNT_PARAM)) {
                     checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
                 }
             }

@@ -22,6 +22,14 @@ cd com.ibm.streamsx.kafka
 ../gradlew build
 ```
 
+## Release
+```
+./gradlew release
+```
+
+**NOTE:** The release will be available in the `build/release/output` folder. 
+
+
 ## Test
 
 ```
@@ -34,3 +42,7 @@ cd test/KafkaTests
 
 **NOTE 2:** Tests will run using the local domain specified by the STREAMS_DOMAIN_ID env var. All tests run in Distributed mode.
 
+
+## Samples
+
+Each sample contains a build.gradle file. The samples can be built/compiled by running `gradle build` from the sample directory. 

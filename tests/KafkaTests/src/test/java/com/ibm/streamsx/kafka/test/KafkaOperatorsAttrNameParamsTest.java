@@ -72,9 +72,9 @@ public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
 		
 		Map<String, Object> consumerProps = new HashMap<String, Object>();
 		consumerProps.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);
-		consumerProps.put("outputMessageAttrName", CONS_MSG_ATTR_NAME);
-		consumerProps.put("outputKeyAttrName", CONS_KEY_ATTR_NAME);
-		consumerProps.put("outputTopicAttrName", CONS_TOPIC_ATTR_NAME);
+		consumerProps.put("outputMessageAttributeName", CONS_MSG_ATTR_NAME);
+		consumerProps.put("outputKeyAttributeName", CONS_KEY_ATTR_NAME);
+		consumerProps.put("outputTopicAttributeName", CONS_TOPIC_ATTR_NAME);
 		consumerProps.put("topic", Constants.TOPIC_TEST);
 		SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, consumerProps, consumerSchema);
 		SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> {

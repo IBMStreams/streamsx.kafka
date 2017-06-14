@@ -1,3 +1,3 @@
 # Kafka Toolkit
 
-This repository hosts the documentation site for the Kafka Toolkit: [https://ibmstreams.github.io/streamsx.kafka/]()
+This repository hosts the documentation site for the Kafka Toolkit: [https://ibmstreams.github.io/streamsx.kafka/](https://ibmstreams.github.io/streamsx.kafka/)

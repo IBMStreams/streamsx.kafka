@@ -1,6 +1,3 @@
-output/
-.toolkitList
-toolkit.xml
-.gradle
-*.sab
-/test
+_site
+.sass-cache
+.jekyll-metadata

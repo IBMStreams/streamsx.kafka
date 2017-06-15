@@ -1,0 +1,750 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="Operator KafkaConsumer"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_operator"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>Operator KafkaConsumer</title>
+</head>
+<body id="spldoc_operator">
+
+
+<h1 class="title topictitle1">Operator <tt class="ph tt">KafkaConsumer</tt></h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 0.1.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+
+</div>
+
+<div class="section splprimop">
+  <embed class="image" src="../../image/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaConsumer.svg" width="672" height="112"/>
+</div>
+
+<div class="section">
+
+<p class="p">The KafkaConsumer operator is used to consume messages from Kafka topics. The operator can be configured to consume messages from one or more topics, as well as consume messages from specific partitions within topics.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka Properties
+</h2>
+
+<p class="p">The operator implements Kafka's KafkaConsumer API. As a result, it supports all Kafka properties that are supported by the underlying API. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration can be specified using the <strong class="ph b">appConfig</strong> parameter. 
+</p>
+
+<p class="p">The only property that the user is required to set is the <tt class="ph tt">bootstrap.servers</tt> property, which points to the Kafka brokers. All other properties are optional. The operator sets some properties by default to enable users to quickly get started with the operator. The following lists which properties the operator sets by default: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d2701e79">
+<p class="p">Property Name
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d2701e85">
+<p class="p">Default Value
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<p class="p">client.id
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<p class="p">Randomly generated ID in the form: <tt class="ph tt">client-&lt;random_string&gt;</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<p class="p">group.id
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<p class="p">Randomly generated ID in the form: <tt class="ph tt">group-&lt;random_string&gt;</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<p class="p">key.deserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<p class="p">See <strong class="ph b">Automatic deserialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<p class="p">value.deserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<p class="p">See <strong class="ph b">Automatic deserialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+<p class="p"><strong class="ph b">NOTE:</strong> Users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Automatic Seserialization
+</h2>
+
+<p class="p">The operator will automatically select the appropriate deserializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d2701e199">
+<p class="p">Deserializer
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d2701e205">
+<p class="p">SPL Types
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<p class="p">org.apache.kafka.common.serialization.StringDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<p class="p">rstring
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<p class="p">org.apache.kafka.common.serialization.IntegerDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<p class="p">int32, uint32
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<p class="p">org.apache.kafka.common.serialization.LongDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<p class="p">int64, uint64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<p class="p">org.apache.kafka.common.serialization.DoubleDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<p class="p">float64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<p class="p">org.apache.kafka.common.serialization.ByteArrayDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<p class="p">blob
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+<p class="p">Users can override this behaviour and specify which deserializer to use by setting the <tt class="ph tt">key.deserializer</tt> and <tt class="ph tt">value.deserializer</tt> properties. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka's Group Management
+</h2>
+
+<p class="p">The operator is capable of taking advantage of Kafka's group management functionality. In order for the operator to use this functionality, the following requirements must be met
+</p>
+
+<div class="p">
+<ul class="ul">
+<li class="li"> The operator cannot be in a consistent region</li>
+
+<li class="li"> The <strong class="ph b">startPosition</strong> parameter value cannot be <tt class="ph tt">Beginning</tt> (must be <tt class="ph tt">End</tt> or not specified)</li>
+
+<li class="li"> None of the topics specified by the <strong class="ph b">topics</strong> parameter can specify which partition to be assigned to</li>
+
+</ul>
+
+</div>
+
+<p class="p">In addition to the above, the application needs to set the <tt class="ph tt">group.id</tt> Kafka property in order to assign the KafkaConsumer to a specific group. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Consistent Region Support
+</h2>
+
+<p class="p">The <tt class="ph tt">KafkaConsumer</tt> operator can participate in a consistent region. The operator can be the start of a consistent region. Both operator driven and periodic checkpointing are supported. If using operator driven, the <strong class="ph b">triggerCount</strong> parameter must be set to indicate how often the operator should initiate a consistent region. On checkpoint, the operator will save the last offset for each topic-partition that it is assigned to. In the event of a reset, the operator will seek to the saved offset for each topic-partition and begin consuming messages from that point.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Error Handling
+</h2>
+
+<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafak throws an exception, the operator will restart. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Summary</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Ports</dt>
+
+  <dd class="dd">This operator has 0 input port and 1 output port.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Windowing</dt>
+
+  <dd class="dd">This operator does not accept any windowing configurations.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Parameters</dt>
+
+  <dd class="dd">This operator supports 10 parameters.
+<p class="p"> Required: 
+<a class="xref" href="#spldoc_operator__parameter__topic">topic</a>
+
+</p>
+
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfig">appConfig</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Metrics</dt>
+
+  <dd class="dd">This operator does not report any metrics.</dd>
+
+ 
+</dl>
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Properties</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Implementation</dt>
+
+  <dd class="dd">Java</dd>
+
+ 
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set">Output Ports</a></strong></p>
+<dl class="dl">
+  
+     <dt class="dt dlterm">Assignments</dt>
+
+       <dd class="dd">Java operators do not support output assignments.
+       </dd>
+
+  
+</dl>
+
+<dl class="dl">
+  
+   <dt class="dt dlterm">Ports (0)</dt>
+
+   <dd class="dd">
+
+<p class="p">This port produces tuples based on records read from the Kafka topic(s). A tuple will be output for each record read from the Kafka topic(s).
+</p>
+
+<p class="p"/>
+
+   <dl class="dl">
+    
+      <dt class="dt dlterm">Properties</dt>
+
+      <dd class="dd">
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set__optional">Optional</a>: false
+     </li>
+
+   </ul>
+
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set__windowpunctuationoutputmode">WindowPunctuationOutputMode</a>: Generating
+     </li>
+
+   </ul>
+
+      </dd>
+
+    
+   </dl>
+
+   <p class="p"/>
+
+   </dd>
+
+  
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
+This operator supports 10 parameters.
+<p class="p"> Required: 
+<a class="xref" href="#spldoc_operator__parameter__topic">topic</a>
+
+</p>
+
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfig">appConfig</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+<dl class="dl">
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__appConfig"><!-- --></a><tt class="ph tt">appConfig</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the application configuration containing Kafka properties.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputKeyAttributeName"><!-- --></a><tt class="ph tt">outputKeyAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that should contain the key. If not specified, the operator will attempt to store the message in an attribute named 'key'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputMessageAttributeName"><!-- --></a><tt class="ph tt">outputMessageAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that will contain the message. If not specified, the operator will attempt to store the message in an attribute named 'message'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputTopicAttributeName"><!-- --></a><tt class="ph tt">outputTopicAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that should contain the topic. If not specified, the operator will attempt to store the message in an attribute named 'topic'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__partition"><!-- --></a><tt class="ph tt">partition</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the partitions that the consumer should be assigned to for each of the topics specified. It should be noted that using this parameter will <em class="ph i">assign</em> the consumer to the specified topics, rather than <em class="ph i">subscribe</em> to them. This implies that the consumer will not use Kafka's group management feature.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__propertiesFile"><!-- --></a><tt class="ph tt">propertiesFile</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the properties file containing Kafka properties.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__startPosition"><!-- --></a><tt class="ph tt">startPosition</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies whether the operator should start reading from the end of the topic, or start reading all messages from the beginning of the topic. Valid options include: <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>. If not specified, the default value is <tt class="ph tt">End</tt>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: com.ibm.streamsx.kafka.clients.consumer.StartPosition
+ (<tt class="ph tt">Beginning, End</tt>)  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: CustomLiteral
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__topic"><!-- --></a><tt class="ph tt">topic</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the <strong class="ph b">partitions</strong> parameter.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: false
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__triggerCount"><!-- --></a><tt class="ph tt">triggerCount</tt></dt>
+
+<dd class="dd">
+<p class="p">This parameter specifies the approximate number of messages that will be submitted to the output port before initiating a checkpoint. The operator retrieves batches of messages from Kafka, and the consistent region is only started after all messages in the batch have been submitted. The implication of this is that more tuples maybe submitted by the operator before a consistent region is triggered. This parameter is only used if the operator is the start of a consistent region.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__userLib"><!-- --></a><tt class="ph tt">userLib</tt></dt>
+
+<dd class="dd">
+<p class="p">Allows the user to specify paths to JAR files that should be loaded into the operators classpath. This is useful if the user wants to be able to specify their own partitioners. The value of this parameter can either point to a specific JAR file, or to a directory. In the case of a directory, the operator will load all files ending in <tt class="ph tt">.jar</tt> onto the classpath. By default, this parameter will load all jar files found in <tt class="ph tt">&lt;application_dir&gt;/etc/libs</tt>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies">Libraries</a></strong></p>
+
+ <dl class="dl">
+ 
+  <dt class="dt dlterm">Operator class library
+  </dt>
+
+  <dd class="dd"/>
+
+  <dd class="dd"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies__managedlibrary__libpath">Library Path</a>: <tt class="ph tt">../../impl/java/bin, ../../opt/downloaded/*, ../../impl/lib/*</tt></dd>
+
+ 
+ </dl>
+
+</div>
+
+</div>
+
+
+</body>
+</html>

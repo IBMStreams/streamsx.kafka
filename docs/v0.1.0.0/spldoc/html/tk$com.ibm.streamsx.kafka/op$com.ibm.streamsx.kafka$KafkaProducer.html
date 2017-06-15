@@ -1,0 +1,605 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="Operator KafkaProducer"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_operator"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>Operator KafkaProducer</title>
+</head>
+<body id="spldoc_operator">
+
+
+<h1 class="title topictitle1">Operator <tt class="ph tt">KafkaProducer</tt></h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 0.1.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+
+</div>
+
+<div class="section splprimop">
+  <embed class="image" src="../../image/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaProducer.svg" width="672" height="112"/>
+</div>
+
+<div class="section">
+
+<p class="p">The KafkaProducer operator is used to produce messages on Kafka topics. The operator can be configured to produce messages to one or more topics.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka Properties
+</h2>
+
+<p class="p">The operator implements Kafka's KafkaProducer API. As a result, it supports all Kafka properties that are supported by the underlying API. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration can be specified using the <strong class="ph b">appConfig</strong> parameter.
+</p>
+
+<p class="p">The only property that the user is required to set is the <tt class="ph tt">bootstrap.servers</tt> property, which points to the Kafka brokers. All other properties are optional. The operator sets some properties by default to enable users to quickly get started with the operator. The following lists which properties the operator sets by default: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d5684e79">
+<p class="p">Property name
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d5684e85">
+<p class="p">Default Value
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e79 ">
+<p class="p">client.id
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e85 ">
+<p class="p">Randomly generated ID in the form: <tt class="ph tt">producer-&lt;random_string&gt;</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e79 ">
+<p class="p">key.serializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e85 ">
+<p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e79 ">
+<p class="p">value.serializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e85 ">
+<p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+<p class="p"><strong class="ph b">NOTE:</strong> Users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka Properties via Application Configuration
+</h2>
+
+<p class="p">Users can specify Kafka properties using Streams' application configurations. Information on configuring application configurations can be found here: <a class="xref" href="https://www.ibm.com/support/knowledgecenter/SSCRJU_4.2.1/com.ibm.streams.admin.doc/doc/creating-secure-app-configs.html">Creating application configuration objects to securely store data</a>. Each property set in the application configuration will be loaded as a Kafka property. For example, to specify the bootstrap servers that the operator should connect to, an app config property named <tt class="ph tt">bootstrap.servers</tt> should be created.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Automatic Serialization
+</h2>
+
+<p class="p">The operaotr will automatically select the appropriate serializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d5684e198">
+<p class="p">Serializer
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d5684e204">
+<p class="p">SPL Types
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<p class="p">org.apache.kafka.common.serialization.StringSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<p class="p">rstring
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<p class="p">org.apache.kafka.common.serialization.IntegerSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<p class="p">int32, uint32
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<p class="p">org.apache.kafka.common.serialization.LongSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<p class="p">int64, uint64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<p class="p">org.apache.kafka.common.serialization.DoubleSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<p class="p">float64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<p class="p">blob
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Consistent Region Strategy
+</h2>
+
+<p class="p">The <tt class="ph tt">KafkaProducer</tt> operator can participate in a consistent region. The operator cannot be the start of a consistent region. The operator supports 'at least once' delivery semantics. If the operator crashes or is reset while in a consistent region, the operator will write all tuples replayed. This ensures that every tuple sent to the operator will be written to the topic(s). However, 'at least once' semantics implies that duplicate messages may be written to the topic(s). 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Error Handling
+</h2>
+
+<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafka throws an exception, the operator will restart. Some exceptions can be retried, such as those that occur due to network error. Users are encouraged to set the KafkaProducer <tt class="ph tt">retries</tt> property to a value greater than 0 to enable the producer's retry mechanism. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Summary</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Ports</dt>
+
+  <dd class="dd">This operator has 1 input port and 0 output port.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Windowing</dt>
+
+  <dd class="dd">This operator does not accept any windowing configurations.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Parameters</dt>
+
+  <dd class="dd">This operator supports 7 parameters.
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfig">appConfig</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Metrics</dt>
+
+  <dd class="dd">This operator does not report any metrics.</dd>
+
+ 
+</dl>
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Properties</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Implementation</dt>
+
+  <dd class="dd">Java</dd>
+
+ 
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set">Input Ports</a></strong></p>
+<dl class="dl">
+  
+   <dt class="dt dlterm">Ports (0)</dt>
+
+   <dd class="dd">
+
+<p class="p">This port consumes tuples to be written to the Kafka topic(s). Each tuple received on this port will be written to the Kafka topic(s).
+</p>
+   </dd>
+
+  
+    
+      <dt class="dt dlterm">Properties</dt>
+
+      <dd class="dd">
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__optional">Optional</a>: false
+     </li>
+
+   </ul>
+
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__controlport">ControlPort</a>: false
+</li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__windowingmode">WindowingMode</a>: NonWindowed
+</li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__windowpunctuationinputmode">WindowPunctuationInputMode</a>: Oblivious
+</li>
+
+   </ul>
+
+      </dd>
+
+    
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
+This operator supports 7 parameters.
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfig">appConfig</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+<dl class="dl">
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__appConfig"><!-- --></a><tt class="ph tt">appConfig</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the application configuration containing Kafka properties.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__keyAttribute"><!-- --></a><tt class="ph tt">keyAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the input attribute that contains the Kafka key value. If not specified, the operator will look for an input attribute named <em class="ph i">key</em>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__messageAttribute"><!-- --></a><tt class="ph tt">messageAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the attribute on the input port that contains the message payload. If not specified, the operator will look for an input attribute named <em class="ph i">message</em>. If this parameter is not specified and there is no input attribute named <em class="ph i">message</em>, the operator will throw an exception and terminate.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__propertiesFile"><!-- --></a><tt class="ph tt">propertiesFile</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the properties file containing Kafka properties.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__topic"><!-- --></a><tt class="ph tt">topic</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the topic(s) that the producer should send messages to. The value of this parameter will take precedence over the <strong class="ph b">topicAttrName</strong> parameter. This parameter will also take precedence if the input tuple schema contains an attribute named topic.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__topicAttribute"><!-- --></a><tt class="ph tt">topicAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the input attribute that contains the name of the topic that the message should be written to. If this parameter is not specified, the operator will attempt to look for an input attribute named <em class="ph i">topic</em>. This parameter value is overridden if the <strong class="ph b">topic</strong> parameter is specified.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__userLib"><!-- --></a><tt class="ph tt">userLib</tt></dt>
+
+<dd class="dd">
+<p class="p">Allows the user to specify paths to JAR files that should be loaded into the operators classpath. This is useful if the user wants to be able to specify their own partitioners. The value of this parameter can either point to a specific JAR file, or to a directory. In the case of a directory, the operator will load all files ending in <tt class="ph tt">.jar</tt> onto the classpath. By default, this parameter will load all jar files found in <tt class="ph tt">&lt;application_dir&gt;/etc/libs</tt>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies">Libraries</a></strong></p>
+
+ <dl class="dl">
+ 
+  <dt class="dt dlterm">Operator class library
+  </dt>
+
+  <dd class="dd"/>
+
+  <dd class="dd"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies__managedlibrary__libpath">Library Path</a>: <tt class="ph tt">../../impl/java/bin, ../../opt/downloaded/*, ../../impl/lib/*</tt></dd>
+
+ 
+ </dl>
+
+</div>
+
+</div>
+
+
+</body>
+</html>

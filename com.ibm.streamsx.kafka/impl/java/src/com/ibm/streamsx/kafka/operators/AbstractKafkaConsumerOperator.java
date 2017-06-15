@@ -62,45 +62,70 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private boolean hasOutputKey;
     private Integer tupleCounter = 0;
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name="startPosition", 
+    		description="Specifies whether the operator should start "
+    				+ "reading from the end of the topic, or start reading "
+    				+ "all messages from the beginning of the topic. Valid "
+    				+ "options include: `Beginning`, `End`. If not specified, "
+    				+ "the default value is `End`.")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
     }
 
-    @Parameter(optional = true, name="partition")
+    @Parameter(optional = true, name="partition",
+    		description="Specifies the partitions that the consumer should be "
+    				+ "assigned to for each of the topics specified. It should "
+    				+ "be noted that using this parameter will *assign* the "
+    				+ "consumer to the specified topics, rather than *subscribe* "
+    				+ "to them. This implies that the consumer will not use Kafka's "
+    				+ "group management feature.")
     public void setPartitions(int[] partitions) {
     	this.partitions = Ints.asList(partitions);
 	}
     
-    @Parameter(optional = false, name="topic")
+    @Parameter(optional = false, name="topic",
+    		description="Specifies the topic or topics that the consumer should "
+    				+ "subscribe to. To assign the consumer to specific partitions, "
+    				+ "use the **partitions** parameter.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
 
-    @Parameter(optional = true, name=OUTPUT_KEY_ATTRIBUTE_NAME_PARAM)
+    @Parameter(optional = true, name=OUTPUT_KEY_ATTRIBUTE_NAME_PARAM,
+    		description="Specifies the output attribute name that should contain "
+    				+ "the key. If not specified, the operator will attempt to "
+    				+ "store the message in an attribute named 'key'.")
     public void setOutputKeyAttrName(String outputKeyAttrName) {
         this.outputKeyAttrName = outputKeyAttrName;
     }
 
-    @Parameter(optional = true, name=OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM)
+    @Parameter(optional = true, name=OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM,
+    		description="Specifies the output attribute name that will contain the "
+    				+ "message. If not specified, the operator will attempt to store "
+    				+ "the message in an attribute named 'message'.")
     public void setOutputMessageAttrName(String outputMessageAttrName) {
         this.outputMessageAttrName = outputMessageAttrName;
     }
 
-    @Parameter(optional = true, name=OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM)
+    @Parameter(optional = true, name=OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM,
+    		description="Specifies the output attribute name that should contain the topic. "
+    				+ "If not specified, the operator will attempt to store the message in "
+    				+ "an attribute named 'topic'.")
     public void setOutputTopicAttrName(String outputTopicAttrName) {
         this.outputTopicAttrName = outputTopicAttrName;
     }
 
-    @Parameter(optional = true, name=TRIGGER_COUNT_PARAM)
+    @Parameter(optional = true, name=TRIGGER_COUNT_PARAM, 
+    		description="This parameter specifies the approximate number of messages that will "
+    				+ "be submitted to the output port before initiating a checkpoint. The "
+    				+ "operator retrieves batches of messages from Kafka, and the consistent "
+    				+ "region is only started after all messages in the batch have been submitted. "
+    				+ "The implication of this is that more tuples maybe submitted by the operator "
+    				+ "before a consistent region is triggered. This parameter is only used if the "
+    				+ "operator is the start of a consistent region.")
     public void setTriggerCount(int triggerCount) {
         this.triggerCount = triggerCount;
     }
-
-    // @Parameter(optional = true)
-    // public void setConsumerPollTimeout(Long consumerPollTimeout) {
-    // this.consumerPollTimeout = consumerPollTimeout;
-    // }
 
     @ContextCheck(compile = false, runtime = true)
     public static void checkMessageParam(OperatorContextChecker checker) {

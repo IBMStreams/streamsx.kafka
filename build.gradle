@@ -48,10 +48,6 @@ task removeSrc(type: Delete) {
     delete 'build/release/com.ibm.streamsx.kafka/impl/include'
     delete 'build/release/com.ibm.streamsx.kafka/data'
     delete 'build/release/com.ibm.streamsx.kafka/impl/java'
-//    delete 'build/release/com.ibm.streamsx.kafka/build.gradle'
-//    delete 'build/release/com.ibm.streamsx.kafka/build'
-//    delete 'build/release/com.ibm.streamsx.kafka/icons'
-//    delete 'build/release/com.ibm.streamsx.kafka/impl/java/src'
 }
 
 task removeOldRelease(type: Delete) {
@@ -79,6 +75,17 @@ task release {
     dependsOn archive
 }  
 
+task spldoc(dependsOn: ":com.ibm.streamsx.kafka:build") {
+    doLast {
+        spldoc('com.ibm.streamsx.kafka', 'Kafka Toolkit')
+    }
+}
+
+task deleteSplDocDir {
+    delete "docs"
+}
+
+clean.finalizedBy deleteSplDocDir
 archive.mustRunAfter removeSrc
 removeSrc.mustRunAfter copyToTemp
 copyToTemp.mustRunAfter build, removeOldRelease

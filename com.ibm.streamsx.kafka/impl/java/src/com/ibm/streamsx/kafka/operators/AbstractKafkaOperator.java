@@ -52,17 +52,28 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
 
     private KafkaOperatorProperties kafkaProperties;
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name="propertiesFile", 
+    		description="Specifies the name of the properties file "
+    				+ "containing Kafka properties.")
     public void setPropertiesFile(String propertiesFile) {
         this.propertiesFile = propertiesFile;
     }
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name="appConfig",
+    		description="Specifies the name of the application configuration "
+    				+ "containing Kafka properties.")
     public void setAppConfigName(String appConfigName) {
         this.appConfigName = appConfigName;
     }
 
-    @Parameter(optional = true)
+    @Parameter(optional = true, name="userLib",
+    		description="Allows the user to specify paths to JAR files that should "
+    				+ "be loaded into the operators classpath. This is useful if "
+    				+ "the user wants to be able to specify their own partitioners. "
+    				+ "The value of this parameter can either point to a specific JAR file, "
+    				+ "or to a directory. In the case of a directory, the operator will "
+    				+ "load all files ending in `.jar` onto the classpath. By default, "
+    				+ "this parameter will load all jar files found in `<application_dir>/etc/libs`.")
     public void setUserLib(String[] userLib) {
         this.userLib = userLib;
     }

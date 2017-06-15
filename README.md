@@ -12,7 +12,7 @@ To migrate applications using the old Kafka operators in the `com.ibm.streamsx.m
 
 ## Documentation 
 
-Coming soon...
+Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) (COMING SOON!)
 
 
 ## Build
@@ -21,6 +21,15 @@ Coming soon...
 cd com.ibm.streamsx.kafka
 ../gradlew build
 ```
+
+## Build SPLDoc
+
+```
+./gradlew spldoc
+```
+
+**NOTE:** SPLDocs will be generated in the `docs/spldoc` directory.
+
 
 ## Release
 ```

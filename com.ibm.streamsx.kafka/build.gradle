@@ -76,7 +76,11 @@ task cleanToolkit() {
     }   
 }
 
-compileJava.dependsOn getDeps
+task deleteImplLibJar {
+    delete fileTree(dir : 'impl/lib', include : ['com.ibm.streamsx.kafka*.jar'])
+}
+
+compileJava.dependsOn getDeps, deleteImplLibJar
 compileJava.finalizedBy buildToolkit
 build.finalizedBy copyLibToImpl
 clean.dependsOn deleteDeps, cleanToolkit

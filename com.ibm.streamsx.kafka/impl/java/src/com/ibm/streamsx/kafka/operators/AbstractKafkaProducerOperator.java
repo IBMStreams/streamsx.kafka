@@ -53,23 +53,42 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private AtomicBoolean isResetting;
     private boolean hasKeyAttr;
 
-    @Parameter(optional = true, name=KEYATTR_PARAM_NAME)
+    @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
+    		description="Specifies the input attribute that contains "
+    				+ "the Kafka key value. If not specified, the operator "
+    				+ "will look for an input attribute named *key*.")
     public void setKeyAttr(TupleAttribute<Tuple, ?> keyAttr) {
 		this.keyAttr = keyAttr;
 	}
     
     @DefaultAttribute(DEFAULT_MESSAGE_ATTR_NAME)
-    @Parameter(optional = true, name=MESSAGEATTR_PARAM_NAME)
+    @Parameter(optional = true, name=MESSAGEATTR_PARAM_NAME, 
+    		description="Specifies the attribute on the input port that "
+    				+ "contains the message payload. If not specified, the "
+    				+ "operator will look for an input attribute named *message*. "
+    				+ "If this parameter is not specified and there is no input "
+    				+ "attribute named *message*, the operator will throw an "
+    				+ "exception and terminate.")
     public void setMessageAttr(TupleAttribute<Tuple, ?> messageAttr) {
 		this.messageAttr = messageAttr;
 	}
 
-    @Parameter(optional = true, name=TOPIC_PARAM_NAME)
+    @Parameter(optional = true, name=TOPIC_PARAM_NAME,
+    		description="Specifies the topic(s) that the producer should send "
+    				+ "messages to. The value of this parameter will take precedence "
+    				+ "over the **topicAttrName** parameter. This parameter will also "
+    				+ "take precedence if the input tuple schema contains an attribute "
+    				+ "named topic.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
 
-    @Parameter(optional = true, name=TOPICATTR_PARAM_NAME)
+    @Parameter(optional = true, name=TOPICATTR_PARAM_NAME,
+    		description="Specifies the input attribute that contains the name of "
+    				+ "the topic that the message should be written to. If this "
+    				+ "parameter is not specified, the operator will attempt to "
+    				+ "look for an input attribute named *topic*. This parameter "
+    				+ "value is overridden if the **topic** parameter is specified.")
     public void setTopicAttr(TupleAttribute<Tuple, String> topicAttr) {
 		this.topicAttr = topicAttr;
 	}
@@ -149,6 +168,19 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
     }
 
+    @ContextCheck(compile = true)
+	public static void checkConsistentRegion(OperatorContextChecker checker) {
+
+    	// check that the operator is not the start of the consistent region
+		OperatorContext opContext = checker.getOperatorContext();
+		ConsistentRegionContext crContext = opContext.getOptionalContext(ConsistentRegionContext.class);
+		if (crContext != null) {
+			if (crContext.isStartOfRegion()) {
+				checker.setInvalidContext(Messages.getString("PRODUCER_NOT_START_OF_CONSISTENT_REGION"), new Object[0]); ////$NON-NLS-1$ 
+			}
+		}
+	}
+    
     /**
      * Initialize this operator. Called once before any tuples are processed.
      * 

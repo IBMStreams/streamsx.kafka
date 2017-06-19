@@ -59,7 +59,7 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
         this.propertiesFile = propertiesFile;
     }
 
-    @Parameter(optional = true, name="appConfig",
+    @Parameter(optional = true, name="appConfigName",
     		description="Specifies the name of the application configuration "
     				+ "containing Kafka properties.")
     public void setAppConfigName(String appConfigName) {

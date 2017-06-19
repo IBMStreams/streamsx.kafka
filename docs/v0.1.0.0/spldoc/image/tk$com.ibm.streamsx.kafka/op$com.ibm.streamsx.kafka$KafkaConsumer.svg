@@ -94,15 +94,15 @@ fm9nWLz9/69lxAQUAAJR65/Ot3QZAAAAAElFTkSuQmCC"
       ><set attributeName="visibility" from="hidden" end="sdt1.mouseout" to="visible" begin="sdt1.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"
-    ><rect x="47.65" y="43.0" width="400.55997" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="62.0"
+    ><rect x="47.65" y="43.0" width="350.74" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="62.0"
       /><text x="48.65" y="56.0"
-      >Required: topic / Optional: appConfig, outputKeyAttributeName, </text
+      >Required: topic / Optional: appConfigName, </text
       ><text x="48.65" y="71.0"
-      >outputMessageAttributeName, outputTopicAttributeName, </text
+      >outputKeyAttributeName, outputMessageAttributeName, </text
       ><text x="48.65" y="86.0"
-      >partition, propertiesFile, startPosition, triggerCount, </text
+      >outputTopicAttributeName, partition, propertiesFile, </text
       ><text x="48.65" y="101.0"
-      >userLib</text
+      >startPosition, triggerCount, userLib</text
       ><set attributeName="visibility" from="hidden" end="sdt2.mouseout" to="visible" begin="sdt2.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"

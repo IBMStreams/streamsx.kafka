@@ -25,7 +25,7 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 			+ "application configuration. If specifying properties via a file, "
 			+ "the **propertiesFile** parameter can be used. If specifying properties "
 			+ "in an application configuration, the name of the application configuration "
-			+ "can be specified using the **appConfig** parameter.\\n" + 
+			+ "can be specified using the **appConfigName** parameter.\\n" + 
 			"\\n" + 
 			"The only property that the user is required to set is the `bootstrap.servers` "
 			+ "property, which points to the Kafka brokers. All other properties are optional. "

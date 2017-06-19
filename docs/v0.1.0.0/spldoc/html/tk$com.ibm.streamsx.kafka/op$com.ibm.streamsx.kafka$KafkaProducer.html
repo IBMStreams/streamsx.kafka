@@ -40,7 +40,7 @@
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
-<p class="p">The operator implements Kafka's KafkaProducer API. As a result, it supports all Kafka properties that are supported by the underlying API. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration can be specified using the <strong class="ph b">appConfig</strong> parameter.
+<p class="p">The operator implements Kafka's KafkaProducer API. As a result, it supports all Kafka properties that are supported by the underlying API. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration can be specified using the <strong class="ph b">appConfigName</strong> parameter.
 </p>
 
 <p class="p">The only property that the user is required to set is the <tt class="ph tt">bootstrap.servers</tt> property, which points to the Kafka brokers. All other properties are optional. The operator sets some properties by default to enable users to quickly get started with the operator. The following lists which properties the operator sets by default: 

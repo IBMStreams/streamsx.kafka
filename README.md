@@ -7,7 +7,7 @@ This version of the toolkit currently supports: <mark>Apache Kafka v0.10.x</mark
 
 ## Migrating from com.ibm.streamsx.messaging
 
-To migrate applications using the old Kafka operators in the `com.ibm.streamsx.messaging` toolkit, refer to the [Migration Document](https://github.com/IBMStreams/streamsx.kafka/wiki/Migration-Document-(Messaging-Toolkit-to-Kafka-Toolkit).
+To migrate applications using the old Kafka operators in the `com.ibm.streamsx.messaging` toolkit, refer to the [Migration Document](https://github.com/IBMStreams/streamsx.kafka/wiki/Migration-Document-(Messaging-Toolkit-to-Kafka-Toolkit)).
 
 
 ## Documentation 

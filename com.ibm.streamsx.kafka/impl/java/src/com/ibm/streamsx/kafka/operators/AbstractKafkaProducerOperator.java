@@ -13,6 +13,7 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
+import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.Tuple;
@@ -116,6 +117,24 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
      */
     private static String parseFQAttributeName(String attrString) {
     	return attrString.split("_")[1].replace("()", "");
+    }
+    
+    /*
+     * If the `partitionAttribute` is not defined, then the operator will look
+     * for an input attribute called "partition". Here, we need to check that this
+     * input attribute is of type "int32". 
+     */
+    @ContextCheck(compile = true)
+    public static void checkPartitionAttributeType(OperatorContextChecker checker) {
+    	if(!checker.getOperatorContext().getParameterNames().contains(PARTITIONATTR_PARAM_NAME)) {
+    		StreamSchema schema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
+    		Attribute partition = schema.getAttribute("partition");
+    		if(partition != null) {
+    			if(!checker.checkAttributeType(partition, MetaType.INT32)) {
+    				checker.setInvalidContext(Messages.getString("PARTITION_ATTRIBUTE_NOT_INT32"), new Object[0]);
+    			}
+    		}
+    	}
     }
     
     @ContextCheck(runtime = true, compile = false)

@@ -1,4 +1,4 @@
-#Mon Jun 19 08:04:16 EDT 2017
+#Mon Jun 26 07:39:12 EDT 2017
 copytosourcelist=
 hreftargetslist=dita/tk$com.ibm.streamsx.kafka/ix$Namespace.xml,dita/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaProducer.xml,dita/toolkits/ix$Namespace.xml,dita/toolkits/ix$Operator.xml,dita/tk$com.ibm.streamsx.kafka/ns$com.ibm.streamsx.kafka.xml,dita/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaConsumer.xml,dita/tk$com.ibm.streamsx.kafka/ix$Operator.xml,dita/toolkits/toolkits.xml,dita/references/OperatorModel.xml,dita/tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka.xml
 fullditatopicfile=fullditatopic.list
@@ -37,7 +37,7 @@ codereffile=coderef.list
 keylist=
 codereflist=
 user.input.file.listfile=usr.input.file.list
-user.input.dir=/home/streamsadmin/git/streamsx.kafka/docs/spldoc
+user.input.dir=/tmp/streamsx.kafka/docs/spldoc
 uplevels=../
 tempdirToinputmapdir.relative.value=dita/
 conrefpushfile=conrefpush.list

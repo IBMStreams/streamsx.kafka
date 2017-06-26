@@ -283,9 +283,9 @@
  
   <dt class="dt dlterm">Parameters</dt>
 
-  <dd class="dd">This operator supports 7 parameters.
+  <dd class="dd">This operator supports 8 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 </dd>
@@ -357,9 +357,9 @@
 
 <div class="section">
 <p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
-This operator supports 7 parameters.
+This operator supports 8 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 <dl class="dl">
@@ -457,6 +457,40 @@ This operator supports 7 parameters.
 
 
 
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__partitionAttribute"><!-- --></a><tt class="ph tt">partitionAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the input attribute that contains the partition number that the message should be written to. If this parameter is not specified, the operator will look for an input attribute named <strong class="ph b">partition</strong>. If the user does not indicate which partition the message should be written to, then Kafka's default partitioning strategy will be used instead (partition based on the specified partitioner or in a round-robin fashion).
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__propertiesFile"><!-- --></a><tt class="ph tt">propertiesFile</tt></dt>
 
 <dd class="dd">
@@ -519,7 +553,7 @@ This operator supports 7 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__topicAttribute"><!-- --></a><tt class="ph tt">topicAttribute</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the input attribute that contains the name of the topic that the message should be written to. If this parameter is not specified, the operator will attempt to look for an input attribute named <em class="ph i">topic</em>. This parameter value is overridden if the <strong class="ph b">topic</strong> parameter is specified.
+<p class="p">Specifies the input attribute that contains the name of the topic that the message should be written to. If this parameter is not specified, the operator will look for an input attribute named <em class="ph i">topic</em>. This parameter value is overridden if the <strong class="ph b">topic</strong> parameter is specified.
 </p>
 <dl class="dl">
 

@@ -72,7 +72,7 @@ public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
 		
 		String[] expectedArr = {"A0", "B1", "C2", "A3", "B4", "C5", "A6", "B7", "C8"};
 		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, expectedArr);
-		tester.complete(context, condition, 30, TimeUnit.SECONDS);
+		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
 		
 		// check the results
 		Assert.assertTrue(condition.getResult().size() > 0);

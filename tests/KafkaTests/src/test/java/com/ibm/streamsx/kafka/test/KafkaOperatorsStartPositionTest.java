@@ -83,7 +83,7 @@ public class KafkaOperatorsStartPositionTest extends AbstractKafkaTest {
 		StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
 		Tester tester = topo.getTester();
 		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, Constants.STRING_DATA);
-		tester.complete(context, condition, 30, TimeUnit.SECONDS);
+		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
 
 		// check the results
 		Assert.assertTrue(condition.getResult().size() > 0);

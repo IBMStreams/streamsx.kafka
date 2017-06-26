@@ -62,7 +62,7 @@ public class KafkaProducerFanOutTest extends AbstractKafkaTest {
 		// both producers are sending the same data, so each result is duplicated
 		String[] expectedArr = KafkaSPLStreamsUtils.duplicateArrayEntries(Constants.STRING_DATA, 2); 		
 		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, expectedArr);
-		tester.complete(context, condition, 30, TimeUnit.SECONDS);
+		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
 
 		// check the results
 		Assert.assertTrue(condition.getResult().size() > 0);

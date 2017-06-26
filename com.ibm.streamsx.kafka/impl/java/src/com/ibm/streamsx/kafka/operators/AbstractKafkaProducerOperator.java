@@ -32,11 +32,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private static final String DEFAULT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
     private static final String DEFAULT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     private static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
+    private static final String DEFAULT_PARTITION_ATTR_NAME = "partition"; //$NON-NLS-1$
 
-    private static final String MESSAGEATTR_PARAM_NAME = "messageAttribute";
-    private static final String KEYATTR_PARAM_NAME = "keyAttribute";
-    private static final String TOPIC_PARAM_NAME = "topic";
-    private static final String TOPICATTR_PARAM_NAME = "topicAttribute";
+    private static final String MESSAGEATTR_PARAM_NAME = "messageAttribute"; //$NON-NLS-1$
+    private static final String KEYATTR_PARAM_NAME = "keyAttribute"; //$NON-NLS-1$
+    private static final String TOPIC_PARAM_NAME = "topic"; //$NON-NLS-1$
+    private static final String TOPICATTR_PARAM_NAME = "topicAttribute"; //$NON-NLS-1$
+    private static final String PARTITIONATTR_PARAM_NAME = "partitionAttribute"; //$NON-NLS-1$
     
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
@@ -44,14 +46,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected TupleAttribute<Tuple, ?> keyAttr;
     protected TupleAttribute<Tuple, ?> messageAttr;
     protected TupleAttribute<Tuple, String> topicAttr;
-//    protected String messageAttrName = DEFAULT_MESSAGE_ATTR_NAME;
-//    protected String keyAttrName = DEFAULT_KEY_ATTR_NAME;
+    protected TupleAttribute<Tuple, Integer> partitionAttr;
     protected List<String> topics;
-//    protected String topicAttrName = DEFAULT_TOPIC_ATTR_NAME;
 
     private KafkaProducerClient producer;
     private AtomicBoolean isResetting;
-    private boolean hasKeyAttr;
+    private String keyAttributeName = null;
+    private String partitionAttributeName = null;
 
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
     		description="Specifies the input attribute that contains "
@@ -86,13 +87,25 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=TOPICATTR_PARAM_NAME,
     		description="Specifies the input attribute that contains the name of "
     				+ "the topic that the message should be written to. If this "
-    				+ "parameter is not specified, the operator will attempt to "
+    				+ "parameter is not specified, the operator will "
     				+ "look for an input attribute named *topic*. This parameter "
     				+ "value is overridden if the **topic** parameter is specified.")
     public void setTopicAttr(TupleAttribute<Tuple, String> topicAttr) {
 		this.topicAttr = topicAttr;
 	}
 
+    @Parameter(optional = true, name=PARTITIONATTR_PARAM_NAME,
+    		description="Specifies the input attribute that contains the partition "
+    				+ "number that the message should be written to. If this parameter "
+    				+ "is not specified, the operator will look for an input attribute "
+    				+ "named **partition**. If the user does not indicate which partition "
+    				+ "the message should be written to, then Kafka's default partitioning "
+    				+ "strategy will be used instead (partition based on the specified "
+    				+ "partitioner or in a round-robin fashion).")
+    public void setPartitionAttr(TupleAttribute<Tuple, Integer> partitionAttr) {
+    	this.partitionAttr = partitionAttr;
+    }
+    
     /*
      * Retrieving the value of a TupleAttribute parameter via OperatorContext.getParameterValues()
      * returns a string in the form "InputPortName.AttributeName". However, this ends up being the
@@ -207,10 +220,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
         if(keyAttribute != null) {
         	keyType = keyAttribute.getType().getObjectType();
-        	hasKeyAttr = true;
-        } else {
-        	hasKeyAttr = false;
+        	keyAttributeName = keyAttribute.getName();
         }
+        
+        // check for partition attribute
+        Attribute partitionAttribute = null;
+        if(partitionAttr != null && partitionAttr.getAttribute() != null) {
+        	partitionAttribute = partitionAttr.getAttribute();
+        } else {
+        	partitionAttribute = inputSchema.getAttribute(DEFAULT_PARTITION_ATTR_NAME);
+        }
+        partitionAttributeName = partitionAttribute != null ? partitionAttribute.getName() : null;
         
         // get message type
         messageType = messageAttr.getAttribute().getType().getObjectType();
@@ -258,24 +278,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
 
         List<String> topicList = getTopics(tuple);
-        Object key = hasKeyAttr ? getKey(tuple) : null;
+        Object key = keyAttributeName != null ? toJavaPrimitveObject(keyType, tuple.getObject(keyAttributeName)) : null;
         Object value = toJavaPrimitveObject(messageType, messageAttr.getValue(tuple));
+        Integer partition = (partitionAttributeName != null) ? tuple.getInt(partitionAttributeName) : null;
 
         // send message to all topics
         for (String topic : topicList)
-            producer.processTuple(new ProducerRecord(topic, key, value));
-    }
-
-    private Object getKey(Tuple tuple) {
-    	Object key;
-    	
-    	if(keyAttr != null && keyAttr.getAttribute() != null) {
-    		key = keyAttr.getValue(tuple);
-    	} else {
-    		key = tuple.getObject(DEFAULT_KEY_ATTR_NAME);
-    	}
-    	
-    	return toJavaPrimitveObject(keyType, key);
+            producer.processTuple(new ProducerRecord(topic, partition, key, value));
     }
     
     private List<String> getTopics(Tuple tuple) {

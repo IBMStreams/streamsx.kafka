@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
 
 import com.google.common.io.Files;
 import com.ibm.streams.operator.AbstractOperator;

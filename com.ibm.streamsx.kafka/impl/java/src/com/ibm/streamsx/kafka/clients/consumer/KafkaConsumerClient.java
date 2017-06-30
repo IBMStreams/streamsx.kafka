@@ -163,12 +163,16 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         
         List<TopicPartition> topicPartitions = new ArrayList<TopicPartition>();
         topics.forEach(topic -> {
-        	offsetManager.addTopic(topic, false);
+        	List<TopicPartition> theseTopicPartitions = new ArrayList<>();
         	if(partitions != null) {
-            	partitions.forEach(partition -> topicPartitions.add(new TopicPartition(topic, partition)));	
+        		// assign the consumer to specific partitions within a topic
+            	partitions.forEach(partition -> theseTopicPartitions.add(new TopicPartition(topic, partition)));	
         	} else {
-        		consumer.partitionsFor(topic).forEach(p -> topicPartitions.add(new TopicPartition(topic, p.partition())));        		
+        		// assign the consumer to all partitions within a topic
+        		consumer.partitionsFor(topic).forEach(p -> theseTopicPartitions.add(new TopicPartition(topic, p.partition())));        		
         	}
+        	topicPartitions.addAll(theseTopicPartitions);
+        	offsetManager.addTopic(topic, theseTopicPartitions);
         });
         consumer.assign(topicPartitions);
 

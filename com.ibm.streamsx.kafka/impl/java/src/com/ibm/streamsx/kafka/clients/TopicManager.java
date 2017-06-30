@@ -1,13 +1,11 @@
 package com.ibm.streamsx.kafka.clients;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
@@ -23,9 +21,11 @@ public class TopicManager implements Serializable {
     private String topic;
     private transient KafkaConsumer<?, ?> offsetConsumer;
     private Map<Integer /* partition */, Long /* offset */> offsetMap;
+	private List<TopicPartition> topicPartitions;
 
-    public <K, V> TopicManager(String topic, KafkaConsumer<K, V> offsetConsumer) {
+    public <K, V> TopicManager(String topic, List<TopicPartition> topicPartitions, KafkaConsumer<K, V> offsetConsumer) {
         this.topic = topic;
+        this.topicPartitions = topicPartitions;
         this.offsetConsumer = offsetConsumer;
         this.offsetMap = new HashMap<Integer, Long>();
     }
@@ -37,32 +37,13 @@ public class TopicManager implements Serializable {
     public Long getOffset(int partition) {
         return offsetMap.get(partition);
     }
-
-    public List<PartitionInfo> getPartitionInfo() {
-        return offsetConsumer.partitionsFor(topic);
-    }
-
+  
     public void savePositionFromCluster() {
-        List<PartitionInfo> partitionInfo = getPartitionInfo();
-        partitionInfo.forEach(part -> {
+    	topicPartitions.forEach(part -> {
             TopicPartition tp = new TopicPartition(topic, part.partition());
             long offset = offsetConsumer.position(tp);
             logger.debug("Saving offset for last record retrieved from cluster..."); //$NON-NLS-1$
             setOffset(part.partition(), offset);
-        });
-    }
-
-    public void saveEndOffsetsFromCluster() {
-        List<PartitionInfo> partitionInfo = getPartitionInfo();
-        List<TopicPartition> tps = new ArrayList<TopicPartition>();
-        partitionInfo.forEach(part -> tps.add(new TopicPartition(topic, part.partition())));
-
-        Map<TopicPartition, Long> endOffsets = offsetConsumer.endOffsets(tps);
-
-        offsetMap.clear();
-        endOffsets.forEach((tp, offset) -> {
-            logger.debug("Updating end offset from cluster..."); //$NON-NLS-1$
-            setOffset(tp.partition(), offset);
         });
     }
 

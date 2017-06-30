@@ -3,7 +3,6 @@ package com.ibm.streamsx.kafka.clients;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -11,7 +10,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
@@ -45,19 +43,11 @@ public class OffsetManager implements Serializable {
     /*
      * Adds the topic to the offsetManager if it does not already exist.
      */
-    public void addTopic(String topic, boolean forceUpdateOffsets) {
-        TopicManager tm = new TopicManager(topic, offsetConsumer);
+    public void addTopic(String topic, List<TopicPartition> topicPartitions) {
+        TopicManager tm = new TopicManager(topic, topicPartitions, offsetConsumer);
         TopicManager previousValue = managerMap.putIfAbsent(topic, tm);
         if (previousValue == null /* new topic added */) {
-            if (forceUpdateOffsets)
-                tm.saveEndOffsetsFromCluster();
             logger.debug("Added topic: " + topic); //$NON-NLS-1$
-        }
-    }
-
-    public void saveEndOffsetsFromCluster() {
-        for (Entry<String, TopicManager> entry : managerMap.entrySet()) {
-            entry.getValue().saveEndOffsetsFromCluster();
         }
     }
 
@@ -77,16 +67,6 @@ public class OffsetManager implements Serializable {
 
     public long getOffset(String topic, int partition) {
         return managerMap.get(topic).getOffset(partition);
-    }
-
-    public Collection<TopicPartition> getTopicPartitions(String topic) {
-        List<TopicPartition> tps = new ArrayList<TopicPartition>();
-        List<PartitionInfo> partitionInfo = managerMap.get(topic).getPartitionInfo();
-        for (PartitionInfo info : partitionInfo) {
-            tps.add(new TopicPartition(topic, info.partition()));
-        }
-
-        return tps;
     }
 
     @Override

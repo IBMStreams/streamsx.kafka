@@ -18,7 +18,11 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"The KafkaConsumer operator is used to consume messages from Kafka topics. " //$NON-NLS-1$
     		+ "The operator can be configured to consume messages from one or more topics, " //$NON-NLS-1$
     		+ "as well as consume messages from specific partitions within topics.\\n" //$NON-NLS-1$
-    		+ "\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "# Supported Kafka Version\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "This version of the toolkit only supports **Apache Kafka v0.10.x**.\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
     		+ "# Kafka Properties\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"The operator implements Kafka's KafkaConsumer API. As a result, it supports all " //$NON-NLS-1$
@@ -97,6 +101,6 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
 			"\\n" +  //$NON-NLS-1$
 			"# Error Handling\\n" +  //$NON-NLS-1$
 			"\\n" +  //$NON-NLS-1$
-			"Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafak throws " //$NON-NLS-1$
+			"Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafa throws " //$NON-NLS-1$
 			+ "an exception, the operator will restart.\\n"; //$NON-NLS-1$
 }

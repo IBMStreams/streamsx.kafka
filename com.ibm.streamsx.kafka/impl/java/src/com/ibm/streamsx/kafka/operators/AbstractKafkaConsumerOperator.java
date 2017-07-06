@@ -120,7 +120,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     				+ "be submitted to the output port before initiating a checkpoint. The "
     				+ "operator retrieves batches of messages from Kafka, and the consistent "
     				+ "region is only started after all messages in the batch have been submitted. "
-    				+ "The implication of this is that more tuples maybe submitted by the operator "
+    				+ "The implication of this is that more tuples may be submitted by the operator "
     				+ "before a consistent region is triggered. This parameter is only used if the "
     				+ "operator is the start of a consistent region.")
     public void setTriggerCount(int triggerCount) {

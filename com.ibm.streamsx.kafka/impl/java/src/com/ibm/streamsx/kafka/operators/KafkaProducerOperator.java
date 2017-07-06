@@ -15,11 +15,15 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 	public static final String DESC = 
 			"The KafkaProducer operator is used to produce messages on Kafka " //$NON-NLS-1$
 			+ "topics. The operator can be configured to produce messages to " //$NON-NLS-1$
-			+ "one or more topics.\\n" +  //$NON-NLS-1$
-			"\\n" +  //$NON-NLS-1$
-			"# Kafka Properties\\n" +  //$NON-NLS-1$
-			"\\n" +  //$NON-NLS-1$
-			"The operator implements Kafka's KafkaProducer API. As a result, " //$NON-NLS-1$
+			+ "one or more topics.\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "# Supported Kafka Version\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "This version of the toolkit only supports **Apache Kafka v0.10.x**.\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "# Kafka Properties\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "The operator implements Kafka's KafkaProducer API. As a result, " //$NON-NLS-1$
 			+ "it supports all Kafka properties that are supported by the " //$NON-NLS-1$
 			+ "underlying API. Properties can be specified in a file or in an " //$NON-NLS-1$
 			+ "application configuration. If specifying properties via a file, " //$NON-NLS-1$
@@ -60,7 +64,7 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 			+ "\\n" +  //$NON-NLS-1$
 			"# Automatic Serialization\\n" +  //$NON-NLS-1$
 			"\\n" +  //$NON-NLS-1$
-			"The operaotr will automatically select the appropriate serializers for the key " //$NON-NLS-1$
+			"The operator will automatically select the appropriate serializers for the key " //$NON-NLS-1$
 			+ "and message based on their types. The following table outlines which " //$NON-NLS-1$
 			+ "deserializer will be used given a particular type: \\n" +  //$NON-NLS-1$
 			"\\n" +  //$NON-NLS-1$

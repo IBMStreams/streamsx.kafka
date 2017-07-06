@@ -1,0 +1,85 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply from: "../common.gradle"
+
+eclipse {
+    classpath {
+        downloadSources=true
+        downloadJavadoc=true
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['impl/java/src']
+        }
+        output.classesDir = 'impl/java/bin'
+    }
+}
+
+version = ext.getVersion()
+libsDirName = '../impl/lib'
+
+processResources {
+    from ('impl/java/src') {
+        include '**/*.properties'
+    }
+}
+
+repositories {
+    jcenter()
+}
+
+/* Defs */
+def STREAMS_INSTALL = System.getenv("STREAMS_INSTALL")
+
+dependencies {
+    compile fileTree(dir: STREAMS_INSTALL + '/lib', include: ['com.ibm.streams.operator.jar', 'com.ibm.streams.operator.samples.jar'])
+    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '0.10.2.1'
+    compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.5'
+    compile group: 'com.google.guava', name: 'guava', version: '21.0'
+    compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.21'
+    testCompile 'junit:junit:4.12'
+}
+
+task getDeps(type: Copy) {
+    into "opt/downloaded"
+    from configurations.runtime
+    exclude '*streams*'
+}
+
+task copyLibToImpl(type: Copy) {
+    into "impl/lib"
+    from "build/libs/"
+}
+
+task deleteDeps(type: Delete) {
+    delete "opt"
+    delete "bin"
+    delete "output"
+    delete "com.ibm.streamsx.kafka"
+    delete "com.ibm.streamsx.kafka.messagehub"
+    delete fileTree(dir : 'impl/lib/', include : ['com.ibm.streamsx.kafka*.jar'])
+}
+
+task buildToolkit() {
+    doLast {
+        splMakeToolkit()
+    }   
+}
+
+task cleanToolkit() {
+    doLast {
+        splCleanToolkit()
+    }   
+}
+
+task deleteImplLibJar {
+    delete fileTree(dir : 'impl/lib', include : ['com.ibm.streamsx.kafka*.jar'])
+}
+
+compileJava.dependsOn getDeps, deleteImplLibJar
+compileJava.finalizedBy buildToolkit
+build.finalizedBy copyLibToImpl
+clean.dependsOn deleteDeps, cleanToolkit

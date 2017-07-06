@@ -1,0 +1,19 @@
+import groovy.io.FileType
+
+include 'com.ibm.streamsx.kafka'
+include 'tests/KafkaTests'
+include 'topology/java'
+
+Closure discoverSamples = {
+    def list = []
+    def dir = new File("$rootDir/samples/")
+    dir.eachDir() { file ->
+        file.eachFileMatch({it == 'build.gradle'}, { list += [dir.name + '/' + file.name] })
+    }
+
+    list.toArray(new java.lang.String[0])
+}
+
+include discoverSamples()
+
+rootProject.name = 'streamsx.kafka'

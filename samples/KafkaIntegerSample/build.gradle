@@ -1,0 +1,25 @@
+apply from: "${rootDir}/common.gradle"
+apply plugin: 'java'
+
+def toolkitPath = project(':com.ibm.streamsx.kafka').projectDir
+def namespace = "com.ibm.streamsx.kafka.sample"
+def mainComp = "KafkaIntegerSample"
+
+dependencies {
+    compile project(':com.ibm.streamsx.kafka')
+}
+
+task compile() {
+    doLast {
+        compileApp(namespace, mainComp, toolkitPath)
+    }   
+}
+
+task cleanIt() {
+    doLast {
+        cleanApp(namespace, mainComp)
+    }
+}
+
+build.dependsOn compile
+clean.dependsOn cleanIt

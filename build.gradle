@@ -1,0 +1,91 @@
+apply plugin: 'java'
+apply from: "$rootDir/common.gradle"
+
+repositories {
+    jcenter()
+}
+
+/*
+sourceSets {
+    test {
+        java {
+            srcDirs = ['tests/KafkaTests/src/test/java']
+        }
+        output.classesDir = 'tests/KafkaTests/bin'
+    }   
+}
+*/
+
+/* Defs */
+def STREAMS_INSTALL = System.getenv("STREAMS_INSTALL")
+def toolkitVersion = ext.getVersion()
+
+dependencies {
+    compile fileTree(dir: STREAMS_INSTALL + '/lib', include: ['com.ibm.streams.operator.jar', 'com.ibm.streams.operator.samples.jar'])
+    compile fileTree(dir: STREAMS_INSTALL + '/toolkits/com.ibm.streamsx.topology/lib', include : ['com.ibm.streamsx.topology.jar'])
+    compile 'junit:junit:4.12'
+    compile project(':com.ibm.streamsx.kafka')
+}
+
+task copyToTemp(type: Copy) {
+    from 'com.ibm.streamsx.kafka'
+    into 'build/release/com.ibm.streamsx.kafka'
+}
+
+task removeSrc(type: Delete) {
+    delete 'build/release/com.ibm.streamsx.kafka/icons'
+    delete 'build/release/com.ibm.streamsx.kafka/build'
+    delete 'build/release/com.ibm.streamsx.kafka/build.gradle'
+    delete 'build/release/com.ibm.streamsx.kafka/impl/java/src'
+    delete 'build/release/com.ibm.streamsx.kafka/impl/src'
+    delete 'build/release/com.ibm.streamsx.kafka/impl/bin'
+    delete 'build/release/com.ibm.streamsx.kafka/.gradle'
+    delete 'build/release/com.ibm.streamsx.kafka/.toolkitList'
+    delete 'build/release/com.ibm.streamsx.kafka/.classpath'
+    delete 'build/release/com.ibm.streamsx.kafka/.apt_generated'
+    delete 'build/release/com.ibm.streamsx.kafka/.project'
+    delete 'build/release/com.ibm.streamsx.kafka/.settings'
+    delete 'build/release/com.ibm.streamsx.kafka/impl/include'
+    delete 'build/release/com.ibm.streamsx.kafka/data'
+    delete 'build/release/com.ibm.streamsx.kafka/impl/java'
+}
+
+task removeOldRelease(type: Delete) {
+    delete fileTree(dir: 'build/release', include: '**/**')
+}
+
+task archive(type: Tar) {
+    from('build/release/') {
+        exclude('output')
+    }
+    compression = Compression.GZIP
+    destinationDir = file('build/release/output')
+    baseName = "com.ibm.streamsx.kafka"
+    version = toolkitVersion
+    doLast {
+        ant.checksum file: archivePath
+    }
+}
+
+task release {
+    dependsOn build
+    dependsOn removeOldRelease
+    dependsOn copyToTemp
+    dependsOn removeSrc
+    dependsOn archive
+}  
+
+task spldoc(dependsOn: ":com.ibm.streamsx.kafka:build") {
+    doLast {
+        spldoc('com.ibm.streamsx.kafka', 'Kafka Toolkit')
+    }
+}
+
+task deleteSplDocDir {
+    delete "docs"
+}
+
+clean.finalizedBy deleteSplDocDir
+archive.mustRunAfter removeSrc
+removeSrc.mustRunAfter copyToTemp
+copyToTemp.mustRunAfter build, removeOldRelease

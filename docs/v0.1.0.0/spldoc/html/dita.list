@@ -1,4 +1,4 @@
-#Mon Jun 26 07:39:12 EDT 2017
+#Thu Jul 06 09:31:36 EDT 2017
 copytosourcelist=
 hreftargetslist=dita/tk$com.ibm.streamsx.kafka/ix$Namespace.xml,dita/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaProducer.xml,dita/toolkits/ix$Namespace.xml,dita/toolkits/ix$Operator.xml,dita/tk$com.ibm.streamsx.kafka/ns$com.ibm.streamsx.kafka.xml,dita/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaConsumer.xml,dita/tk$com.ibm.streamsx.kafka/ix$Operator.xml,dita/toolkits/toolkits.xml,dita/references/OperatorModel.xml,dita/tk$com.ibm.streamsx.kafka/tk$com.ibm.streamsx.kafka.xml
 fullditatopicfile=fullditatopic.list

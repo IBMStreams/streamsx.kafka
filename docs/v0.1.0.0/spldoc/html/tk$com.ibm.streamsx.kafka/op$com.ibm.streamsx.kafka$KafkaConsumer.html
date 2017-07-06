@@ -37,6 +37,14 @@
 
 </div>
 
+<div class="section"><h2 class="title sectiontitle">Supported Kafka Version
+</h2>
+
+<p class="p">This version of the toolkit only supports <strong class="ph b">Apache Kafka v0.10.x</strong>.
+</p>
+
+</div>
+
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
@@ -53,13 +61,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d2701e79">
+<th class="entry" colspan="1" valign="top" id="d2701e91">
 <p class="p">Property Name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d2701e85">
+<th class="entry" colspan="1" valign="top" id="d2701e97">
 <p class="p">Default Value
 </p>
 
@@ -71,13 +79,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e91 ">
 <p class="p">client.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e97 ">
 <p class="p">Randomly generated ID in the form: <tt class="ph tt">client-&lt;random_string&gt;</tt>
 </p>
 
@@ -86,13 +94,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e91 ">
 <p class="p">group.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e97 ">
 <p class="p">Randomly generated ID in the form: <tt class="ph tt">group-&lt;random_string&gt;</tt>
 </p>
 
@@ -101,13 +109,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e91 ">
 <p class="p">key.deserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e97 ">
 <p class="p">See <strong class="ph b">Automatic deserialization</strong> section below
 </p>
 
@@ -116,13 +124,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e79 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e91 ">
 <p class="p">value.deserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e85 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e97 ">
 <p class="p">See <strong class="ph b">Automatic deserialization</strong> section below
 </p>
 
@@ -155,13 +163,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d2701e199">
+<th class="entry" colspan="1" valign="top" id="d2701e212">
 <p class="p">Deserializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d2701e205">
+<th class="entry" colspan="1" valign="top" id="d2701e218">
 <p class="p">SPL Types
 </p>
 
@@ -173,13 +181,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e212 ">
 <p class="p">org.apache.kafka.common.serialization.StringDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e218 ">
 <p class="p">rstring
 </p>
 
@@ -188,13 +196,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e212 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e218 ">
 <p class="p">int32, uint32
 </p>
 
@@ -203,13 +211,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e212 ">
 <p class="p">org.apache.kafka.common.serialization.LongDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e218 ">
 <p class="p">int64, uint64
 </p>
 
@@ -218,13 +226,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e212 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e218 ">
 <p class="p">float64
 </p>
 
@@ -233,13 +241,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d2701e199 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e212 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArrayDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d2701e205 ">
+<td class="entry" colspan="1" valign="top" headers="d2701e218 ">
 <p class="p">blob
 </p>
 
@@ -293,7 +301,7 @@
 <div class="section"><h2 class="title sectiontitle">Error Handling
 </h2>
 
-<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafak throws an exception, the operator will restart. 
+<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafa throws an exception, the operator will restart. 
 </p>
 
 </div>
@@ -667,7 +675,7 @@ This operator supports 10 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__triggerCount"><!-- --></a><tt class="ph tt">triggerCount</tt></dt>
 
 <dd class="dd">
-<p class="p">This parameter specifies the approximate number of messages that will be submitted to the output port before initiating a checkpoint. The operator retrieves batches of messages from Kafka, and the consistent region is only started after all messages in the batch have been submitted. The implication of this is that more tuples maybe submitted by the operator before a consistent region is triggered. This parameter is only used if the operator is the start of a consistent region.
+<p class="p">This parameter specifies the approximate number of messages that will be submitted to the output port before initiating a checkpoint. The operator retrieves batches of messages from Kafka, and the consistent region is only started after all messages in the batch have been submitted. The implication of this is that more tuples may be submitted by the operator before a consistent region is triggered. This parameter is only used if the operator is the start of a consistent region.
 </p>
 <dl class="dl">
 

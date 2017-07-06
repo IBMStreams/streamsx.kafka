@@ -37,6 +37,14 @@
 
 </div>
 
+<div class="section"><h2 class="title sectiontitle">Supported Kafka Version
+</h2>
+
+<p class="p">This version of the toolkit only supports <strong class="ph b">Apache Kafka v0.10.x</strong>.
+</p>
+
+</div>
+
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
@@ -53,13 +61,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d5684e79">
+<th class="entry" colspan="1" valign="top" id="d5714e91">
 <p class="p">Property name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d5684e85">
+<th class="entry" colspan="1" valign="top" id="d5714e97">
 <p class="p">Default Value
 </p>
 
@@ -71,13 +79,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e79 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e91 ">
 <p class="p">client.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e85 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e97 ">
 <p class="p">Randomly generated ID in the form: <tt class="ph tt">producer-&lt;random_string&gt;</tt>
 </p>
 
@@ -86,13 +94,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e79 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e91 ">
 <p class="p">key.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e85 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e97 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -101,13 +109,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e79 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e91 ">
 <p class="p">value.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e85 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e97 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -138,7 +146,7 @@
 <div class="section"><h2 class="title sectiontitle">Automatic Serialization
 </h2>
 
-<p class="p">The operaotr will automatically select the appropriate serializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type: 
+<p class="p">The operator will automatically select the appropriate serializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type: 
 </p>
 
 <div class="p">
@@ -148,13 +156,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d5684e198">
+<th class="entry" colspan="1" valign="top" id="d5714e210">
 <p class="p">Serializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d5684e204">
+<th class="entry" colspan="1" valign="top" id="d5714e216">
 <p class="p">SPL Types
 </p>
 
@@ -166,13 +174,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e210 ">
 <p class="p">org.apache.kafka.common.serialization.StringSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e216 ">
 <p class="p">rstring
 </p>
 
@@ -181,13 +189,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e210 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e216 ">
 <p class="p">int32, uint32
 </p>
 
@@ -196,13 +204,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e210 ">
 <p class="p">org.apache.kafka.common.serialization.LongSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e216 ">
 <p class="p">int64, uint64
 </p>
 
@@ -211,13 +219,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e210 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e216 ">
 <p class="p">float64
 </p>
 
@@ -226,13 +234,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d5684e198 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e210 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d5684e204 ">
+<td class="entry" colspan="1" valign="top" headers="d5714e216 ">
 <p class="p">blob
 </p>
 

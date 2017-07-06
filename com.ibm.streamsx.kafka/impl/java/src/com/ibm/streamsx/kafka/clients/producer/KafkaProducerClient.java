@@ -23,7 +23,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
     private static final int CLOSE_TIMEOUT = 5;
     private static final TimeUnit CLOSE_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
-    private static final String GENERATED_PRODUCERID_PREFIX = "producer-";
+    private static final String GENERATED_PRODUCERID_PREFIX = "producer-"; //$NON-NLS-1$
 
     protected KafkaProducer<?, ?> producer;
     protected ProducerCallback callback;

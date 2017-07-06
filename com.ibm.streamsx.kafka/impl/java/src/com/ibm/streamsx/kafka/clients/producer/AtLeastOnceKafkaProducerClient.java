@@ -26,22 +26,22 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
 
     @Override
     public void drain() throws Exception {
-        logger.debug("AtLeastOnceKafkaProducer -- DRAIN");
+        logger.debug("AtLeastOnceKafkaProducer -- DRAIN"); //$NON-NLS-1$
         flush();
     }
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
-        logger.debug("AtLeastOnceKafkaProducer -- CHECKPOINT id=" + checkpoint.getSequenceId());
+        logger.debug("AtLeastOnceKafkaProducer -- CHECKPOINT id=" + checkpoint.getSequenceId()); //$NON-NLS-1$
     }
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        logger.debug("AtLeastOnceKafkaProducer -- RESET id=" + checkpoint.getSequenceId());
+        logger.debug("AtLeastOnceKafkaProducer -- RESET id=" + checkpoint.getSequenceId()); //$NON-NLS-1$
     }
 
     @Override
     public void resetToInitialState() throws Exception {
-        logger.debug("AtLeastOnceKafkaProducer -- RESET_TO_INIT");
+        logger.debug("AtLeastOnceKafkaProducer -- RESET_TO_INIT"); //$NON-NLS-1$
     }
 }

@@ -116,7 +116,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
      * referring to.  
      */
     private static String parseFQAttributeName(String attrString) {
-    	return attrString.split("_")[1].replace("()", "");
+    	return attrString.split("_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
     }
     
     /*
@@ -128,10 +128,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public static void checkPartitionAttributeType(OperatorContextChecker checker) {
     	if(!checker.getOperatorContext().getParameterNames().contains(PARTITIONATTR_PARAM_NAME)) {
     		StreamSchema schema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
-    		Attribute partition = schema.getAttribute("partition");
+    		Attribute partition = schema.getAttribute("partition"); //$NON-NLS-1$
     		if(partition != null) {
     			if(!checker.checkAttributeType(partition, MetaType.INT32)) {
-    				checker.setInvalidContext(Messages.getString("PARTITION_ATTRIBUTE_NOT_INT32"), new Object[0]);
+    				checker.setInvalidContext(Messages.getString("PARTITION_ATTRIBUTE_NOT_INT32"), new Object[0]); //$NON-NLS-1$
     			}
     		}
     	}
@@ -269,7 +269,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private void initProducer() throws Exception {
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
-        logger.info("Creating AtLeastOnce producer");
+        logger.info("Creating AtLeastOnce producer"); //$NON-NLS-1$
         producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
     }
 

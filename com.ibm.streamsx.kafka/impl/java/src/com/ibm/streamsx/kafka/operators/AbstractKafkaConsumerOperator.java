@@ -38,10 +38,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private static final String DEFAULT_OUTPUT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
-    private static final String OUTPUT_KEY_ATTRIBUTE_NAME_PARAM = "outputKeyAttributeName";
-    private static final String OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM = "outputMessageAttributeName";
-    private static final String OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM = "outputTopicAttributeName";
-    private static final String TRIGGER_COUNT_PARAM = "triggerCount";
+    private static final String OUTPUT_KEY_ATTRIBUTE_NAME_PARAM = "outputKeyAttributeName"; //$NON-NLS-1$
+    private static final String OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM = "outputMessageAttributeName"; //$NON-NLS-1$
+    private static final String OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM = "outputTopicAttributeName"; //$NON-NLS-1$
+    private static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
     
     private Thread processThread;
     private KafkaConsumerClient consumer;
@@ -202,7 +202,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 : String.class; // default to String.class for key type
         Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
-        logger.debug("kafkaProperties: " + kafkaProperties);
+        logger.debug("kafkaProperties: " + kafkaProperties); //$NON-NLS-1$
 
         if (topics != null)
             registerForDataGovernance(context, topics);
@@ -331,7 +331,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         else if (attrValue instanceof byte[])
             tuple.setBlob(attrName, ValueFactory.newBlob((byte[]) attrValue));
         else
-            throw new Exception("Unsupported type exception: " + (attrValue.getClass().getTypeName()));
+            throw new Exception(Messages.getString("UNSUPPORTED_TYPE_EXCEPTION", (attrValue.getClass().getTypeName()), attrName)); //$NON-NLS-1$
     }
 
     /**

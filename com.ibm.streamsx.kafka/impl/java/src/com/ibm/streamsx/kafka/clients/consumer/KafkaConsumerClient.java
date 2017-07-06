@@ -39,8 +39,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private static final long EVENT_LOOP_PAUSE_TIME = 100;
     private static final long CONSUMER_TIMEOUT_MS = 2000;
     private static final int MESSAGE_QUEUE_SIZE = 100;
-    private static final String GENERATED_GROUPID_PREFIX = "group-";
-    private static final String GENERATED_CLIENTID_PREFIX = "client-";
+    private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
+    private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
 
     private KafkaConsumer<?, ?> consumer;
     private OffsetManager offsetManager;
@@ -159,7 +159,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
      * 
      */
     private void assign(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) {
-        logger.debug("Assigning: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.debug("Assigning: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
         
         List<TopicPartition> topicPartitions = new ArrayList<TopicPartition>();
         topics.forEach(topic -> {

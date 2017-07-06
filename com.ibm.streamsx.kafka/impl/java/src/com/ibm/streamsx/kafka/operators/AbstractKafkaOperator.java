@@ -141,7 +141,7 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
 
         Map<String, String> appConfig = getOperatorContext().getPE().getApplicationConfiguration(appConfigName);
         if (appConfig.isEmpty()) {
-            logger.warn(Messages.getString("APPLICATION_CONFIG_NOT_FOUND", appConfigName)); // //$NON-NLS-N$
+            logger.warn(Messages.getString("APPLICATION_CONFIG_NOT_FOUND", appConfigName)); //$NON-NLS-1$
             return;
         }
 

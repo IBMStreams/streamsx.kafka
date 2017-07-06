@@ -35,7 +35,14 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
             KafkaOperatorProperties kafkaProperties) throws Exception {
         this.kafkaProperties = kafkaProperties;
         if (!this.kafkaProperties.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
-            this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(keyClass));
+        	if(keyClass != null) {
+        		this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(keyClass));	
+        	} else {
+        		// Kafka requires a key serializer to be specified, even if no
+        		// key is going to be used. Setting the StringSerializer class.  
+        		this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(String.class));
+        	}
+            
         }
 
         if (!kafkaProperties.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)) {

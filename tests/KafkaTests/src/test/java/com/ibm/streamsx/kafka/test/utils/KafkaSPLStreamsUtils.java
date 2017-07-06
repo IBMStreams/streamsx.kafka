@@ -22,6 +22,7 @@ import com.ibm.streamsx.topology.tester.Tester;
 
 public class KafkaSPLStreamsUtils {
 
+	public static final StreamSchema STRING_NOKEY_SCHEMA = Type.Factory.getStreamSchema("tuple<rstring message>");
 	public static final StreamSchema STRING_SCHEMA = Type.Factory.getStreamSchema("tuple<rstring key, rstring message>");
 	public static final StreamSchema INT_SCHEMA = Type.Factory.getStreamSchema("tuple<int32 key, int32 message>");
 	public static final StreamSchema LONG_SCHEMA = Type.Factory.getStreamSchema("tuple<int64 key, int64 message>");
@@ -29,7 +30,14 @@ public class KafkaSPLStreamsUtils {
 	public static final StreamSchema DOUBLE_SCHEMA = Type.Factory.getStreamSchema("tuple<float64 key, float64 message>");
 
 	public static SPLStream convertStreamToKafkaTuple(TStream<String> stream) {
-		return SPLStreams.convertStream(stream, KafkaSPLStreamsUtils.getStringBiFunction(), KafkaSPLStreamsUtils.STRING_SCHEMA);
+		return convertStreamToKafkaTuple(stream, true);
+	}
+	
+	public static SPLStream convertStreamToKafkaTuple(TStream<String> stream, boolean includeKey) {
+		if(includeKey)
+			return SPLStreams.convertStream(stream, KafkaSPLStreamsUtils.getStringBiFunction(), KafkaSPLStreamsUtils.STRING_SCHEMA);
+		else
+			return SPLStreams.convertStream(stream, KafkaSPLStreamsUtils.getStringNoKeyBiFunction(), KafkaSPLStreamsUtils.STRING_NOKEY_SCHEMA);
 	}
 	
 	public static BiFunction<String, OutputTuple, OutputTuple> getStringBiFunction() {
@@ -40,6 +48,19 @@ public class KafkaSPLStreamsUtils {
 			@Override
 			public OutputTuple apply(String message, OutputTuple outTuple) {
 				outTuple.setString("key", "key_" + counter++);
+				outTuple.setString("message", message);
+				
+				return outTuple;
+			}
+		};
+	}
+	
+	public static BiFunction<String, OutputTuple, OutputTuple> getStringNoKeyBiFunction() {
+		return new BiFunction<String, OutputTuple, OutputTuple>() {
+			private static final long serialVersionUID = 1L;
+			
+			@Override
+			public OutputTuple apply(String message, OutputTuple outTuple) {
 				outTuple.setString("message", message);
 				
 				return outTuple;

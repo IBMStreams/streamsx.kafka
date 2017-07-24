@@ -38,6 +38,10 @@ public class TopicManager implements Serializable {
         return offsetMap.get(partition);
     }
   
+    public boolean containsPartition(int partition) {
+    	return offsetMap.containsKey(partition);
+    }
+    
     public void savePositionFromCluster() {
     	topicPartitions.forEach(part -> {
             TopicPartition tp = new TopicPartition(topic, part.partition());

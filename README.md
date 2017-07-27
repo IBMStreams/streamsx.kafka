@@ -4,6 +4,10 @@ Welcome to the Kafka Toolkit. This toolkit enables SPL applications to integrate
 
 This version of the toolkit currently supports: <mark>Apache Kafka v0.10.x</mark>
 
+## MessageHub
+
+For building applications that connect to MessageHub, it is recommended that the [**com.ibm.streamsx.messagehub**](https://github.com/IBMStreams/streamsx.messagehub) toolkit be used. This toolkit provides functionality on top of the Kafka toolkit in order to simplify the configuration required in order to connect to MessageHub. 
+
 
 ## Migrating from com.ibm.streamsx.messaging
 

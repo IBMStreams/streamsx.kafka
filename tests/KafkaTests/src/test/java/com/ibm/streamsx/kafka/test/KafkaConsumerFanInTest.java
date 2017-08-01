@@ -50,8 +50,8 @@ public class KafkaConsumerFanInTest extends AbstractKafkaTest {
 				getKafkaParams());
 		
 		// create the consumer
-		SPLStream consumerStream1 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), KafkaSPLStreamsUtils.STRING_SCHEMA);
-		SPLStream consumerStream2 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), KafkaSPLStreamsUtils.STRING_SCHEMA);
+		SPLStream consumerStream1 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getConsumerParams(1), KafkaSPLStreamsUtils.STRING_SCHEMA);
+		SPLStream consumerStream2 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getConsumerParams(2), KafkaSPLStreamsUtils.STRING_SCHEMA);
 		SPLStream unionStream = KafkaSPLStreamsUtils.union(Arrays.asList(consumerStream1, consumerStream2), KafkaSPLStreamsUtils.STRING_SCHEMA);
 		SPLStream msgStream = SPLStreams.stringToSPLStream(unionStream.convert(t -> t.getString("message")));
 
@@ -67,6 +67,12 @@ public class KafkaConsumerFanInTest extends AbstractKafkaTest {
 		// check the results
 		Assert.assertTrue(condition.getResult().size() > 0);
 		Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+	}
+	
+	private Map<String, Object> getConsumerParams(int consumerNum) {
+		Map<String, Object> params = new HashMap<String, Object>(getKafkaParams());
+		params.put("clientId", "test-client-" + consumerNum);
+		return params;
 	}
 	
 	private Map<String, Object> getKafkaParams() {

@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.log4j.Logger;
@@ -55,6 +56,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private List<Integer> partitions;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
+    private String clientId;
 
     private Long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
@@ -62,6 +64,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private boolean hasOutputKey;
     private Integer tupleCounter = 0;
 
+    @Parameter(optional = true, name="clientId",
+    		description="Specifies the client ID that should be used "
+    				+ "when connecting to the Kafka cluster. The value "
+    				+ "specified by this parameter will override the `client.id` "
+    				+ "Kafka parameter if specified. If this parameter is not "
+    				+ "specified and the the `client.id` Kafka property is not "
+    				+ "specified, the operator will use a random client ID.")
+    public void setClientId(String clientId) {
+		this.clientId = clientId;
+	}
+    
     @Parameter(optional = true, name="startPosition", 
     		description="Specifies whether the operator should start "
     				+ "reading from the end of the topic, or start reading "
@@ -204,6 +217,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
         logger.debug("kafkaProperties: " + kafkaProperties); //$NON-NLS-1$
 
+        // set the client ID property if the clientId parameter is specified
+        if(clientId != null && !clientId.isEmpty()) {
+        	kafkaProperties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, clientId);
+        }
+        
         if (topics != null)
             registerForDataGovernance(context, topics);
 

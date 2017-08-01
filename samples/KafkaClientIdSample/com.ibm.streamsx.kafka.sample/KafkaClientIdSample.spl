@@ -1,0 +1,53 @@
+namespace com.ibm.streamsx.kafka.sample;
+
+use com.ibm.streamsx.kafka::KafkaConsumer ;
+use com.ibm.streamsx.kafka::KafkaProducer ;
+
+/*
+ * This sample demonstrates how to use the 'clientId' parameter. 
+ * A common use case is being able to specify a different clientId
+ * for each consumer is when running in a parallel region. 
+ *  
+ * This sample is nearly identical to the KafkaConsumeLoadBalance 
+ * sample, but with the addition of the 'clientId' parameter. 
+ */
+composite KafkaClientIdSample
+{
+    type
+        Message = rstring key, rstring message ;
+    graph
+        @parallel(width = 3)
+        (stream<Message> KafkaConsumer_1_out0) as KafkaConsumer_1 = KafkaConsumer()
+        {
+            param
+                topic : "test" ;
+                clientId : "streams_client_" + (rstring)getChannel();
+                propertiesFile : "etc/consumer.properties" ;
+        }
+
+        () as Custom_2 = Custom(KafkaConsumer_1_out0)
+        {
+            logic
+                onTuple KafkaConsumer_1_out0 :
+                {
+                    println(KafkaConsumer_1_out0) ;
+                }
+
+        }
+
+        () as KafkaProducer_3 = KafkaProducer(Beacon_4_out0)
+        {
+            param
+                topic : "test" ;
+                propertiesFile : "etc/producer.properties" ;
+        }
+
+        (stream<Message> Beacon_4_out0) as Beacon_4 = Beacon()
+        {
+            param
+                period : 0.1 ;
+            output
+                Beacon_4_out0 : key = "key_" +(rstring) IterationCount(), message = "msg_"
+                    +(rstring) IterationCount() ;
+        }
+}

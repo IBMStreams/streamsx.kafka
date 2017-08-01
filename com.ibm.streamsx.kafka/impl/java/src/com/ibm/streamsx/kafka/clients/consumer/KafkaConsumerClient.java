@@ -57,7 +57,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private CountDownLatch shutdownLatch;
     private CountDownLatch pollingStoppedLatch;
     private ConsistentRegionContext crContext;
-
+    private Collection<Integer> partitions;
+    
     private Thread eventThread;
 
     private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
@@ -89,7 +90,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean(false);
         crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
-
+        this.partitions = partitions == null ? Collections.emptyList() : partitions;
+        
         eventThread = operatorContext.getThreadFactory().newThread(new Runnable() {
 
             @Override
@@ -316,9 +318,15 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         for (String topic : topics) {
             List<PartitionInfo> parts = consumer.partitionsFor(topic);
             parts.forEach(pi -> {
-                TopicPartition tp = new TopicPartition(pi.topic(), pi.partition());
-                long startOffset = offsetManager.getOffset(pi.topic(), pi.partition());
-                startOffsetMap.put(tp, startOffset);
+            	// if the 'partitions' list is empty, retrieve offsets for all topic partitions,
+            	// otherwise only retrieve offsets for the user-specified partitions
+            	if(partitions.isEmpty() || partitions.contains(pi.partition())) {
+                    TopicPartition tp = new TopicPartition(pi.topic(), pi.partition());
+                    long startOffset = offsetManager.getOffset(pi.topic(), pi.partition());
+                    if(startOffset > -1l) {
+                    	startOffsetMap.put(tp, startOffset);
+                    }
+            	}
             });
         }
         logger.debug("startOffsets=" + startOffsetMap); //$NON-NLS-1$

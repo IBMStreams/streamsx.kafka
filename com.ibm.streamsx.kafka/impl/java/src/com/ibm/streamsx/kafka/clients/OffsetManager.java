@@ -66,7 +66,9 @@ public class OffsetManager implements Serializable {
     }
 
     public long getOffset(String topic, int partition) {
-        return managerMap.get(topic).getOffset(partition);
+    	TopicManager topicManager = managerMap.get(topic);
+    	Long offset = topicManager.containsPartition(partition) ? topicManager.getOffset(partition) : -1l;
+        return offset;
     }
 
     @Override

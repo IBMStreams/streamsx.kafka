@@ -275,11 +275,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         while (!shutdown.get()) {
             try {
                 if (crContext != null) {
-                    logger.trace("Acquiring consistent region permit..."); //$NON-NLS-1$
+                    //logger.trace("Acquiring consistent region permit..."); //$NON-NLS-1$
                     crContext.acquirePermit();
                 }
 
-                logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
+                //logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
                 ConsumerRecords<?, ?> records = consumer.getRecords();
                 if (records != null) {
                     submitRecords(records);
@@ -300,7 +300,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 throw new RuntimeException(e);
             } finally {
                 if (crContext != null) {
-                    logger.trace("Releasing consistent region permit..."); //$NON-NLS-1$
+                    //logger.trace("Releasing consistent region permit..."); //$NON-NLS-1$
                     crContext.releasePermit();
                 }
             }

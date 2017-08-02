@@ -71,7 +71,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
             throw sendException;
         }
 
-        logger.trace("Sending: " + record); //$NON-NLS-1$
+        //logger.trace("Sending: " + record); //$NON-NLS-1$
         Future<RecordMetadata> future = producer.send(record, callback);
         futuresList.add(future);
 

@@ -4,3 +4,4 @@ toolkit.xml
 .gradle
 *.sab
 /test
+/docs/

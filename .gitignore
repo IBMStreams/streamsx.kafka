@@ -5,3 +5,5 @@ toolkit.xml
 *.sab
 /test
 /docs/
+/samples/*/build/
+/build/

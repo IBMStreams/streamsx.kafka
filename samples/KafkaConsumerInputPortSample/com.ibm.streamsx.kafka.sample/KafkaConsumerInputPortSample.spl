@@ -1,0 +1,66 @@
+namespace com.ibm.streamsx.kafka.sample ;
+
+use com.ibm.streamsx.kafka::* ;
+
+composite KafkaConsumerInputPortSample
+{
+    graph
+        (stream<rstring jsonString> TopicPartitionUpdateStream) as
+            TopicPartitionUpdater = Custom()
+        {
+            logic
+                onProcess :
+                {
+                    rstring addSingleTopicMessage =
+                        addTopicPartitionMessage("t1", 0, 90l) ;
+                    submit({ jsonString = addSingleTopicMessage },
+                        TopicPartitionUpdateStream) ;
+                    block(5f) ;
+                    rstring addMultipleTopicMessage =
+                        addTopicPartitionMessage([ { topic = "t1", partition =
+                        1, offset = - 2l }, { topic = "t2", partition = 1,
+                        offset = 90l } ]) ;
+                    submit({ jsonString = addMultipleTopicMessage },
+                        TopicPartitionUpdateStream) ;
+                    block(5f) ;
+                    rstring removeSingleTopicMessage =
+                        removeTopicPartitionMessage("t2", 1) ;
+                    submit({ jsonString = removeSingleTopicMessage },
+                        TopicPartitionUpdateStream) ;
+                    block(5f) ;
+                    rstring removeMultipleTopicsMessage =
+                        removeTopicPartitionMessage([ { topic = "t1", partition
+                        = 0 }, { topic = "t1", partition = 1 } ]) ;
+                    submit({ jsonString = removeMultipleTopicsMessage },
+                        TopicPartitionUpdateStream) ;
+                    while(! isShutdown())
+                    {
+                    // do nothing!    
+
+                    }
+
+                }
+
+        }
+
+        (stream<int64 messageTimestamp, rstring key, rstring message,
+            rstring topic, int32 partition, int64 offset> MessageOutStream) as
+            KafkaConsumerOp = KafkaConsumer(TopicPartitionUpdateStream)
+        {
+            param
+                propertiesFile : getThisToolkitDir() +
+                    "/etc/consumer.properties" ;
+        }
+
+        () as PrintOp = Custom(MessageOutStream as inputStream)
+        {
+            logic
+                onTuple inputStream :
+                {
+                    println(inputStream) ;
+                }
+
+        }
+
+}
+

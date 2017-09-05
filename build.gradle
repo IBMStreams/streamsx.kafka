@@ -33,7 +33,6 @@ task copyToTemp(type: Copy) {
 }
 
 task removeSrc(type: Delete) {
-    delete 'build/release/com.ibm.streamsx.kafka/icons'
     delete 'build/release/com.ibm.streamsx.kafka/build'
     delete 'build/release/com.ibm.streamsx.kafka/build.gradle'
     delete 'build/release/com.ibm.streamsx.kafka/impl/java/src'

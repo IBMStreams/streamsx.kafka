@@ -1,7 +1,9 @@
 package com.ibm.streamsx.kafka.operators;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -10,15 +12,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.google.common.primitives.Ints;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
+import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.StreamingOutput;
+import com.ibm.streams.operator.Tuple;
+import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
@@ -27,43 +37,98 @@ import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.clients.consumer.KafkaConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
+import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate;
+import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdateAction;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
-public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {
+public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
     private static final Logger logger = Logger.getLogger(KafkaConsumerOperator.class);
     private static final Long DEFAULT_CONSUMER_TIMEOUT = 100l;
     private static final Long SHUTDOWN_TIMEOUT = 5l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
-    private static final StartPosition DEFAULT_START_POSITION = StartPosition.End;
+    private static final StartPosition DEFAULT_START_POSITION = StartPosition.Default;
     private static final String DEFAULT_OUTPUT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
+    private static final String DEFAULT_OUTPUT_TIMESTAMP_ATTR_NAME = "messageTimestamp"; //$NON-NLS-1$
+    private static final String DEFAULT_OUTPUT_OFFSET_ATTR_NAME = "offset"; //$NON-NLS-1$
+    private static final String DEFAULT_OUTPUT_PARTITION_ATTR_NAME = "partition"; //$NON-NLS-1$
     private static final String OUTPUT_KEY_ATTRIBUTE_NAME_PARAM = "outputKeyAttributeName"; //$NON-NLS-1$
     private static final String OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM = "outputMessageAttributeName"; //$NON-NLS-1$
     private static final String OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM = "outputTopicAttributeName"; //$NON-NLS-1$
+    private static final String OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM = "outputTimestampAttributeName"; //$NON-NLS-1$
+    private static final String OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM = "outputOffsetAttributeName"; //$NON-NLS-1$
+    private static final String OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM = "outputPartitionAttributeName"; //$NON-NLS-1$
+    private static final String TOPIC_PARAM = "topic"; //$NON-NLS-1$
+    private static final String PARTITION_PARAM = "partition"; //$NON-NLS-1$
+    private static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
+    private static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
     private static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
     
     private Thread processThread;
     private KafkaConsumerClient consumer;
     private AtomicBoolean shutdown;
+    private Gson gson;
 
     /* Parameters */
     private String outputKeyAttrName = DEFAULT_OUTPUT_KEY_ATTR_NAME;
     private String outputMessageAttrName = DEFAULT_OUTPUT_MESSAGE_ATTR_NAME;
     private String outputTopicAttrName = DEFAULT_OUTPUT_TOPIC_ATTR_NAME;
+    private String outputMessageTimestampAttrName = DEFAULT_OUTPUT_TIMESTAMP_ATTR_NAME;
+    private String outputOffsetAttrName = DEFAULT_OUTPUT_OFFSET_ATTR_NAME;
+    private String outputPartitionAttrName = DEFAULT_OUTPUT_PARTITION_ATTR_NAME;
     private List<String> topics;
     private List<Integer> partitions;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
     private String clientId;
+    private Long startTime;
 
     private Long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
     private boolean hasOutputTopic;
     private boolean hasOutputKey;
+	private boolean hasOutputOffset;
+	private boolean hasOutputPartition;
+	private boolean hasOutputTimetamp;
     private Integer tupleCounter = 0;
 
+
+    @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
+    		description="Specifies the output attribute name that should contain the record's timestamp. "
+    				+ "If not specified, the operator will attempt to store the message in an "
+    				+ "attribute named 'messageTimestamp'.")
+    public void setOutputMessageTimestampAttrName(String outputMessageTimestampAttrName) {
+		this.outputMessageTimestampAttrName = outputMessageTimestampAttrName;
+	}
+    
+    @Parameter(optional = true, name=OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM,
+    		description="Specifies the output attribute name that should contain the offset. If not "
+    				+ "specified, the operator will attempt to store the message in an attribute "
+    				+ "named 'offset'.")
+    public void setOutputOffsetAttrName(String outputOffsetAttrName) {
+		this.outputOffsetAttrName = outputOffsetAttrName;
+	}
+    
+    @Parameter(optional = true, name=OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM,
+    		description="Specifies the output attribute name that should contain the offset. If not "
+    				+ "specified, the operator will attempt to store the message in an "
+    				+ "attribute named 'offset'.")
+    public void setOutputPartitionAttrName(String outputPartitionAttrName) {
+		this.outputPartitionAttrName = outputPartitionAttrName;
+	}
+    
+    @Parameter(optional = true, name="startTime",
+    		description="This parameter is only used when the **startPosition** parameter is set to `Time`. "
+    				+ "When the **startPosition** parameter is to `Time`, the operator will begin "
+    				+ "reading records from the earliest offset whose timestamp is greater than or "
+    				+ "equal to the timestamp specified by this parameter. If no offsets are found, then "
+    				+ "the operator will begin reading messages from the end of the topic(s).")
+    public void setStartTime(Long startTime) {
+		this.startTime = startTime;
+	}
+    
     @Parameter(optional = true, name="clientId",
     		description="Specifies the client ID that should be used "
     				+ "when connecting to the Kafka cluster. The value "
@@ -77,9 +142,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     
     @Parameter(optional = true, name="startPosition", 
     		description="Specifies whether the operator should start "
-    				+ "reading from the end of the topic, or start reading "
-    				+ "all messages from the beginning of the topic. Valid "
-    				+ "options include: `Beginning`, `End`. If not specified, "
+    				+ "reading from the end of the topic, the beginning of "
+    				+ "the topic or from a specific timestamp. Valid "
+    				+ "options include: `Beginning`, `End`, `Time`. If reading "
+    				+ "from a specific timestamp (i.e. setting the parameter "
+    				+ "value to `Time`), then the **startTime** parameter "
+    				+ "must also be defined. If this parameter is not specified, "
     				+ "the default value is `End`.")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
@@ -96,7 +164,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     	this.partitions = Ints.asList(partitions);
 	}
     
-    @Parameter(optional = false, name="topic",
+    @Parameter(optional = true, name="topic",
     		description="Specifies the topic or topics that the consumer should "
     				+ "subscribe to. To assign the consumer to specific partitions, "
     				+ "use the **partitions** parameter.")
@@ -141,7 +209,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @ContextCheck(compile = false, runtime = true)
-    public static void checkMessageParam(OperatorContextChecker checker) {
+    public static void checkParams(OperatorContextChecker checker) {
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingOutputs().get(0).getStreamSchema();
         Set<String> paramNames = checker.getOperatorContext().getParameterNames();
 
@@ -175,17 +243,43 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             checker.checkAttributeType(keyAttr, SUPPORTED_ATTR_TYPES);
 
         // check that the user-specified topic attr name exists
-        Attribute topicAttr;
-        if (paramNames.contains(OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM)) {
-            String topicAttrName = checker.getOperatorContext().getParameterValues(OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM).get(0);
-            topicAttr = streamSchema.getAttribute(topicAttrName);
-            if (topicAttr == null) {
-                checker.setInvalidContext(Messages.getString("OUTPUT_ATTRIBUTE_NOT_FOUND", topicAttrName), //$NON-NLS-1$
+        checkUserSpecifiedAttributeNameExists(checker, OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM);
+        
+        // check that the user-specified timestamp attr name exists
+        checkUserSpecifiedAttributeNameExists(checker, OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM);
+        
+        // check that the user-specified offset attr name exists
+        checkUserSpecifiedAttributeNameExists(checker, OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM);
+        
+        // check that the user-specified partition attr name exists
+        checkUserSpecifiedAttributeNameExists(checker, OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM);
+                
+        // check that the startTime param exists if the startPosition param is set to 'Time'
+        if(paramNames.contains(START_POSITION_PARAM)) {
+        	String startPositionValue = checker.getOperatorContext().getParameterValues(START_POSITION_PARAM).get(0);
+        	if(startPositionValue.equals("Time")) { //$NON-NLS-1$
+        		if(!paramNames.contains(START_TIME_PARAM)) {
+        			checker.setInvalidContext(Messages.getString("START_TIME_PARAM_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
+        		}
+        	}
+        }
+    }
+
+    private static void checkUserSpecifiedAttributeNameExists(OperatorContextChecker checker, String paramNameToCheck) {
+    	StreamSchema streamSchema = checker.getOperatorContext().getStreamingOutputs().get(0).getStreamSchema();
+        Set<String> paramNames = checker.getOperatorContext().getParameterNames();
+        
+        Attribute attr = null;
+        if (paramNames.contains(paramNameToCheck)) {
+            String topicAttrName = checker.getOperatorContext().getParameterValues(paramNameToCheck).get(0);
+            attr = streamSchema.getAttribute(topicAttrName);
+            if(attr == null) {
+            	checker.setInvalidContext(Messages.getString("OUTPUT_ATTRIBUTE_NOT_FOUND", attr), //$NON-NLS-1$
                         new Object[0]);
             }
         }
     }
-
+    
     @ContextCheck(compile = true)
     public static void checkTriggerCount(OperatorContextChecker checker) {
         ConsistentRegionContext crContext = checker.getOperatorContext()
@@ -198,7 +292,37 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
     }
-
+    
+    @ContextCheck(compile = true)
+    public static void checkInputPort(OperatorContextChecker checker) {
+    	List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
+		Set<String> paramNames = checker.getOperatorContext().getParameterNames();
+    	if(inputPorts.size() > 0) {
+    		/*
+    		 * optional input port is present, thus need to ignore the following parameters:
+    		 *  * topic
+    		 *  * partition
+    		 *  * startPosition
+    		 */     		
+    		if(paramNames.contains(TOPIC_PARAM) 
+    				|| paramNames.contains(PARTITION_PARAM) 
+    				|| paramNames.contains(START_POSITION_PARAM)) {
+    			System.err.println(Messages.getString("PARAMS_IGNORED_WITH_INPUT_PORT")); //$NON-NLS-1$
+    		}    		
+    		
+    		StreamingInput<Tuple> inputPort = inputPorts.get(0);
+    		checker.checkAttributeType(inputPort.getStreamSchema().getAttribute(0), MetaType.RSTRING);
+    	}
+    }
+    
+    @ContextCheck(compile = true)
+    public static void checkForTopicOrInputPort(OperatorContextChecker checker) {
+    	List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
+    	if(inputPorts.size() == 0 && !checker.getOperatorContext().getParameterNames().contains("topic")) { //$NON-NLS-1$
+    		checker.setInvalidContext(Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
+    	}
+    }
+    
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
         // Must call super.initialize(context) to correctly setup an operator.
@@ -206,10 +330,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.trace("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
                 + context.getPE().getJobId());
         shutdown = new AtomicBoolean(false);
+        gson = new Gson();
 
         StreamSchema outputSchema = context.getStreamingOutputs().get(0).getStreamSchema();
         hasOutputKey = outputSchema.getAttribute(outputKeyAttrName) != null;
         hasOutputTopic = outputSchema.getAttribute(outputTopicAttrName) != null;
+        hasOutputTimetamp = outputSchema.getAttribute(outputMessageTimestampAttrName) != null;
+        hasOutputPartition = outputSchema.getAttribute(outputPartitionAttrName) != null;
+        hasOutputOffset = outputSchema.getAttribute(outputOffsetAttrName) != null;
+        
         
         Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
                 : String.class; // default to String.class for key type
@@ -220,21 +349,28 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // set the client ID property if the clientId parameter is specified
         if(clientId != null && !clientId.isEmpty()) {
         	kafkaProperties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, clientId);
-        }
-        
-        if (topics != null)
-            registerForDataGovernance(context, topics);
+        }    
 
         consumer = new KafkaConsumerClient.KafkaConsumerClientBuilder()
         			.setKafkaProperties(kafkaProperties)
         			.setKeyClass(keyClass)
         			.setValueClass(valueClass)
         			.setOperatorContext(context)
-        			.setTopics(topics)
-        			.setPartitions(partitions)
-        			.setStartPosition(startPosition)
         			.build();
-
+        
+        // input port not use, so topic must be defined
+        if(context.getStreamingInputs().size() == 0) {
+            if (topics != null) {
+                registerForDataGovernance(context, topics);
+                
+                if(startPosition == StartPosition.Time) {
+                	consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);
+                } else {
+                	consumer.subscribeToTopics(topics, partitions, startPosition);
+                }
+            }	
+        }
+        
         crContext = context.getOptionalContext(ConsistentRegionContext.class);
         if (crContext != null && context.getPE().getRelaunchCount() > 0) {
             resettingLatch = new CountDownLatch(1);
@@ -271,7 +407,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             resettingLatch.await();
         }
 
-        consumer.sendStartPollingEvent(consumerPollTimeout);
+        if(consumer.isAssignedToTopics()) {
+        	consumer.sendStartPollingEvent(consumerPollTimeout);
+        }
         while (!shutdown.get()) {
             try {
                 if (crContext != null) {
@@ -281,7 +419,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
                 //logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
                 ConsumerRecords<?, ?> records = consumer.getRecords();
-                if (records != null) {
+                if (records != null && records.count() > 0) {
                     submitRecords(records);
                 }
 
@@ -310,7 +448,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     private void submitRecords(ConsumerRecords<?, ?> records) throws Exception {
         final StreamingOutput<OutputTuple> out = getOutput(0);
-        //logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
         Iterator<?> it = records.iterator();
         while (it.hasNext()) {
             ConsumerRecord<?, ?> record = (ConsumerRecord<?, ?>) it.next();
@@ -326,7 +464,19 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 tuple.setString(outputTopicAttrName, record.topic());
             }
 
-            //logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
+            if(hasOutputOffset) {
+            	tuple.setLong(outputOffsetAttrName, record.offset());
+            }
+            
+            if(hasOutputPartition) {
+            	tuple.setInt(outputPartitionAttrName, record.partition());
+            }
+            
+            if(hasOutputTimetamp) {
+            	tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
+            }            
+            
+            logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
             out.submit(tuple);
             tupleCounter++;
         }
@@ -352,6 +502,61 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             throw new Exception(Messages.getString("UNSUPPORTED_TYPE_EXCEPTION", (attrValue.getClass().getTypeName()), attrName)); //$NON-NLS-1$
     }
 
+    @Override
+    public void process(StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
+    	try {
+        	String jsonString = tuple.getString(0);
+        	System.out.println(jsonString);
+        	JsonObject jsonObj = gson.fromJson(jsonString, JsonObject.class);
+        	
+        	TopicPartitionUpdateAction action = null;
+        	if(jsonObj.has("action")) { //$NON-NLS-1$
+        		action = TopicPartitionUpdateAction.valueOf(jsonObj.get("action").getAsString().toUpperCase()); //$NON-NLS-1$
+        	} else {
+        		logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "action", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
+        		return;
+        	}
+        	
+        	Map<TopicPartition, Long> topicPartitionOffsetMap = null;
+        	if(jsonObj.has("topicPartitionOffsets")) { //$NON-NLS-1$
+        		topicPartitionOffsetMap = new HashMap<TopicPartition, Long>();
+        		JsonArray arr = jsonObj.get("topicPartitionOffsets").getAsJsonArray(); //$NON-NLS-1$
+        		Iterator<JsonElement> it = arr.iterator();
+        		while(it.hasNext()) {
+        			JsonObject tpo = it.next().getAsJsonObject();
+        			if(!tpo.has("topic")) { //$NON-NLS-1$
+        				logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "topic", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
+        				return;
+        			}
+        			
+        			if(!tpo.has("partition")) { //$NON-NLS-1$
+        				logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "partition", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
+        				return;
+        			}
+        			
+        			
+        			if(action == TopicPartitionUpdateAction.ADD && !tpo.has("offset")) { //$NON-NLS-1$
+        				logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "offset", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
+        				return;
+        			}
+        			
+        			String topic = tpo.get("topic").getAsString(); //$NON-NLS-1$
+        			int partition = tpo.get("partition").getAsInt(); //$NON-NLS-1$
+        			long offset = tpo.has("offset") ? tpo.get("offset").getAsLong() : 0l; //$NON-NLS-1$ //$NON-NLS-2$
+        			
+        			topicPartitionOffsetMap.put(new TopicPartition(topic, partition), offset);
+        		}
+        	}
+        	
+        	consumer.sendStopPollingEvent();
+        	consumer.sendUpdateTopicAssignmentEvent(new TopicPartitionUpdate(action, topicPartitionOffsetMap));	
+    	} catch (Exception e) {
+    		logger.error(e.getMessage(), e);
+    	} finally {
+        	consumer.sendStartPollingEvent(consumerPollTimeout);
+    	}
+    }
+    
     /**
      * Shutdown this operator, which will interrupt the thread executing the
      * <code>produceTuples()</code> method.

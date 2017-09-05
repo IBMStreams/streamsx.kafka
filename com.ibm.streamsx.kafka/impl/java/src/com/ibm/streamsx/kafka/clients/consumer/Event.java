@@ -3,7 +3,7 @@ package com.ibm.streamsx.kafka.clients.consumer;
 public class Event {
 
     public static enum EventType {
-        START_POLLING, STOP_POLLING, CHECKPOINT, RESET, RESET_TO_INIT, SHUTDOWN;
+        START_POLLING, STOP_POLLING, CHECKPOINT, RESET, RESET_TO_INIT, SHUTDOWN, UPDATE_ASSIGNMENT;
     };
 
     private EventType eventType;

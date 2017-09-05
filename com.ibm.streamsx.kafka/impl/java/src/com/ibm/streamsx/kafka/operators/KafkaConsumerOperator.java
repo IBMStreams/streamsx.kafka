@@ -90,7 +90,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"**NOTE:** Users can override any of the above properties by explicitly setting the property " //$NON-NLS-1$
     		+ "value in either a properties file or in an application configuration.\\n" //$NON-NLS-1$
     		+ "\\n" //$NON-NLS-1$
-    		+ "# Automatic Seserialization\\n" +  //$NON-NLS-1$
+    		+ "# Automatic Deserialization\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"The operator will automatically select the appropriate deserializers for the key and message " //$NON-NLS-1$
     		+ "based on their types. The following table outlines which deserializer will be used given a " //$NON-NLS-1$

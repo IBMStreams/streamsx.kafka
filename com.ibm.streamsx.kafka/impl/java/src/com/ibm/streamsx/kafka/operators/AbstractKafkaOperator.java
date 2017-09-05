@@ -127,6 +127,11 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
             return;
         }
         File propFile = convertToAbsolutePath(propertiesFile);
+        if(!propFile.exists()) {
+        	logger.warn(Messages.getString("PROPERTIES_FILE_NOT_FOUND", propFile.getAbsoluteFile())); //$NON-NLS-1$
+        	return;
+        }
+        
         String propertyContent = Files.toString(propFile, StandardCharsets.UTF_8);
         if (propertyContent != null) {
             Properties props = new Properties();

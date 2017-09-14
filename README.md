@@ -58,4 +58,4 @@ cd test/KafkaTests
 
 ## Samples
 
-Each sample contains a build.gradle file. The samples can be built/compiled by running `gradle build` from the sample directory. 
+Each sample contains a build.gradle file. The samples can be built/compiled by running `../../gradlew build` from the sample directory. 

@@ -18,7 +18,7 @@ composite KafkaConsumerLoadSample
 	type
 		Message = rstring key, rstring message ;
 	graph
-		@parallel(width = 3)
+		@parallel(width = (int32)getSubmissionTimeValue("num.kafka.consumers"), "3")
 		(stream<Message> KafkaConsumer_1_out0) as KafkaConsumer_1 = KafkaConsumer()
 		{
 			param

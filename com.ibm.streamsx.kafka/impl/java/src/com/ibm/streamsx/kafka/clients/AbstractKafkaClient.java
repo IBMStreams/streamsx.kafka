@@ -75,7 +75,7 @@ public abstract class AbstractKafkaClient {
     protected String serializeObject(Serializable obj) {
         return new String(Base64.getEncoder().encode(SerializationUtils.serialize(obj)));
     }
-
+    
     protected String getRandomId(String prefix) {
         String id = prefix + RandomStringUtils.randomAlphanumeric(17);
         logger.debug("Random id=" + id); //$NON-NLS-1$

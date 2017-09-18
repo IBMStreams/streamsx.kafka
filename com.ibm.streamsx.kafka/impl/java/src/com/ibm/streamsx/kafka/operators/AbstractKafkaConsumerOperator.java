@@ -43,7 +43,8 @@ import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
-    private static final Logger logger = Logger.getLogger(KafkaConsumerOperator.class);
+	
+    private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerOperator.class);
     private static final Long DEFAULT_CONSUMER_TIMEOUT = 100l;
     private static final Long SHUTDOWN_TIMEOUT = 5l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
@@ -418,12 +419,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 }
 
                 //logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
-                ConsumerRecords<?, ?> records = consumer.getRecords();
-                if (records != null && records.count() > 0) {
-                    submitRecords(records);
+                ConsumerRecord<?, ?> record = consumer.getNextRecord();
+                if(record != null) {
+                	submitRecord(record);
                 }
-
+                
                 if (crContext != null && crContext.isTriggerOperator()) {
+                	consumer.getOffsetManager().savePosition(record.topic(), record.partition(), record.offset()+1l);
                     if (tupleCounter >= triggerCount) {
                         logger.debug("Making region consistent..."); //$NON-NLS-1$
                         boolean isSuccess = crContext.makeConsistent();
@@ -446,41 +448,45 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         consumer.sendStopPollingEvent();
     }
 
-    private void submitRecords(ConsumerRecords<?, ?> records) throws Exception {
+    private void submitRecord(ConsumerRecord<?, ?> record) throws Exception {
+    	logger.trace("Preparing to submit record: " + record); //$NON-NLS-1$ //$NON-NLS-2$
         final StreamingOutput<OutputTuple> out = getOutput(0);
-        logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
-        Iterator<?> it = records.iterator();
-        while (it.hasNext()) {
-            ConsumerRecord<?, ?> record = (ConsumerRecord<?, ?>) it.next();
+        OutputTuple tuple = out.newTuple();
+        setTuple(tuple, outputMessageAttrName, record.value());
 
-            OutputTuple tuple = out.newTuple();
-            setTuple(tuple, outputMessageAttrName, record.value());
-
-            if (hasOutputKey) {
-                setTuple(tuple, outputKeyAttrName, record.key());
-            }
-
-            if (hasOutputTopic) {
-                tuple.setString(outputTopicAttrName, record.topic());
-            }
-
-            if(hasOutputOffset) {
-            	tuple.setLong(outputOffsetAttrName, record.offset());
-            }
-            
-            if(hasOutputPartition) {
-            	tuple.setInt(outputPartitionAttrName, record.partition());
-            }
-            
-            if(hasOutputTimetamp) {
-            	tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
-            }            
-            
-            logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
-            out.submit(tuple);
-            tupleCounter++;
+        if (hasOutputKey) {
+            setTuple(tuple, outputKeyAttrName, record.key());
         }
+
+        if (hasOutputTopic) {
+            tuple.setString(outputTopicAttrName, record.topic());
+        }
+
+        if(hasOutputOffset) {
+        	tuple.setLong(outputOffsetAttrName, record.offset());
+        }
+        
+        if(hasOutputPartition) {
+        	tuple.setInt(outputPartitionAttrName, record.partition());
+        }
+        
+        if(hasOutputTimetamp) {
+        	tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
+        }            
+        
+        //logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
+        out.submit(tuple);
+        tupleCounter++;
     }
+//    
+//    private void submitRecords(ConsumerRecords<?, ?> records) throws Exception {
+//        logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
+//        Iterator<?> it = records.iterator();
+//        while (it.hasNext()) {
+//            ConsumerRecord<?, ?> record = (ConsumerRecord<?, ?>) it.next();
+//            submitRecord(record);
+//        }
+//    }
 
     private void setTuple(OutputTuple tuple, String attrName, Object attrValue) throws Exception {
     	if(attrValue == null)
@@ -587,20 +593,22 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void drain() throws Exception {
-        logger.debug("Draining..."); //$NON-NLS-1$
+        logger.debug(">>> DRAIN"); //$NON-NLS-1$
         super.drain();
-        // send all records in buffer
-        consumer.sendStopPollingEvent();
-        ConsumerRecords<?, ?> records;
 
-        logger.trace("Submitting remaining records from buffer..."); //$NON-NLS-1$
-        while ((records = consumer.getRecords()) != null) {
-            submitRecords(records);
-        }
+        // send all records in buffer
+//        consumer.sendStopPollingEvent();
+//        ConsumerRecords<?, ?> records;
+//
+//        logger.trace("Submitting remaining records from buffer..."); //$NON-NLS-1$
+//        while ((records = consumer.getRecords()) != null) {
+//            submitRecords(records);
+//        }
     }
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
+        logger.debug(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         super.checkpoint(checkpoint);
         consumer.sendCheckpointEvent(checkpoint); // blocks until checkpoint completes
         consumer.sendStartPollingEvent(consumerPollTimeout); // checkpoint is done, resume polling for records
@@ -608,19 +616,27 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
+        logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         super.reset(checkpoint);
         consumer.sendResetEvent(checkpoint); // blocks until reset completes
         consumer.sendStartPollingEvent(consumerPollTimeout); // done resetting,start polling for records
 
-        resettingLatch.countDown();
+        // latch will be null if the reset was caused
+        // by another operator
+        if(resettingLatch != null)
+        	resettingLatch.countDown();
     }
 
     @Override
     public void resetToInitialState() throws Exception {
-        super.resetToInitialState();
+        logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
+    	super.resetToInitialState();
         consumer.sendResetToInitEvent(); // blocks until resetToInit completes
         consumer.sendStartPollingEvent(consumerPollTimeout); // done resettings, start polling for records
 
-        resettingLatch.countDown();
+        // latch will be null if the reset was caused
+        // by another operator
+        if(resettingLatch != null)
+        	resettingLatch.countDown();
     }
 }

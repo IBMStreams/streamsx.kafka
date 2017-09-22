@@ -12,24 +12,24 @@ composite KafkaConsumerInputPortSample
                 onProcess :
                 {
                     rstring addSingleTopicMessage =
-                        addTopicPartitionMessage("t1", 0, 90l) ;
+                        createMessageAddTopicPartition("t1", 0, 90l) ;
                     submit({ jsonString = addSingleTopicMessage },
                         TopicPartitionUpdateStream) ;
                     block(5f) ;
                     rstring addMultipleTopicMessage =
-                        addTopicPartitionMessage([ { topic = "t1", partition =
+                        createMessageAddTopicPartition([ { topic = "t1", partition =
                         1, offset = - 2l }, { topic = "t2", partition = 1,
                         offset = 90l } ]) ;
                     submit({ jsonString = addMultipleTopicMessage },
                         TopicPartitionUpdateStream) ;
                     block(5f) ;
                     rstring removeSingleTopicMessage =
-                        removeTopicPartitionMessage("t2", 1) ;
+                        createMessageRemoveTopicPartition("t2", 1) ;
                     submit({ jsonString = removeSingleTopicMessage },
                         TopicPartitionUpdateStream) ;
                     block(5f) ;
                     rstring removeMultipleTopicsMessage =
-                        removeTopicPartitionMessage([ { topic = "t1", partition
+                        createMessageRemoveTopicPartition([ { topic = "t1", partition
                         = 0 }, { topic = "t1", partition = 1 } ]) ;
                     submit({ jsonString = removeMultipleTopicsMessage },
                         TopicPartitionUpdateStream) ;

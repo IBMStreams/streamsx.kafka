@@ -4,5 +4,6 @@
 /bin/
 impl/lib
 build
-com.ibm.streamsx.kafka
+com.ibm.streamsx.kafka/*
+!com.ibm.streamsx.kafka/Functions.spl
 opt

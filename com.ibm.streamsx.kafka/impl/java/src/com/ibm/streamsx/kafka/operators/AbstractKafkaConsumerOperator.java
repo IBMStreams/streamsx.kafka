@@ -512,7 +512,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void process(StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
     	try {
         	String jsonString = tuple.getString(0);
-        	System.out.println(jsonString);
         	JsonObject jsonObj = gson.fromJson(jsonString, JsonObject.class);
         	
         	TopicPartitionUpdateAction action = null;

@@ -34,12 +34,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private static final String DEFAULT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     private static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
     private static final String DEFAULT_PARTITION_ATTR_NAME = "partition"; //$NON-NLS-1$
-
+    private static final String DEFAULT_TIMESTAMP_ATTR_NAME = "messageTimestamp"; //$NON-NLS-1$
+    
     private static final String MESSAGEATTR_PARAM_NAME = "messageAttribute"; //$NON-NLS-1$
     private static final String KEYATTR_PARAM_NAME = "keyAttribute"; //$NON-NLS-1$
     private static final String TOPIC_PARAM_NAME = "topic"; //$NON-NLS-1$
     private static final String TOPICATTR_PARAM_NAME = "topicAttribute"; //$NON-NLS-1$
     private static final String PARTITIONATTR_PARAM_NAME = "partitionAttribute"; //$NON-NLS-1$
+    private static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
     
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
@@ -48,12 +50,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected TupleAttribute<Tuple, ?> messageAttr;
     protected TupleAttribute<Tuple, String> topicAttr;
     protected TupleAttribute<Tuple, Integer> partitionAttr;
+    protected TupleAttribute<Tuple, Long> timestampAttr;
     protected List<String> topics;
 
     private KafkaProducerClient producer;
     private AtomicBoolean isResetting;
     private String keyAttributeName = null;
     private String partitionAttributeName = null;
+    private String timestampAttributeName = null;
 
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
     		description="Specifies the input attribute that contains "
@@ -61,6 +65,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     				+ "will look for an input attribute named *key*.")
     public void setKeyAttr(TupleAttribute<Tuple, ?> keyAttr) {
 		this.keyAttr = keyAttr;
+	}
+
+    @Parameter(optional = true, name=TIMESTAMPATTR_PARAM_NAME,
+    		description="Specifies the attribute on the input port that "
+    				+ "contains the timestamp for the message. If not specified, the"
+    				+ "operator will look for an input attribute named *messageTimestamp*. "
+    				+ "If this parameter is not specified and there is no input "
+    				+ "attribute named *messageTimestamp*, the operator will use the timestamp "
+    				+ "provided by the underlying Kafka API.")
+    public void setTimestampAttr(TupleAttribute<Tuple, Long> timestampAttr) {
+		this.timestampAttr = timestampAttr;
 	}
     
     @DefaultAttribute(DEFAULT_MESSAGE_ATTR_NAME)
@@ -251,6 +266,15 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
         partitionAttributeName = partitionAttribute != null ? partitionAttribute.getName() : null;
         
+        // check for timestamp attribute
+        Attribute timestampAttribute = null;
+        if(timestampAttr != null && timestampAttr.getAttribute() != null) {
+        	timestampAttribute = timestampAttr.getAttribute();
+        } else {
+        	timestampAttribute = inputSchema.getAttribute(DEFAULT_TIMESTAMP_ATTR_NAME);
+        }
+        timestampAttributeName = timestampAttribute != null ? timestampAttribute.getName() : null;
+        
         // get message type
         messageType = messageAttr.getAttribute().getType().getObjectType();
         
@@ -270,7 +294,11 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
         logger.info("Creating AtLeastOnce producer"); //$NON-NLS-1$
-        producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        if(crContext == null) {
+            producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        } else {
+        	producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        }
     }
 
     /**
@@ -300,10 +328,11 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         Object key = keyAttributeName != null ? toJavaPrimitveObject(keyType, tuple.getObject(keyAttributeName)) : null;
         Object value = toJavaPrimitveObject(messageType, messageAttr.getValue(tuple));
         Integer partition = (partitionAttributeName != null) ? tuple.getInt(partitionAttributeName) : null;
-
+        Long timestamp = (timestampAttributeName) != null ? tuple.getLong(timestampAttributeName) : null;
+        
         // send message to all topics
         for (String topic : topicList)
-            producer.processTuple(new ProducerRecord(topic, partition, key, value));
+            producer.processTuple(new ProducerRecord(topic, partition, timestamp, key, value));
     }
     
     private List<String> getTopics(Tuple tuple) {

@@ -1,6 +1,7 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
@@ -8,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -16,8 +18,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
@@ -38,7 +42,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private static final Logger logger = Logger.getLogger(KafkaConsumerClient.class);
     private static final long EVENT_LOOP_PAUSE_TIME = 100;
     private static final long CONSUMER_TIMEOUT_MS = 2000;
-    private static final int MESSAGE_QUEUE_SIZE = 100;
+    private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
     private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
     private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
 
@@ -48,21 +52,25 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private KafkaOperatorProperties kafkaProperties;
     private ControlVariableAccessor<String> offsetManagerCV;
 
-    private BlockingQueue<ConsumerRecords<?, ?>> messageQueue;
+    private BlockingQueue<ConsumerRecord<?, ?>> messageQueue;
     private BlockingQueue<Event> eventQueue;
     private AtomicBoolean processing;
 
+    private CountDownLatch consumerStartedLatch;
     private CountDownLatch checkpointingLatch;
     private CountDownLatch resettingLatch;
     private CountDownLatch shutdownLatch;
     private CountDownLatch pollingStoppedLatch;
+    private CountDownLatch updateAssignmentLatch;
+    private OperatorContext operatorContext;
     private ConsistentRegionContext crContext;
     private Collection<Integer> partitions;
+    private boolean isAssignedToTopics;
     
     private Thread eventThread;
 
     private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties, Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition)
+            KafkaOperatorProperties kafkaProperties)
                     throws Exception {
         this.kafkaProperties = kafkaProperties;
         if (!this.kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
@@ -86,28 +94,23 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
             this.kafkaProperties.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_CLIENTID_PREFIX));
         }
 
-        messageQueue = new LinkedBlockingQueue<ConsumerRecords<?, ?>>(MESSAGE_QUEUE_SIZE);
+        messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>>(getMessageQueueSize());
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean(false);
+        this.operatorContext = operatorContext;
         crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
         this.partitions = partitions == null ? Collections.emptyList() : partitions;
         
+        consumerStartedLatch = new CountDownLatch(1);
         eventThread = operatorContext.getThreadFactory().newThread(new Runnable() {
 
             @Override
             public void run() {
                 try {
                     consumer = new KafkaConsumer<>(kafkaProperties);
-
                     offsetManager = new OffsetManager(consumer);
-                    subscribeToTopics(topics, partitions, startPosition);
 
-                    // create control variables
-                    ControlPlaneContext controlPlaneContext = operatorContext
-                            .getOptionalContext(ControlPlaneContext.class);
-                    offsetManagerCV = controlPlaneContext.createStringControlVariable(OffsetManager.class.getName(),
-                            false, serializeObject(offsetManager));
-
+                    consumerStartedLatch.countDown(); // consumer is ready
                     startEventLoop();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -117,83 +120,177 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
             }
         });
         eventThread.setDaemon(false);
+        
         eventThread.start();
+        consumerStartedLatch.await(); // wait for consumer to be created before returning
     }
 
-    private void subscribeToTopics(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) {
-        // Kafka's group management feature can only be used in the following
-        // scenarios:
-        // - startPosition = End
-        // - none of the topics have partitions assignments
-        // - operator is not in a consistent region
+    private int getMessageQueueSize() {
+		int maxPollRecords = this.kafkaProperties.contains(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)
+				? Integer.valueOf(kafkaProperties.getProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)) : 500;
 
-        if (startPosition == StartPosition.Beginning || 
-        		crContext != null ||
-        		(partitions != null && !partitions.isEmpty())) {
-            assign(topics, partitions, startPosition);
-        } else {
-        	subscribe(topics);
-        }
+		return MESSAGE_QUEUE_SIZE_MULTIPLIER * maxPollRecords;
+    }
+    
+    private boolean isConsistentRegionEnabled() {
+    	return crContext != null;
+    }
+    
+    private List<TopicPartition> getAllTopicPartitionsForTopic(Collection<String> topics) {
+    	List<TopicPartition> topicPartitions = new ArrayList<TopicPartition>();
+		topics.forEach(topic -> {
+			List<PartitionInfo> partitions = consumer.partitionsFor(topic);
+			partitions.forEach(p -> topicPartitions.add(new TopicPartition(topic, p.partition())));
+		});
+		
+		return topicPartitions;
+    }
+    
+    public void subscribeToTopics(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
+    	logger.debug("subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
+    	assert startPosition != StartPosition.Time;
+    	
+    	if(topics != null && !topics.isEmpty()) {
+    		if(partitions == null || partitions.isEmpty()) {
+    			// no partition information provided
+    			if(!isConsistentRegionEnabled() && startPosition == StartPosition.Default) {
+    				subscribe(topics);	
+    			} else {
+        			List<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic(topics);
+        			assign(topicPartitions);
+        			seekToPosition(topicPartitions, startPosition);    				
+    			}    			
+    		} else {
+    			List<TopicPartition> topicPartitions = new ArrayList<TopicPartition>();
+    	    	topics.forEach(topic -> {
+    	    		partitions.forEach(partition -> topicPartitions.add(new TopicPartition(topic, partition)));
+    	    	});
+    	    	
+    	    	assign(topicPartitions);
+    	    	
+    	    	if(startPosition != StartPosition.Default) {
+        	    	seekToPosition(topicPartitions, startPosition);    	    		
+    	    	}
+    		}
+    		
+          if (isConsistentRegionEnabled()) {
+	          // save the consumer offset after moving it's position
+	          offsetManager.savePositionFromCluster();
+	          saveOffsetManagerToJCP();
+          }
+    	}
     }
 
+    public void subscribeToTopicsWithTimestamp(Collection<String> topics, Collection<Integer> partitions, Long timestamp) throws Exception {
+    	logger.debug("subscribeToTopicsWithTimestamp: topic=" + topics + ", partitions=" + partitions + ", timestamp=" + timestamp);
+    	Map<TopicPartition, Long /* timestamp */> topicPartitionTimestampMap = new HashMap<TopicPartition, Long>();
+    	if(partitions == null || partitions.isEmpty()) {
+    		List<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic(topics);
+    		topicPartitions.forEach(tp -> topicPartitionTimestampMap.put(tp, timestamp));
+    	} else {
+    		topics.forEach(topic -> {
+    			partitions.forEach(partition -> topicPartitionTimestampMap.put(new TopicPartition(topic, partition), timestamp));
+    		});
+    	}
+
+    	assign(topicPartitionTimestampMap.keySet());
+    	seekToTimestamp(topicPartitionTimestampMap);
+    	
+    	if (isConsistentRegionEnabled()) {
+    		// save the consumer offset after moving it's position
+    		offsetManager.savePositionFromCluster();
+    		saveOffsetManagerToJCP();
+    	}
+    }
+    
+    public void subscribeToTopicsWithOffsets(Map<TopicPartition, Long> topicPartitionOffsetMap) throws Exception {
+    	logger.debug("subscribeToTopicsWithOffsets: topicPartitionOffsetMap=" + topicPartitionOffsetMap);
+    	if(topicPartitionOffsetMap != null && !topicPartitionOffsetMap.isEmpty()) {
+    		assign(topicPartitionOffsetMap.keySet());
+    	}
+    	
+    	// seek to position
+    	seekToOffset(topicPartitionOffsetMap);
+    	
+    	if (isConsistentRegionEnabled()) {
+    		// save the consumer offset after moving it's position
+    		offsetManager.savePositionFromCluster();
+    		saveOffsetManagerToJCP();
+    	}
+    }
+    
+    private void saveOffsetManagerToJCP() throws Exception {
+        ControlPlaneContext controlPlaneContext = operatorContext
+                .getOptionalContext(ControlPlaneContext.class);
+        offsetManagerCV = controlPlaneContext.createStringControlVariable(OffsetManager.class.getName(),
+                false, serializeObject(offsetManager));
+        OffsetManager mgr = getDeserializedOffsetManagerCV();
+        logger.debug("Retrieved value for offsetManagerCV=" + mgr);	
+    }
+    
     private void subscribe(Collection<String> topics) {
         logger.debug("Subscribing: topics=" + topics); //$NON-NLS-1$
         consumer.subscribe(topics);
+        isAssignedToTopics = true;
+    }
+    
+    private void assign(Collection<TopicPartition> topicPartitions) {
+    	logger.debug("Assigning topic-partitions: " + topicPartitions);
+    	Map<String /* topic */, List<TopicPartition>> topicPartitionMap = new HashMap<>();
+
+    	// update the offsetmanager
+    	topicPartitions.forEach(tp -> {
+    		if(!topicPartitionMap.containsKey(tp.topic())) {
+    			topicPartitionMap.put(tp.topic(), new ArrayList<>());
+    		}
+    		topicPartitionMap.get(tp.topic()).add(tp);
+    	});
+    	
+    	if(isConsistentRegionEnabled())
+    		topicPartitionMap.forEach((topic, tpList) -> offsetManager.addTopic(topic, tpList));
+    	
+    	consumer.assign(topicPartitions);
+    	isAssignedToTopics = true;
+    }
+    
+    private void seekToPosition(Collection<TopicPartition> topicPartitions, StartPosition startPosition) {
+    	if(startPosition == StartPosition.Beginning) {
+    		consumer.seekToBeginning(topicPartitions);
+    	} else if(startPosition == StartPosition.End){
+    		consumer.seekToEnd(topicPartitions);
+    	}
+    }
+    
+    /*
+     * If offset equals -1, seek to the end of the topic
+     * If offset equals -2, seek to the beginning of the topic
+     * Otherwise, seek to the specified offset
+     */
+    private void seekToOffset(Map<TopicPartition, Long> topicPartitionOffsetMap) {
+    	topicPartitionOffsetMap.forEach((tp, offset) -> {
+    		if(offset == -1l) {
+    			consumer.seekToEnd(Arrays.asList(tp));
+    		} else if(offset == -2) {
+    			consumer.seekToBeginning(Arrays.asList(tp));
+    		} else {
+    			consumer.seek(tp, offset);	
+    		}
+    	});
     }
 
-    /*
-     * Assigns the consumer to all partitions for each of the topics. To assign
-     * the consumer to all partitions in a topic, simply pass in the topic name.
-     * To assign the consumer to a specific set of partitions, pass in a string
-     * in the form:
-     * 
-     * topic_name:part#,part#,etc.
-     * 
-     * For example, to assign the consumer to all partitions in "topicA", pass
-     * in the following string:
-     * 
-     * "topicA"
-     * 
-     * To assign the consumer to partitions 2, 4 & 5 in "topicB", pass in the
-     * following string:
-     * 
-     * "topicB:2,4,5"
-     * 
-     */
-    private void assign(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) {
-        logger.debug("Assigning: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-        
-        List<TopicPartition> topicPartitions = new ArrayList<TopicPartition>();
-        topics.forEach(topic -> {
-        	List<TopicPartition> theseTopicPartitions = new ArrayList<>();
-        	if(partitions != null) {
-        		// assign the consumer to specific partitions within a topic
-            	partitions.forEach(partition -> theseTopicPartitions.add(new TopicPartition(topic, partition)));	
-        	} else {
-        		// assign the consumer to all partitions within a topic
-        		consumer.partitionsFor(topic).forEach(p -> theseTopicPartitions.add(new TopicPartition(topic, p.partition())));        		
-        	}
-        	topicPartitions.addAll(theseTopicPartitions);
-        	offsetManager.addTopic(topic, theseTopicPartitions);
-        });
-        consumer.assign(topicPartitions);
-
-        // passing in an empty list means seek to
-        // the beginning/end of ALL assigned partitions
-        switch (startPosition) {
-        case Beginning:
-            consumer.seekToBeginning(Collections.emptyList());
-            break;
-        case End:
-            consumer.seekToEnd(Collections.emptyList());
-            break;
-        }
-
-        if (crContext != null) {
-            // save the consumer offset after moving it's position
-            // consumer.commitSync();
-            offsetManager.savePositionFromCluster();
-        }
+    private void seekToTimestamp(Map<TopicPartition, Long> topicPartitionTimestampMap) {
+    	Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes(topicPartitionTimestampMap);
+    	logger.debug("offsetsForTimes=" + offsetsForTimes);
+    	
+    	topicPartitionTimestampMap.forEach((tp, timestamp) -> {
+    		OffsetAndTimestamp ot = offsetsForTimes.get(tp);
+    		if(ot != null) {
+        		logger.debug("Seeking consumer for tp=" + tp + " to offsetAndTimestamp=" + ot);
+        		consumer.seek(tp, ot.offset());
+    		} else {
+    			// nothing...consumer will move to the offset as determined by the 'auto.offset.reset' config
+    		}
+    	});
     }
 
     private void poll(long timeout) throws Exception {
@@ -202,12 +299,14 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
             if (messageQueue.remainingCapacity() > 0) {
-                //logger.trace("Polling for records..."); //$NON-NLS-1$
+                logger.trace("Polling for records..."); //$NON-NLS-1$
                 try {
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
                     if (records != null) {
-                        records.forEach(cr -> logger.debug(cr.key() + " - offset=" + cr.offset())); //$NON-NLS-1$
-                        messageQueue.add(records);
+                        records.forEach(cr -> {
+                        	logger.debug(cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
+                        	messageQueue.add(cr);
+                        });
                     }
                 } catch (SerializationException e) {
                     // cannot do anything else at the moment
@@ -224,6 +323,10 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         logger.debug("Stop polling, message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
     }
 
+    public boolean isAssignedToTopics() {
+    	return isAssignedToTopics;
+    }
+    
     public void startEventLoop() throws Exception {
         logger.debug("Event loop started!"); //$NON-NLS-1$
         processing.set(true);
@@ -242,9 +345,11 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
                 poll((Long) event.getData());
                 break;
             case STOP_POLLING:
-                pollingStoppedLatch.countDown(); // indicates that polling has
-                                                    // stopped
+                pollingStoppedLatch.countDown(); // indicates that polling has stopped
                 break;
+            case UPDATE_ASSIGNMENT:
+            	updateAssignment(event.getData());
+            	break;
             case CHECKPOINT:
                 checkpoint((Checkpoint) event.getData());
                 break;
@@ -263,7 +368,33 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         }
     }
 
-    public void sendStartPollingEvent(long timeout) {
+    private void updateAssignment(Object data) throws Exception {
+    	try {
+    		TopicPartitionUpdate update = (TopicPartitionUpdate)data;
+    		
+    		// get a map of current topic partitions and their offsets
+    		Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
+    		
+    		Set<TopicPartition> topicPartitions = consumer.assignment();
+    		topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, consumer.position(tp)));
+    		
+    		if(update.getAction() == TopicPartitionUpdateAction.ADD) {
+    			update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+    				currentTopicPartitionOffsets.put(tp, offset);
+    			});
+    		} else if(update.getAction() == TopicPartitionUpdateAction.REMOVE) {
+    			update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+    				currentTopicPartitionOffsets.remove(tp);
+    			});
+    		}
+    		
+    		subscribeToTopicsWithOffsets(currentTopicPartitionOffsets);	
+    	} finally {
+        	updateAssignmentLatch.countDown();
+    	}
+	}
+
+	public void sendStartPollingEvent(long timeout) {
         logger.debug("Sending " + EventType.START_POLLING.name() + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(new Event(EventType.START_POLLING, Long.valueOf(timeout)));
     }
@@ -275,6 +406,13 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         pollingStoppedLatch.await();
     }
 
+    public void sendUpdateTopicAssignmentEvent(TopicPartitionUpdate update) throws Exception {
+    	logger.debug("Sending " + EventType.UPDATE_ASSIGNMENT + " event...");
+    	updateAssignmentLatch = new CountDownLatch(1);
+    	eventQueue.add(new Event(EventType.UPDATE_ASSIGNMENT, update));
+    	updateAssignmentLatch.await();
+    }
+    
     public void sendCheckpointEvent(Checkpoint checkpoint) throws Exception {
         logger.debug("Sending " + EventType.CHECKPOINT + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         checkpointingLatch = new CountDownLatch(1);
@@ -303,13 +441,21 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         shutdownLatch.await(timeout, timeUnit);
     }
 
-    public ConsumerRecords<?, ?> getRecords() {
-        try {
+    public ConsumerRecord<?, ?> getNextRecord() {
+    	try {
             return messageQueue.poll(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             throw new RuntimeException("Consumer interrupted while waiting for messages to arrive", e); //$NON-NLS-1$
         }
     }
+    
+//    public ConsumerRecords<?, ?> getRecords() {
+//        try {
+//            return messageQueue.poll(1, TimeUnit.SECONDS);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException("Consumer interrupted while waiting for messages to arrive", e); //$NON-NLS-1$
+//        }
+//    }
 
     private void refreshFromCluster() {
         logger.debug("Refreshing from cluster..."); //$NON-NLS-1$
@@ -359,7 +505,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.debug("Checkpointing seq=" + checkpoint.getSequenceId()); //$NON-NLS-1$
         try {
-            offsetManager.savePositionFromCluster();
+            // offsetManager.savePositionFromCluster();
             checkpoint.getOutputStream().writeObject(offsetManager);
             logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
         } finally {
@@ -368,6 +514,10 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
 
     }
 
+    public OffsetManager getOffsetManager() {
+		return offsetManager;
+	}
+    
     private void reset(Checkpoint checkpoint) throws Exception {
         logger.debug("Resetting to seq=" + checkpoint.getSequenceId()); //$NON-NLS-1$
         try {
@@ -375,6 +525,9 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
             offsetManager.setOffsetConsumer(consumer);
 
             refreshFromCluster();
+            
+            // remove records from queue
+            messageQueue.clear();
         } finally {
             resettingLatch.countDown();
         }
@@ -383,17 +536,23 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private void resetToInitialState() throws Exception {
         logger.debug("Resetting to initial state..."); //$NON-NLS-1$
         try {
-            offsetManager = SerializationUtils
-                    .deserialize(Base64.getDecoder().decode(offsetManagerCV.sync().getValue()));
+            offsetManager = getDeserializedOffsetManagerCV();
             offsetManager.setOffsetConsumer(consumer);
             logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
 
             // refresh from the cluster as we may
             // have written to the topics
             refreshFromCluster();
+            
+            // remove records from queue
+            messageQueue.clear();
         } finally {
             resettingLatch.countDown();
         }
+    }
+
+    private OffsetManager getDeserializedOffsetManagerCV() throws Exception {
+    	return SerializationUtils.deserialize(Base64.getDecoder().decode(offsetManagerCV.sync().getValue()));
     }
     
     public static class KafkaConsumerClientBuilder {
@@ -401,9 +560,6 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     	private Class<?> keyClass;
     	private Class<?> valueClass;
         private KafkaOperatorProperties kafkaProperties;
-        private Collection<String> topics;
-        private Collection<Integer> partitions;
-        private StartPosition startPosition;
         
         public KafkaConsumerClientBuilder setKafkaProperties(KafkaOperatorProperties kafkaProperties) {
 			this.kafkaProperties = kafkaProperties;
@@ -420,28 +576,13 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
 			return this;
 		}
         
-        public KafkaConsumerClientBuilder setPartitions(Collection<Integer> partitions) {
-			this.partitions = partitions;
-			return this;
-		}
-        
-        public KafkaConsumerClientBuilder setStartPosition(StartPosition startPosition) {
-			this.startPosition = startPosition;
-			return this;
-		}
-        
-        public KafkaConsumerClientBuilder setTopics(Collection<String> topics) {
-			this.topics = topics;
-			return this;
-		}
-        
         public KafkaConsumerClientBuilder setValueClass(Class<?> valueClass) {
 			this.valueClass = valueClass;
 			return this;
 		}
         
         public KafkaConsumerClient build() throws Exception {
-        	return new KafkaConsumerClient(operatorContext, keyClass, valueClass, kafkaProperties, topics, partitions, startPosition);
+        	return new KafkaConsumerClient(operatorContext, keyClass, valueClass, kafkaProperties);
         }
     }
 }

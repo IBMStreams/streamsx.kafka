@@ -1,8 +1,5 @@
 package com.ibm.streamsx.kafka.clients.producer;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -18,7 +15,7 @@ import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
-public abstract class KafkaProducerClient extends AbstractKafkaClient {
+public class KafkaProducerClient extends AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
     private static final int CLOSE_TIMEOUT = 5;
@@ -29,7 +26,6 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
     protected ProducerCallback callback;
     protected Exception sendException;
     protected KafkaOperatorProperties kafkaProperties;
-    protected List<Future<RecordMetadata>> futuresList;
 
     public <K, V> KafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws Exception {
@@ -57,9 +53,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
             this.kafkaProperties.put(ProducerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_PRODUCERID_PREFIX));
         }
 
-        this.futuresList = Collections.synchronizedList(new ArrayList<Future<RecordMetadata>>());
         producer = new KafkaProducer<>(this.kafkaProperties);
-
         callback = new ProducerCallback(this);
     }
 
@@ -72,23 +66,12 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
         }
 
         //logger.trace("Sending: " + record); //$NON-NLS-1$
-        Future<RecordMetadata> future = producer.send(record, callback);
-        futuresList.add(future);
-
-        return future;
+       return producer.send(record, callback);
     }
-
+    
     public synchronized void flush() throws Exception {
         logger.trace("Flusing..."); //$NON-NLS-1$
         producer.flush();
-
-        // wait until all messages have
-        // been received successfully,
-        // otherwise throw an exception
-        for (Future<RecordMetadata> future : futuresList)
-            future.get();
-
-        futuresList.clear();
     }
 
     public void close() {
@@ -101,13 +84,16 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
     }
 
     @SuppressWarnings("rawtypes")
-    public abstract boolean processTuple(ProducerRecord producerRecord) throws Exception;
+    public boolean processTuple(ProducerRecord producerRecord) throws Exception {
+    	send(producerRecord);
+    	return true;
+    }
 
-    public abstract void drain() throws Exception;
+    public void drain() throws Exception { }
 
-    public abstract void checkpoint(Checkpoint checkpoint) throws Exception;
+    public void checkpoint(Checkpoint checkpoint) throws Exception { }
 
-    public abstract void reset(Checkpoint checkpoint) throws Exception;
+    public void reset(Checkpoint checkpoint) throws Exception {}
 
-    public abstract void resetToInitialState() throws Exception;
+    public void resetToInitialState() throws Exception {}
 }

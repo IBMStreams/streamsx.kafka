@@ -57,6 +57,15 @@ public class OffsetManager implements Serializable {
         }
     }
 
+    public void savePosition(String topic, int partition, long offset) throws Exception {
+    	TopicManager topicManager = managerMap.get(topic);
+    	if(topicManager == null) {
+    		throw new Exception("TopicManager does not exist for topic: " + topic);
+    	}
+    	
+    	topicManager.setOffset(partition, offset);
+    }
+    
     public List<String> getTopics() {
         return new ArrayList<>(managerMap.keySet());
     }

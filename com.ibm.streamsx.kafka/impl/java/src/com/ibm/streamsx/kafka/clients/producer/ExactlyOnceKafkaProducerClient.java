@@ -3,10 +3,6 @@ package com.ibm.streamsx.kafka.clients.producer;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-<<<<<<< Updated upstream
-import java.util.Arrays;
-=======
->>>>>>> Stashed changes
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;

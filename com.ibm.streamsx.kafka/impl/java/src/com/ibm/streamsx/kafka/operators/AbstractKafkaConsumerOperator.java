@@ -422,15 +422,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 ConsumerRecord<?, ?> record = consumer.getNextRecord();
                 if(record != null) {
                 	submitRecord(record);
-                }
-                
-                if (crContext != null && crContext.isTriggerOperator()) {
-                	consumer.getOffsetManager().savePosition(record.topic(), record.partition(), record.offset()+1l);
-                    if (tupleCounter >= triggerCount) {
-                        logger.debug("Making region consistent..."); //$NON-NLS-1$
-                        boolean isSuccess = crContext.makeConsistent();
-                        tupleCounter = 0;
-                        logger.debug("Completed call to makeConsistent: isSuccess=" + isSuccess); //$NON-NLS-1$
+                	
+                    if (crContext != null && crContext.isTriggerOperator()) {
+                    	consumer.getOffsetManager().savePosition(record.topic(), record.partition(), record.offset()+1l);
+                        if (tupleCounter >= triggerCount) {
+                            logger.debug("Making region consistent..."); //$NON-NLS-1$
+                            boolean isSuccess = crContext.makeConsistent();
+                            tupleCounter = 0;
+                            logger.debug("Completed call to makeConsistent: isSuccess=" + isSuccess); //$NON-NLS-1$
+                        }
                     }
                 }
             } catch (InterruptedException e) {

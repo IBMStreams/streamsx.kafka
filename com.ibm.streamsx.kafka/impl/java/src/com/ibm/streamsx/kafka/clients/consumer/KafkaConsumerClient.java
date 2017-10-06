@@ -43,6 +43,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private static final long EVENT_LOOP_PAUSE_TIME = 100;
     private static final long CONSUMER_TIMEOUT_MS = 2000;
     private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
+    private static final int DEFAULT_MAX_POLL_RECORDS_CONFIG = 500;
     private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
     private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
 
@@ -66,6 +67,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private ConsistentRegionContext crContext;
     private Collection<Integer> partitions;
     private boolean isAssignedToTopics;
+    private int maxPollRecords;
     
     private Thread eventThread;
 
@@ -94,6 +96,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
             this.kafkaProperties.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_CLIENTID_PREFIX));
         }
 
+        maxPollRecords = getMaxPollRecords();
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>>(getMessageQueueSize());
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean(false);
@@ -125,11 +128,13 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         consumerStartedLatch.await(); // wait for consumer to be created before returning
     }
 
+    private int getMaxPollRecords() {
+    	return this.kafkaProperties.contains(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)
+				? Integer.valueOf(kafkaProperties.getProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)) : DEFAULT_MAX_POLL_RECORDS_CONFIG;
+    }
+    
     private int getMessageQueueSize() {
-		int maxPollRecords = this.kafkaProperties.contains(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)
-				? Integer.valueOf(kafkaProperties.getProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)) : 500;
-
-		return MESSAGE_QUEUE_SIZE_MULTIPLIER * maxPollRecords;
+		return MESSAGE_QUEUE_SIZE_MULTIPLIER * getMaxPollRecords();
     }
     
     private boolean isConsistentRegionEnabled() {
@@ -298,7 +303,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         // continue polling for messages until a new event
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
-            if (messageQueue.remainingCapacity() > 0) {
+            if (messageQueue.remainingCapacity() >= maxPollRecords) {
                 logger.trace("Polling for records..."); //$NON-NLS-1$
                 try {
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);

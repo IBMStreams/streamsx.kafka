@@ -9,9 +9,9 @@
 	<classpathentry kind="src" path="impl/java/src"/>
 	<classpathentry path="bin" kind="output"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8/"/>
-	<classpathentry sourcepath="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/0.10.2.1/425a74f30a5f8318f168b51bd958cb03a17c28d3/kafka-clients-0.10.2.1-sources.jar" kind="lib" path="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/0.10.2.1/3dd2aa4c9f87ac54175d017bcb63b4bb5dca63dd/kafka-clients-0.10.2.1.jar">
+	<classpathentry sourcepath="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/0.11.0.0/be2dc2cc257ea778f323440a3a6dffa038e5f10/kafka-clients-0.11.0.0-sources.jar" kind="lib" path="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/0.11.0.0/8f51f9b62923a1b35e31b613020ea5ef7df27d8f/kafka-clients-0.11.0.0.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/0.10.2.1/ba95225ec22b04b7cd3f110cbd2ab45d35fb7588/kafka-clients-0.10.2.1-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/0.11.0.0/cdc15966b4c580a694637ec74c53ed3f97bd9a5e/kafka-clients-0.11.0.0-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry sourcepath="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.5/f7d878153e86a1cdddf6b37850e00a9f8bff726f/commons-lang3-3.5-sources.jar" kind="lib" path="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.5/6c6c702c89bfff3cd9e80b04d668c5e190d588c6/commons-lang3-3.5.jar">
@@ -49,9 +49,9 @@
 			<attribute name="javadoc_location" value="jar:file:/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.1.2.6/c06190e8d92135d84f4a038bbeea1cde31841c52/snappy-java-1.1.2.6-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry sourcepath="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.21/f285ac123f201fb4b028bac556928d7cf527ef48/slf4j-api-1.7.21-sources.jar" kind="lib" path="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.21/139535a69a4239db087de9bab0bee568bf8e0b70/slf4j-api-1.7.21.jar">
+	<classpathentry sourcepath="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.25/962153db4a9ea71b79d047dfd1b2a0d80d8f4739/slf4j-api-1.7.25-sources.jar" kind="lib" path="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.25/da76ca59f6a57ee3102f8f9bd9cee742973efa8a/slf4j-api-1.7.25.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.21/72e00d8dc052190c5d0aca77f9a9c5124ec3a1c1/slf4j-api-1.7.21-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.25/f003e89ddebdbaca5cf3fc7cc0c67c88c2ca1a3c/slf4j-api-1.7.25-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry sourcepath="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/log4j/log4j/1.2.17/677abe279b68c5e7490d6d50c6951376238d7d3e/log4j-1.2.17-sources.jar" kind="lib" path="/home/streamsadmin/.gradle/caches/modules-2/files-2.1/log4j/log4j/1.2.17/5af35056b4d257e4b64b9e8069c0746e8b08629f/log4j-1.2.17.jar">
@@ -64,6 +64,6 @@
 			<attribute name="javadoc_location" value="jar:file:/home/streamsadmin/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/ad09811315f1d4f5756986575b0ea16b99cd686f/hamcrest-core-1.3-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/opt/ibm/InfoSphere_Streams/4.2.0.0/lib/com.ibm.streams.operator.jar"/>
-	<classpathentry kind="lib" path="/opt/ibm/InfoSphere_Streams/4.2.0.0/lib/com.ibm.streams.operator.samples.jar"/>
+	<classpathentry kind="lib" path="/opt/ibm/InfoSphere_Streams/4.2.1.2/lib/com.ibm.streams.operator.jar"/>
+	<classpathentry kind="lib" path="/opt/ibm/InfoSphere_Streams/4.2.1.2/lib/com.ibm.streams.operator.samples.jar"/>
 </classpath>

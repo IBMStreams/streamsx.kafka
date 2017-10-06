@@ -25,6 +25,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.ExactlyOnceKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
@@ -42,9 +43,15 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private static final String TOPICATTR_PARAM_NAME = "topicAttribute"; //$NON-NLS-1$
     private static final String PARTITIONATTR_PARAM_NAME = "partitionAttribute"; //$NON-NLS-1$
     private static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
+    private static final String CONSISTENT_REGION_POLICY_PARAM_NAME = "consistentRegionPolicy";
     
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
+    public static enum ConsistentRegionPolicy {
+        AtLeastOnce,
+        Transactional;
+    }
+    
     /* Parameters */
     protected TupleAttribute<Tuple, ?> keyAttr;
     protected TupleAttribute<Tuple, ?> messageAttr;
@@ -58,7 +65,19 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String keyAttributeName = null;
     private String partitionAttributeName = null;
     private String timestampAttributeName = null;
+    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.Transactional;
 
+    @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
+    		description="Specifies the policy to use when in the a consistent region. If 'AtLeastOnce' "
+    				+ "is specified, the operator will guarantee that every tuple is written to the "
+    				+ "topic(s) at least once. If 'Transactional' is specified, the operator will write "
+    				+ "tuples to the topic(s) within the context of a transaction. Transactions are commited "
+    				+ "when the operator checkpoints. This implies that downstream consumers may not see the messages "
+    				+ "until operator checkpoints, or if the consumer is configured to read uncommited messages.")
+    public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
+		this.consistentRegionPolicy = consistentRegionPolicy;
+	}
+    
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
     		description="Specifies the input attribute that contains "
     				+ "the Kafka key value. If not specified, the operator "
@@ -278,14 +297,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // get message type
         messageType = messageAttr.getAttribute().getType().getObjectType();
         
-        initProducer();
-
-        registerForDataGovernance(context, topics);
-
         crContext = context.getOptionalContext(ConsistentRegionContext.class);
         if (crContext != null) {
             isResetting = new AtomicBoolean(context.getPE().getRelaunchCount() > 0);
         }
+        
+        initProducer();
+
+        registerForDataGovernance(context, topics);
 
         logger.info(">>> Operator initialized! <<<"); //$NON-NLS-1$
     }
@@ -293,11 +312,22 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private void initProducer() throws Exception {
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
-        logger.info("Creating AtLeastOnce producer"); //$NON-NLS-1$
         if(crContext == null) {
+        	logger.info("Creating KafkaProducerClient...");
             producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, props);
         } else {
-        	producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        	switch(consistentRegionPolicy) {
+        	case AtLeastOnce:
+            	logger.info("Creating AtLeastOnceKafkaProducerClient...");
+        		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        		break;
+        	case Transactional:
+        		logger.info("Creating ExactlyOnceKafkaProducerClient...");
+        		producer = new ExactlyOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        		break;
+        		default:
+        			throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
+        	}
         }
     }
 

@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
@@ -359,6 +358,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         			.setOperatorContext(context)
         			.build();
         
+        // If an exception occurred during init, throw it!
+        if(consumer.getInitializationException() != null) {
+        	Exception e = consumer.getInitializationException();
+            e.printStackTrace();
+            logger.error(e.getLocalizedMessage(), e);
+            throw e;      	
+        }
+        
         // input port not use, so topic must be defined
         if(context.getStreamingInputs().size() == 0) {
             if (topics != null) {
@@ -399,7 +406,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.trace("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
 
-        processThread.start();
+        if(processThread != null)
+        	processThread.start();
     }
 
     private void produceTuples() throws Exception {

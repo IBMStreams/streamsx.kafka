@@ -43,5 +43,5 @@ echo "Creating properties file: \"etc\brokers.properties\"..."
 mkdir -p etc
 touch etc/brokers.properties
 echo "bootstrap.servers=${B}" > etc/brokers.properties
-echo "retries=30" >> etc/brokers.properties
+echo "retry=30" >> etc/brokers.properties
 echo "Done creating properties file!"

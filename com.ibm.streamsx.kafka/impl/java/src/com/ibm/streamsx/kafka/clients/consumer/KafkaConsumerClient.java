@@ -229,6 +229,24 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     	}
     }
     
+	public void subscribeToTopicsWithOffsets(List<String> topics, List<Integer> partitions, List<Long> startOffsets) throws Exception {
+		if(partitions.size() != startOffsets.size())
+			throw new IllegalArgumentException("The number of partitions and the number of offsets must be equal");			
+			
+		Map<TopicPartition, Long> topicPartitionOffsetMap = new HashMap<TopicPartition, Long>();
+		
+    	topics.forEach(topic -> {
+    		for(int i = 0; i < partitions.size(); i++) {
+    			int partition = partitions.get(i);
+    			long offset = (startOffsets.size() > i) ? startOffsets.get(i) : -1l;
+    			
+    			topicPartitionOffsetMap.put(new TopicPartition(topic, partition), offset);
+    		}
+    	});
+    	
+    	subscribeToTopicsWithOffsets(topicPartitionOffsetMap);
+	}
+    
     private void saveOffsetManagerToJCP() throws Exception {
         ControlPlaneContext controlPlaneContext = operatorContext
                 .getOptionalContext(ControlPlaneContext.class);

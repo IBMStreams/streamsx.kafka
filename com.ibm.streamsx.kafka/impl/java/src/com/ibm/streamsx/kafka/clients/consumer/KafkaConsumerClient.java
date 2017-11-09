@@ -57,7 +57,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private BlockingQueue<Event> eventQueue;
     private AtomicBoolean processing;
 
-    private CountDownLatch consumerStartedLatch;
+    private CountDownLatch consumerInitLatch;
     private CountDownLatch checkpointingLatch;
     private CountDownLatch resettingLatch;
     private CountDownLatch shutdownLatch;
@@ -68,7 +68,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private Collection<Integer> partitions;
     private boolean isAssignedToTopics;
     private int maxPollRecords;
-    
+    private Exception initializationException;
     private Thread eventThread;
 
     private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
@@ -104,7 +104,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
         this.partitions = partitions == null ? Collections.emptyList() : partitions;
         
-        consumerStartedLatch = new CountDownLatch(1);
+        consumerInitLatch = new CountDownLatch(1);
         eventThread = operatorContext.getThreadFactory().newThread(new Runnable() {
 
             @Override
@@ -112,22 +112,26 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
                 try {
                     consumer = new KafkaConsumer<>(kafkaProperties);
                     offsetManager = new OffsetManager(consumer);
-
-                    consumerStartedLatch.countDown(); // consumer is ready
+                    
+                    consumerInitLatch.countDown(); // consumer is ready
                     startEventLoop();
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    logger.error(e.getLocalizedMessage(), e);
-                    throw new RuntimeException(e);
+                	// store the exception...will be thrown from the calling operator
+                	initializationException = e;
+                	consumerInitLatch.countDown(); // remove lock
                 }
             }
         });
         eventThread.setDaemon(false);
         
         eventThread.start();
-        consumerStartedLatch.await(); // wait for consumer to be created before returning
+        consumerInitLatch.await(); // wait for consumer to be created before returning
     }
 
+    public Exception getInitializationException() {
+		return initializationException;
+	}
+    
     private int getMaxPollRecords() {
     	return this.kafkaProperties.contains(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)
 				? Integer.valueOf(kafkaProperties.getProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)) : DEFAULT_MAX_POLL_RECORDS_CONFIG;
@@ -223,6 +227,24 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     		saveOffsetManagerToJCP();
     	}
     }
+    
+	public void subscribeToTopicsWithOffsets(List<String> topics, List<Integer> partitions, List<Long> startOffsets) throws Exception {
+		if(partitions.size() != startOffsets.size())
+			throw new IllegalArgumentException("The number of partitions and the number of offsets must be equal");			
+			
+		Map<TopicPartition, Long> topicPartitionOffsetMap = new HashMap<TopicPartition, Long>();
+		
+    	topics.forEach(topic -> {
+    		for(int i = 0; i < partitions.size(); i++) {
+    			int partition = partitions.get(i);
+    			long offset = (startOffsets.size() > i) ? startOffsets.get(i) : -1l;
+    			
+    			topicPartitionOffsetMap.put(new TopicPartition(topic, partition), offset);
+    		}
+    	});
+    	
+    	subscribeToTopicsWithOffsets(topicPartitionOffsetMap);
+	}
     
     private void saveOffsetManagerToJCP() throws Exception {
         ControlPlaneContext controlPlaneContext = operatorContext

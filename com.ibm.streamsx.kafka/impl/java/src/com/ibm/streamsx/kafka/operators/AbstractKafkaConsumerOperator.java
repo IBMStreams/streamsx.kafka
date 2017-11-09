@@ -11,11 +11,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -66,6 +66,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
     private static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
     private static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
+    private static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
     
     private Thread processThread;
     private KafkaConsumerClient consumer;
@@ -81,6 +82,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private String outputPartitionAttrName = DEFAULT_OUTPUT_PARTITION_ATTR_NAME;
     private List<String> topics;
     private List<Integer> partitions;
+    private List<Long> startOffsets;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
     private String clientId;
@@ -119,6 +121,24 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void setOutputPartitionAttrName(String outputPartitionAttrName) {
 		this.outputPartitionAttrName = outputPartitionAttrName;
 	}
+    
+    @Parameter(optional = true, name="startOffset",
+    		description="This parameter indicates the start offset that the operator should begin consuming "
+    				+ "messages from. In order for this parameter's values to take affect, the **startPosition** "
+    				+ "parameter must be set to `Offset`. Furthermore, the specific partition(s) that the operator "
+    				+ "should consume from must be specified via the `partition` parameter.\\n"
+    				+ "\\n"
+    				+ "If multiple partitions are specified via the `partition` parameter, then the same number of "
+    				+ "offset values must be specified. There is a one-to-one mapping between the position of the "
+    				+ "partition from the `partition` parameter and the position of the offset from the `startOffset` "
+    				+ "parameter. For example, if the `partition` parameter has the values '0, 1', and the `startOffset` "
+    				+ "parameter has the values '100, 200', then the operator will begin consuming messages from "
+    				+ "partition 0 at offset 100 and will consume messages from partition 1 at offset 200.\\n"
+    				+ "\\n"
+    				+ "A limitation with using this parameter is that only a single topic can be specified. ")
+    public void setStartOffsets(long[] startOffsets) {
+    	this.startOffsets = Longs.asList(startOffsets);
+    }
     
     @Parameter(optional = true, name="startTime",
     		description="This parameter is only used when the **startPosition** parameter is set to `Time`. "
@@ -255,12 +275,31 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // check that the user-specified partition attr name exists
         checkUserSpecifiedAttributeNameExists(checker, OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM);
                 
-        // check that the startTime param exists if the startPosition param is set to 'Time'
+
         if(paramNames.contains(START_POSITION_PARAM)) {
         	String startPositionValue = checker.getOperatorContext().getParameterValues(START_POSITION_PARAM).get(0);
         	if(startPositionValue.equals("Time")) { //$NON-NLS-1$
+                // check that the startTime param exists if the startPosition param is set to 'Time'
         		if(!paramNames.contains(START_TIME_PARAM)) {
         			checker.setInvalidContext(Messages.getString("START_TIME_PARAM_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
+        		}
+        	} else if(startPositionValue.equals("Offset")) { //$NON-NLS-1$
+                // check that the startOffset param exists if the startPosition param is set to 'Offset
+        		if(!paramNames.contains(START_OFFSET_PARAM)) {
+        			checker.setInvalidContext(Messages.getString("START_OFFSET_PARAM_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
+        			return;
+        		}
+        		
+        		int numPartitionValues = checker.getOperatorContext().getParameterValues(PARTITION_PARAM).size();
+        		int numStartOffsetValues = checker.getOperatorContext().getParameterValues(START_OFFSET_PARAM).size();
+        		if(numPartitionValues != numStartOffsetValues) {
+        			checker.setInvalidContext(Messages.getString("PARTITION_SIZE_NOT_EQUAL_TO_OFFSET_SIZE"), new Object[0]); //$NON-NLS-1$
+        			return;
+        		}
+        		
+        		int numTopicValues = checker.getOperatorContext().getParameterValues(TOPIC_PARAM).size();
+        		if(numTopicValues > 1) {
+        			checker.setInvalidContext(Messages.getString("ONLY_ONE_TOPIC_WHEN_USING_STARTOFFSET_PARAM"), new Object[0]); //$NON-NLS-1$
         		}
         	}
         }
@@ -359,6 +398,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         			.setOperatorContext(context)
         			.build();
         
+        // If an exception occurred during init, throw it!
+        if(consumer.getInitializationException() != null) {
+        	Exception e = consumer.getInitializationException();
+            e.printStackTrace();
+            logger.error(e.getLocalizedMessage(), e);
+            throw e;      	
+        }
+        
         // input port not use, so topic must be defined
         if(context.getStreamingInputs().size() == 0) {
             if (topics != null) {
@@ -366,6 +413,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 
                 if(startPosition == StartPosition.Time) {
                 	consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);
+                } else if(startPosition == StartPosition.Offset) {
+                	consumer.subscribeToTopicsWithOffsets(topics, partitions, startOffsets);
                 } else {
                 	consumer.subscribeToTopics(topics, partitions, startPosition);
                 }
@@ -399,7 +448,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.trace("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
 
-        processThread.start();
+        if(processThread != null)
+        	processThread.start();
     }
 
     private void produceTuples() throws Exception {
@@ -560,7 +610,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     	} finally {
         	consumer.sendStartPollingEvent(consumerPollTimeout);
     	}
-    }
+    }  
     
     /**
      * Shutdown this operator, which will interrupt the thread executing the

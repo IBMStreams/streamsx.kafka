@@ -1,6 +1,5 @@
 package com.ibm.streamsx.kafka.operators;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -13,11 +12,11 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
-import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
+import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
 import com.ibm.streams.operator.model.DefaultAttribute;
 import com.ibm.streams.operator.model.Parameter;
@@ -65,7 +64,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String keyAttributeName = null;
     private String partitionAttributeName = null;
     private String timestampAttributeName = null;
-    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.Transactional;
+    // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
+    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.AtLeastOnce;
 
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
     		description="Specifies the policy to use when in the a consistent region. If 'AtLeastOnce' "
@@ -73,7 +73,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     				+ "topic(s) at least once. If 'Transactional' is specified, the operator will write "
     				+ "tuples to the topic(s) within the context of a transaction. Transactions are commited "
     				+ "when the operator checkpoints. This implies that downstream consumers may not see the messages "
-    				+ "until operator checkpoints, or if the consumer is configured to read uncommited messages.")
+    				+ "until operator checkpoints, or if the consumer is configured to read uncommited messages. "
+    				+ "To achieve *Exactly Once* behaviour for a consumer, the property *isolation.level* must be set "
+    				+ "to 'read_committed' for the consumer. Otherwise also uncommitted messages are read from "
+    				+ "a Kafka topic, which then looks like *at least once* for the consumer."
+    				+ "This parameter is ignored if the operator is not part of a consistent region. "
+    				+ "The default value is 'AtLeastOnce'. **Please note, that Kafka brokers older than version v0.11 "
+    				+ "do not support transactions.**")
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
 		this.consistentRegionPolicy = consistentRegionPolicy;
 	}
@@ -112,9 +118,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=TOPIC_PARAM_NAME,
     		description="Specifies the topic(s) that the producer should send "
     				+ "messages to. The value of this parameter will take precedence "
-    				+ "over the **topicAttrName** parameter. This parameter will also "
+    				+ "over the **" + TOPICATTR_PARAM_NAME + "** parameter. This parameter will also "
     				+ "take precedence if the input tuple schema contains an attribute "
-    				+ "named topic.")
+    				+ "named *topic*.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
@@ -400,10 +406,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         super.shutdown();
     }
 
-    @Override
-    public void close() throws IOException {
-        // TODO Auto-generated method stub
-    }
 
     @Override
     public void drain() throws Exception {
@@ -446,6 +448,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void resetToInitialState() throws Exception {
         logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
 
+        producer.close();
+        producer = null;
         initProducer();
         producer.resetToInitialState();
         isResetting.set(false);

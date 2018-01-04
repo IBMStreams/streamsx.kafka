@@ -32,7 +32,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsNoKey extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaOperatorsNoKey";
 	
 	public KafkaOperatorsNoKey() throws Exception {
 		super(TEST_NAME);

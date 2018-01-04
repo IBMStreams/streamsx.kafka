@@ -40,7 +40,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaOperatorsTopicPartitionTest";
 	private static final StreamSchema SCHEMA = com.ibm.streams.operator.Type.Factory.getStreamSchema("tuple<int32 key, rstring message>");
 	
 	public KafkaOperatorsTopicPartitionTest() throws Exception {

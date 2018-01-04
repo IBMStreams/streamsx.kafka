@@ -66,7 +66,6 @@ public class ExactlyOnceKafkaProducerClient extends KafkaProducerClient {
     
 	@Override
     protected void configureProperties() throws Exception {
-    	// TODO Auto-generated method stub
     	super.configureProperties();
     	
         // Need to generate a transaction ID that is unique but persists 

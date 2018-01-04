@@ -85,7 +85,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private List<Long> startOffsets;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
-    private String clientId;
+    private String groupId = null;
     private Long startTime;
 
     private Long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
@@ -149,18 +149,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void setStartTime(Long startTime) {
 		this.startTime = startTime;
 	}
-    
-    @Parameter(optional = true, name="clientId",
-    		description="Specifies the client ID that should be used "
-    				+ "when connecting to the Kafka cluster. The value "
-    				+ "specified by this parameter will override the `client.id` "
-    				+ "Kafka parameter if specified. If this parameter is not "
-    				+ "specified and the the `client.id` Kafka property is not "
-    				+ "specified, the operator will use a random client ID.")
-    public void setClientId(String clientId) {
-		this.clientId = clientId;
-	}
-    
+
+    @Parameter(optional = true, name="groupId",
+            description="Specifies the group ID that should be used "
+                    + "when connecting to the Kafka cluster. The value "
+                    + "specified by this parameter will override the `group.id` "
+                    + "Kafka property if specified. If this parameter is not "
+                    + "specified and he the `group.id` Kafka property is not "
+                    + "specified, the operator will use a random group ID.")
+    public void setGroupId (String groupId) {
+        this.groupId = groupId;
+    }
+
     @Parameter(optional = true, name="startPosition", 
     		description="Specifies whether the operator should start "
     				+ "reading from the end of the topic, the beginning of "
@@ -348,7 +348,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     				|| paramNames.contains(PARTITION_PARAM) 
     				|| paramNames.contains(START_POSITION_PARAM)) {
     			System.err.println(Messages.getString("PARAMS_IGNORED_WITH_INPUT_PORT")); //$NON-NLS-1$
-    		}    		
+    		}
     		
     		StreamingInput<Tuple> inputPort = inputPorts.get(0);
     		checker.checkAttributeType(inputPort.getStreamSchema().getAttribute(0), MetaType.RSTRING);
@@ -386,10 +386,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
         logger.debug("kafkaProperties: " + kafkaProperties); //$NON-NLS-1$
 
-        // set the client ID property if the clientId parameter is specified
-        if(clientId != null && !clientId.isEmpty()) {
-        	kafkaProperties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, clientId);
-        }    
+        // set the group ID property if the groupId parameter is specified
+        if(groupId != null && !groupId.isEmpty()) {
+            kafkaProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        }
 
         consumer = new KafkaConsumerClient.KafkaConsumerClientBuilder()
         			.setKafkaProperties(kafkaProperties)
@@ -643,7 +643,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void drain() throws Exception {
         logger.debug(">>> DRAIN"); //$NON-NLS-1$
-        super.drain();
 
         // send all records in buffer
 //        consumer.sendStopPollingEvent();
@@ -658,7 +657,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.debug(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
-        super.checkpoint(checkpoint);
         consumer.sendCheckpointEvent(checkpoint); // blocks until checkpoint completes
         consumer.sendStartPollingEvent(consumerPollTimeout); // checkpoint is done, resume polling for records
     }
@@ -666,7 +664,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
         logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
-        super.reset(checkpoint);
         consumer.sendResetEvent(checkpoint); // blocks until reset completes
         consumer.sendStartPollingEvent(consumerPollTimeout); // done resetting,start polling for records
 
@@ -679,7 +676,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void resetToInitialState() throws Exception {
         logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
-    	super.resetToInitialState();
         consumer.sendResetToInitEvent(); // blocks until resetToInit completes
         consumer.sendStartPollingEvent(consumerPollTimeout); // done resettings, start polling for records
 

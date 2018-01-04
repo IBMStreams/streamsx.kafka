@@ -35,13 +35,15 @@ echo bootstrap.servers="${B}"
 echo "Using domain: $D"
 echo "Using instance: $I"
 
-echo "Creating appConfig \"kafka-test\"..."
-st mkappconfig -d $D -i $I --property bootstrap.servers=$B --property retries=30 ${APP_CONFIG}
-st getappconfig -d $D -i $I ${APP_CONFIG}
+echo "Creating appConfig \"${APP_CONFIG}\"..."
+streamtool rmappconfig -d $D -i $I --noprompt ${APP_CONFIG}
+streamtool mkappconfig -d $D -i $I --property bootstrap.servers=$B --property retries=30 ${APP_CONFIG}
+streamtool getappconfig -d $D -i $I ${APP_CONFIG}
 
-echo "Creating properties file: \"etc\brokers.properties\"..."
+echo "Creating properties file: \"etc/brokers.properties\"..."
 mkdir -p etc
 touch etc/brokers.properties
 echo "bootstrap.servers=${B}" > etc/brokers.properties
-echo "retry=30" >> etc/brokers.properties
+echo "retries=30" >> etc/brokers.properties
 echo "Done creating properties file!"
+

@@ -1,6 +1,5 @@
 package com.ibm.streamsx.kafka.operators;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -13,11 +12,11 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
-import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
+import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
 import com.ibm.streams.operator.model.DefaultAttribute;
 import com.ibm.streams.operator.model.Parameter;
@@ -25,26 +24,33 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.ExactlyOnceKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperator {
-    private static final String DEFAULT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
-    private static final String DEFAULT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
-    private static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
-    private static final String DEFAULT_PARTITION_ATTR_NAME = "partition"; //$NON-NLS-1$
-    private static final String DEFAULT_TIMESTAMP_ATTR_NAME = "messageTimestamp"; //$NON-NLS-1$
+    protected static final String DEFAULT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
+    protected static final String DEFAULT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
+    protected static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
+    protected static final String DEFAULT_PARTITION_ATTR_NAME = "partition"; //$NON-NLS-1$
+    protected static final String DEFAULT_TIMESTAMP_ATTR_NAME = "messageTimestamp"; //$NON-NLS-1$
     
-    private static final String MESSAGEATTR_PARAM_NAME = "messageAttribute"; //$NON-NLS-1$
-    private static final String KEYATTR_PARAM_NAME = "keyAttribute"; //$NON-NLS-1$
-    private static final String TOPIC_PARAM_NAME = "topic"; //$NON-NLS-1$
-    private static final String TOPICATTR_PARAM_NAME = "topicAttribute"; //$NON-NLS-1$
-    private static final String PARTITIONATTR_PARAM_NAME = "partitionAttribute"; //$NON-NLS-1$
-    private static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
+    protected static final String MESSAGEATTR_PARAM_NAME = "messageAttribute"; //$NON-NLS-1$
+    protected static final String KEYATTR_PARAM_NAME = "keyAttribute"; //$NON-NLS-1$
+    protected static final String TOPIC_PARAM_NAME = "topic"; //$NON-NLS-1$
+    protected static final String TOPICATTR_PARAM_NAME = "topicAttribute"; //$NON-NLS-1$
+    protected static final String PARTITIONATTR_PARAM_NAME = "partitionAttribute"; //$NON-NLS-1$
+    protected static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
+    protected static final String CONSISTENT_REGION_POLICY_PARAM_NAME = "consistentRegionPolicy";
     
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
+    public static enum ConsistentRegionPolicy {
+        AtLeastOnce,
+        Transactional;
+    }
+    
     /* Parameters */
     protected TupleAttribute<Tuple, ?> keyAttr;
     protected TupleAttribute<Tuple, ?> messageAttr;
@@ -58,7 +64,26 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String keyAttributeName = null;
     private String partitionAttributeName = null;
     private String timestampAttributeName = null;
+    // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
+    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.AtLeastOnce;
 
+    @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
+    		description="Specifies the policy to use when in the a consistent region. If 'AtLeastOnce' "
+    				+ "is specified, the operator will guarantee that every tuple is written to the "
+    				+ "topic(s) at least once. If 'Transactional' is specified, the operator will write "
+    				+ "tuples to the topic(s) within the context of a transaction. Transactions are commited "
+    				+ "when the operator checkpoints. This implies that downstream consumers may not see the messages "
+    				+ "until operator checkpoints, or if the consumer is configured to read uncommited messages. "
+    				+ "To achieve *Exactly Once* behaviour for a consumer, the property *isolation.level* must be set "
+    				+ "to 'read_committed' for the consumer. Otherwise also uncommitted messages are read from "
+    				+ "a Kafka topic, which then looks like *at least once* for the consumer."
+    				+ "This parameter is ignored if the operator is not part of a consistent region. "
+    				+ "The default value is 'AtLeastOnce'. **NOTE**: Kafka brokers older than version v0.11 "
+    				+ "do not support transactions.")
+    public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
+		this.consistentRegionPolicy = consistentRegionPolicy;
+	}
+    
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
     		description="Specifies the input attribute that contains "
     				+ "the Kafka key value. If not specified, the operator "
@@ -93,9 +118,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=TOPIC_PARAM_NAME,
     		description="Specifies the topic(s) that the producer should send "
     				+ "messages to. The value of this parameter will take precedence "
-    				+ "over the **topicAttrName** parameter. This parameter will also "
+    				+ "over the **" + TOPICATTR_PARAM_NAME + "** parameter. This parameter will also "
     				+ "take precedence if the input tuple schema contains an attribute "
-    				+ "named topic.")
+    				+ "named *topic*.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
@@ -177,7 +202,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         	// the operator does not specify a message attribute, so set an invalid context
         	checker.setInvalidContext(Messages.getString("MESSAGE_ATTRIBUTE_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
         }
- 
+
         /*
          * A key attribute can either be specified via the 'keyAttr' parameter,
          * or the input schema can contain an attribute named "key". If neither is true, 
@@ -278,14 +303,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // get message type
         messageType = messageAttr.getAttribute().getType().getObjectType();
         
-        initProducer();
-
-        registerForDataGovernance(context, topics);
-
         crContext = context.getOptionalContext(ConsistentRegionContext.class);
         if (crContext != null) {
             isResetting = new AtomicBoolean(context.getPE().getRelaunchCount() > 0);
         }
+        
+        initProducer();
+
+        registerForDataGovernance(context, topics);
 
         logger.info(">>> Operator initialized! <<<"); //$NON-NLS-1$
     }
@@ -293,11 +318,22 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private void initProducer() throws Exception {
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
-        logger.info("Creating AtLeastOnce producer"); //$NON-NLS-1$
         if(crContext == null) {
+        	logger.info("Creating KafkaProducerClient...");
             producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, props);
         } else {
-        	producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        	switch(consistentRegionPolicy) {
+        	case AtLeastOnce:
+            	logger.info("Creating AtLeastOnceKafkaProducerClient...");
+        		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        		break;
+        	case Transactional:
+        		logger.info("Creating ExactlyOnceKafkaProducerClient...");
+        		producer = new ExactlyOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props, /*lazyTransactionBegin*/true);
+        		break;
+        		default:
+        			throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
+        	}
         }
     }
 
@@ -370,10 +406,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         super.shutdown();
     }
 
-    @Override
-    public void close() throws IOException {
-        // TODO Auto-generated method stub
-    }
 
     @Override
     public void drain() throws Exception {
@@ -416,6 +448,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void resetToInitialState() throws Exception {
         logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
 
+        producer.close();
+        producer = null;
         initProducer();
         producer.resetToInitialState();
         isResetting.set(false);

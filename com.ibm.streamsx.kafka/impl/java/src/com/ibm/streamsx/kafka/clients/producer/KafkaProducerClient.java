@@ -26,10 +26,27 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     protected ProducerCallback callback;
     protected Exception sendException;
     protected KafkaOperatorProperties kafkaProperties;
-
+    protected Class<?> keyClass;
+    protected Class<?> valueClass;
+	protected OperatorContext operatorContext;
+    
     public <K, V> KafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws Exception {
         this.kafkaProperties = kafkaProperties;
+        this.operatorContext = operatorContext;
+        this.keyClass = keyClass;
+        this.valueClass = valueClass;
+        
+        configureProperties();
+        createProducer();
+    }
+
+    protected void createProducer() {
+        producer = new KafkaProducer<>(this.kafkaProperties);
+        callback = new ProducerCallback(this);
+    }
+    
+    protected void configureProperties() throws Exception {
         if (!this.kafkaProperties.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
         	if(keyClass != null) {
         		this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(keyClass));	
@@ -52,11 +69,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         if (!kafkaProperties.containsKey(ProducerConfig.CLIENT_ID_CONFIG)) {
             this.kafkaProperties.put(ProducerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_PRODUCERID_PREFIX));
         }
-
-        producer = new KafkaProducer<>(this.kafkaProperties);
-        callback = new ProducerCallback(this);
     }
-
+    
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
         if (sendException != null) {

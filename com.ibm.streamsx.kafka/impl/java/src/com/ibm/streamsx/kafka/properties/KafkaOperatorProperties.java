@@ -22,6 +22,10 @@ public class KafkaOperatorProperties extends Properties {
         }
     }
 
+    /**
+     * Merges the properties with the given properties in such a way that only those properties from the given set of properties are merged, which are not present in this property instance.
+     * @param properties The properties, from which the unknown properties are taken over.
+     */
     public void putAllIfNotPresent(Properties properties) {
         if (properties == null)
             return;

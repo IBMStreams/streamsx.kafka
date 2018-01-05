@@ -32,7 +32,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaProducerFanOutTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaProducerFanOutTest";
 	
 	public KafkaProducerFanOutTest() throws Exception {
 		super(TEST_NAME);

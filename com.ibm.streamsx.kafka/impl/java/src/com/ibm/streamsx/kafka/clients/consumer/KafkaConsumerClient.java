@@ -69,7 +69,6 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private boolean isAssignedToTopics;
     private int maxPollRecords;
     private Exception initializationException;
-    
     private Thread eventThread;
 
     private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,

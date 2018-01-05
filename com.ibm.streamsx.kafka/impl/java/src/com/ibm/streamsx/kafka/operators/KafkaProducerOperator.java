@@ -87,20 +87,41 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 			"\\n" +  //$NON-NLS-1$
 			"The `KafkaProducer` operator can participate in a consistent region. The operator " //$NON-NLS-1$
 			+ "cannot be the start of a consistent region. The operator supports 'at least once' " //$NON-NLS-1$
-			+ "delivery semantics. If the operator crashes or is reset while in a consistent " //$NON-NLS-1$
+			+ "(default behavior) and 'exactly once' delivery semantics. The delivery semantics " //$NON-NLS-1$
+			+ "can be controlled by the **" + CONSISTENT_REGION_POLICY_PARAM_NAME + "** parameter. " //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "# 'At least once' delivery\\n" //$NON-NLS-1$
+			+ "If the operator crashes or is reset while in a consistent " //$NON-NLS-1$
 			+ "region, the operator will write all tuples replayed. This ensures that every " //$NON-NLS-1$
 			+ "tuple sent to the operator will be written to the topic(s). However, 'at least once' " //$NON-NLS-1$
-			+ "semantics implies that duplicate messages may be written to the topic(s). \\n" +  //$NON-NLS-1$
-			"\\n" +  //$NON-NLS-1$
-			"\\n" +  //$NON-NLS-1$
-			"# Error Handling\\n" +  //$NON-NLS-1$
-			"\\n" +  //$NON-NLS-1$
-			"Many exceptions thrown by the underlying Kafka API are considered fatal. In the event " //$NON-NLS-1$
+			+ "semantics implies that duplicate messages may be written to the topic(s). \\n" //$NON-NLS-1$
+			+ "# 'Exactly once' delivery\\n" //$NON-NLS-1$
+			+ "Messages are always inserted into a topic within the context of a transaction. " //$NON-NLS-1$
+			+ "Transactions are committed when the operator checkpoints. If the operator crashes " //$NON-NLS-1$
+			+ "or is reset while in a consistent region, the opertor will abort the ongoing " //$NON-NLS-1$
+			+ "transaction and write all tuples replayed within a new transaction. This ensures " //$NON-NLS-1$
+			+ "that every tuple sent to the operator will be written to the topic(s), " //$NON-NLS-1$
+			+ "and that clients configured with `isolation.level = read_committed` will not " //$NON-NLS-1$
+			+ "read the duplicates from the aborted transactions.\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "**NOTE 1:** Transactions in Kafka have an inactivity timeout with default value of 60 seconds. " //$NON-NLS-1$
+			+ "If the consistent region triggers less frequently and you expect a low message rate, " //$NON-NLS-1$
+			+ "consider to to increase the timeout by setting the client property `transaction.timeout.ms` " //$NON-NLS-1$
+			+ "to a higher value, for example 120000 (milliseconds). " //$NON-NLS-1$
+			+ "The maximum value of this property is limited by the server property " //$NON-NLS-1$
+			+ "`transaction.max.timeout.ms`, which has a default value of 900000.\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "**NOTE 2:** For 'exactly once' delivery semantics, the Kafka broker must have version 0.11 or higher " //$NON-NLS-1$
+			+ "because older brokers do not support transactions." //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "# Error Handling\\n" //$NON-NLS-1$
+			+ "\\n" //$NON-NLS-1$
+			+ "Many exceptions thrown by the underlying Kafka API are considered fatal. In the event " //$NON-NLS-1$
 			+ "that Kafka throws an exception, the operator will restart. Some exceptions can be " //$NON-NLS-1$
 			+ "retried, such as those that occur due to network error. Users are encouraged " //$NON-NLS-1$
 			+ "to set the KafkaProducer `retries` property to a value greater than 0 to enable the producer's " //$NON-NLS-1$
 			+ "retry mechanism. \\n" +  //$NON-NLS-1$
 			"\\n" +  //$NON-NLS-1$
 			""; //$NON-NLS-1$
-	
 }

@@ -1,0 +1,4 @@
+{% if site.github_editme_path %}
+<a target="_blank" href="{{site.github_editme_path}}/{{page.path | replace: '.html', '.markdown'}}" class="btn btn-default githubEditButton text-center" role="button"><i class="fa fa-github fa-lg"></i> Edit me</a>
+{% endif %}
+

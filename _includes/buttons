@@ -1,0 +1,13 @@
+<div class="feature__wrapper">
+    <div class="feature__item{% if include.type %}--{{ include.type }}{% endif %}">
+      <div class="archive__item">
+        <div class="archive__item-body">
+            <div class="archive__item-excerpt">
+              <a target="_blank" href="{{site.github_base_url}}/{{site.repository}}/releases" class="btn btn-default githubEditButton text-center" role="button"><i class="fa fa-github fa-lg"></i> Releases</a>
+              <a target="_blank" href="{{site.github_base_url}}/{{site.repository}}" class="btn btn-default githubEditButton text-center" role="button"><i class="fa fa-github fa-lg"></i> Github</a>
+              <a target="_blank" href="{{site.github_base_url}}/{{site.repository}}/issues" class="btn btn-default githubEditButton text-center" role="button"><i class="fa fa-github fa-lg"></i> Issues</a>
+            </div>
+        </div>
+      </div>
+    </div>
+</div>

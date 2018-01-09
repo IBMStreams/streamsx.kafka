@@ -9,9 +9,9 @@
 locale                   : "en"
 title                    : &toolkit "streamsx.kafka"
 title_separator          : "-"
-name                     : &name "IBM Streams" # &name is a YAML anchor which can be *referenced later
+name                     : &name "IBMStreams" # &name is a YAML anchor which can be *referenced later
 description              : &description "toolkit site description."
-url                      : https://ibmstreams.github.io# the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
+url                      : https://ibmstreams.github.io # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : "/streamsx.kafka" # the subpath of your site, e.g. "/blog"
 repository               : "IBMStreams/streamsx.kafka" # GitHub username/repo-name
 github_base_url          : "https://github.com" # your github server, will differ when enterprise github

@@ -27,7 +27,8 @@ public class KafkaSPLStreamsUtils {
 	public static final StreamSchema INT_SCHEMA = Type.Factory.getStreamSchema("tuple<int32 key, int32 message>");
 	public static final StreamSchema LONG_SCHEMA = Type.Factory.getStreamSchema("tuple<int64 key, int64 message>");
 	public static final StreamSchema BLOB_SCHEMA = Type.Factory.getStreamSchema("tuple<blob key, blob message>");
-	public static final StreamSchema DOUBLE_SCHEMA = Type.Factory.getStreamSchema("tuple<float64 key, float64 message>");
+    public static final StreamSchema DOUBLE_SCHEMA = Type.Factory.getStreamSchema("tuple<float64 key, float64 message>");
+    public static final StreamSchema FLOAT_SCHEMA = Type.Factory.getStreamSchema("tuple<float32 key, float32 message>");
 
 	public static SPLStream convertStreamToKafkaTuple(TStream<String> stream) {
 		return convertStreamToKafkaTuple(stream, true);

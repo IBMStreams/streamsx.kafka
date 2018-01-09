@@ -76,8 +76,10 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 			"| org.apache.kafka.common.serialization.IntegerSerializer | int32, uint32 |\\n" +  //$NON-NLS-1$
 			"|---|\\n" +  //$NON-NLS-1$
 			"| org.apache.kafka.common.serialization.LongSerializer | int64, uint64 |\\n" +  //$NON-NLS-1$
-			"|---|\\n" +  //$NON-NLS-1$
-			"| org.apache.kafka.common.serialization.DoubleSerializer | float64 |\\n" +  //$NON-NLS-1$
+            "|---|\\n" +  //$NON-NLS-1$
+            "| org.apache.kafka.common.serialization.FloatSerializer | float32 |\\n" +  //$NON-NLS-1$
+            "|---|\\n" +  //$NON-NLS-1$
+            "| org.apache.kafka.common.serialization.DoubleSerializer | float64 |\\n" +  //$NON-NLS-1$
 			"|---|\\n" +  //$NON-NLS-1$
 			"| org.apache.kafka.common.serialization.ByteArraySerializer | blob |\\n" +  //$NON-NLS-1$
 			"---\\n" +  //$NON-NLS-1$

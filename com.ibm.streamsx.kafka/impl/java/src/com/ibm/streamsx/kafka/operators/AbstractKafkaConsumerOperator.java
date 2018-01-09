@@ -546,8 +546,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             tuple.setString(attrName, (String) attrValue);
         else if (attrValue instanceof Integer)
             tuple.setInt(attrName, (Integer) attrValue);
-        else if (attrValue instanceof Double || attrValue instanceof Float)
+        else if (attrValue instanceof Double)
             tuple.setDouble(attrName, (Double) attrValue);
+        else if (attrValue instanceof Float)
+            tuple.setFloat(attrName, (Float) attrValue);
         else if (attrValue instanceof Long)
             tuple.setLong(attrName, (Long) attrValue);
         else if (attrValue instanceof Byte)

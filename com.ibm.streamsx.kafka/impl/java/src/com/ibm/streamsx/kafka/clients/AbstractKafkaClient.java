@@ -9,6 +9,8 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.DoubleDeserializer;
 import org.apache.kafka.common.serialization.DoubleSerializer;
+import org.apache.kafka.common.serialization.FloatDeserializer;
+import org.apache.kafka.common.serialization.FloatSerializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
@@ -29,6 +31,8 @@ public abstract class AbstractKafkaClient {
             return StringSerializer.class.getCanonicalName();
         } else if (clazz.equals(Long.class)) {
             return LongSerializer.class.getCanonicalName();
+        } else if (clazz.equals(Float.class)) {
+            return FloatSerializer.class.getCanonicalName();
         } else if (clazz.equals(Double.class)) {
             return DoubleSerializer.class.getCanonicalName();
         } else if (clazz.equals(Blob.class)) {
@@ -45,6 +49,8 @@ public abstract class AbstractKafkaClient {
             return StringDeserializer.class.getCanonicalName();
         } else if (serializerClassName.equals(LongSerializer.class.getCanonicalName())) {
             return LongDeserializer.class.getCanonicalName();
+        } else if (serializerClassName.equals(FloatSerializer.class.getCanonicalName())) {
+            return FloatDeserializer.class.getCanonicalName();
         } else if (serializerClassName.equals(DoubleSerializer.class.getCanonicalName())) {
             return DoubleDeserializer.class.getCanonicalName();
         } else if (serializerClassName.equals(ByteArraySerializer.class.getCanonicalName())) {
@@ -61,6 +67,8 @@ public abstract class AbstractKafkaClient {
             return StringDeserializer.class.getCanonicalName();
         } else if (clazz.equals(Long.class)) {
             return LongDeserializer.class.getCanonicalName();
+        } else if (clazz.equals(Float.class)) {
+            return FloatDeserializer.class.getCanonicalName();
         } else if (clazz.equals(Double.class)) {
             return DoubleDeserializer.class.getCanonicalName();
         } else if (clazz.equals(Blob.class)) {

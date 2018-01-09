@@ -192,7 +192,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         	msgAttr = streamSchema.getAttribute(parseFQAttributeName(messageAttrParamValues.get(0)));
         } else {
         	// the 'messageAttr' parameter is not specified, so check if input schema contains an attribute named "message"
-        	msgAttr = streamSchema.getAttribute(DEFAULT_MESSAGE_ATTR_NAME);        	        	
+        	msgAttr = streamSchema.getAttribute(DEFAULT_MESSAGE_ATTR_NAME);
         }
         
         if(msgAttr != null) {

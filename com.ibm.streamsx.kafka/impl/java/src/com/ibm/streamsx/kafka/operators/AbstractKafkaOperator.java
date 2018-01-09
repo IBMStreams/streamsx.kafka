@@ -20,7 +20,6 @@ import com.ibm.streams.operator.StreamingData;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.model.Libraries;
 import com.ibm.streams.operator.model.Parameter;
-import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.state.StateHandler;
 import com.ibm.streams.operator.types.Blob;
@@ -39,7 +38,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     protected static final MetaType[] SUPPORTED_ATTR_TYPES = { 
     		MetaType.RSTRING, MetaType.INT32, 
     		MetaType.INT64, MetaType.UINT32, MetaType.UINT64,
-            MetaType.FLOAT64, MetaType.BLOB 
+            MetaType.FLOAT32, MetaType.FLOAT64, MetaType.BLOB 
     };
 
     protected String propertiesFile;

@@ -104,8 +104,10 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"| org.apache.kafka.common.serialization.IntegerDeserializer | int32, uint32 |\\n" +  //$NON-NLS-1$
     		"|---|\\n" +  //$NON-NLS-1$
     		"| org.apache.kafka.common.serialization.LongDeserializer | int64, uint64 |\\n" +  //$NON-NLS-1$
-    		"|---|\\n" +  //$NON-NLS-1$
-    		"| org.apache.kafka.common.serialization.DoubleDeserializer | float64 |\\n" +  //$NON-NLS-1$
+            "|---|\\n" +  //$NON-NLS-1$
+            "| org.apache.kafka.common.serialization.FloatDeserializer | float32 |\\n" +  //$NON-NLS-1$
+            "|---|\\n" +  //$NON-NLS-1$
+            "| org.apache.kafka.common.serialization.DoubleDeserializer | float64 |\\n" +  //$NON-NLS-1$
     		"|---|\\n" +  //$NON-NLS-1$
     		"| org.apache.kafka.common.serialization.ByteArrayDeserializer | blob | \\n" +  //$NON-NLS-1$
     		"---\\n" +  //$NON-NLS-1$

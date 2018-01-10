@@ -15,33 +15,8 @@ main:
 knowledgedocs:
   - title: Background knowledge
     children:
-      - title: "Overview - Use case"
-        url: /docs/knowledge/usecase/overview
-      - title: "Scenario1"
-        url: /docs/knowledge/usecase/scenario1
-      - title: "Scenario1"
-        url: /docs/knowledge/usecase/scenario1
-      - title: "Scenario1"
-        url: /docs/knowledge/usecase/scenario1
-  - title: Introduction to used product1
-    children:
       - title: "Overview"
-        url: /docs/knowledge/product1/overview
-      - title: "Integration into Streams"
-        url: /docs/knowledge/product1/integration
-  - title: Introduction to used product2
-    children:
-      - title: "Overview"
-        url: /docs/knowledge/product2/overview
-      - title: "Integration into Streams"
-        url: /docs/knowledge/product2/integration
-  - title: Introduction to used technology1
-    children:
-      - title: "Overview"
-        url: /docs/knowledge/technology1/overview
-      - title: "Important details to know"
-        url: /docs/knowledge/technology1/details
-
+        url: /docs/knowledge/overview
 
 # user documentation links
 userdocs:
@@ -49,29 +24,29 @@ userdocs:
     children:
       - title: "Overview"
         url: /docs/user/overview
-      - title: "Basic usage"
-        url: /docs/user/basicuseage
-      - title: "Basic Samples"
-        url: /docs/user/basicsamples
-      - title: "Advanced usage"
-        url: /docs/user/advancedusage
-      - title: "Advanced Samples"
-        url: /docs/user/advancedsamples
+      - title: "SPL Doc"
+        url: /docs/user/SPLDoc
+      - title: "Migration from streamsx.messaging toolkit"
+        url: /docs/user/migration_from_messaging
+      - title: "KafkaConsumer Design"
+        url: /docs/user/KafkaConsumerDesign
+      - title: "KafkaProducer Design"
+        url: /docs/user/KafkaProducerDesign
 
 # developer documentation links
 developerdocs:
   - title: Developer documentation
     children:
-      - title: "General Toolkit development"
-        url: /docs/development/overview
-      - title: "Requirements"
-        url: /docs/development/requirements
-      - title: "Design"
-        url: /docs/development/design
-      - title: "Build"
-        url: /docs/development/build
-      - title: "Implementation"
-        url: /docs/development/implementation
-      - title: "Test"
-        url: /docs/development/test
+      - title: "Overview"
+        url: /docs/developer/overview
+      - title: "New Feature Checklist"
+        url: /docs/developer/new_feature_checklist
+      - title: "Release Process"
+        url: /docs/developer/release_process
+      - title: "SPLDoc Process"
+        url: /docs/developer/spldoc_process
+      - title: "Testing"
+        url: /docs/developer/testing
+      - title: "Useful console commands"
+        url: /docs/developer/useful_commands
 

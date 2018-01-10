@@ -18,7 +18,7 @@ It is a source operator within your Streams application.
 The KafkaProducer operator creates Kafka messages from tuples and acts therefore as a sink operator within your Streams application.
 
 For both, the KafkaConsumer and the KafkaProducer there is a one-to-one relationship between tuples and Kafka messages.
-Read more about how to use these operators in the [SPL documentaion](doc/spldoc/html/index.html).
+Read more about how to use these operators in the [SPL documentaion](/streamsx.kafka/doc/spldoc/html/index.html).
 
 ### Samples
 

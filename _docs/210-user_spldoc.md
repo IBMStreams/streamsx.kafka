@@ -13,18 +13,18 @@ sidebar:
 
 ### v1.2.2 (latest)
 
-[Toolkit Documentation (SPLDoc)](/doc/spldoc/html/index.html)
+[Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/spldoc/html/)
 
 ### Toolkit documentation for previous versions
 
 #### v1.2.1
 
-[Toolkit Documentation (SPLDoc)](/doc/v1.2.1/spldoc/html/index.html)
+[Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.2.1/spldoc/html/)
 
 #### v1.2.0
 
-[Toolkit Documentation (SPLDoc)](/doc/v1.2.0/spldoc/html/index.html)
+[Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.2.0/spldoc/html/)
 
 #### v1.1.1
 
-[Toolkit Documentation (SPLDoc)](/doc/v1.1.1/spldoc/html/index.html)
+[Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.1.1/spldoc/html/)

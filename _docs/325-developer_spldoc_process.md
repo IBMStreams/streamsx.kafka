@@ -1,5 +1,5 @@
 ---
-title: "Toolkit Development overview"
+title: "Toolkit SPLDoc process"
 permalink: /docs/developer/spldoc_process
 excerpt: "How to generate SPL doc for the gh-pages documentation"
 last_modified_at: 2018-01-10T12:37:48+01:00

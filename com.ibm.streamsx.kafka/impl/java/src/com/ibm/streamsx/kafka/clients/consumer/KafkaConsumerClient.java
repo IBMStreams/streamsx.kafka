@@ -331,7 +331,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
                     if (records != null) {
                         records.forEach(cr -> {
-                        	logger.debug(cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
+                                if (logger.isDebugEnabled())
+	                        	logger.debug(cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
                         	messageQueue.add(cr);
                         });
                     }
@@ -534,7 +535,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         try {
             // offsetManager.savePositionFromCluster();
             checkpoint.getOutputStream().writeObject(offsetManager);
-            logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
+            if (logger.isDebugEnabled())
+                logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
         } finally {
             checkpointingLatch.countDown();
         }

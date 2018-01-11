@@ -499,7 +499,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     private void submitRecord(ConsumerRecord<?, ?> record) throws Exception {
-    	logger.trace("Preparing to submit record: " + record); //$NON-NLS-1$ //$NON-NLS-2$
+        if (logger.isTraceEnabled())
+    	     logger.trace("Preparing to submit record: " + record); //$NON-NLS-1$ //$NON-NLS-2$
         final StreamingOutput<OutputTuple> out = getOutput(0);
         OutputTuple tuple = out.newTuple();
         setTuple(tuple, outputMessageAttrName, record.value());

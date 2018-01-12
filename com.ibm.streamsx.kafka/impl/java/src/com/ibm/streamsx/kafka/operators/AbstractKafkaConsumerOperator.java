@@ -95,7 +95,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 	private boolean hasOutputOffset;
 	private boolean hasOutputPartition;
 	private boolean hasOutputTimetamp;
-    private Integer tupleCounter = 0;
 
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
@@ -218,13 +217,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @Parameter(optional = true, name=TRIGGER_COUNT_PARAM, 
-    		description="This parameter specifies the approximate number of messages that will "
-    				+ "be submitted to the output port before initiating a checkpoint. The "
-    				+ "operator retrieves batches of messages from Kafka, and the consistent "
-    				+ "region is only started after all messages in the batch have been submitted. "
-    				+ "The implication of this is that more tuples may be submitted by the operator "
-    				+ "before a consistent region is triggered. This parameter is only used if the "
-    				+ "operator is the start of a consistent region.")
+            description="This parameter specifies the number of tuples that will be "
+                    + "submitted to the output port before triggering a consistent region. "
+                    + "This parameter is only used if the operator is the start of an "
+                    + "*operator driven* consistent region and is ignored otherwise.")
     public void setTriggerCount(int triggerCount) {
         this.triggerCount = triggerCount;
     }
@@ -332,6 +328,22 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
     }
+
+    @ContextCheck(compile = false, runtime = true)
+    public static void checkTriggerCountValue (OperatorContextChecker checker) {
+        ConsistentRegionContext crContext = checker.getOperatorContext()
+                .getOptionalContext(ConsistentRegionContext.class);
+        if (crContext != null) {
+            if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
+                // here we have checked (compile time) that the TRIGGER_COUNT_PARAM parameter exists...
+                int triggerCount = Integer.valueOf(checker.getOperatorContext().getParameterValues(TRIGGER_COUNT_PARAM).get(0));
+                if (triggerCount <= 0) {
+                    checker.setInvalidContext(Messages.getString("INVALID_PARAMETER_VALUE_GT", TRIGGER_COUNT_PARAM, "" + triggerCount, "0"), //$NON-NLS-1$
+                            new Object[0]);
+                }
+            }
+        }
+    }
     
     @ContextCheck(compile = true)
     public static void checkInputPort(OperatorContextChecker checker) {
@@ -434,9 +446,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     produceTuples();
                 } catch (Exception e) {
                     Logger.getLogger(this.getClass()).error("Operator error", e); //$NON-NLS-1$
+                    // Propagate all exceptions to the runtime to make the PE fail and possibly restart.
+                    // Otherwise this thread terminates leaving the PE in a healthy state without being healthy.
+                    throw new RuntimeException (e);
                 }
             }
-
         });
 
         processThread.setDaemon(false);
@@ -453,44 +467,54 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     private void produceTuples() throws Exception {
+
+        int nTuplesForOpDrivenCR = 0;
         if (crContext != null && resettingLatch != null) {
             logger.debug("Operator is in the middle of resetting. No tuples will be submitted until reset completes."); //$NON-NLS-1$
-            resettingLatch.await();
+            try {
+                resettingLatch.await();
+            } catch (InterruptedException e) {
+                // shutdown occurred in the middle of CR reset, finish gracefully
+                return;
+            }
         }
 
         if(consumer.isAssignedToTopics()) {
         	consumer.sendStartPollingEvent(consumerPollTimeout);
         }
         while (!shutdown.get()) {
-            try {
-                if (crContext != null) {
+            if (crContext != null) {
+                try {
                     //logger.trace("Acquiring consistent region permit..."); //$NON-NLS-1$
                     crContext.acquirePermit();
+                } catch (InterruptedException e) {
+                    logger.error(Messages.getString("ERROR_ACQUIRING_PERMIT", e.getLocalizedMessage())); //$NON-NLS-1$
+                    // shutdown occured waiting for permit, finish gracefully
+                    return;
                 }
-
+            }
+            try {
+                // Any exceptions thrown here are propagated to the caller
                 //logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
                 ConsumerRecord<?, ?> record = consumer.getNextRecord();
                 if(record != null) {
                 	submitRecord(record);
-                	
-                    if (crContext != null && crContext.isTriggerOperator()) {
-                    	consumer.getOffsetManager().savePosition(record.topic(), record.partition(), record.offset()+1l);
-                        if (tupleCounter >= triggerCount) {
+
+                    if (crContext != null) {
+                        // save offset for *next* record for {topic, partition} 
+                        consumer.getOffsetManager().savePosition(record.topic(), record.partition(), record.offset()+1l);
+                        if (crContext.isTriggerOperator() && ++nTuplesForOpDrivenCR >= triggerCount) {
                             logger.debug("Making region consistent..."); //$NON-NLS-1$
+                            // makeConsistent blocks until all operators in the CR have drained and checkpointed
                             boolean isSuccess = crContext.makeConsistent();
-                            tupleCounter = 0;
+                            nTuplesForOpDrivenCR = 0;
                             logger.debug("Completed call to makeConsistent: isSuccess=" + isSuccess); //$NON-NLS-1$
                         }
                     }
                 }
-            } catch (InterruptedException e) {
-                logger.error(Messages.getString("ERROR_ACQUIRING_PERMIT", e.getLocalizedMessage())); //$NON-NLS-1$
-                e.printStackTrace();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             } finally {
                 if (crContext != null) {
-                    //logger.trace("Releasing consistent region permit..."); //$NON-NLS-1$
+                    if (logger.isDebugEnabled()) logger.debug ("Releasing consistent region permit..."); //$NON-NLS-1$
                     crContext.releasePermit();
                 }
             }
@@ -524,20 +548,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if(hasOutputTimetamp) {
         	tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
         }            
-        
-        //logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
+        if (logger.isDebugEnabled()) logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
         out.submit(tuple);
-        tupleCounter++;
     }
-//    
-//    private void submitRecords(ConsumerRecords<?, ?> records) throws Exception {
-//        logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
-//        Iterator<?> it = records.iterator();
-//        while (it.hasNext()) {
-//            ConsumerRecord<?, ?> record = (ConsumerRecord<?, ?>) it.next();
-//            submitRecord(record);
-//        }
-//    }
 
     private void setTuple(OutputTuple tuple, String attrName, Object attrValue) throws Exception {
     	if(attrValue == null)
@@ -623,18 +636,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
      *             Operator failure, will cause the enclosing PE to terminate.
      */
     public synchronized void shutdown() throws Exception {
-        // send shutdown signal and wait for thread to complete,
-        // otherwise interrupt the thread
         shutdown.set(true);
-        if (processThread != null) {
-            processThread.join(5000);
-            if (processThread != null && processThread.isAlive()) {
-                processThread.interrupt();
-            }
-            processThread = null;
-        }
         consumer.sendShutdownEvent(SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-
+//        if (processThread != null && processThread.isAlive()) {
+//            processThread.interrupt();
+//        }
+//        processThread.join(5000);
+//        processThread = null;
         OperatorContext context = getOperatorContext();
         logger.trace("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
@@ -646,15 +654,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void drain() throws Exception {
         logger.debug(">>> DRAIN"); //$NON-NLS-1$
-
-        // send all records in buffer
-//        consumer.sendStopPollingEvent();
-//        ConsumerRecords<?, ?> records;
-//
-//        logger.trace("Submitting remaining records from buffer..."); //$NON-NLS-1$
-//        while ((records = consumer.getRecords()) != null) {
-//            submitRecords(records);
-//        }
+        // When a checkpoint is to be created, the operator must stop sending tuples by pulling messages out of the messageQueue.
+        // This is achieved via acquiring a permit. In the background, more messages are pushed into the queue by a receive thread
+        // incrementing the read offset.
+        // For every tuple that is submitted, its next offset is stored in a data structure (offset manager).
+        // On checkpoint, the offset manager is saved. On reset of the CR, the consumer starts reading at these previously saved offsets,
+        // reading the messages since last checkpoint again.
     }
 
     @Override

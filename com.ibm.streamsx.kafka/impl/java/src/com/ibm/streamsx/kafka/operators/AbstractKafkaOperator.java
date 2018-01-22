@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Logger;
 
 import com.google.common.io.Files;
@@ -19,7 +20,6 @@ import com.ibm.streams.operator.StreamingData;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.model.Libraries;
 import com.ibm.streams.operator.model.Parameter;
-import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.state.StateHandler;
 import com.ibm.streams.operator.types.Blob;
@@ -30,7 +30,7 @@ import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 @Libraries({ "opt/downloaded/*", "impl/lib/*" })
-public class AbstractKafkaOperator extends AbstractOperator implements StateHandler {
+public abstract class AbstractKafkaOperator extends AbstractOperator implements StateHandler {
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaOperator.class);
 
@@ -38,7 +38,7 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
     protected static final MetaType[] SUPPORTED_ATTR_TYPES = { 
     		MetaType.RSTRING, MetaType.INT32, 
     		MetaType.INT64, MetaType.UINT32, MetaType.UINT64,
-            MetaType.FLOAT64, MetaType.BLOB 
+    		MetaType.FLOAT64, MetaType.BLOB 
     };
 
     protected String propertiesFile;
@@ -101,7 +101,7 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
     protected void registerForDataGovernance(OperatorContext context, List<String> topics) {
         String opName = context.getLogicalName();
         logger.info(opName + " - Registering for data governance"); //$NON-NLS-1$
-        if (topics != null) {
+        if (topics != null && topics.size() > 0) {
             for (String topic : topics) {
                 logger.info(opName + " - data governance - topic: " + topic); //$NON-NLS-1$
                 DataGovernanceUtil.registerForDataGovernance(this, topic, IGovernanceConstants.ASSET_KAFKA_TOPIC_TYPE,
@@ -180,43 +180,14 @@ public class AbstractKafkaOperator extends AbstractOperator implements StateHand
         if (!f.isAbsolute()) {
             f = new File(getOperatorContext().getPE().getApplicationDirectory(), filePath);
         }
-
         return f;
     }
 
     @Override
     public void close() throws IOException {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void checkpoint(Checkpoint checkpoint) throws Exception {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void drain() throws Exception {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void reset(Checkpoint checkpoint) throws Exception {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void resetToInitialState() throws Exception {
-        // TODO Auto-generated method stub
-
     }
 
     @Override
     public void retireCheckpoint(long id) throws Exception {
-        // TODO Auto-generated method stub
-
     }
 }

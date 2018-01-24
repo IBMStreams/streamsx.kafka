@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -37,13 +38,14 @@ import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
-public class KafkaConsumerClient extends AbstractKafkaClient {
+public class KafkaConsumerClient extends AbstractKafkaClient implements ConsumerRebalanceListener {
 
     private static final Logger logger = Logger.getLogger(KafkaConsumerClient.class);
     private static final long EVENT_LOOP_PAUSE_TIME = 100;
     private static final long CONSUMER_TIMEOUT_MS = 2000;
     private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
     private static final int DEFAULT_MAX_POLL_RECORDS_CONFIG = 500;
+    private static final long DEFAULT_MAX_POLL_INTERVAL_MS_CONFIG = 300000;
     private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
     private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
 
@@ -69,7 +71,39 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     private boolean isAssignedToTopics;
     private int maxPollRecords;
     private Exception initializationException;
+    private long lastPollTimestamp = 0;
+    private long maxPollIntervalMs;
     private Thread eventThread;
+
+    
+    /**
+     * Callback to notify that topic partitions have been assigned by the group coordinator to the consumer.
+     * Note that this callback is only used when the client subscribes to topics, but not, when the client assigns itself to topic partitions.
+     * This method is invoked with the thread that calls `consumer.poll (long timeout)`. The group coordinator assures that
+     * {@link #onPartitionsRevoked(Collection)} is always called before this method.
+     * 
+     * @param partitions The assigned topic partitions 
+     * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsAssigned(java.util.Collection)
+     */
+    @Override
+    public void onPartitionsAssigned (Collection<TopicPartition> partitions) {
+        logger.info("onPartitionsAssigned: " + partitions);
+    }
+
+    /**
+     * Callback to notify that topic partitions have been revoked by the group coordinator from the consumer.
+     * Note that this callback is only used when the client subscribes to topics, but not, when the client assigns itself to topic partitions.
+     * This method is invoked with the thread that calls `consumer.poll (long timeout)`. The group coordinator assures that
+     * this method is always called before {@link #onPartitionsAssigned(Collection)}.
+     * 
+     * @param partitions The revoked topic partitions
+     * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsRevoked(java.util.Collection)
+     */
+    @Override
+    public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        logger.info("onPartitionsRevoked: " + partitions);
+    }
+    
 
     private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties)
@@ -97,6 +131,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         }
 
         maxPollRecords = getMaxPollRecords();
+        maxPollIntervalMs = getMaxPollIntervalMs();
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>>(getMessageQueueSize());
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean(false);
@@ -133,8 +168,14 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
 	}
     
     private int getMaxPollRecords() {
-    	return this.kafkaProperties.contains(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)
+    	return this.kafkaProperties.containsKey(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)
 				? Integer.valueOf(kafkaProperties.getProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)) : DEFAULT_MAX_POLL_RECORDS_CONFIG;
+    }
+    
+    private long getMaxPollIntervalMs() {
+        return this.kafkaProperties.containsKey(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)?
+                Long.valueOf(kafkaProperties.getProperty(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)):
+                    DEFAULT_MAX_POLL_INTERVAL_MS_CONFIG;
     }
     
     private int getMessageQueueSize() {
@@ -256,13 +297,13 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
     }
     
     private void subscribe(Collection<String> topics) {
-        logger.debug("Subscribing: topics=" + topics); //$NON-NLS-1$
-        consumer.subscribe(topics);
+        logger.info("Subscribing: topics=" + topics); //$NON-NLS-1$
+        consumer.subscribe(topics, this);
         isAssignedToTopics = true;
     }
     
     private void assign(Collection<TopicPartition> topicPartitions) {
-    	logger.debug("Assigning topic-partitions: " + topicPartitions);
+    	logger.info("Assigning topic-partitions: " + topicPartitions);
     	Map<String /* topic */, List<TopicPartition>> topicPartitionMap = new HashMap<>();
 
     	// update the offsetmanager
@@ -325,25 +366,44 @@ public class KafkaConsumerClient extends AbstractKafkaClient {
         // continue polling for messages until a new event
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
-            if (messageQueue.remainingCapacity() >= maxPollRecords) {
-                logger.trace("Polling for records..."); //$NON-NLS-1$
+            int remainingCapacityMsgQ = messageQueue.remainingCapacity();
+            if (remainingCapacityMsgQ >= maxPollRecords) {
                 try {
+                    long now = System.currentTimeMillis();
+                    long timeBetweenPolls = now -lastPollTimestamp;
+                    if (lastPollTimestamp > 0) {
+                        // this is not the first 'poll'
+                        if (timeBetweenPolls >= maxPollIntervalMs) {
+                            logger.warn("Kafka client did'nt poll often enaugh for messages. "  //$NON-NLS-1$
+                                    + "Maximum time between two polls is currently " + maxPollIntervalMs //$NON-NLS-1$
+                                    + " milliseconds. Consider to set consumer property '" //$NON-NLS-1$
+                                    + ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG + "' to a value higher than " + timeBetweenPolls); //$NON-NLS-1$
+                        }
+                    }
+                    if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
+                    lastPollTimestamp = System.currentTimeMillis();
                     if (records != null) {
                         records.forEach(cr -> {
-                                if (logger.isDebugEnabled())
-	                        	logger.debug(cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
+                            if (logger.isDebugEnabled()) {
+                                logger.debug(cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
+                            }
                         	messageQueue.add(cr);
                         });
                     }
                 } catch (SerializationException e) {
+                    // The default deserializers of the operator do not 
+                    // throw SerializationException, but custom deserializers may throw...
                     // cannot do anything else at the moment
-                    // (may be possible to handle this in future Kafka release
-                    // (v0.11)
+                    // (may be possible to handle this in future Kafka releases
                     // https://issues.apache.org/jira/browse/KAFKA-4740)
                     throw e;
                 }
             } else {
+                if (logger.isDebugEnabled()) {
+                    logger.debug ("remaining capacity in message queue (" + remainingCapacityMsgQ //$NON-NLS-1$
+                            + ") < maxPollRecords (" + maxPollRecords + "). Skipping poll cycle."); //$NON-NLS-1$
+                }
                 // prevent busy-wait
                 Thread.sleep(100);
             }

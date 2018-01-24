@@ -30,6 +30,8 @@ import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.metrics.Metric;
+import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
@@ -95,6 +97,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 	private boolean hasOutputOffset;
 	private boolean hasOutputPartition;
 	private boolean hasOutputTimetamp;
+
+    // The number of messages in which the value was malformed and could not be deserialized
+    private Metric nMalformedMessages;
+
+    // Initialize the metrics
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages ")
+    public void setnMalformedMessages (Metric nMalformedMessages) {
+        this.nMalformedMessages = nMalformedMessages;
+    }
 
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
@@ -524,12 +535,35 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     private void submitRecord(ConsumerRecord<?, ?> record) throws Exception {
         if (logger.isTraceEnabled())
-    	     logger.trace("Preparing to submit record: " + record); //$NON-NLS-1$ //$NON-NLS-2$
+    	     logger.trace("Preparing to submit record: " + record); //$NON-NLS-1$
+        // issue #65 (https://github.com/IBMStreams/streamsx.kafka/issues/65):
+        // in case of deserialization errors we return 'null', otherwise a vaild object.
+        // In these cases we drop the record and increment the metric 'nMalformedMessages'.
+        if (record.value() == null) {
+            logger.warn("dropping message with malformed value from topic = "
+                    + record.topic() + ", partition = " + record.partition() + ", offset = " + record.offset());
+            nMalformedMessages.increment();
+            return;
+        }
         final StreamingOutput<OutputTuple> out = getOutput(0);
         OutputTuple tuple = out.newTuple();
         setTuple(tuple, outputMessageAttrName, record.value());
 
         if (hasOutputKey) {
+            // if record.key() is null, we have no evidence that this happend really by a malformed key.
+            // It can also be an unkeyed message. So, dropping the message seems not appropriate in this case.
+            // 
+            // key = null would be mapped to
+            // * empty rstring
+            // * 0 for Integer, or float64
+            // 
+            // in the key attribute of the outgoing tuple. 
+//            if (record.key() == null) {
+//                logger.warn("dropping message with malformed key from topic = "
+//                        + record.topic() + ", partition = " + record.partition() + ", offset = " + record.offset());
+//                nMalformedMessages.increment();
+//                return;
+//            }
             setTuple(tuple, outputKeyAttrName, record.key());
         }
 
@@ -626,7 +660,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     	} finally {
         	consumer.sendStartPollingEvent(consumerPollTimeout);
     	}
-    }  
+    }
     
     /**
      * Shutdown this operator, which will interrupt the thread executing the

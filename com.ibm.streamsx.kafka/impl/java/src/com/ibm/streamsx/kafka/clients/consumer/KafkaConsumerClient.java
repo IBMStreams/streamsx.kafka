@@ -577,7 +577,9 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
         try {
             // offsetManager.savePositionFromCluster();
             checkpoint.getOutputStream().writeObject(offsetManager);
-            logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
+            if (logger.isDebugEnabled()) {
+                logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
+            }
         } finally {
             checkpointingLatch.countDown();
         }

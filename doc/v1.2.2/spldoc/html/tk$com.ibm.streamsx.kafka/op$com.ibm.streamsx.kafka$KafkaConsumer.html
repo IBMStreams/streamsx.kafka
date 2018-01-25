@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.2.3</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.2.2</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -335,7 +335,7 @@
  
   <dt class="dt dlterm">Metrics</dt>
 
-  <dd class="dd">This operator reports 1 metrics.</dd>
+  <dd class="dd">This operator does not report any metrics.</dd>
 
  
 </dl>
@@ -918,7 +918,7 @@ This operator supports 15 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__triggerCount"><!-- --></a><tt class="ph tt">triggerCount</tt></dt>
 
 <dd class="dd">
-<p class="p">This parameter specifies the number of tuples that will be submitted to the output port before triggering a consistent region. This parameter is only used if the operator is the start of an <em class="ph i">operator driven</em> consistent region and is ignored otherwise.
+<p class="p">This parameter specifies the approximate number of messages that will be submitted to the output port before initiating a checkpoint. The operator retrieves batches of messages from Kafka, and the consistent region is only started after all messages in the batch have been submitted. The implication of this is that more tuples may be submitted by the operator before a consistent region is triggered. This parameter is only used if the operator is the start of a consistent region.
 </p>
 <dl class="dl">
 
@@ -973,26 +973,6 @@ This operator supports 15 parameters.
 </dd>
 
 
-</dl>
-
-</div>
-
-<div class="section">
-<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics">Metrics</a></strong></p>
-<dl class="dl">
-  
-    <dt class="dt dlterm"><tt class="ph tt">nDroppedMalformedMessages</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
-
-    <dd class="dd">
-
-<p class="p">Number of dropped malformed messages 
-</p>
-
-     <p class="p"/>
-
-     </dd>
-
-  
 </dl>
 
 </div>

@@ -11,7 +11,7 @@ sidebar:
 {% include toc %}
 {%include editme %}
 
-### v1.2.2 (latest)
+### v1.2.3 (latest)
 
 [Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/spldoc/html/)
 

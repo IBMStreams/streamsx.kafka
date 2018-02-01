@@ -102,7 +102,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private Metric nMalformedMessages;
 
     // Initialize the metrics
-    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages ")
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages")
     public void setnMalformedMessages (Metric nMalformedMessages) {
         this.nMalformedMessages = nMalformedMessages;
     }
@@ -119,15 +119,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the offset. If not "
     				+ "specified, the operator will attempt to store the message in an attribute "
-    				+ "named 'offset'.")
+    				+ "named 'offset'. The attribute must have the SPL type 'int64' or 'uint64'.")
     public void setOutputOffsetAttrName(String outputOffsetAttrName) {
 		this.outputOffsetAttrName = outputOffsetAttrName;
 	}
     
     @Parameter(optional = true, name=OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM,
-    		description="Specifies the output attribute name that should contain the offset. If not "
-    				+ "specified, the operator will attempt to store the message in an "
-    				+ "attribute named 'offset'.")
+    		description="Specifies the output attribute name that should contain the partition number. If not "
+    				+ "specified, the operator will attempt to store the partition number in an "
+    				+ "attribute named 'partition'. The attribute must have the SPL type 'int32' or 'uint32'.")
     public void setOutputPartitionAttrName(String outputPartitionAttrName) {
 		this.outputPartitionAttrName = outputPartitionAttrName;
 	}

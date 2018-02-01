@@ -73,6 +73,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     private Exception initializationException;
     private long lastPollTimestamp = 0;
     private long maxPollIntervalMs;
+    private boolean autoCommitEnabled = false;
     private Thread eventThread;
 
     
@@ -129,6 +130,12 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
         if (!kafkaProperties.containsKey(ConsumerConfig.CLIENT_ID_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_CLIENTID_PREFIX));
         }
+
+        // if not explicitly configured, disable auto commit
+        if (!kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
+            this.kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        }
+        autoCommitEnabled = this.kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true");
 
         maxPollRecords = getMaxPollRecords();
         maxPollIntervalMs = getMaxPollIntervalMs();
@@ -382,6 +389,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                     }
                     if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
+                    if (logger.isDebugEnabled()) logger.debug("# polled records: " + (records == null? 0: records.count()));
                     lastPollTimestamp = System.currentTimeMillis();
                     if (records != null) {
                         records.forEach(cr -> {
@@ -390,6 +398,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                             }
                         	messageQueue.add(cr);
                         });
+                        if (autoCommitEnabled) consumer.commitSync();
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 

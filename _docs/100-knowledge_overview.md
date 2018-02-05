@@ -25,4 +25,7 @@ A first place to get introduced with Kafka is the [Apache Kafka home page](https
 
 ## Introduction into this toolkit
 
-A good introduction into this toolkit gives this [IBM Developer Works Article](https://developer.ibm.com/streamsdev/docs/introducing-kafka-toolkit).
+This [Streamsdev article](https://developer.ibm.com/streamsdev/docs/introducing-kafka-toolkit) gives a good introduction to the toolkit.
+
+## Improving consumer performance
+[Article on Streamsdev on how to improve performance](https://developer.ibm.com/streamsdev/docs/improving-application-throughput-consuming-kafka/) when consuming from Kafka.

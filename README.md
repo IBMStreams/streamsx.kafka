@@ -15,8 +15,10 @@ To migrate applications using the old Kafka operators in the `com.ibm.streamsx.m
 
 
 ## Documentation 
-
-Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) (COMING SOON!)
+- [Toolkit overview](https://developer.ibm.com/streamsdev/docs/introducing-kafka-toolkit/)
+- [Improve performance when consuming from Kafka](https://developer.ibm.com/streamsdev/docs/improving-application-throughput-consuming-kafka/)
+- [Other kafka related content on Streamsdev](https://developer.ibm.com/streamsdev/tag/kafka/)
+- Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) 
 
 
 ## Build

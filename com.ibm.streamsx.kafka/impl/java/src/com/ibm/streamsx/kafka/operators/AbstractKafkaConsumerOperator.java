@@ -107,7 +107,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the record's timestamp. "
     				+ "If not specified, the operator will attempt to store the message in an "
-    				+ "attribute named 'messageTimestamp'.")
+    				+ "attribute named 'messageTimestamp'. The attribute must have the SPL type 'int64' or 'uint64'.")
     public void setOutputMessageTimestampAttrName(String outputMessageTimestampAttrName) {
 		this.outputMessageTimestampAttrName = outputMessageTimestampAttrName;
 	}
@@ -133,7 +133,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     				+ "When the **startPosition** parameter is to `Time`, the operator will begin "
     				+ "reading records from the earliest offset whose timestamp is greater than or "
     				+ "equal to the timestamp specified by this parameter. If no offsets are found, then "
-    				+ "the operator will begin reading messages from the end of the topic(s).")
+    				+ "the operator will begin reading messages from the end of the topic(s). The timestamp "
+    				+ "must be given as an 'int64' type in milliseconds since Unix epoch.")
     public void setStartTime(Long startTime) {
 		this.startTime = startTime;
 	}

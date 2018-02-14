@@ -73,6 +73,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     private Exception initializationException;
     private long lastPollTimestamp = 0;
     private long maxPollIntervalMs;
+    private boolean autoCommitEnabled = false;
     private Thread eventThread;
 
     
@@ -130,6 +131,12 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
             this.kafkaProperties.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_CLIENTID_PREFIX));
         }
 
+        // if not explicitly configured, disable auto commit
+        if (!kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
+            this.kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        }
+        autoCommitEnabled = this.kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true");
+                
         maxPollRecords = getMaxPollRecords();
         maxPollIntervalMs = getMaxPollIntervalMs();
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>>(getMessageQueueSize());
@@ -372,6 +379,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                             }
                         	messageQueue.add(cr);
                         });
+                        // issue #60: commit immediately to avoid getting uncommited messages again after reassignment by group coordinator 
+                        if (!autoCommitEnabled) consumer.commitSync();
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 

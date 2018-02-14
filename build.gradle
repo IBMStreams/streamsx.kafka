@@ -32,12 +32,23 @@ task copyToTemp(type: Copy) {
     into 'build/release/com.ibm.streamsx.kafka'
 }
 
+task copySamplesToTemp(type: Copy) {
+    from 'samples'
+    into 'build/release/samples'
+}
+
+task copyDocToTemp(dependsOn: 'spldoc', type: Copy) {
+    from 'docs'
+    into 'build/release/com.ibm.streamsx.kafka/doc'
+}
+
 task removeSrc(type: Delete) {
     delete 'build/release/com.ibm.streamsx.kafka/build'
     delete 'build/release/com.ibm.streamsx.kafka/build.gradle'
     delete 'build/release/com.ibm.streamsx.kafka/impl/java/src'
     delete 'build/release/com.ibm.streamsx.kafka/impl/src'
     delete 'build/release/com.ibm.streamsx.kafka/impl/bin'
+    delete 'build/release/com.ibm.streamsx.kafka/bin'
     delete 'build/release/com.ibm.streamsx.kafka/.gradle'
     delete 'build/release/com.ibm.streamsx.kafka/.toolkitList'
     delete 'build/release/com.ibm.streamsx.kafka/.classpath'
@@ -54,6 +65,11 @@ task removeOldRelease(type: Delete) {
 }
 
 task archive(type: Tar) {
+    dependsOn copyToTemp
+    dependsOn copySamplesToTemp
+    dependsOn copyDocToTemp
+    dependsOn removeSrc
+
     from('build/release/') {
         exclude('output')
     }
@@ -69,8 +85,6 @@ task archive(type: Tar) {
 task release {
     dependsOn build
     dependsOn removeOldRelease
-    dependsOn copyToTemp
-    dependsOn removeSrc
     dependsOn archive
 }  
 

@@ -398,7 +398,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                             }
                         	messageQueue.add(cr);
                         });
-                        if (autoCommitEnabled) consumer.commitSync();
+                        // issue #60: commit immediately to avoid getting uncommited messages again after reassignment by group coordinator 
+                        if (!autoCommitEnabled) consumer.commitSync();
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 

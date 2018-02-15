@@ -107,7 +107,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the record's timestamp. "
     				+ "If not specified, the operator will attempt to store the message in an "
-    				+ "attribute named 'messageTimestamp'.")
+    				+ "attribute named 'messageTimestamp'. The attribute must have the SPL type 'int64' or 'uint64'.")
     public void setOutputMessageTimestampAttrName(String outputMessageTimestampAttrName) {
 		this.outputMessageTimestampAttrName = outputMessageTimestampAttrName;
 	}
@@ -133,7 +133,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     				+ "When the **startPosition** parameter is to `Time`, the operator will begin "
     				+ "reading records from the earliest offset whose timestamp is greater than or "
     				+ "equal to the timestamp specified by this parameter. If no offsets are found, then "
-    				+ "the operator will begin reading messages from the end of the topic(s).")
+    				+ "the operator will begin reading messages from the end of the topic(s). The timestamp "
+    				+ "must be given as an 'int64' type in milliseconds since Unix epoch.")
     public void setStartTime(Long startTime) {
 		this.startTime = startTime;
 	}
@@ -456,8 +457,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     //logger.trace("Acquiring consistent region permit..."); //$NON-NLS-1$
                     crContext.acquirePermit();
                 } catch (InterruptedException e) {
-                    logger.error(Messages.getString("ERROR_ACQUIRING_PERMIT", e.getLocalizedMessage())); //$NON-NLS-1$
                     // shutdown occured waiting for permit, finish gracefully
+                    logger.debug (Messages.getString("ERROR_ACQUIRING_PERMIT", e.getLocalizedMessage())); //$NON-NLS-1$
                     return;
                 }
             }
@@ -487,7 +488,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 }
             }
         }
-        consumer.sendStopPollingEvent();
+        try {
+            consumer.sendStopPollingEvent();
+        }
+        catch (InterruptedException ie) {
+            // interrupted during shutdown
+            return;
+        }
     }
 
     private void submitRecord(ConsumerRecord<?, ?> record) throws Exception {
@@ -574,6 +581,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void process(StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
+        
+        boolean interrupted = false;
     	try {
         	String jsonString = tuple.getString(0);
         	JsonObject jsonObj = gson.fromJson(jsonString, JsonObject.class);
@@ -618,11 +627,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         	}
         	
         	consumer.sendStopPollingEvent();
-        	consumer.sendUpdateTopicAssignmentEvent(new TopicPartitionUpdate(action, topicPartitionOffsetMap));	
+        	consumer.sendUpdateTopicAssignmentEvent(new TopicPartitionUpdate(action, topicPartitionOffsetMap));
+        } catch (InterruptedException e) {
+            // interrupted during shutdown
+            interrupted = true;
     	} catch (Exception e) {
     		logger.error(e.getMessage(), e);
     	} finally {
-        	consumer.sendStartPollingEvent(consumerPollTimeout);
+        	if (!interrupted) consumer.sendStartPollingEvent(consumerPollTimeout);
     	}
     }
     

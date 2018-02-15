@@ -5,9 +5,13 @@ This is a Java project that demonstrates creating a custom Kafka partitioner. Th
 ### Build
 
 Run the following command to build the project: 
+```
+make
+```
+or if you are in the cloned or forked git repository
 
 ```
-gradle build
+../../gradlew build
 ```
 
 ### Sample

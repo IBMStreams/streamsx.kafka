@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.2.4</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.2.3</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -704,7 +704,7 @@ This operator supports 15 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__outputTimestampAttributeName"><!-- --></a><tt class="ph tt">outputTimestampAttributeName</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the output attribute name that should contain the record's timestamp. If not specified, the operator will attempt to store the message in an attribute named 'messageTimestamp'. The attribute must have the SPL type 'int64' or 'uint64'.
+<p class="p">Specifies the output attribute name that should contain the record's timestamp. If not specified, the operator will attempt to store the message in an attribute named 'messageTimestamp'.
 </p>
 <dl class="dl">
 
@@ -859,7 +859,7 @@ This operator supports 15 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__startTime"><!-- --></a><tt class="ph tt">startTime</tt></dt>
 
 <dd class="dd">
-<p class="p">This parameter is only used when the <strong class="ph b">startPosition</strong> parameter is set to <tt class="ph tt">Time</tt>. When the <strong class="ph b">startPosition</strong> parameter is to <tt class="ph tt">Time</tt>, the operator will begin reading records from the earliest offset whose timestamp is greater than or equal to the timestamp specified by this parameter. If no offsets are found, then the operator will begin reading messages from the end of the topic(s). The timestamp must be given as an 'int64' type in milliseconds since Unix epoch.
+<p class="p">This parameter is only used when the <strong class="ph b">startPosition</strong> parameter is set to <tt class="ph tt">Time</tt>. When the <strong class="ph b">startPosition</strong> parameter is to <tt class="ph tt">Time</tt>, the operator will begin reading records from the earliest offset whose timestamp is greater than or equal to the timestamp specified by this parameter. If no offsets are found, then the operator will begin reading messages from the end of the topic(s).
 </p>
 <dl class="dl">
 

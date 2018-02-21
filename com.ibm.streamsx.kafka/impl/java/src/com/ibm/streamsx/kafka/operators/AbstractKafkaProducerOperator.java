@@ -24,7 +24,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
-import com.ibm.streamsx.kafka.clients.producer.ExactlyOnceKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.TransactionalKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
@@ -83,7 +83,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
 		this.consistentRegionPolicy = consistentRegionPolicy;
 	}
-    
+
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
     		description="Specifies the input attribute that contains "
     				+ "the Kafka key value. If not specified, the operator "
@@ -328,11 +328,11 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
         		break;
         	case Transactional:
-        		logger.info("Creating ExactlyOnceKafkaProducerClient...");
-        		producer = new ExactlyOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props, /*lazyTransactionBegin*/true);
+        		logger.info("Creating TransactionalKafkaProducerClient...");
+        		producer = new TransactionalKafkaProducerClient(getOperatorContext(), keyType, messageType, props, /*lazyTransactionBegin*/true);
         		break;
-        		default:
-        			throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
+        	default:
+        		throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
         	}
         }
     }
@@ -428,30 +428,31 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void reset(Checkpoint checkpoint) throws Exception {
         logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
 
-        /*
-         * Close the producer and initialize a new once. Calling close() will
-         * flush out all remaining messages and then shutdown the producer.
-         */
-        producer.close();
-        producer = null;
-        initProducer();
+//        /* TODO: remove this commented out old implementation
+//         * Close the producer and initialize a new once. Calling close() will
+//         * flush out all remaining messages and then shutdown the producer.
+//         */
+//        producer.close();
+//        producer = null;
+//        initProducer();
 
         logger.debug("Initiating reset..."); //$NON-NLS-1$
+        producer.tryCancelOutstanding();
         producer.reset(checkpoint);
 
         // reset complete
         isResetting.set(false);
-        logger.debug("Reset complete!"); //$NON-NLS-1$
+        logger.debug("Reset complete"); //$NON-NLS-1$
     }
 
     @Override
     public void resetToInitialState() throws Exception {
         logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
 
+        producer.tryCancelOutstanding();
         producer.close();
         producer = null;
         initProducer();
-        producer.resetToInitialState();
         isResetting.set(false);
     }
 

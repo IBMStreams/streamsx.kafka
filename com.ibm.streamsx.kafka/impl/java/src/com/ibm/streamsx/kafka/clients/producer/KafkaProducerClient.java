@@ -83,7 +83,13 @@ public class KafkaProducerClient extends AbstractKafkaClient {
        return producer.send(record, callback);
     }
     
-    public synchronized void flush() throws Exception {
+    /**
+     * Makes all buffered records immediately available to send and blocks until completion of the associated requests.
+     * The post-conditioin is, that all Futures are in done state.
+     * 
+     * @throws InterruptedException. If flush is interrupted, an InterruptedException is thrown.
+     */
+    public synchronized void flush() {
         logger.trace("Flusing..."); //$NON-NLS-1$
         producer.flush();
     }
@@ -102,12 +108,24 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     	send(producerRecord);
     	return true;
     }
+    
+    /**
+     * Tries to cancel all send requests that are not yet done. 
+     * The base class has an empty implementation as it does not maintain the futures of send request.
+     */
+    public void tryCancelOutstanding() {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 
-    public void drain() throws Exception { }
+    public void drain() throws Exception {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 
-    public void checkpoint(Checkpoint checkpoint) throws Exception { }
+    public void checkpoint(Checkpoint checkpoint) throws Exception {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 
-    public void reset(Checkpoint checkpoint) throws Exception {}
-
-    public void resetToInitialState() throws Exception {}
+    public void reset(Checkpoint checkpoint) throws Exception {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 }

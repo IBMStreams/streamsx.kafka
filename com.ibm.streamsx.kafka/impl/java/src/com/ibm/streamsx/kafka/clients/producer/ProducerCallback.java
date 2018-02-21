@@ -17,9 +17,8 @@ public class ProducerCallback implements Callback {
     public void onCompletion(RecordMetadata metadata, Exception exception) {
         if (exception != null) {
             logger.error(exception.getLocalizedMessage(), exception);
-            exception.printStackTrace();
-            client.setSendException(exception);
+//            exception.printStackTrace();
         }
+        client.setSendException(exception);
     }
-
 }

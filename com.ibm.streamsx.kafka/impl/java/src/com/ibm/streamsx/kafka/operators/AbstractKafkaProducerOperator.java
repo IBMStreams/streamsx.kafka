@@ -437,7 +437,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 //        initProducer();
 
         logger.debug("Initiating reset..."); //$NON-NLS-1$
-        producer.tryCancelOutstanding();
+        producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.reset(checkpoint);
 
         // reset complete
@@ -449,7 +449,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void resetToInitialState() throws Exception {
         logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
 
-        producer.tryCancelOutstanding();
+        producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.close();
         producer = null;
         initProducer();

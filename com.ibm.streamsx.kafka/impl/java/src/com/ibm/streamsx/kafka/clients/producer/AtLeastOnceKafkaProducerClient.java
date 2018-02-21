@@ -63,11 +63,11 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
      * Tries to cancel all send requests that are not yet done.
      */
     @Override
-    public void tryCancelOutstanding() {
+    public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- trying to cancel requests");
         int nCancelled = 0;
         for (Future<RecordMetadata> future : futuresList) {
-            if (future.cancel (/*mayInterruptIfRunning = */true)) ++nCancelled;
+            if (future.cancel (mayInterruptIfRunning)) ++nCancelled;
         }
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- number of cancelled send requests: " + nCancelled); //$NON-NLS-1$
         futuresList.clear();

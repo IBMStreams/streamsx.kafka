@@ -112,8 +112,10 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     /**
      * Tries to cancel all send requests that are not yet done. 
      * The base class has an empty implementation as it does not maintain the futures of send request.
+     * @param mayInterruptIfRunning - true if the thread executing this task send request should be interrupted;
+     *                              otherwise, in-progress tasks are allowed to complete
      */
-    public void tryCancelOutstanding() {
+    public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
         // no implementation because this class is instantiated only when operator is not in a Consistent Region
     }
 

@@ -1,6 +1,6 @@
 ---
 title: "SPL documentation"
-permalink: /docs/user/SPLDoc
+permalink: /docs/user/SPLDoc/
 excerpt: "SPL documentation."
 last_modified_at: 2018-02-14T12:37:48+01:00
 redirect_from:

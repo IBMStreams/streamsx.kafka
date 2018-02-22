@@ -1,6 +1,6 @@
 ---
 title: "Toolkit SPLDoc process"
-permalink: /docs/developer/spldoc_process
+permalink: /docs/developer/spldoc_process/
 excerpt: "How to generate SPL doc for the gh-pages documentation"
 last_modified_at: 2018-02-22T12:37:48+01:00
 redirect_from:

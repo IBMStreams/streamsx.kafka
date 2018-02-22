@@ -1,6 +1,6 @@
 ---
 title: "Migrating an application from the streamsx.messaging to the streamsx.kafka toolkit"
-permalink: /docs/user/migration_from_messaging
+permalink: /docs/user/migration_from_messaging/
 excerpt: "How to migrate from messaging toolkit to the Kafka toolkit."
 last_modified_at: 2018-01-10T12:37:48+01:00
 redirect_from:

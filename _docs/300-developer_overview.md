@@ -1,6 +1,6 @@
 ---
 title: "Toolkit Development overview"
-permalink: /docs/developer/overview
+permalink: /docs/developer/overview/
 excerpt: "Contributing to this toolkits development"
 last_modified_at: 2018-01-10T12:37:48+01:00
 redirect_from:

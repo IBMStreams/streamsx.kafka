@@ -19,7 +19,7 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 			+ "\\n" //$NON-NLS-1$
 			+ "# Supported Kafka Version\\n" //$NON-NLS-1$
 			+ "\\n" //$NON-NLS-1$
-			+ "This version of the toolkit supports **Apache Kafka v0.10.x, v0.11.x, and v1.0.x**.\\n" //$NON-NLS-1$
+			+ "This version of the toolkit supports **Apache Kafka v0.10.2, v0.11.x, and v1.0.x**.\\n" //$NON-NLS-1$
 			+ "\\n" //$NON-NLS-1$
 			+ "# Kafka Properties\\n" //$NON-NLS-1$
 			+ "\\n" //$NON-NLS-1$

@@ -139,7 +139,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     protected void loadFromPropertiesFile() throws Exception {
         if (propertiesFile == null) {
-            logger.debug("No properties file specified"); //$NON-NLS-1$
+            logger.info("No properties file specified"); //$NON-NLS-1$
             return;
         }
         File propFile = convertToAbsolutePath(propertiesFile);

@@ -17,7 +17,7 @@ repositories {
 def STREAMS_INSTALL = System.getenv("STREAMS_INSTALL")
 
 dependencies {
-	compile fileTree(dir: STREAMS_INSTALL + '/lib', include: ['com.ibm.streams.operator.jar'])
+	compile fileTree(dir: STREAMS_INSTALL + '/lib', include: ['com.ibm.streams.operator.jar', 'com.ibm.streams.operator.samples.jar'])
 	compile fileTree(dir: STREAMS_INSTALL + '/toolkits/com.ibm.streamsx.topology/lib', include : ['com.ibm.streamsx.topology.jar'])
     compile 'junit:junit:4.12'
     compile project(':com.ibm.streamsx.kafka')

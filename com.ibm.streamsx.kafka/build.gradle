@@ -61,7 +61,7 @@ task deleteDeps(type: Delete) {
     delete "opt"
     delete "bin"
     delete "output"
-    delete fileTree(dir : 'com.ibm.streamsx.kafka', exclude : ['Functions.spl'])
+    delete fileTree(dir : 'com.ibm.streamsx.kafka', exclude : ['*.spl'])
     delete "com.ibm.streamsx.kafka.messagehub"
     delete fileTree(dir : 'impl/lib/', include : ['com.ibm.streamsx.kafka*.jar'])
 }

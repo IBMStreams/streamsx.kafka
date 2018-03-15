@@ -126,7 +126,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"# Committing received Kafka messages\\n" +
     		"\\n" +
     		"As default, the operator sets the consusmer property `auto.commit.enable` to `false` and commits every "
-    		+ "received batch of messages after appending the messages to an internal queue. When users specify the the value `true` for the "
+    		+ "received batch of messages after appending the messages to an internal queue. When users specify the value `true` for the "
     		+ "`auto.commit.enable` property, the operator uses the auto-commit function of the Kafka client.\\n" +
     		"\\n" +
     		

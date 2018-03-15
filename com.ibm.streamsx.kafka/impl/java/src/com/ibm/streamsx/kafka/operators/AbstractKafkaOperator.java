@@ -38,12 +38,13 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     protected static final MetaType[] SUPPORTED_ATTR_TYPES = { 
     		MetaType.RSTRING, MetaType.INT32, 
     		MetaType.INT64, MetaType.UINT32, MetaType.UINT64,
-    		MetaType.FLOAT64, MetaType.BLOB 
+            MetaType.FLOAT32, MetaType.FLOAT64, MetaType.BLOB 
     };
 
     protected String propertiesFile;
     protected String appConfigName;
     protected String[] userLib;
+    protected String clientId = null;
 
     protected Class<?> messageType;
     protected Class<?> keyType;
@@ -76,6 +77,17 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     public void setUserLib(String[] userLib) {
         this.userLib = userLib;
     }
+    
+    @Parameter(optional = true, name="clientId",
+            description="Specifies the client ID that should be used "
+                    + "when connecting to the Kafka cluster. The value "
+                    + "specified by this parameter will override the `client.id` "
+                    + "Kafka property if specified. If this parameter is not "
+                    + "specified and the the `client.id` Kafka property is not "
+                    + "specified, the operator will use a random client ID.")
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
 
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
@@ -84,6 +96,10 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         // load the Kafka properties
         kafkaProperties = new KafkaOperatorProperties();
         loadProperties();
+        // set the client ID property if the clientId parameter is specified
+        if(clientId != null && !clientId.isEmpty()) {
+            kafkaProperties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, clientId);
+        }
 
         if (userLib == null) {
             userLib = new String[] { context.getPE().getApplicationDirectory() + DEFAULT_USER_LIB_DIR };
@@ -123,7 +139,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     protected void loadFromPropertiesFile() throws Exception {
         if (propertiesFile == null) {
-            logger.debug("No properties file specified"); //$NON-NLS-1$
+            logger.info("No properties file specified"); //$NON-NLS-1$
             return;
         }
         File propFile = convertToAbsolutePath(propertiesFile);

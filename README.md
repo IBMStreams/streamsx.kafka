@@ -6,7 +6,7 @@ This version of the toolkit currently supports: <mark>Apache Kafka v0.10.x</mark
 
 ## MessageHub
 
-For building applications that connect to MessageHub, it is recommended that the [**com.ibm.streamsx.messagehub**](https://github.com/IBMStreams/streamsx.messagehub) toolkit be used. This toolkit provides functionality on top of the Kafka toolkit to simplify the configuration needed to connect to MessageHub. 
+For building applications that connect to the IBM Cloud Message Hub service, it is recommended that the [**com.ibm.streamsx.messagehub**](https://github.com/IBMStreams/streamsx.messagehub) toolkit be used. This toolkit provides functionality on top of the Kafka toolkit to simplify the configuration needed to connect to Message Hub. 
 
 
 ## Migrating from com.ibm.streamsx.messaging
@@ -15,8 +15,10 @@ To migrate applications using the old Kafka operators in the `com.ibm.streamsx.m
 
 
 ## Documentation 
-
-Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) (COMING SOON!)
+- [Toolkit overview](https://developer.ibm.com/streamsdev/docs/introducing-kafka-toolkit/)
+- [Improve performance when consuming from Kafka](https://developer.ibm.com/streamsdev/docs/improving-application-throughput-consuming-kafka/)
+- [Other kafka related content on Streamsdev](https://developer.ibm.com/streamsdev/tag/kafka/)
+- Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) 
 
 
 ## Build

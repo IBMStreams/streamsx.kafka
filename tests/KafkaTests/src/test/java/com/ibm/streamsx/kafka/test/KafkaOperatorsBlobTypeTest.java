@@ -37,7 +37,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsBlobTypeTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaOperatorsBlobTypeTest";
 	
 	public KafkaOperatorsBlobTypeTest() throws Exception {
 		super(TEST_NAME);

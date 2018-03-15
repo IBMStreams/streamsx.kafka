@@ -21,7 +21,7 @@ def STREAMS_INSTALL = System.getenv("STREAMS_INSTALL")
 def toolkitVersion = ext.getVersion()
 
 dependencies {
-    compile fileTree(dir: STREAMS_INSTALL + '/lib', include: ['com.ibm.streams.operator.jar', 'com.ibm.streams.operator.samples.jar'])
+    compile fileTree(dir: STREAMS_INSTALL + '/lib', include: ['com.ibm.streams.operator.jar'])
     compile fileTree(dir: STREAMS_INSTALL + '/toolkits/com.ibm.streamsx.topology/lib', include : ['com.ibm.streamsx.topology.jar'])
     compile 'junit:junit:4.12'
     compile project(':com.ibm.streamsx.kafka')
@@ -58,6 +58,10 @@ task removeSrc(type: Delete) {
     delete 'build/release/com.ibm.streamsx.kafka/impl/include'
     delete 'build/release/com.ibm.streamsx.kafka/data'
     delete 'build/release/com.ibm.streamsx.kafka/impl/java'
+    delete fileTree ('build/release/com.ibm.streamsx.kafka/opt/downloaded') {
+        // log4j 1.2 is also part of the Streams Java Operator API so any version in the toolkit will be ignored.
+        include 'log4j-1.2.*.jar'
+    }
 }
 
 task removeOldRelease(type: Delete) {

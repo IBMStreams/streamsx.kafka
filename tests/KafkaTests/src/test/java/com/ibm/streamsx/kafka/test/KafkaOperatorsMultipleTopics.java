@@ -33,7 +33,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsMultipleTopics extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaOperatorsMultipleTopics";
 	
 	public KafkaOperatorsMultipleTopics() throws Exception {
 		super(TEST_NAME);

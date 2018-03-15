@@ -3,8 +3,8 @@
  xmlns:info="http://www.ibm.com/xmlns/prod/streams/spl/toolkitInfo">
  <info:identity>
    <info:name>com.ibm.streamsx.kafka</info:name>
-   <info:description></info:description>
-   <info:version>1.2.4</info:version>
+   <info:description>The Kafka toolkit integrates IBM Streams with Apache Kafka brokers.</info:description>
+   <info:version>1.3.0</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

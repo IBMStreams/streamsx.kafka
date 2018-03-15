@@ -77,7 +77,6 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     private Thread eventThread;
 
     
-    
     /**
      * Callback to notify that topic partitions have been assigned by the group coordinator to the consumer.
      * Note that this callback is only used when the client subscribes to topics, but not, when the client assigns itself to topic partitions.
@@ -105,6 +104,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
         logger.info("onPartitionsRevoked: " + partitions);
     }
+    
 
     private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties)
@@ -136,7 +136,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
             this.kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         }
         autoCommitEnabled = this.kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true");
-                
+
         maxPollRecords = getMaxPollRecords();
         maxPollIntervalMs = getMaxPollIntervalMs();
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>>(getMessageQueueSize());
@@ -276,6 +276,24 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     	}
     }
     
+	public void subscribeToTopicsWithOffsets(List<String> topics, List<Integer> partitions, List<Long> startOffsets) throws Exception {
+		if(partitions.size() != startOffsets.size())
+			throw new IllegalArgumentException("The number of partitions and the number of offsets must be equal");			
+			
+		Map<TopicPartition, Long> topicPartitionOffsetMap = new HashMap<TopicPartition, Long>();
+		
+    	topics.forEach(topic -> {
+    		for(int i = 0; i < partitions.size(); i++) {
+    			int partition = partitions.get(i);
+    			long offset = (startOffsets.size() > i) ? startOffsets.get(i) : -1l;
+    			
+    			topicPartitionOffsetMap.put(new TopicPartition(topic, partition), offset);
+    		}
+    	});
+    	
+    	subscribeToTopicsWithOffsets(topicPartitionOffsetMap);
+	}
+    
     private void saveOffsetManagerToJCP() throws Exception {
         ControlPlaneContext controlPlaneContext = operatorContext
                 .getOptionalContext(ControlPlaneContext.class);
@@ -371,6 +389,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                     }
                     if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
+                    if (logger.isDebugEnabled()) logger.debug("# polled records: " + (records == null? 0: records.count()));
                     lastPollTimestamp = System.currentTimeMillis();
                     if (records != null) {
                         records.forEach(cr -> {

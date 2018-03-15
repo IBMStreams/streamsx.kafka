@@ -15,6 +15,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -67,6 +68,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
     private static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
     private static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
+    private static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
     
     private Thread processThread;
     private KafkaConsumerClient consumer;
@@ -82,9 +84,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private String outputPartitionAttrName = DEFAULT_OUTPUT_PARTITION_ATTR_NAME;
     private List<String> topics;
     private List<Integer> partitions;
+    private List<Long> startOffsets;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
-    private String clientId;
+    private String groupId = null;
     private Long startTime;
 
     private Long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
@@ -94,11 +97,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 	private boolean hasOutputOffset;
 	private boolean hasOutputPartition;
 	private boolean hasOutputTimetamp;
+
     // The number of messages in which the value was malformed and could not be deserialized
     private Metric nMalformedMessages;
 
     // Initialize the metrics
-    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages ")
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages")
     public void setnMalformedMessages (Metric nMalformedMessages) {
         this.nMalformedMessages = nMalformedMessages;
     }
@@ -106,6 +110,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the record's timestamp. "
+    		        + "It is presented in milliseconds since Unix epoch."
     				+ "If not specified, the operator will attempt to store the message in an "
     				+ "attribute named 'messageTimestamp'. The attribute must have the SPL type 'int64' or 'uint64'.")
     public void setOutputMessageTimestampAttrName(String outputMessageTimestampAttrName) {
@@ -115,18 +120,36 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the offset. If not "
     				+ "specified, the operator will attempt to store the message in an attribute "
-    				+ "named 'offset'.")
+    				+ "named 'offset'. The attribute must have the SPL type 'int64' or 'uint64'.")
     public void setOutputOffsetAttrName(String outputOffsetAttrName) {
 		this.outputOffsetAttrName = outputOffsetAttrName;
 	}
     
     @Parameter(optional = true, name=OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM,
-    		description="Specifies the output attribute name that should contain the offset. If not "
-    				+ "specified, the operator will attempt to store the message in an "
-    				+ "attribute named 'offset'.")
+    		description="Specifies the output attribute name that should contain the partition number. If not "
+    				+ "specified, the operator will attempt to store the partition number in an "
+    				+ "attribute named 'partition'. The attribute must have the SPL type 'int32' or 'uint32'.")
     public void setOutputPartitionAttrName(String outputPartitionAttrName) {
 		this.outputPartitionAttrName = outputPartitionAttrName;
 	}
+    
+    @Parameter(optional = true, name="startOffset",
+    		description="This parameter indicates the start offset that the operator should begin consuming "
+    				+ "messages from. In order for this parameter's values to take affect, the **startPosition** "
+    				+ "parameter must be set to `Offset`. Furthermore, the specific partition(s) that the operator "
+    				+ "should consume from must be specified via the `partition` parameter.\\n"
+    				+ "\\n"
+    				+ "If multiple partitions are specified via the `partition` parameter, then the same number of "
+    				+ "offset values must be specified. There is a one-to-one mapping between the position of the "
+    				+ "partition from the `partition` parameter and the position of the offset from the `startOffset` "
+    				+ "parameter. For example, if the `partition` parameter has the values '0, 1', and the `startOffset` "
+    				+ "parameter has the values '100, 200', then the operator will begin consuming messages from "
+    				+ "partition 0 at offset 100 and will consume messages from partition 1 at offset 200.\\n"
+    				+ "\\n"
+    				+ "A limitation with using this parameter is that only a single topic can be specified. ")
+    public void setStartOffsets(long[] startOffsets) {
+    	this.startOffsets = Longs.asList(startOffsets);
+    }
     
     @Parameter(optional = true, name="startTime",
     		description="This parameter is only used when the **startPosition** parameter is set to `Time`. "
@@ -138,18 +161,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void setStartTime(Long startTime) {
 		this.startTime = startTime;
 	}
-    
-    @Parameter(optional = true, name="clientId",
-    		description="Specifies the client ID that should be used "
-    				+ "when connecting to the Kafka cluster. The value "
-    				+ "specified by this parameter will override the `client.id` "
-    				+ "Kafka parameter if specified. If this parameter is not "
-    				+ "specified and the the `client.id` Kafka property is not "
-    				+ "specified, the operator will use a random client ID.")
-    public void setClientId(String clientId) {
-		this.clientId = clientId;
-	}
-    
+
+    @Parameter(optional = true, name="groupId",
+            description="Specifies the group ID that should be used "
+                    + "when connecting to the Kafka cluster. The value "
+                    + "specified by this parameter will override the `group.id` "
+                    + "Kafka property if specified. If this parameter is not "
+                    + "specified and he the `group.id` Kafka property is not "
+                    + "specified, the operator will use a random group ID.")
+    public void setGroupId (String groupId) {
+        this.groupId = groupId;
+    }
+
     @Parameter(optional = true, name="startPosition", 
     		description="Specifies whether the operator should start "
     				+ "reading from the end of the topic, the beginning of "
@@ -261,12 +284,31 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // check that the user-specified partition attr name exists
         checkUserSpecifiedAttributeNameExists(checker, OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM);
                 
-        // check that the startTime param exists if the startPosition param is set to 'Time'
+
         if(paramNames.contains(START_POSITION_PARAM)) {
         	String startPositionValue = checker.getOperatorContext().getParameterValues(START_POSITION_PARAM).get(0);
         	if(startPositionValue.equals("Time")) { //$NON-NLS-1$
+                // check that the startTime param exists if the startPosition param is set to 'Time'
         		if(!paramNames.contains(START_TIME_PARAM)) {
         			checker.setInvalidContext(Messages.getString("START_TIME_PARAM_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
+        		}
+        	} else if(startPositionValue.equals("Offset")) { //$NON-NLS-1$
+                // check that the startOffset param exists if the startPosition param is set to 'Offset
+        		if(!paramNames.contains(START_OFFSET_PARAM)) {
+        			checker.setInvalidContext(Messages.getString("START_OFFSET_PARAM_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
+        			return;
+        		}
+        		
+        		int numPartitionValues = checker.getOperatorContext().getParameterValues(PARTITION_PARAM).size();
+        		int numStartOffsetValues = checker.getOperatorContext().getParameterValues(START_OFFSET_PARAM).size();
+        		if(numPartitionValues != numStartOffsetValues) {
+        			checker.setInvalidContext(Messages.getString("PARTITION_SIZE_NOT_EQUAL_TO_OFFSET_SIZE"), new Object[0]); //$NON-NLS-1$
+        			return;
+        		}
+        		
+        		int numTopicValues = checker.getOperatorContext().getParameterValues(TOPIC_PARAM).size();
+        		if(numTopicValues > 1) {
+        			checker.setInvalidContext(Messages.getString("ONLY_ONE_TOPIC_WHEN_USING_STARTOFFSET_PARAM"), new Object[0]); //$NON-NLS-1$
         		}
         	}
         }
@@ -369,10 +411,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
         logger.debug("kafkaProperties: " + kafkaProperties); //$NON-NLS-1$
 
-        // set the client ID property if the clientId parameter is specified
-        if(clientId != null && !clientId.isEmpty()) {
-        	kafkaProperties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, clientId);
-        }    
+        // set the group ID property if the groupId parameter is specified
+        if(groupId != null && !groupId.isEmpty()) {
+            kafkaProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        }
 
         consumer = new KafkaConsumerClient.KafkaConsumerClientBuilder()
         			.setKafkaProperties(kafkaProperties)
@@ -396,6 +438,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 
                 if(startPosition == StartPosition.Time) {
                 	consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);
+                } else if(startPosition == StartPosition.Offset) {
+                	consumer.subscribeToTopicsWithOffsets(topics, partitions, startOffsets);
                 } else {
                 	consumer.subscribeToTopics(topics, partitions, startPosition);
                 }
@@ -549,15 +593,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if (logger.isDebugEnabled()) logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
         out.submit(tuple);
     }
-//    
-//    private void submitRecords(ConsumerRecords<?, ?> records) throws Exception {
-//        logger.trace("Preparing to submit " + records.count() + " tuples"); //$NON-NLS-1$ //$NON-NLS-2$
-//        Iterator<?> it = records.iterator();
-//        while (it.hasNext()) {
-//            ConsumerRecord<?, ?> record = (ConsumerRecord<?, ?>) it.next();
-//            submitRecord(record);
-//        }
-//    }
 
     private void setTuple(OutputTuple tuple, String attrName, Object attrValue) throws Exception {
     	if(attrValue == null)
@@ -567,8 +602,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             tuple.setString(attrName, (String) attrValue);
         else if (attrValue instanceof Integer)
             tuple.setInt(attrName, (Integer) attrValue);
-        else if (attrValue instanceof Double || attrValue instanceof Float)
+        else if (attrValue instanceof Double)
             tuple.setDouble(attrName, (Double) attrValue);
+        else if (attrValue instanceof Float)
+            tuple.setFloat(attrName, (Float) attrValue);
         else if (attrValue instanceof Long)
             tuple.setLong(attrName, (Long) attrValue);
         else if (attrValue instanceof Byte)
@@ -646,18 +683,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
      *             Operator failure, will cause the enclosing PE to terminate.
      */
     public synchronized void shutdown() throws Exception {
-        // send shutdown signal and wait for thread to complete,
-        // otherwise interrupt the thread
         shutdown.set(true);
-        if (processThread != null) {
-            processThread.join(5000);
-            if (processThread != null && processThread.isAlive()) {
-                processThread.interrupt();
-            }
-            processThread = null;
-        }
         consumer.sendShutdownEvent(SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-
+//        if (processThread != null && processThread.isAlive()) {
+//            processThread.interrupt();
+//        }
+//        processThread.join(5000);
+//        processThread = null;
         OperatorContext context = getOperatorContext();
         logger.trace("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$

@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 

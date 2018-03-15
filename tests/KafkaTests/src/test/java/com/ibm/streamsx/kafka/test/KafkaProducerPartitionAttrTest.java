@@ -1,10 +1,8 @@
 package com.ibm.streamsx.kafka.test;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
@@ -12,7 +10,6 @@ import org.junit.Test;
 
 import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
-import com.ibm.streams.operator.Tuple;
 import com.ibm.streamsx.kafka.test.utils.Constants;
 import com.ibm.streamsx.kafka.test.utils.Delay;
 import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
@@ -40,7 +37,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaProducerPartitionAttrTest";
 	private static final StreamSchema CONSUMER_SCHEMA = com.ibm.streams.operator.Type.Factory.getStreamSchema("tuple<int32 key, rstring message>");
 	private static final StreamSchema PRODUCER_SCHEMA = com.ibm.streams.operator.Type.Factory.getStreamSchema("tuple<int32 key, rstring message, int32 partition>");
 	

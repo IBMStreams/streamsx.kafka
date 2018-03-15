@@ -26,10 +26,27 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     protected ProducerCallback callback;
     protected Exception sendException;
     protected KafkaOperatorProperties kafkaProperties;
-
+    protected Class<?> keyClass;
+    protected Class<?> valueClass;
+	protected OperatorContext operatorContext;
+    
     public <K, V> KafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws Exception {
         this.kafkaProperties = kafkaProperties;
+        this.operatorContext = operatorContext;
+        this.keyClass = keyClass;
+        this.valueClass = valueClass;
+        
+        configureProperties();
+        createProducer();
+    }
+
+    protected void createProducer() {
+        producer = new KafkaProducer<>(this.kafkaProperties);
+        callback = new ProducerCallback(this);
+    }
+    
+    protected void configureProperties() throws Exception {
         if (!this.kafkaProperties.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
         	if(keyClass != null) {
         		this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(keyClass));	
@@ -52,11 +69,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         if (!kafkaProperties.containsKey(ProducerConfig.CLIENT_ID_CONFIG)) {
             this.kafkaProperties.put(ProducerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_PRODUCERID_PREFIX));
         }
-
-        producer = new KafkaProducer<>(this.kafkaProperties);
-        callback = new ProducerCallback(this);
     }
-
+    
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
         if (sendException != null) {
@@ -69,7 +83,13 @@ public class KafkaProducerClient extends AbstractKafkaClient {
        return producer.send(record, callback);
     }
     
-    public synchronized void flush() throws Exception {
+    /**
+     * Makes all buffered records immediately available to send and blocks until completion of the associated requests.
+     * The post-conditioin is, that all Futures are in done state.
+     * 
+     * @throws InterruptedException. If flush is interrupted, an InterruptedException is thrown.
+     */
+    public synchronized void flush() {
         logger.trace("Flusing..."); //$NON-NLS-1$
         producer.flush();
     }
@@ -88,12 +108,26 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     	send(producerRecord);
     	return true;
     }
+    
+    /**
+     * Tries to cancel all send requests that are not yet done. 
+     * The base class has an empty implementation as it does not maintain the futures of send request.
+     * @param mayInterruptIfRunning - true if the thread executing this task send request should be interrupted;
+     *                              otherwise, in-progress tasks are allowed to complete
+     */
+    public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 
-    public void drain() throws Exception { }
+    public void drain() throws Exception {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 
-    public void checkpoint(Checkpoint checkpoint) throws Exception { }
+    public void checkpoint(Checkpoint checkpoint) throws Exception {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 
-    public void reset(Checkpoint checkpoint) throws Exception {}
-
-    public void resetToInitialState() throws Exception {}
+    public void reset(Checkpoint checkpoint) throws Exception {
+        // no implementation because this class is instantiated only when operator is not in a Consistent Region
+    }
 }

@@ -35,7 +35,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsIntTypeTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaOperatorsIntTypeTest";
 	private static final String[] DATA = {"10", "20", "30", "40", "50"};
 	
 	public KafkaOperatorsIntTypeTest() throws Exception {

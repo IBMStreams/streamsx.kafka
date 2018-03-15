@@ -8,6 +8,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.DoubleSerializer;
+import org.apache.kafka.common.serialization.FloatSerializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -16,6 +17,7 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.serialization.DoubleDeserializerExt;
+import com.ibm.streamsx.kafka.serialization.FloatDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.IntegerDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.LongDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.StringDeserializerExt;
@@ -29,6 +31,8 @@ public abstract class AbstractKafkaClient {
             return StringSerializer.class.getCanonicalName();
         } else if (clazz.equals(Long.class)) {
             return LongSerializer.class.getCanonicalName();
+        } else if (clazz.equals(Float.class)) {
+            return FloatSerializer.class.getCanonicalName();
         } else if (clazz.equals(Double.class)) {
             return DoubleSerializer.class.getCanonicalName();
         } else if (clazz.equals(Blob.class)) {
@@ -45,6 +49,8 @@ public abstract class AbstractKafkaClient {
             return StringDeserializerExt.class.getCanonicalName();
         } else if (serializerClassName.equals(LongSerializer.class.getCanonicalName())) {
             return LongDeserializerExt.class.getCanonicalName();
+        } else if (serializerClassName.equals(FloatSerializer.class.getCanonicalName())) {
+            return FloatDeserializerExt.class.getCanonicalName();
         } else if (serializerClassName.equals(DoubleSerializer.class.getCanonicalName())) {
             return DoubleDeserializerExt.class.getCanonicalName();
         } else if (serializerClassName.equals(ByteArraySerializer.class.getCanonicalName())) {
@@ -61,6 +67,8 @@ public abstract class AbstractKafkaClient {
             return StringDeserializerExt.class.getCanonicalName();
         } else if (clazz.equals(Long.class)) {
             return LongDeserializerExt.class.getCanonicalName();
+        } else if (clazz.equals(Float.class)) {
+            return FloatDeserializerExt.class.getCanonicalName();
         } else if (clazz.equals(Double.class)) {
             return DoubleDeserializerExt.class.getCanonicalName();
         } else if (clazz.equals(Blob.class)) {

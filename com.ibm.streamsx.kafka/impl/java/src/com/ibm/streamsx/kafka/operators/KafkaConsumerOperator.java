@@ -59,7 +59,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
 			+ "\\n" //$NON-NLS-1$
 			+ "# Supported Kafka Version\\n" //$NON-NLS-1$
 			+ "\\n" //$NON-NLS-1$
-			+ "This version of the toolkit only supports **Apache Kafka v0.10.x**.\\n" //$NON-NLS-1$
+			+ "This version of the toolkit supports **Apache Kafka v0.10.2, v0.11.x, and v1.0.x**.\\n" //$NON-NLS-1$
 			+ "\\n" //$NON-NLS-1$
     		+ "# Kafka Properties\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
@@ -85,6 +85,8 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"| key.deserializer | See **Automatic deserialization** section below |\\n" +  //$NON-NLS-1$
     		"|---|\\n" +  //$NON-NLS-1$
     		"| value.deserializer | See **Automatic deserialization** section below |\\n" +  //$NON-NLS-1$
+            "|---|\\n" +  //$NON-NLS-1$
+            "| auto.commit.enable | `false` |\\n" +  //$NON-NLS-1$
     		"---\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"**NOTE:** Users can override any of the above properties by explicitly setting the property " //$NON-NLS-1$
@@ -104,15 +106,30 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"| org.apache.kafka.common.serialization.IntegerDeserializer | int32, uint32 |\\n" +  //$NON-NLS-1$
     		"|---|\\n" +  //$NON-NLS-1$
     		"| org.apache.kafka.common.serialization.LongDeserializer | int64, uint64 |\\n" +  //$NON-NLS-1$
-    		"|---|\\n" +  //$NON-NLS-1$
-    		"| org.apache.kafka.common.serialization.DoubleDeserializer | float64 |\\n" +  //$NON-NLS-1$
+            "|---|\\n" +  //$NON-NLS-1$
+            "| org.apache.kafka.common.serialization.FloatDeserializer | float32 |\\n" +  //$NON-NLS-1$
+            "|---|\\n" +  //$NON-NLS-1$
+            "| org.apache.kafka.common.serialization.DoubleDeserializer | float64 |\\n" +  //$NON-NLS-1$
     		"|---|\\n" +  //$NON-NLS-1$
     		"| org.apache.kafka.common.serialization.ByteArrayDeserializer | blob | \\n" +  //$NON-NLS-1$
     		"---\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
+    		"These deserializers are wrapped by extensions that catch exceptions of type "
+    		+ "`org.apache.kafka.common.errors.SerializationException` to allow the operator to skip "
+    		+ "over malformed messages. The used extensions do not modify the actual deserialization "
+    		+ "function of the given base deserializers from the above table.\\n" +
+    		"\\n" +
     		"Users can override this behaviour and specify which deserializer to use by setting the " //$NON-NLS-1$
     		+ "`key.deserializer` and `value.deserializer` properties. \\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
+    		
+    		"# Committing received Kafka messages\\n" +
+    		"\\n" +
+    		"As default, the operator sets the consusmer property `auto.commit.enable` to `false` and commits every "
+    		+ "received batch of messages after appending the messages to an internal queue. When users specify the the value `true` for the "
+    		+ "`auto.commit.enable` property, the operator uses the auto-commit function of the Kafka client.\\n" +
+    		"\\n" +
+    		
     		"# Kafka's Group Management\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"The operator is capable of taking advantage of Kafka's group management functionality. " //$NON-NLS-1$
@@ -123,9 +140,10 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"* The **startPosition** parameter value cannot be `Beginning` (must be `End` or not specified)\\n" +  //$NON-NLS-1$
     		"* None of the topics specified by the **topics** parameter can specify which partition to be assigned to\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
-    		"In addition to the above, the application needs to set the `group.id` Kafka property in " //$NON-NLS-1$
+    		"In addition to the above, the application needs to set the `group.id` Kafka property or the `groupId` parameter in " //$NON-NLS-1$
     		+ "order to assign the KafkaConsumer to a specific group. \\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
+    		
     		"# Consistent Region Support\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"The `KafkaConsumer` operator can participate in a consistent region. The operator " //$NON-NLS-1$
@@ -137,6 +155,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		+ "begin consuming messages from that point." + //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
 			"\\n" +  //$NON-NLS-1$
+    		
 			"# Error Handling\\n" +  //$NON-NLS-1$
 			"\\n" +  //$NON-NLS-1$
 			"Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafa throws " //$NON-NLS-1$

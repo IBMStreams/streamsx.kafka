@@ -35,7 +35,7 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsGreenThread";
+	private static final String TEST_NAME = "KafkaOperatorsAttrNameParamsTest";
 	private static final String PROD_KEY_ATTR_NAME = "myProdKey";
 	private static final String PROD_MSG_ATTR_NAME = "myProdMsg";
 	private static final String PROD_TOPIC_ATTR_NAME = "myProdTopic";

@@ -17,7 +17,7 @@ sidebar:
 
 ### Toolkit documentation for previous versions
 
-#### v1.2.4 (latest)
+#### v1.2.4
 
 [Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.2.4/spldoc/html/)
 

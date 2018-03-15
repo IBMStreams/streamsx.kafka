@@ -67,7 +67,7 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- trying to cancel requests");
         int nCancelled = 0;
         for (Future<RecordMetadata> future : futuresList) {
-            if (future.cancel (mayInterruptIfRunning)) ++nCancelled;
+            if (!future.isDone() && future.cancel (mayInterruptIfRunning)) ++nCancelled;
         }
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- number of cancelled send requests: " + nCancelled); //$NON-NLS-1$
         futuresList.clear();

@@ -41,7 +41,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     private static final String EXACTLY_ONCE_STATE_TOPIC = "__streams_control_topic";
     private static final String TRANSACTION_ID = "tid";
     private static final String COMMITTED_SEQUENCE_ID = "seqId";
-    
+
     private List<Future<RecordMetadata>> futuresList;
     private ControlVariableAccessor<String> transactionalIdCV;
     private String transactionalId;
@@ -50,7 +50,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     private HashMap<TopicPartition, Long> controlTopicInitialOffsets;
     private RecordMetadata lastCommittedControlRecordMetadata;
     private AtomicBoolean transactionInProgress = new AtomicBoolean (false);
-    
+
     public <K, V> TransactionalKafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties, boolean lazyTransactionBegin) throws Exception {
         super(operatorContext, keyClass, valueClass, kafkaProperties);
@@ -71,11 +71,11 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
             checkAndBeginTransaction();
         }
     }
-    
+
     @Override
     protected void configureProperties() throws Exception {
         super.configureProperties();
-        
+
         // Need to generate a transaction ID that is unique but persists 
         // across operator instances. In order to guarantee this, we will
         // store the transaction ID in the JCP
@@ -83,14 +83,14 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         transactionalIdCV = crContext.createStringControlVariable("transactional_id", false, getRandomId("tid-"));
         transactionalId = transactionalIdCV.sync().getValue();
         logger.debug("Transactional ID=" + transactionalId);
-        
+
         // The "enable.idempotence" property is required in order to guarantee idempotence
         this.kafkaProperties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
-        
+
         // The "transaction.id" property is mandatory in order to support transactions.
         this.kafkaProperties.setProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
     }
-        
+
     public String getTransactionalId() {
         return transactionalId;
     }
@@ -102,12 +102,12 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         producer.initTransactions();
         logger.debug("Transaction initialization finished.");
     }
-    
+
     private void beginTransaction() {
         if (logger.isDebugEnabled()) logger.debug("Starting new transaction");
         producer.beginTransaction();
     }
-    
+
     private void abortTransaction() {
         if (logger.isDebugEnabled()) logger.debug("Aborting transaction");
         producer.abortTransaction();
@@ -121,10 +121,10 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         headers.add(COMMITTED_SEQUENCE_ID, String.valueOf(sequenceId).getBytes());
         Future<RecordMetadata> controlRecordFuture = producer.send(controlRecord);
         if (logger.isDebugEnabled()) logger.debug("Sent control record: " + controlRecord);
-        
+
         if (logger.isDebugEnabled()) logger.debug("Committing transaction...");
         producer.commitTransaction();
-        
+
         // controlRecordFuture information should be available now
         lastCommittedControlRecordMetadata = controlRecordFuture.get();
     }
@@ -150,7 +150,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         futuresList.add(future);
         return future;
     }
-    
+
     @SuppressWarnings({"rawtypes"})
     @Override
     public boolean processTuple(ProducerRecord producerRecord) throws Exception {
@@ -165,7 +165,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         KafkaConsumer<?, ?> consumer = new KafkaConsumer<>(getConsumerProperties());
         HashMap<TopicPartition, Long> controlTopicEndOffsets = getControlTopicEndOffsets(consumer);
         consumer.close(1, TimeUnit.SECONDS);
-        
+
         return controlTopicEndOffsets;
     }
 
@@ -174,7 +174,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         List<TopicPartition> partitions = new ArrayList<TopicPartition>();
         partitionInfoList.forEach(pi -> partitions.add(new TopicPartition(pi.topic(), pi.partition())));
         Map<TopicPartition, Long> endOffsets = consumer.endOffsets(partitions);
-        
+
         return new HashMap<>(endOffsets);
     }
 
@@ -188,7 +188,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         controlTopicInitialOffsets.forEach((tp, offset) -> {
             consumer.seek(tp, offset);
         });
-        
+
         long committedSeqId = 0;
         boolean consumerAtEnd = false;
         while(!consumerAtEnd) {
@@ -205,15 +205,15 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
                     committedSeqId = Long.valueOf(new String(headers.lastHeader(COMMITTED_SEQUENCE_ID).value(), StandardCharsets.UTF_8));
                 }
             }
-            
+
             consumerAtEnd = isConsumerAtEnd(consumer, endOffsets);
             if (logger.isDebugEnabled()) logger.debug("consumerAtEnd=" + consumerAtEnd);
         }        
-        
+
         consumer.close(1l, TimeUnit.SECONDS);
         return committedSeqId;
     }
-    
+
     private boolean isConsumerAtEnd(KafkaConsumer<?, ?> consumer, Map<TopicPartition, Long> endOffsets) {
         for(Entry<TopicPartition, Long> entry : endOffsets.entrySet()) {
             long currentOffset = consumer.position(entry.getKey());
@@ -222,7 +222,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -239,11 +239,11 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
         return consumerProps;
     }    
-    
+
     protected String serializeObject(Serializable obj) {
         return new String(Base64.getEncoder().encode(SerializationUtils.serialize(obj)));
     }
-    
+
     /**
      * Makes all buffered records immediately available to send and blocks until completion of the associated requests.
      * 
@@ -269,14 +269,14 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- CHECKPOINT id=" + currentSequenceId);
         // when we checkpoint, we must have a transaction. open a transaction if not yet done ...
         checkAndBeginTransaction();
-        
+
         if (logger.isDebugEnabled()) logger.debug("currentSequenceId=" + currentSequenceId + ", lastSuccessSequenceId=" + lastSuccessfulSequenceId);
         boolean doCommit = true;
         // check if this is a new transaction
         if(currentSequenceId - lastSuccessfulSequenceId > 1) {
             long committedSequenceId = getCommittedSequenceId();
             if (logger.isDebugEnabled()) logger.debug("committedSequenceId=" + committedSequenceId);
-            
+
             if(lastSuccessfulSequenceId < committedSequenceId) {
                 if (logger.isDebugEnabled()) logger.debug("Aborting transaction due to lastSuccessfulSequenceId < committedSequenceId");
                 // If the last successful sequence ID is less than
@@ -288,12 +288,12 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
                 lastSuccessfulSequenceId = committedSequenceId;
             }
         }
-    
+
         if (logger.isDebugEnabled()) logger.debug("doCommit = " + doCommit);
         if(doCommit) {
             commitTransaction(checkpoint.getSequenceId());
             lastSuccessfulSequenceId = checkpoint.getSequenceId();   
-            
+
             TopicPartition tp = new TopicPartition(lastCommittedControlRecordMetadata.topic(), lastCommittedControlRecordMetadata.partition());
             controlTopicInitialOffsets.put(tp, lastCommittedControlRecordMetadata.offset());
         }
@@ -301,11 +301,11 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         // save the last successful seq ID
         if (logger.isDebugEnabled()) logger.debug("Checkpointing lastSuccessfulSequenceId: " + lastSuccessfulSequenceId);
         checkpoint.getOutputStream().writeLong(lastSuccessfulSequenceId);
-    
+
         // save the control topic offsets
         if (logger.isDebugEnabled()) logger.debug("Checkpointing control topic offsets: " + controlTopicInitialOffsets);
         checkpoint.getOutputStream().writeObject(controlTopicInitialOffsets);
-        
+
         if (!lazyTransactionBegin) {
             // start a new transaction
             checkAndBeginTransaction();
@@ -320,7 +320,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- trying to cancel requests");
         int nCancelled = 0;
         for (Future<RecordMetadata> future : futuresList) {
-            if (future.cancel (mayInterruptIfRunning)) ++nCancelled;
+            if (!future.isDone() && future.cancel (mayInterruptIfRunning)) ++nCancelled;
         }
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- number of cancelled send requests: " + nCancelled); //$NON-NLS-1$
         futuresList.clear();
@@ -335,7 +335,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
         controlTopicInitialOffsets = (HashMap<TopicPartition, Long>)checkpoint.getInputStream().readObject();
         if (logger.isDebugEnabled()) logger.debug("Reset controlTopicInitialOffsets: " + lastSuccessfulSequenceId);
-        
+
         // check 'transactionInProgress' for true and set atomically to false
         if (transactionInProgress.compareAndSet (true, false)) {
             // abort the current transaction

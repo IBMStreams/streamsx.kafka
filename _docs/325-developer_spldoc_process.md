@@ -16,11 +16,10 @@ The following steps can be followed to generate new SPLDocs for the toolkit and 
 **NOTE:** It is recommended that a new repository be cloned in `/tmp` to isolate SPL doc generation and
 github pages documentation from development work.
 
-**TODO: The following procedure must be verified!**
 
 1. `cd /tmp`
-1. `git clone git@github.com:IBMStreams/streamsx.messagehub.git streamsx.messagehub.gh-pages`
-1. `cd streamsx.messagehub.gh-pages`
+1. `git clone git@github.com:IBMStreams/streamsx.kafka.git streamsx.kafka.gh-pages`
+1. `cd streamsx.kafka.gh-pages`
 1. Check out the release, for which you want to generate the SPL documentation, for example `git checkout v1.2.4`
 1. `./gradlew spldoc`
 1. `git checkout gh-pages`

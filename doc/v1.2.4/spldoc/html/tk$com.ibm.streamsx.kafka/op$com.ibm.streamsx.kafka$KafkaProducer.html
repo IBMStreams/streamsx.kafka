@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.3.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.2.4</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
 
 </div>
 
@@ -40,7 +40,7 @@
 <div class="section"><h2 class="title sectiontitle">Supported Kafka Version
 </h2>
 
-<p class="p">This version of the toolkit supports <strong class="ph b">Apache Kafka v0.10.2, v0.11.x, and v1.0.x</strong>.
+<p class="p">This version of the toolkit only supports <strong class="ph b">Apache Kafka v0.10.x</strong>.
 </p>
 
 </div>
@@ -61,13 +61,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d8239e91">
+<th class="entry" colspan="1" valign="top" id="d7288e91">
 <p class="p">Property name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d8239e97">
+<th class="entry" colspan="1" valign="top" id="d7288e97">
 <p class="p">Default Value
 </p>
 
@@ -79,13 +79,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e91 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e91 ">
 <p class="p">client.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e97 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e97 ">
 <p class="p">Randomly generated ID in the form: <tt class="ph tt">producer-&lt;random_string&gt;</tt>
 </p>
 
@@ -94,13 +94,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e91 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e91 ">
 <p class="p">key.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e97 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e97 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -109,13 +109,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e91 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e91 ">
 <p class="p">value.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e97 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e97 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -156,13 +156,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d8239e210">
+<th class="entry" colspan="1" valign="top" id="d7288e210">
 <p class="p">Serializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d8239e216">
+<th class="entry" colspan="1" valign="top" id="d7288e216">
 <p class="p">SPL Types
 </p>
 
@@ -174,13 +174,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e210 ">
 <p class="p">org.apache.kafka.common.serialization.StringSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e216 ">
 <p class="p">rstring
 </p>
 
@@ -189,13 +189,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e210 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e216 ">
 <p class="p">int32, uint32
 </p>
 
@@ -204,13 +204,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e210 ">
 <p class="p">org.apache.kafka.common.serialization.LongSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e216 ">
 <p class="p">int64, uint64
 </p>
 
@@ -219,28 +219,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
-<p class="p">org.apache.kafka.common.serialization.FloatSerializer
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
-<p class="p">float32
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e210 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e216 ">
 <p class="p">float64
 </p>
 
@@ -249,13 +234,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e210 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
+<td class="entry" colspan="1" valign="top" headers="d7288e216 ">
 <p class="p">blob
 </p>
 
@@ -275,29 +260,7 @@
 <div class="section"><h2 class="title sectiontitle">Consistent Region Strategy
 </h2>
 
-<p class="p">The <tt class="ph tt">KafkaProducer</tt> operator can participate in a consistent region. The operator cannot be the start of a consistent region. The operator supports 'at least once' (default behavior) and 'exactly once' delivery semantics. The delivery semantics can be controlled by the <strong class="ph b">consistentRegionPolicy</strong> parameter. 
-</p>
-
-</div>
-
-<div class="section"><h2 class="title sectiontitle">'At least once' delivery
-</h2>
-
-<p class="p">If the operator crashes or is reset while in a consistent region, the operator will write all tuples replayed. This ensures that every tuple sent to the operator will be written to the topic(s). However, 'at least once' semantics implies that duplicate messages may be written to the topic(s). 
-</p>
-
-</div>
-
-<div class="section"><h2 class="title sectiontitle">'Exactly once' delivery
-</h2>
-
-<p class="p">Messages are always inserted into a topic within the context of a transaction. Transactions are committed when the operator checkpoints. If the operator crashes or is reset while in a consistent region, the opertor will abort the ongoing transaction and write all tuples replayed within a new transaction. This ensures that every tuple sent to the operator will be written to the topic(s), and that clients configured with <tt class="ph tt">isolation.level = read_committed</tt> will not read the duplicates from the aborted transactions.
-</p>
-
-<p class="p"><strong class="ph b">NOTE 1:</strong> Transactions in Kafka have an inactivity timeout with default value of 60 seconds. If the consistent region triggers less frequently and you expect a low message rate, consider to to increase the timeout by setting the client property <tt class="ph tt">transaction.timeout.ms</tt> to a higher value, for example 120000 (milliseconds). The maximum value of this property is limited by the server property <tt class="ph tt">transaction.max.timeout.ms</tt>, which has a default value of 900000.
-</p>
-
-<p class="p"><strong class="ph b">NOTE 2:</strong> For 'exactly once' delivery semantics, the Kafka broker must have version 0.11 or higher because older brokers do not support transactions.
+<p class="p">The <tt class="ph tt">KafkaProducer</tt> operator can participate in a consistent region. The operator cannot be the start of a consistent region. The operator supports 'at least once' delivery semantics. If the operator crashes or is reset while in a consistent region, the operator will write all tuples replayed. This ensures that every tuple sent to the operator will be written to the topic(s). However, 'at least once' semantics implies that duplicate messages may be written to the topic(s). 
 </p>
 
 </div>
@@ -328,9 +291,9 @@
  
   <dt class="dt dlterm">Parameters</dt>
 
-  <dd class="dd">This operator supports 11 parameters.
+  <dd class="dd">This operator supports 9 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 </dd>
@@ -402,9 +365,9 @@
 
 <div class="section">
 <p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
-This operator supports 11 parameters.
+This operator supports 9 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 <dl class="dl">
@@ -427,71 +390,6 @@ This operator supports 11 parameters.
      </li>
 
      <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
-     </li>
-
-  </ul>
-
- </dd>
-
-
-</dl>
-
-</dd>
-
-
-
-<dt class="dt dlterm"><a name="spldoc_operator__parameter__clientId"><!-- --></a><tt class="ph tt">clientId</tt></dt>
-
-<dd class="dd">
-<p class="p">Specifies the client ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">client.id</tt> Kafka property if specified. If this parameter is not specified and the the <tt class="ph tt">client.id</tt> Kafka property is not specified, the operator will use a random client ID.
-</p>
-<dl class="dl">
-
- <dt class="dt dlterm">Properties </dt>
-
- <dd class="dd">
-  <ul class="sl simple">
-  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
-  </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
-     </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
-     </li>
-
-  </ul>
-
- </dd>
-
-
-</dl>
-
-</dd>
-
-
-
-<dt class="dt dlterm"><a name="spldoc_operator__parameter__consistentRegionPolicy"><!-- --></a><tt class="ph tt">consistentRegionPolicy</tt></dt>
-
-<dd class="dd">
-<p class="p">Specifies the policy to use when in the a consistent region. If 'AtLeastOnce' is specified, the operator will guarantee that every tuple is written to the topic(s) at least once. If 'Transactional' is specified, the operator will write tuples to the topic(s) within the context of a transaction. Transactions are commited when the operator checkpoints. This implies that downstream consumers may not see the messages until operator checkpoints, or if the consumer is configured to read uncommited messages. To achieve <em class="ph i">Exactly Once</em> behaviour for a consumer, the property <em class="ph i">isolation.level</em> must be set to 'read_committed' for the consumer. Otherwise also uncommitted messages are read from a Kafka topic, which then looks like <em class="ph i">at least once</em> for the consumer.This parameter is ignored if the operator is not part of a consistent region. The default value is 'AtLeastOnce'. <strong class="ph b">NOTE</strong>: Kafka brokers older than version v0.11 do not support transactions.
-</p>
-<dl class="dl">
-
- <dt class="dt dlterm">Properties </dt>
-
- <dd class="dd">
-  <ul class="sl simple">
-  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: com.ibm.streamsx.kafka.operators.AbstractKafkaProducerOperator.ConsistentRegionPolicy
- (<tt class="ph tt">AtLeastOnce, Transactional</tt>)  </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
-     </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
-     </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: CustomLiteral
      </li>
 
   </ul>
@@ -669,7 +567,7 @@ This operator supports 11 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__topic"><!-- --></a><tt class="ph tt">topic</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the topic(s) that the producer should send messages to. The value of this parameter will take precedence over the <strong class="ph b">topicAttribute</strong> parameter. This parameter will also take precedence if the input tuple schema contains an attribute named <em class="ph i">topic</em>.
+<p class="p">Specifies the topic(s) that the producer should send messages to. The value of this parameter will take precedence over the <strong class="ph b">topicAttrName</strong> parameter. This parameter will also take precedence if the input tuple schema contains an attribute named topic.
 </p>
 <dl class="dl">
 

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="Configuration"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_page"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>Configuration</title>
+</head>
+<body id="spldoc_page">
+
+
+<h1 class="title topictitle1">Configuration</h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.3.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Configuration</p>
+
+</div>
+
+
+<div class="section">
+<p class="p">The operators use Kafka's Producer or Consumer API. As a consequence, you can specify all properties for the APIs to control  the behavior of the operators. The producer for Apache Kafka 1.0 can be found <a class="xref" href="https://kafka.apache.org/documentation/#producerconfigs">here</a>, the configs for the Apache Kafka Consumer can be found <a class="xref" href="https://kafka.apache.org/documentation/#consumerconfigs">here</a>.
+</p>
+
+<div class="p">Properties can be specified in different ways:
+<ul class="ul">
+<li class="li"> As an Application configuration
+<p class="p">  You must specify the name of the App Config in the <strong class="ph b">appConfigName</strong> parameter.
+</p>
+</li>
+
+<li class="li"> in a property file
+<p class="p">  You must specify the filename in the <strong class="ph b">propertiesFile</strong> parameter.
+</p>
+</li>
+
+<li class="li"> operator parameters <strong class="ph b">clientId</strong> and <strong class="ph b">groupId</strong> (KafkaConsumer operator only)</li>
+
+</ul>
+
+</div>
+
+<div class="p">Kafka properties can be specified by using these mechanisms simultaneously. The precedence is
+<ul class="ul">
+<li class="li"> parameter</li>
+
+<li class="li"> property file</li>
+
+<li class="li"> application configuration. Please note that an application configuration with instance scope takes precedence over a   configuration with same name at domain level.</li>
+
+</ul>
+
+</div>
+
+</div>
+
+</div>
+
+
+</body>
+</html>

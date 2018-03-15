@@ -89,15 +89,13 @@ IqIM/yVAAv83MMza8P/HXKACggEFAMWr7LzeVvysAAAAAElFTkSuQmCC"
       ><set attributeName="visibility" from="hidden" end="sdt1.mouseout" to="visible" begin="sdt1.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"
-    ><rect x="47.65" y="45.0" width="394.19998" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="62.0"
-      /><text x="48.65" y="58.0"
-      >Optional: appConfigName, clientId, consistentRegionPolicy, </text
-      ><text x="48.65" y="73.0"
-      >keyAttribute, messageAttribute, partitionAttribute, </text
+    ><rect x="47.65" y="60.0" width="393.13998" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="47.0"
+      /><text x="48.65" y="73.0"
+      >Optional: appConfigName, keyAttribute, messageAttribute, </text
       ><text x="48.65" y="88.0"
-      >propertiesFile, timestampAttribute, topicAttribute, </text
+      >partitionAttribute, propertiesFile, timestampAttribute, </text
       ><text x="48.65" y="103.0"
-      >topic, userLib</text
+      >topicAttribute, topic, userLib</text
       ><set attributeName="visibility" from="hidden" end="sdt2.mouseout" to="visible" begin="sdt2.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"

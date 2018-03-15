@@ -303,7 +303,7 @@
 <div class="section"><h2 class="title sectiontitle">Committing received Kafka messages
 </h2>
 
-<p class="p">As default, the operator sets the consusmer property <tt class="ph tt">auto.commit.enable</tt> to <tt class="ph tt">false</tt> and commits every received batch of messages after appending the messages to an internal queue. When users specify the the value <tt class="ph tt">true</tt> for the <tt class="ph tt">auto.commit.enable</tt> property, the operator uses the auto-commit function of the Kafka client.
+<p class="p">As default, the operator sets the consusmer property <tt class="ph tt">auto.commit.enable</tt> to <tt class="ph tt">false</tt> and commits every received batch of messages after appending the messages to an internal queue. When users specify the value <tt class="ph tt">true</tt> for the <tt class="ph tt">auto.commit.enable</tt> property, the operator uses the auto-commit function of the Kafka client.
 </p>
 
 </div>
@@ -590,7 +590,7 @@ This operator supports 17 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__clientId"><!-- --></a><tt class="ph tt">clientId</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the client ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">client.id</tt> Kafka property if specified. If this parameter is not specified and the the <tt class="ph tt">client.id</tt> Kafka property is not specified, the operator will use a random client ID.
+<p class="p">Specifies the client ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">client.id</tt> Kafka property if specified. If this parameter is not specified and the <tt class="ph tt">client.id</tt> Kafka property is not specified, the operator will use a random client ID.
 </p>
 <dl class="dl">
 

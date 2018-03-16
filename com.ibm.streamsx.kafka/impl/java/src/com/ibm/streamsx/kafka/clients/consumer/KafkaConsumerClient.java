@@ -539,21 +539,9 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
         shutdownLatch.await(timeout, timeUnit);
     }
 
-    public ConsumerRecord<?, ?> getNextRecord() {
-    	try {
-            return messageQueue.poll(1, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Consumer interrupted while waiting for messages to arrive", e); //$NON-NLS-1$
-        }
+    public ConsumerRecord<?, ?> getNextRecord() throws InterruptedException {
+        return messageQueue.poll(1, TimeUnit.SECONDS);
     }
-    
-//    public ConsumerRecords<?, ?> getRecords() {
-//        try {
-//            return messageQueue.poll(1, TimeUnit.SECONDS);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException("Consumer interrupted while waiting for messages to arrive", e); //$NON-NLS-1$
-//        }
-//    }
 
     private void refreshFromCluster() {
         logger.debug("Refreshing from cluster..."); //$NON-NLS-1$

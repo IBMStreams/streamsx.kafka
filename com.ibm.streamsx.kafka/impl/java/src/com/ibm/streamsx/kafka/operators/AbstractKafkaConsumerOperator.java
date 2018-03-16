@@ -503,11 +503,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 } catch (InterruptedException e) {
                     // shutdown occured waiting for permit, finish gracefully
                     logger.debug (Messages.getString("ERROR_ACQUIRING_PERMIT", e.getLocalizedMessage())); //$NON-NLS-1$
-                    return;
+                    break;  // leave the while loop
                 }
             }
             try {
-                // Any exceptions thrown here are propagated to the caller
+                // Any exceptions except InterruptedException thrown here are propagated to the caller
                 //logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
                 ConsumerRecord<?, ?> record = consumer.getNextRecord();
                 if(record != null) {
@@ -525,7 +525,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                         }
                     }
                 }
-            } finally {
+            }
+            catch (InterruptedException ie) {
+                logger.debug("Queue processing thread interrupted", ie);
+                break;   // leave the while loop
+            }
+            finally {
                 if (crContext != null) {
                     if (logger.isDebugEnabled()) logger.debug ("Releasing consistent region permit..."); //$NON-NLS-1$
                     crContext.releasePermit();

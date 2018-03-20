@@ -176,12 +176,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name="startPosition", 
     		description="Specifies whether the operator should start "
     				+ "reading from the end of the topic, the beginning of "
-    				+ "the topic or from a specific timestamp. Valid "
-    				+ "options include: `Beginning`, `End`, `Time`. If reading "
+    				+ "the topic or from a specific position. Valid "
+    				+ "options include: `Beginning`, `End`, `Time`, `Offset`, and `Default`. If reading "
     				+ "from a specific timestamp (i.e. setting the parameter "
     				+ "value to `Time`), then the **startTime** parameter "
-    				+ "must also be defined. If this parameter is not specified, "
-    				+ "the default value is `End`.")
+    				+ "must also be defined. When the operator starts reading from a specific offset, "
+    				+ "the **startOffset** parameter must be specified to specify the start offsets "
+    				+ "for all topic partitions. If this parameter is not specified, "
+    				+ "the default value is `Default`.")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
     }
@@ -495,6 +497,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if(consumer.isAssignedToTopics()) {
         	consumer.sendStartPollingEvent(consumerPollTimeout);
         }
+        /*
+         * Shutdown implementation:
+         * On shutdown, all threads get interrupted and throw InterruptedException, which must be caught and handled.
+         * 
+         * When we catch InterruptedException, the method is immediately left by return statement. When we only leave
+         * the while-loop, we run into `consumer.sendStopPollingEvent();`, which contains a wait, that another thread processes
+         * the event. This will most likely not happen because this thread also has been interrupted and finished working.
+         */
         while (!shutdown.get()) {
             if (crContext != null) {
                 try {
@@ -503,7 +513,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 } catch (InterruptedException e) {
                     // shutdown occured waiting for permit, finish gracefully
                     logger.debug (Messages.getString("ERROR_ACQUIRING_PERMIT", e.getLocalizedMessage())); //$NON-NLS-1$
-                    break;  // leave the while loop
+                    return;
                 }
             }
             try {
@@ -528,7 +538,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
             catch (InterruptedException ie) {
                 logger.debug("Queue processing thread interrupted", ie);
-                break;   // leave the while loop
+                return;
             }
             finally {
                 if (crContext != null) {

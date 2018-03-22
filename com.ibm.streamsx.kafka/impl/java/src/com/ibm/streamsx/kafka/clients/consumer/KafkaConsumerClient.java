@@ -389,7 +389,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                     }
                     if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
-                    if (logger.isDebugEnabled()) logger.debug("# polled records: " + (records == null? 0: records.count()));
+                    int numRecords = records == null? 0: records.count();
+                    if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
                     lastPollTimestamp = System.currentTimeMillis();
                     if (records != null) {
                         records.forEach(cr -> {
@@ -399,7 +400,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                         	messageQueue.add(cr);
                         });
                         // issue #60: commit immediately to avoid getting uncommited messages again after reassignment by group coordinator 
-                        if (!autoCommitEnabled) consumer.commitSync();
+                        if (!autoCommitEnabled && numRecords > 0) consumer.commitSync();
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 

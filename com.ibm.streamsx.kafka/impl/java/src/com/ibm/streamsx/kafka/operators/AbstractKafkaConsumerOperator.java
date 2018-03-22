@@ -174,16 +174,37 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @Parameter(optional = true, name="startPosition", 
-    		description="Specifies whether the operator should start "
-    				+ "reading from the end of the topic, the beginning of "
-    				+ "the topic or from a specific position. Valid "
-    				+ "options include: `Beginning`, `End`, `Time`, `Offset`, and `Default`. If reading "
-    				+ "from a specific timestamp (i.e. setting the parameter "
-    				+ "value to `Time`), then the **startTime** parameter "
-    				+ "must also be defined. When the operator starts reading from a specific offset, "
-    				+ "the **startOffset** parameter must be specified to specify the start offsets "
-    				+ "for all topic partitions. If this parameter is not specified, "
-    				+ "the default value is `Default`.")
+    		description="Specifies where the operator should start "
+    				+ "reading from topics. Valid options include: `Beginning`, `End`, `Default`, `Time`, and `Offset`.\\n"
+    				+ "* `Beginning`: The consumer starts reading from the beginning of the data in the Kafka topics. "
+    				+ "It starts with smallest available offset."
+    				+ "\\n"
+    				+ "* `End`: The consumer starts reading at the end of the topic. It consumes only newly inserted data."
+    				+ "\\n"
+    				+ "* `Default`: Kafka decides where to start reading. "
+    				+ "When the consumer has a group ID that is already known to the Kafka broker, the consumer starts reading "
+    				+ "the topic partitions from where it left off (after last committed offset). When the consumer has an "
+    				+ "unknown group ID, consumption starts at the position defined by the consumer "
+    				+ "config `auto.offset.reset`, which defaults to `latest`. Consumer offsets are retained for the "
+    				+ "time specified by the broker config `offsets.retention.minutes`, which defaults to 1440 (24 hours). "
+    				+ "When this time expires, the Consumer won't be able to resume after last committed offset, and the "
+    				+ "value of consumer property `auto.offset.reset` applies, which is `latest` if you don't specify anything else. "
+    				+ "**Note:** If you do not specify a group ID in Kafka consumer properties or via **groupId** parameter, "
+    				+ "the operator uses a random generated group ID, which makes the operator start consuming at the last position "
+    				+ "or what is specified in `auto.offset.reset` property."
+    				+ "\\n"
+    				+ "* `Time`: The consumer starts consuming messages with at a given timestamp. More precisely, "
+    				+ "when a time is specified, the consumer starts at the earliest offset whose timestamp is greater "
+    				+ "than or equal to the given timestamp. If no consumer offset is found for a given timestamp, "
+    				+ "the consumer starts consuming from what is configured by consumer config `auto.offset.reset`, "
+    				+ "which defaults to `latest`. "
+    				+ "The timestamp where to start consuming must be given as value of the **startTime** parameter in milliseconds since Unix epoch."
+    				+ "\\n"
+    				+ "* `Offset`: the consumer starts consuming at a specific offset. The offsets must be specified "
+    				+ "for all topic partitions by using the **startOffset** parameter.\\n"
+    				+ "\\n"
+    				+ "\\n"
+    				+ "If this parameter is not specified, the default value is `Default`.")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
     }
@@ -192,17 +213,19 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     		description="Specifies the partitions that the consumer should be "
     				+ "assigned to for each of the topics specified. It should "
     				+ "be noted that using this parameter will *assign* the "
-    				+ "consumer to the specified topics, rather than *subscribe* "
-    				+ "to them. This implies that the consumer will not use Kafka's "
+    				+ "consumer to the specified topics partitions, rather than *subscribe* "
+    				+ "to the topics. This implies that the consumer will not use Kafka's "
     				+ "group management feature.")
     public void setPartitions(int[] partitions) {
     	this.partitions = Ints.asList(partitions);
 	}
     
-    @Parameter(optional = true, name="topic",
+    @Parameter(optional = true, name=TOPIC_PARAM,
     		description="Specifies the topic or topics that the consumer should "
     				+ "subscribe to. To assign the consumer to specific partitions, "
-    				+ "use the **partitions** parameter.")
+    				+ "use the **partitions** parameter. To specify multiple topics "
+    				+ "from which the operator should consume, separate the the "
+    				+ "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }

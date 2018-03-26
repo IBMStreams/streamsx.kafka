@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.3.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.3.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
 
 </div>
 
@@ -61,13 +61,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d8612e91">
+<th class="entry" colspan="1" valign="top" id="d8239e91">
 <p class="p">Property name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d8612e97">
+<th class="entry" colspan="1" valign="top" id="d8239e97">
 <p class="p">Default Value
 </p>
 
@@ -79,13 +79,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e91 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e91 ">
 <p class="p">client.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e97 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e97 ">
 <p class="p">Randomly generated ID in the form: <tt class="ph tt">producer-&lt;random_string&gt;</tt>
 </p>
 
@@ -94,13 +94,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e91 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e91 ">
 <p class="p">key.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e97 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e97 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -109,44 +109,14 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e91 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e91 ">
 <p class="p">value.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e97 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e97 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e91 ">
-<p class="p">enable.idempotence
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d8612e97 ">
-<p class="p"><tt class="ph tt">true</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e91 ">
-<p class="p">transactional.id
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d8612e97 ">
-<p class="p">Randomly generated ID in the form: <tt class="ph tt">tid-&lt;random_string&gt;</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
 </td>
@@ -186,13 +156,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d8612e257">
+<th class="entry" colspan="1" valign="top" id="d8239e210">
 <p class="p">Serializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d8612e263">
+<th class="entry" colspan="1" valign="top" id="d8239e216">
 <p class="p">SPL Types
 </p>
 
@@ -204,13 +174,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e257 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
 <p class="p">org.apache.kafka.common.serialization.StringSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e263 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
 <p class="p">rstring
 </p>
 
@@ -219,13 +189,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e257 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e263 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
 <p class="p">int32, uint32
 </p>
 
@@ -234,13 +204,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e257 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
 <p class="p">org.apache.kafka.common.serialization.LongSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e263 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
 <p class="p">int64, uint64
 </p>
 
@@ -249,13 +219,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e257 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
 <p class="p">org.apache.kafka.common.serialization.FloatSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e263 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
 <p class="p">float32
 </p>
 
@@ -264,13 +234,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e257 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e263 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
 <p class="p">float64
 </p>
 
@@ -279,13 +249,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d8612e257 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e210 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d8612e263 ">
+<td class="entry" colspan="1" valign="top" headers="d8239e216 ">
 <p class="p">blob
 </p>
 
@@ -305,38 +275,29 @@
 <div class="section"><h2 class="title sectiontitle">Consistent Region Strategy
 </h2>
 
-<p class="p">The <tt class="ph tt">KafkaProducer</tt> operator can participate in a consistent region. The operator cannot be the start of a consistent region. The operator supports <em class="ph i">at least once</em> (default behavior) and <em class="ph i">exactly once</em> delivery semantics. The delivery semantics can be controlled by the <strong class="ph b">consistentRegionPolicy</strong> parameter. 
+<p class="p">The <tt class="ph tt">KafkaProducer</tt> operator can participate in a consistent region. The operator cannot be the start of a consistent region. The operator supports 'at least once' (default behavior) and 'exactly once' delivery semantics. The delivery semantics can be controlled by the <strong class="ph b">consistentRegionPolicy</strong> parameter. 
 </p>
 
 </div>
 
-<div class="section"><h2 class="title sectiontitle"><em class="ph i">At least once</em> delivery
+<div class="section"><h2 class="title sectiontitle">'At least once' delivery
 </h2>
 
-<p class="p">If the operator crashes or is reset while in a consistent region, the operator will write all tuples replayed. This ensures that every tuple sent to the operator will be written to the topic(s). However, <em class="ph i">at least once</em> semantics implies that duplicate messages may be written to the topic(s). 
+<p class="p">If the operator crashes or is reset while in a consistent region, the operator will write all tuples replayed. This ensures that every tuple sent to the operator will be written to the topic(s). However, 'at least once' semantics implies that duplicate messages may be written to the topic(s). 
 </p>
 
 </div>
 
-<div class="section"><h2 class="title sectiontitle"><em class="ph i">Exactly once</em> delivery
+<div class="section"><h2 class="title sectiontitle">'Exactly once' delivery
 </h2>
 
-<p class="p">Messages are always inserted into a topic within the context of a transaction. Transactions are committed when the operator checkpoints. If the operator crashes or is reset while in a consistent region, the operator will abort the ongoing transaction and write all tuples replayed within a new transaction. External consumers configured with <tt class="ph tt">isolation.level=read_committed</tt> will not read the duplicates from the aborted transactions. Consumers that use a different isolation level will read duplicate messages similar to <em class="ph i">at least once</em> delivery.
+<p class="p">Messages are always inserted into a topic within the context of a transaction. Transactions are committed when the operator checkpoints. If the operator crashes or is reset while in a consistent region, the opertor will abort the ongoing transaction and write all tuples replayed within a new transaction. This ensures that every tuple sent to the operator will be written to the topic(s), and that clients configured with <tt class="ph tt">isolation.level = read_committed</tt> will not read the duplicates from the aborted transactions.
 </p>
 
-<p class="p">To ensure that replayed tuples are not committed multiple times when the consistent region fails between commit and the point when the entire region has reached a consistent state, the operator writes the current checkpoint sequence number as commit-ID together with its unique <em class="ph i">transactional ID</em> into the control topic <strong class="ph b">__streams_control_topic</strong> as part of the committed transaction. The checkpoint sequence number is part of the operator's checkpointed state and represents the last successfully committed ID. 
+<p class="p"><strong class="ph b">NOTE 1:</strong> Transactions in Kafka have an inactivity timeout with default value of 60 seconds. If the consistent region triggers less frequently and you expect a low message rate, consider to to increase the timeout by setting the client property <tt class="ph tt">transaction.timeout.ms</tt> to a higher value, for example 120000 (milliseconds). The maximum value of this property is limited by the server property <tt class="ph tt">transaction.max.timeout.ms</tt>, which has a default value of 900000.
 </p>
 
-<p class="p">When the consistent region fails after commit, the last successfully committed ID is reset to the previous value and tuples are replayed. When the operator checkpoints next time, it detects the difference between the committed ID within the control topic and the restored ID from the checkpoint data and aborts the Kafka transaction rather than committing the replayed data again.
-</p>
-
-<p class="p"><strong class="ph b">NOTE 1:</strong> Transactions in Kafka have an inactivity timeout with default value of 60 seconds. If the consistent region triggers less frequently and you expect a low message rate, consider to to increase the timeout by setting the producer property <tt class="ph tt">transaction.timeout.ms</tt> to a higher value, for example 120000 (milliseconds). The maximum value of this property is limited by the server property <tt class="ph tt">transaction.max.timeout.ms</tt>, which has a default value of 900000.
-</p>
-
-<p class="p"><strong class="ph b">NOTE 2:</strong> In Kafka environments that have disabled automatic topic creation (broker config <tt class="ph tt">auto.create.topics.enable=false</tt>), the control topic with the name <strong class="ph b">__streams_control_topic</strong> must be created manually before <strong class="ph b">consistentRegionPolicy</strong> can be used with <tt class="ph tt">Transactional</tt>.
-</p>
-
-<p class="p"><strong class="ph b">NOTE 3:</strong> For <em class="ph i">exactly once</em> delivery semantics, the Kafka broker must have version 0.11 or higher because older brokers do not support transactions.
+<p class="p"><strong class="ph b">NOTE 2:</strong> For 'exactly once' delivery semantics, the Kafka broker must have version 0.11 or higher because older brokers do not support transactions.
 </p>
 
 </div>
@@ -513,10 +474,7 @@ This operator supports 11 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__consistentRegionPolicy"><!-- --></a><tt class="ph tt">consistentRegionPolicy</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the policy to use when in a consistent region. If <tt class="ph tt">AtLeastOnce</tt> is specified, the operator will guarantee that every tuple is written to the topic(s) at least once. If <tt class="ph tt">Transactional</tt> is specified, the operator will write tuples to the topic(s) within the context of a transaction. Transactions are commited when the operator checkpoints. This implies that downstream Kafka consumers may not see the messages until operator checkpoints.
-</p>
-
-<p class="p">To achieve <em class="ph i">Exactly Once</em> behaviour for a Kafka consumer, the property <em class="ph i">isolation.level</em> must be set to <tt class="ph tt">read_committed</tt> for that consumer. Otherwise also uncommitted messages are read from a Kafka topic, which then looks like <em class="ph i">at least once</em> for the consumer.This parameter is ignored if the operator is not part of a consistent region. The default value is <tt class="ph tt">AtLeastOnce</tt>. <strong class="ph b">NOTE</strong>: Kafka brokers older than version v0.11 do not support transactions.
+<p class="p">Specifies the policy to use when in the a consistent region. If 'AtLeastOnce' is specified, the operator will guarantee that every tuple is written to the topic(s) at least once. If 'Transactional' is specified, the operator will write tuples to the topic(s) within the context of a transaction. Transactions are commited when the operator checkpoints. This implies that downstream consumers may not see the messages until operator checkpoints, or if the consumer is configured to read uncommited messages. To achieve <em class="ph i">Exactly Once</em> behaviour for a consumer, the property <em class="ph i">isolation.level</em> must be set to 'read_committed' for the consumer. Otherwise also uncommitted messages are read from a Kafka topic, which then looks like <em class="ph i">at least once</em> for the consumer.This parameter is ignored if the operator is not part of a consistent region. The default value is 'AtLeastOnce'. <strong class="ph b">NOTE</strong>: Kafka brokers older than version v0.11 do not support transactions.
 </p>
 <dl class="dl">
 
@@ -677,7 +635,7 @@ This operator supports 11 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__timestampAttribute"><!-- --></a><tt class="ph tt">timestampAttribute</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the attribute on the input port that contains the timestamp for the message. If not specified, the operator will look for an input attribute named <em class="ph i">messageTimestamp</em>. If this parameter is not specified and there is no input attribute named <em class="ph i">messageTimestamp</em>, the operator will use the timestamp provided by Kafka (broker config <tt class="ph tt">log.message.timestamp.type=[CreateTime|LogAppendTime]</tt>).
+<p class="p">Specifies the attribute on the input port that contains the timestamp for the message. If not specified, theoperator will look for an input attribute named <em class="ph i">messageTimestamp</em>. If this parameter is not specified and there is no input attribute named <em class="ph i">messageTimestamp</em>, the operator will use the timestamp provided by the underlying Kafka API.
 </p>
 <dl class="dl">
 

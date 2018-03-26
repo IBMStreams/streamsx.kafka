@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.3.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.3.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -48,7 +48,7 @@
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
-<p class="p">The operator implements Kafka's KafkaConsumer API. As a result, it supports all Kafka properties that are supported by the underlying API. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration must be specified using the <strong class="ph b">appConfigName</strong> parameter. 
+<p class="p">The operator implements Kafka's KafkaConsumer API. As a result, it supports all Kafka properties that are supported by the underlying API. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration can be specified using the <strong class="ph b">appConfigName</strong> parameter. 
 </p>
 
 <p class="p">The only property that the user is required to set is the <tt class="ph tt">bootstrap.servers</tt> property, which points to the Kafka brokers. All other properties are optional. The operator sets some properties by default to enable users to quickly get started with the operator. The following lists which properties the operator sets by default: 
@@ -318,7 +318,7 @@
 <ul class="ul">
 <li class="li"> The operator cannot be in a consistent region</li>
 
-<li class="li"> The <strong class="ph b">startPosition</strong> parameter value cannot be <tt class="ph tt">Beginning</tt> (must be <tt class="ph tt">End</tt>, <tt class="ph tt">Default</tt>, or not specified)</li>
+<li class="li"> The <strong class="ph b">startPosition</strong> parameter value cannot be <tt class="ph tt">Beginning</tt> (must be <tt class="ph tt">End</tt> or not specified)</li>
 
 <li class="li"> None of the topics specified by the <strong class="ph b">topics</strong> parameter can specify which partition to be assigned to</li>
 
@@ -421,7 +421,7 @@
 <div class="p">
 <pre class="pre codeblock">
 {
-  "action" : "ADD" or "REMOVE",
+  "action" : "ADD" or "REMOVE"
   "topicPartitionOffsets" : [
     {
       "topic" : "topic-name",
@@ -621,7 +621,7 @@ This operator supports 17 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__groupId"><!-- --></a><tt class="ph tt">groupId</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the group ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">group.id</tt> Kafka property if specified. If this parameter is not specified and the <tt class="ph tt">group.id</tt> Kafka property is not specified, the operator will use a random group ID.
+<p class="p">Specifies the group ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">group.id</tt> Kafka property if specified. If this parameter is not specified and he the <tt class="ph tt">group.id</tt> Kafka property is not specified, the operator will use a random group ID.
 </p>
 <dl class="dl">
 
@@ -838,18 +838,8 @@ This operator supports 17 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__partition"><!-- --></a><tt class="ph tt">partition</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the partitions that the consumer should be assigned to for each of the topics specified. When you specify multiple topics, the consumer reads from the given partitions of all given topics. For example, if the <strong class="ph b">topic</strong> parameter has the values <tt class="ph tt">"topic1", "topic2"</tt>, and the <strong class="ph b">partition</strong> parameter has the values <tt class="ph tt">0, 1</tt>, then the consumer will assign to <tt class="ph tt">{topic1, partition 0}</tt>, <tt class="ph tt">{topic1, partition 1}</tt>, <tt class="ph tt">{topic2, partition 0}</tt>, and <tt class="ph tt">{topic2, partition 1}</tt>.
+<p class="p">Specifies the partitions that the consumer should be assigned to for each of the topics specified. It should be noted that using this parameter will <em class="ph i">assign</em> the consumer to the specified topics, rather than <em class="ph i">subscribe</em> to them. This implies that the consumer will not use Kafka's group management feature.
 </p>
-
-<div class="p"><strong class="ph b">Notes:</strong>
-<ul class="ul">
-<li class="li"> Partiton numbers in Kafka are zero-based. For example, a topic with three partitions has the partition numbers 0, 1, and 2.</li>
-
-<li class="li"> When using this parameter, the consumer will <em class="ph i">assign</em> the consumer to the specified topics partitions, rather than <em class="ph i">subscribe</em> to the topics. This implies that the consumer will not use Kafka's group management feature.</li>
-
-</ul>
-
-</div>
 <dl class="dl">
 
  <dt class="dt dlterm">Properties </dt>
@@ -907,13 +897,13 @@ This operator supports 17 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__startOffset"><!-- --></a><tt class="ph tt">startOffset</tt></dt>
 
 <dd class="dd">
-<p class="p">This parameter indicates the start offset that the operator should begin consuming messages from. In order for this parameter's values to take affect, the <strong class="ph b">startPosition</strong> parameter must be set to <tt class="ph tt">Offset</tt>. Furthermore, the specific partition(s) that the operator should consume from must be specified via the <strong class="ph b">partition</strong> parameter.
+<p class="p">This parameter indicates the start offset that the operator should begin consuming messages from. In order for this parameter's values to take affect, the <strong class="ph b">startPosition</strong> parameter must be set to <tt class="ph tt">Offset</tt>. Furthermore, the specific partition(s) that the operator should consume from must be specified via the <tt class="ph tt">partition</tt> parameter.
 </p>
 
-<p class="p">If multiple partitions are specified via the <strong class="ph b">partition</strong> parameter, then the same number of offset values must be specified. There is a one-to-one mapping between the position of the partition from the <strong class="ph b">partition</strong> parameter and the position of the offset from the <strong class="ph b">startOffset</strong> parameter. For example, if the <strong class="ph b">partition</strong> parameter has the values <tt class="ph tt">0, 1</tt>, and the <strong class="ph b">startOffset</strong> parameter has the values <tt class="ph tt">100l, 200l</tt>, then the operator will begin consuming messages from partition 0 at offset 100 and will consume messages from partition 1 at offset 200.
+<p class="p">If multiple partitions are specified via the <tt class="ph tt">partition</tt> parameter, then the same number of offset values must be specified. There is a one-to-one mapping between the position of the partition from the <tt class="ph tt">partition</tt> parameter and the position of the offset from the <tt class="ph tt">startOffset</tt> parameter. For example, if the <tt class="ph tt">partition</tt> parameter has the values '0, 1', and the <tt class="ph tt">startOffset</tt> parameter has the values '100, 200', then the operator will begin consuming messages from partition 0 at offset 100 and will consume messages from partition 1 at offset 200.
 </p>
 
-<p class="p">A limitation with using this parameter is that <strong class="ph b">only one single topic</strong> can be specified via the <strong class="ph b">topic</strong> parameter. 
+<p class="p">A limitation with using this parameter is that only a single topic can be specified. 
 </p>
 <dl class="dl">
 
@@ -941,23 +931,7 @@ This operator supports 17 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__startPosition"><!-- --></a><tt class="ph tt">startPosition</tt></dt>
 
 <dd class="dd">
-<div class="p">Specifies where the operator should start reading from topics. Valid options include: <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>, <tt class="ph tt">Default</tt>, <tt class="ph tt">Time</tt>, and <tt class="ph tt">Offset</tt>.
-<ul class="ul">
-<li class="li"> <tt class="ph tt">Beginning</tt>: The consumer starts reading from the beginning of the data in the Kafka topics. It starts with smallest available offset.</li>
-
-<li class="li"> <tt class="ph tt">End</tt>: The consumer starts reading at the end of the topic. It consumes only newly inserted data.</li>
-
-<li class="li"> <tt class="ph tt">Default</tt>: Kafka decides where to start reading. When the consumer has a group ID that is already known to the Kafka broker, the consumer starts reading the topic partitions from where it left off (after last committed offset). When the consumer has an unknown group ID, consumption starts at the position defined by the consumer config <tt class="ph tt">auto.offset.reset</tt>, which defaults to <tt class="ph tt">latest</tt>. Consumer offsets are retained for the time specified by the broker config <tt class="ph tt">offsets.retention.minutes</tt>, which defaults to 1440 (24 hours). When this time expires, the Consumer won't be able to resume after last committed offset, and the value of consumer property <tt class="ph tt">auto.offset.reset</tt> applies (default <tt class="ph tt">latest</tt>). <strong class="ph b">Note:</strong> If you do not specify a group ID in Kafka consumer properties or via <strong class="ph b">groupId</strong> parameter, the operator uses a random generated group ID, which makes the operator start consuming at the last position or what is specified in the <tt class="ph tt">auto.offset.reset</tt> consumer property.</li>
-
-<li class="li"> <tt class="ph tt">Time</tt>: The consumer starts consuming messages with at a given timestamp. More precisely, when a time is specified, the consumer starts at the earliest offset whose timestamp is greater than or equal to the given timestamp. If no consumer offset is found for a given timestamp, the consumer starts consuming from what is configured by consumer config <tt class="ph tt">auto.offset.reset</tt>, which defaults to <tt class="ph tt">latest</tt>. The timestamp where to start consuming must be given as <strong class="ph b">startTime</strong> parameter in milliseconds since Unix epoch.</li>
-
-<li class="li"> <tt class="ph tt">Offset</tt>: The consumer starts consuming at a specific offset. The offsets must be specified for all topic partitions by using the <strong class="ph b">startOffset</strong> parameter. The limitation for using <tt class="ph tt">Offset</tt> as the start position is that <strong class="ph b">only one single topic</strong> can be specified via the <strong class="ph b">topic</strong> parameter.</li>
-
-</ul>
-
-</div>
-
-<p class="p">If this parameter is not specified, the start position is <tt class="ph tt">Default</tt>.
+<p class="p">Specifies whether the operator should start reading from the end of the topic, the beginning of the topic or from a specific timestamp. Valid options include: <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>, <tt class="ph tt">Time</tt>. If reading from a specific timestamp (i.e. setting the parameter value to <tt class="ph tt">Time</tt>), then the <strong class="ph b">startTime</strong> parameter must also be defined. If this parameter is not specified, the default value is <tt class="ph tt">End</tt>.
 </p>
 <dl class="dl">
 
@@ -991,7 +965,7 @@ This operator supports 17 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__startTime"><!-- --></a><tt class="ph tt">startTime</tt></dt>
 
 <dd class="dd">
-<p class="p">This parameter is only used when the <strong class="ph b">startPosition</strong> parameter is set to <tt class="ph tt">Time</tt>. Then the operator will begin reading records from the earliest offset whose timestamp is greater than or equal to the timestamp specified by this parameter. If no offsets are found, then the operator will begin reading messages from what is is specified by the <tt class="ph tt">auto.offset.reset</tt> consumer property, which is <tt class="ph tt">latest</tt> as default value. The timestamp must be given as an 'int64' type in milliseconds since Unix epoch.
+<p class="p">This parameter is only used when the <strong class="ph b">startPosition</strong> parameter is set to <tt class="ph tt">Time</tt>. When the <strong class="ph b">startPosition</strong> parameter is to <tt class="ph tt">Time</tt>, the operator will begin reading records from the earliest offset whose timestamp is greater than or equal to the timestamp specified by this parameter. If no offsets are found, then the operator will begin reading messages from the end of the topic(s). The timestamp must be given as an 'int64' type in milliseconds since Unix epoch.
 </p>
 <dl class="dl">
 
@@ -1022,7 +996,7 @@ This operator supports 17 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__topic"><!-- --></a><tt class="ph tt">topic</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the <strong class="ph b">partitions</strong> parameter. To specify multiple topics from which the operator should consume, separate the the topic names by comma, for example <tt class="ph tt">topic: "topic1", "topic2";</tt>.
+<p class="p">Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the <strong class="ph b">partitions</strong> parameter.
 </p>
 <dl class="dl">
 

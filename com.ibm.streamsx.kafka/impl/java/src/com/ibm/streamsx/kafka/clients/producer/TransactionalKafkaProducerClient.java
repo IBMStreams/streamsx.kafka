@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,16 +40,15 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     private static final String CONSUMER_ID_PREFIX = "__internal_consumer_";
     private static final String GROUP_ID_PREFIX = "__internal_group_";
     private static final String EXACTLY_ONCE_STATE_TOPIC = "__streams_control_topic";
-    private static final String TRANSACTION_ID = "tid";
-    private static final String COMMITTED_SEQUENCE_ID = "seqId";
+    private static final String TRANSACTION_ID = "tid";              // header field in control topic for the transactional.id
+    private static final String COMMITTED_SEQUENCE_ID = "seqId";     // header field in control topic for the committed checkpoint-ID
 
     private List<Future<RecordMetadata>> futuresList;
-    private ControlVariableAccessor<String> transactionalIdCV;
+    private ControlVariableAccessor<String> startOffsetsCV;
     private String transactionalId;
     private final boolean lazyTransactionBegin;
-    private long lastSuccessfulSequenceId = 0;
-    private HashMap<TopicPartition, Long> controlTopicInitialOffsets;
-    private RecordMetadata lastCommittedControlRecordMetadata;
+    private long lastSuccessfulSequenceId = 0;                                   // checkpointed
+    private HashMap<TopicPartition, Long> controlTopicInitialOffsets;            // checkpointed
     private AtomicBoolean transactionInProgress = new AtomicBoolean (false);
 
     public <K, V> TransactionalKafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
@@ -60,9 +60,8 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         // Otherwise, this variable will be overridden with the value is retrieved
         controlTopicInitialOffsets = getControlTopicEndOffsets();
         ControlPlaneContext cpContext = operatorContext.getOptionalContext(ControlPlaneContext.class);
-        ControlVariableAccessor<String> startOffsetsCV = cpContext.createStringControlVariable("control_topic_start_offsets", false, serializeObject(controlTopicInitialOffsets));        
-        controlTopicInitialOffsets = SerializationUtils
-                .deserialize(Base64.getDecoder().decode(startOffsetsCV.sync().getValue()));
+        startOffsetsCV = cpContext.createStringControlVariable("control_topic_start_offsets", false, serializeObject(controlTopicInitialOffsets));
+        controlTopicInitialOffsets = SerializationUtils.deserialize(Base64.getDecoder().decode(startOffsetsCV.sync().getValue()));
         logger.debug("controlTopicInitialOffsets=" + controlTopicInitialOffsets);
         this.futuresList = Collections.synchronizedList(new ArrayList<Future<RecordMetadata>>());
         initTransactions();
@@ -80,14 +79,14 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         // across operator instances. In order to guarantee this, we will
         // store the transaction ID in the JCP
         ControlPlaneContext crContext = operatorContext.getOptionalContext(ControlPlaneContext.class);
-        transactionalIdCV = crContext.createStringControlVariable("transactional_id", false, getRandomId("tid-"));
+        ControlVariableAccessor<String> transactionalIdCV = crContext.createStringControlVariable("transactional_id", false, getRandomId("tid-"));
         transactionalId = transactionalIdCV.sync().getValue();
-        logger.debug("Transactional ID=" + transactionalId);
+        logger.debug("Transactional ID = " + transactionalId);
 
         // The "enable.idempotence" property is required in order to guarantee idempotence
         this.kafkaProperties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
 
-        // The "transaction.id" property is mandatory in order to support transactions.
+        // The "transactional.id" property is mandatory in order to support transactions.
         this.kafkaProperties.setProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
     }
 
@@ -114,7 +113,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    private void commitTransaction(long sequenceId) throws Exception {
+    private RecordMetadata commitTransaction(long sequenceId) throws Exception {
         ProducerRecord controlRecord = new ProducerRecord(EXACTLY_ONCE_STATE_TOPIC, null);
         Headers headers = controlRecord.headers();
         headers.add(TRANSACTION_ID, getTransactionalId().getBytes());
@@ -126,7 +125,8 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         producer.commitTransaction();
 
         // controlRecordFuture information should be available now
-        lastCommittedControlRecordMetadata = controlRecordFuture.get();
+        RecordMetadata lastCommittedControlRecordMetadata = controlRecordFuture.get();
+        return lastCommittedControlRecordMetadata;
     }
 
     /**
@@ -179,7 +179,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     }
 
     @SuppressWarnings("rawtypes")
-    private long getCommittedSequenceId() throws Exception {
+    private long getCommittedSequenceIdFromCtrlTopic() throws Exception {
         KafkaConsumer<?, ?> consumer = new KafkaConsumer<>(getConsumerProperties());
         HashMap<TopicPartition, Long> endOffsets = getControlTopicEndOffsets(consumer);
 
@@ -209,7 +209,6 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
             consumerAtEnd = isConsumerAtEnd(consumer, endOffsets);
             if (logger.isDebugEnabled()) logger.debug("consumerAtEnd=" + consumerAtEnd);
         }        
-
         consumer.close(1l, TimeUnit.SECONDS);
         return committedSeqId;
     }
@@ -227,15 +226,24 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     }
 
     private KafkaOperatorProperties getConsumerProperties() throws Exception {
-        // TODO: Can we simply copy the producer configs into the consumer configs? What happens?
         KafkaOperatorProperties consumerProps = new KafkaOperatorProperties();
-        consumerProps.putAll(this.kafkaProperties);
+        // copy those producer properties that have valid producer property names and exist also as a consumer property
+        Set<String> consumerConfigNames = ConsumerConfig.configNames();
+        Set<String> producerConfigNames = ProducerConfig.configNames();
+        for (Entry<?, ?> producerProp: this.kafkaProperties.entrySet()) {
+            if (producerConfigNames.contains(producerProp.getKey()) && consumerConfigNames.contains (producerProp.getKey())) {
+                consumerProps.put (producerProp.getKey(), producerProp.getValue());
+            }
+        }
+        logger.debug("infered consumer properties: " + consumerProps);
         consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(CONSUMER_ID_PREFIX));
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GROUP_ID_PREFIX));
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, inferDeserializerFromSerializer(this.kafkaProperties.getValueSerializer()));
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, inferDeserializerFromSerializer(this.kafkaProperties.getKeySerializer()));
         consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        logger.debug("Consumer properties: " + consumerProps);
+        // We have to setup isolation.level=read_committed for the case that we die between send to control topic and commitTransaction()
+        consumerProps.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        logger.debug("final consumer properties: " + consumerProps);
 
         return consumerProps;
     }    
@@ -265,16 +273,22 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
-        long currentSequenceId = checkpoint.getSequenceId();
+        final long currentSequenceId = checkpoint.getSequenceId();
         if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- CHECKPOINT id=" + currentSequenceId);
         // when we checkpoint, we must have a transaction. open a transaction if not yet done ...
         checkAndBeginTransaction();
 
         if (logger.isDebugEnabled()) logger.debug("currentSequenceId=" + currentSequenceId + ", lastSuccessSequenceId=" + lastSuccessfulSequenceId);
         boolean doCommit = true;
-        // check if this is a new transaction
-        if(currentSequenceId - lastSuccessfulSequenceId > 1) {
-            long committedSequenceId = getCommittedSequenceId();
+        // transactions are committed if the checkpointed lastSuccessfulSequenceId == committedSequenceId within the control topic 
+        // (at least it must not be smaller; it cannot be greater)
+        // or if the checkpoint sequence number is only by 1 higher than the checkpointed lastSuccessfulSequenceId
+        //
+        // the first condition is necessary, but 'expensive' since it requires reading from a topic with all consumer creation overhead; 
+        // that's why the second condition is checked first.
+        if(currentSequenceId > lastSuccessfulSequenceId + 1) {
+            // must be read with 'isolation.level=read_committed'
+            long committedSequenceId = getCommittedSequenceIdFromCtrlTopic();
             if (logger.isDebugEnabled()) logger.debug("committedSequenceId=" + committedSequenceId);
 
             if(lastSuccessfulSequenceId < committedSequenceId) {
@@ -288,14 +302,15 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
                 lastSuccessfulSequenceId = committedSequenceId;
             }
         }
-
         if (logger.isDebugEnabled()) logger.debug("doCommit = " + doCommit);
         if(doCommit) {
-            commitTransaction(checkpoint.getSequenceId());
-            lastSuccessfulSequenceId = checkpoint.getSequenceId();   
+            RecordMetadata lastCommittedControlRecordMetadata = commitTransaction(currentSequenceId);
+            lastSuccessfulSequenceId = currentSequenceId;
 
             TopicPartition tp = new TopicPartition(lastCommittedControlRecordMetadata.topic(), lastCommittedControlRecordMetadata.partition());
             controlTopicInitialOffsets.put(tp, lastCommittedControlRecordMetadata.offset());
+            // The 'controlTopicInitialOffsets' need not be synced back to the JCP. The CV is for reset to initial state.
+//            this.startOffsetsCV.setValue (serializeObject (controlTopicInitialOffsets));
         }
         transactionInProgress.set (false);
         // save the last successful seq ID

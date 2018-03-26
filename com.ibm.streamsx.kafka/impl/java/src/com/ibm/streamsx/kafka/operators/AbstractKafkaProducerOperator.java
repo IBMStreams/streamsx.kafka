@@ -68,17 +68,18 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.AtLeastOnce;
 
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
-    		description="Specifies the policy to use when in the a consistent region. If 'AtLeastOnce' "
+    		description="Specifies the policy to use when in a consistent region. If `AtLeastOnce` "
     				+ "is specified, the operator will guarantee that every tuple is written to the "
-    				+ "topic(s) at least once. If 'Transactional' is specified, the operator will write "
+    				+ "topic(s) at least once. If `Transactional` is specified, the operator will write "
     				+ "tuples to the topic(s) within the context of a transaction. Transactions are commited "
-    				+ "when the operator checkpoints. This implies that downstream consumers may not see the messages "
-    				+ "until operator checkpoints, or if the consumer is configured to read uncommited messages. "
-    				+ "To achieve *Exactly Once* behaviour for a consumer, the property *isolation.level* must be set "
-    				+ "to 'read_committed' for the consumer. Otherwise also uncommitted messages are read from "
+    				+ "when the operator checkpoints. This implies that downstream Kafka consumers may not see the messages "
+    				+ "until operator checkpoints.\\n"
+    				+ "\\n"
+    				+ "To achieve *Exactly Once* behaviour for a Kafka consumer, the property *isolation.level* must be set "
+    				+ "to `read_committed` for that consumer. Otherwise also uncommitted messages are read from "
     				+ "a Kafka topic, which then looks like *at least once* for the consumer."
     				+ "This parameter is ignored if the operator is not part of a consistent region. "
-    				+ "The default value is 'AtLeastOnce'. **NOTE**: Kafka brokers older than version v0.11 "
+    				+ "The default value is `AtLeastOnce`. **NOTE**: Kafka brokers older than version v0.11 "
     				+ "do not support transactions.")
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
 		this.consistentRegionPolicy = consistentRegionPolicy;
@@ -94,11 +95,11 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     @Parameter(optional = true, name=TIMESTAMPATTR_PARAM_NAME,
     		description="Specifies the attribute on the input port that "
-    				+ "contains the timestamp for the message. If not specified, the"
+    				+ "contains the timestamp for the message. If not specified, the "
     				+ "operator will look for an input attribute named *messageTimestamp*. "
     				+ "If this parameter is not specified and there is no input "
     				+ "attribute named *messageTimestamp*, the operator will use the timestamp "
-    				+ "provided by the underlying Kafka API.")
+    				+ "provided by Kafka (broker config `log.message.timestamp.type=\\\\[CreateTime|LogAppendTime\\\\]`).")
     public void setTimestampAttr(TupleAttribute<Tuple, Long> timestampAttr) {
 		this.timestampAttr = timestampAttr;
 	}

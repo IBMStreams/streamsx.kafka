@@ -205,7 +205,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     
     public void subscribeToTopics(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
     	logger.debug("subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
-    	assert startPosition != StartPosition.Time;
+    	assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
     	
     	if(topics != null && !topics.isEmpty()) {
     		if(partitions == null || partitions.isEmpty()) {
@@ -249,7 +249,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     			partitions.forEach(partition -> topicPartitionTimestampMap.put(new TopicPartition(topic, partition), timestamp));
     		});
     	}
-
+        logger.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
     	assign(topicPartitionTimestampMap.keySet());
     	seekToTimestamp(topicPartitionTimestampMap);
     	

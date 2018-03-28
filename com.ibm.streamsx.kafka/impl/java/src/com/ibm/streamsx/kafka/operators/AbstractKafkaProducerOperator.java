@@ -66,13 +66,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String timestampAttributeName = null;
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.AtLeastOnce;
-
-//    //++++++++ test
-//    // TODO: remove this block
-//    private long dieAfter = Long.MAX_VALUE;
-//    @Parameter(optional = true, name="dieAfter")
-//    public void setDieAfter (long v) { this.dieAfter = v; }
-//    //-------- test
     
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
     		description="Specifies the policy to use when in a consistent region. If `AtLeastOnce` "
@@ -430,14 +423,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.debug(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         producer.checkpoint(checkpoint);
-//        //+++++++++++test
-//        // TODO: remove this code block
-//        if (checkpoint.getSequenceId() > dieAfter) {
-//            // wait that we are the last operator in the CR that finishes checkpointing
-//            Thread.sleep(3000l);
-//            throw new RuntimeException ("We want to reset the CR after all other operators have done their checkpointing.");
-//        }
-//        //---------- test
     }
 
     @Override

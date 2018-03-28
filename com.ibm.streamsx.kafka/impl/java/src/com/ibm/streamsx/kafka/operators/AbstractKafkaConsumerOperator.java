@@ -137,26 +137,28 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     		description="This parameter indicates the start offset that the operator should begin consuming "
     				+ "messages from. In order for this parameter's values to take affect, the **startPosition** "
     				+ "parameter must be set to `Offset`. Furthermore, the specific partition(s) that the operator "
-    				+ "should consume from must be specified via the `partition` parameter.\\n"
+    				+ "should consume from must be specified via the **partition** parameter.\\n"
     				+ "\\n"
-    				+ "If multiple partitions are specified via the `partition` parameter, then the same number of "
+    				+ "If multiple partitions are specified via the **partition** parameter, then the same number of "
     				+ "offset values must be specified. There is a one-to-one mapping between the position of the "
-    				+ "partition from the `partition` parameter and the position of the offset from the `startOffset` "
-    				+ "parameter. For example, if the `partition` parameter has the values '0, 1', and the `startOffset` "
-    				+ "parameter has the values '100, 200', then the operator will begin consuming messages from "
+    				+ "partition from the **partition** parameter and the position of the offset from the **startOffset** "
+    				+ "parameter. For example, if the **partition** parameter has the values `0, 1`, and the **startOffset** "
+    				+ "parameter has the values `100l, 200l`, then the operator will begin consuming messages from "
     				+ "partition 0 at offset 100 and will consume messages from partition 1 at offset 200.\\n"
     				+ "\\n"
-    				+ "A limitation with using this parameter is that only a single topic can be specified. ")
+    				+ "A limitation with using this parameter is that **only one single topic** can be specified "
+    				+ "via the **topic** parameter. ")
     public void setStartOffsets(long[] startOffsets) {
     	this.startOffsets = Longs.asList(startOffsets);
     }
     
     @Parameter(optional = true, name="startTime",
     		description="This parameter is only used when the **startPosition** parameter is set to `Time`. "
-    				+ "When the **startPosition** parameter is to `Time`, the operator will begin "
+    				+ "Then the operator will begin "
     				+ "reading records from the earliest offset whose timestamp is greater than or "
     				+ "equal to the timestamp specified by this parameter. If no offsets are found, then "
-    				+ "the operator will begin reading messages from the end of the topic(s). The timestamp "
+    				+ "the operator will begin reading messages from what is is specified by the "
+    				+ "`auto.offset.reset` consumer property, which is `latest` as default value. The timestamp "
     				+ "must be given as an 'int64' type in milliseconds since Unix epoch.")
     public void setStartTime(Long startTime) {
 		this.startTime = startTime;
@@ -167,40 +169,77 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "when connecting to the Kafka cluster. The value "
                     + "specified by this parameter will override the `group.id` "
                     + "Kafka property if specified. If this parameter is not "
-                    + "specified and he the `group.id` Kafka property is not "
+                    + "specified and the `group.id` Kafka property is not "
                     + "specified, the operator will use a random group ID.")
     public void setGroupId (String groupId) {
         this.groupId = groupId;
     }
 
     @Parameter(optional = true, name="startPosition", 
-    		description="Specifies whether the operator should start "
-    				+ "reading from the end of the topic, the beginning of "
-    				+ "the topic or from a specific timestamp. Valid "
-    				+ "options include: `Beginning`, `End`, `Time`. If reading "
-    				+ "from a specific timestamp (i.e. setting the parameter "
-    				+ "value to `Time`), then the **startTime** parameter "
-    				+ "must also be defined. If this parameter is not specified, "
-    				+ "the default value is `End`.")
+    		description="Specifies where the operator should start "
+    				+ "reading from topics. Valid options include: `Beginning`, `End`, `Default`, `Time`, and `Offset`.\\n"
+    				+ "* `Beginning`: The consumer starts reading from the beginning of the data in the Kafka topics. "
+    				+ "It starts with smallest available offset."
+    				+ "\\n"
+    				+ "* `End`: The consumer starts reading at the end of the topic. It consumes only newly inserted data."
+    				+ "\\n"
+    				+ "* `Default`: Kafka decides where to start reading. "
+    				+ "When the consumer has a group ID that is already known to the Kafka broker, the consumer starts reading "
+    				+ "the topic partitions from where it left off (after last committed offset). When the consumer has an "
+    				+ "unknown group ID, consumption starts at the position defined by the consumer "
+    				+ "config `auto.offset.reset`, which defaults to `latest`. Consumer offsets are retained for the "
+    				+ "time specified by the broker config `offsets.retention.minutes`, which defaults to 1440 (24 hours). "
+    				+ "When this time expires, the Consumer won't be able to resume after last committed offset, and the "
+    				+ "value of consumer property `auto.offset.reset` applies (default `latest`). "
+    				+ "**Note:** If you do not specify a group ID in Kafka consumer properties or via **groupId** parameter, "
+    				+ "the operator uses a random generated group ID, which makes the operator start consuming at the last position "
+    				+ "or what is specified in the `auto.offset.reset` consumer property."
+    				+ "\\n"
+    				+ "* `Time`: The consumer starts consuming messages with at a given timestamp. More precisely, "
+    				+ "when a time is specified, the consumer starts at the earliest offset whose timestamp is greater "
+    				+ "than or equal to the given timestamp. If no consumer offset is found for a given timestamp, "
+    				+ "the consumer starts consuming from what is configured by consumer config `auto.offset.reset`, "
+    				+ "which defaults to `latest`. "
+    				+ "The timestamp where to start consuming must be given as **startTime** parameter in milliseconds since Unix epoch."
+    				+ "\\n"
+    				+ "* `Offset`: The consumer starts consuming at a specific offset. The offsets must be specified "
+    				+ "for all topic partitions by using the **startOffset** parameter. The limitation for using `Offset` as the start position "
+    				+ "is that **only one single topic** can be specified via the **topic** parameter.\\n"
+    				+ "\\n"
+    				+ "\\n"
+    				+ "If this parameter is not specified, the start position is `Default`.")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
     }
 
-    @Parameter(optional = true, name="partition",
+    @Parameter(optional = true, name=PARTITION_PARAM,
     		description="Specifies the partitions that the consumer should be "
-    				+ "assigned to for each of the topics specified. It should "
-    				+ "be noted that using this parameter will *assign* the "
-    				+ "consumer to the specified topics, rather than *subscribe* "
-    				+ "to them. This implies that the consumer will not use Kafka's "
+    				+ "assigned to for each of the topics specified. When you specify "
+    				+ "multiple topics, the consumer reads from the given partitions of "
+    				+ "all given topics.\\n"
+    				+ "For example, if the **topic** parameter has the values "
+    				+ "`\\\"topic1\\\", \\\"topic2\\\"`, and the **partition** parameter "
+    				+ "has the values `0, 1`, then the consumer will assign to "
+    				+ "`{topic1, partition 0}`, `{topic1, partition 1}`, "
+    				+ "`{topic2, partition 0}`, and `{topic2, partition 1}`.\\n"
+    				+ "\\n"
+    				+ "**Notes:**\\n"
+    				+ "* Partiton numbers in Kafka are zero-based. For example, a topic "
+    				+ "with three partitions has the partition numbers 0, 1, and 2.\\n"
+    				+ "* When using this parameter, the consumer will *assign* the "
+    				+ "consumer to the specified topics partitions, rather than *subscribe* "
+    				+ "to the topics. This implies that the consumer will not use Kafka's "
     				+ "group management feature.")
     public void setPartitions(int[] partitions) {
     	this.partitions = Ints.asList(partitions);
 	}
     
-    @Parameter(optional = true, name="topic",
+    @Parameter(optional = true, name=TOPIC_PARAM,
     		description="Specifies the topic or topics that the consumer should "
     				+ "subscribe to. To assign the consumer to specific partitions, "
-    				+ "use the **partitions** parameter.")
+    				+ "use the **partitions** parameter. To specify multiple topics "
+    				+ "from which the operator should consume, separate the the "
+    				+ "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
@@ -287,12 +326,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
         if(paramNames.contains(START_POSITION_PARAM)) {
         	String startPositionValue = checker.getOperatorContext().getParameterValues(START_POSITION_PARAM).get(0);
-        	if(startPositionValue.equals("Time")) { //$NON-NLS-1$
+        	if(startPositionValue.equals(StartPosition.Time.name())) {
                 // check that the startTime param exists if the startPosition param is set to 'Time'
         		if(!paramNames.contains(START_TIME_PARAM)) {
         			checker.setInvalidContext(Messages.getString("START_TIME_PARAM_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
         		}
-        	} else if(startPositionValue.equals("Offset")) { //$NON-NLS-1$
+        	} else if(startPositionValue.equals(StartPosition.Offset.name())) {
                 // check that the startOffset param exists if the startPosition param is set to 'Offset
         		if(!paramNames.contains(START_OFFSET_PARAM)) {
         			checker.setInvalidContext(Messages.getString("START_OFFSET_PARAM_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
@@ -383,7 +422,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @ContextCheck(compile = true)
     public static void checkForTopicOrInputPort(OperatorContextChecker checker) {
     	List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
-    	if(inputPorts.size() == 0 && !checker.getOperatorContext().getParameterNames().contains("topic")) { //$NON-NLS-1$
+    	if(inputPorts.size() == 0 && !checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM)) {
     		checker.setInvalidContext(Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
     	}
     }
@@ -495,6 +534,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if(consumer.isAssignedToTopics()) {
         	consumer.sendStartPollingEvent(consumerPollTimeout);
         }
+        /*
+         * Shutdown implementation:
+         * On shutdown, all threads get interrupted and throw InterruptedException, which must be caught and handled.
+         * 
+         * When we catch InterruptedException, the method is immediately left by return statement. When we only leave
+         * the while-loop, we run into `consumer.sendStopPollingEvent();`, which contains a wait, that another thread processes
+         * the event. This will most likely not happen because this thread also has been interrupted and finished working.
+         */
         while (!shutdown.get()) {
             if (crContext != null) {
                 try {
@@ -507,7 +554,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 }
             }
             try {
-                // Any exceptions thrown here are propagated to the caller
+                // Any exceptions except InterruptedException thrown here are propagated to the caller
                 //logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
                 ConsumerRecord<?, ?> record = consumer.getNextRecord();
                 if(record != null) {
@@ -525,7 +572,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                         }
                     }
                 }
-            } finally {
+            }
+            catch (InterruptedException ie) {
+                logger.debug("Queue processing thread interrupted", ie);
+                return;
+            }
+            finally {
                 if (crContext != null) {
                     if (logger.isDebugEnabled()) logger.debug ("Releasing consistent region permit..."); //$NON-NLS-1$
                     crContext.releasePermit();

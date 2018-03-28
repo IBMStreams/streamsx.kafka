@@ -205,7 +205,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     
     public void subscribeToTopics(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
     	logger.debug("subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
-    	assert startPosition != StartPosition.Time;
+    	assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
     	
     	if(topics != null && !topics.isEmpty()) {
     		if(partitions == null || partitions.isEmpty()) {
@@ -249,7 +249,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     			partitions.forEach(partition -> topicPartitionTimestampMap.put(new TopicPartition(topic, partition), timestamp));
     		});
     	}
-
+        logger.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
     	assign(topicPartitionTimestampMap.keySet());
     	seekToTimestamp(topicPartitionTimestampMap);
     	
@@ -389,7 +389,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                     }
                     if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
-                    if (logger.isDebugEnabled()) logger.debug("# polled records: " + (records == null? 0: records.count()));
+                    int numRecords = records == null? 0: records.count();
+                    if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
                     lastPollTimestamp = System.currentTimeMillis();
                     if (records != null) {
                         records.forEach(cr -> {
@@ -399,7 +400,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                         	messageQueue.add(cr);
                         });
                         // issue #60: commit immediately to avoid getting uncommited messages again after reassignment by group coordinator 
-                        if (!autoCommitEnabled) consumer.commitSync();
+                        if (!autoCommitEnabled && numRecords > 0) consumer.commitSync();
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
@@ -539,21 +540,9 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
         shutdownLatch.await(timeout, timeUnit);
     }
 
-    public ConsumerRecord<?, ?> getNextRecord() {
-    	try {
-            return messageQueue.poll(1, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Consumer interrupted while waiting for messages to arrive", e); //$NON-NLS-1$
-        }
+    public ConsumerRecord<?, ?> getNextRecord() throws InterruptedException {
+        return messageQueue.poll(1, TimeUnit.SECONDS);
     }
-    
-//    public ConsumerRecords<?, ?> getRecords() {
-//        try {
-//            return messageQueue.poll(1, TimeUnit.SECONDS);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException("Consumer interrupted while waiting for messages to arrive", e); //$NON-NLS-1$
-//        }
-//    }
 
     private void refreshFromCluster() {
         logger.debug("Refreshing from cluster..."); //$NON-NLS-1$

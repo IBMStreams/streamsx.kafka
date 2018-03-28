@@ -83,7 +83,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
                     + "when connecting to the Kafka cluster. The value "
                     + "specified by this parameter will override the `client.id` "
                     + "Kafka property if specified. If this parameter is not "
-                    + "specified and the the `client.id` Kafka property is not "
+                    + "specified and the `client.id` Kafka property is not "
                     + "specified, the operator will use a random client ID.")
     public void setClientId(String clientId) {
         this.clientId = clientId;

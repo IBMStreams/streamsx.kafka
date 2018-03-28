@@ -25,7 +25,7 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
 			+ "a JSON string in the following format: \\n"
 			+ "\\n"
 			+ "    {\\n"
-			+ "      \\\"action\\\" : \\\"ADD\\\" or \\\"REMOVE\\\"\\n" 
+			+ "      \\\"action\\\" : \\\"ADD\\\" or \\\"REMOVE\\\",\\n" 
 			+ "      \\\"topicPartitionOffsets\\\" : [\\n" 
 			+ "        {\\n"
 			+ "          \\\"topic\\\" : \\\"topic-name\\\",\\n"
@@ -67,7 +67,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		+ "Kafka properties that are supported by the underlying API. Properties can be " //$NON-NLS-1$
     		+ "specified in a file or in an application configuration. If specifying properties " //$NON-NLS-1$
     		+ "via a file, the **propertiesFile** parameter can be used. If specifying properties " //$NON-NLS-1$
-    		+ "in an application configuration, the name of the application configuration can be " //$NON-NLS-1$
+    		+ "in an application configuration, the name of the application configuration must be " //$NON-NLS-1$
     		+ "specified using the **appConfigName** parameter. \\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"The only property that the user is required to set is the `bootstrap.servers` property, " //$NON-NLS-1$
@@ -126,7 +126,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"# Committing received Kafka messages\\n" +
     		"\\n" +
     		"As default, the operator sets the consusmer property `auto.commit.enable` to `false` and commits every "
-    		+ "received batch of messages after appending the messages to an internal queue. When users specify the the value `true` for the "
+    		+ "received batch of messages after appending the messages to an internal queue. When users specify the value `true` for the "
     		+ "`auto.commit.enable` property, the operator uses the auto-commit function of the Kafka client.\\n" +
     		"\\n" +
     		
@@ -137,7 +137,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		+ "must be met\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"* The operator cannot be in a consistent region\\n" +  //$NON-NLS-1$
-    		"* The **startPosition** parameter value cannot be `Beginning` (must be `End` or not specified)\\n" +  //$NON-NLS-1$
+    		"* The **startPosition** parameter value cannot be `Beginning` (must be `End`, `Default`, or not specified)\\n" +  //$NON-NLS-1$
     		"* None of the topics specified by the **topics** parameter can specify which partition to be assigned to\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"In addition to the above, the application needs to set the `group.id` Kafka property or the `groupId` parameter in " //$NON-NLS-1$

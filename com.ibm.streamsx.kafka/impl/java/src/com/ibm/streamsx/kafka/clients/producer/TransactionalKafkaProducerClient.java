@@ -33,6 +33,8 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public class TransactionalKafkaProducerClient extends KafkaProducerClient {
@@ -172,6 +174,12 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
     private HashMap<TopicPartition, Long> getControlTopicEndOffsets(KafkaConsumer<?, ?> consumer) throws Exception {
         List<PartitionInfo> partitionInfoList = consumer.partitionsFor(EXACTLY_ONCE_STATE_TOPIC);
+        if (partitionInfoList == null) {
+            // topic EXACTLY_ONCE_STATE_TOPIC is not present, cannot be auto-created
+            String msg = Messages.getString ("STREAMS_CONTROL_TOPIC_NOT_PRESENT", EXACTLY_ONCE_STATE_TOPIC);
+            logger.error(msg);
+            throw new KafkaConfigurationException(msg);
+        }
         List<TopicPartition> partitions = new ArrayList<TopicPartition>();
         partitionInfoList.forEach(pi -> partitions.add(new TopicPartition(pi.topic(), pi.partition())));
         Map<TopicPartition, Long> endOffsets = consumer.endOffsets(partitions);

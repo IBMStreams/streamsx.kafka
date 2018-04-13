@@ -24,10 +24,9 @@ The operator supports the following SPL types for the key and message attributes
  * rstring
  * int32/int64
  * uint32/uint64
- * float64, ~~float32~~ (see note below)
+ * float32/float64
  * blob
 
-**NOTE:** As of Kafka v0.10.2.0, there is no support for (de)serializing `java.Lang.Float` data types. Therefore, the `float32` SPL type cannot be supported as key and message attribute types (`float32` maps to `java.Lang.Float`). Support for (de)serialization`java.Lang.Float` will be added in v0.11.0.0 as per this issue: [KAFKA-4769](https://issues.apache.org/jira/browse/KAFKA-4769). Adding support `float32` data types should be re-evaluated once v0.11.0.0 is available. 
 
 ### Parameters
 
@@ -37,6 +36,8 @@ The operator supports the following SPL types for the key and message attributes
 | appConfigName | | Specifies the name of the application configuration containing Kafka properties. |
 | startPosition | End | Specifies whether the operator should start reading from the end of the topic, or start reading all messages from the beginning of the topic. Valid options include: `Beginning`, `End`. If not specified, the default value is `End`.
 | topic | | Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the **partitions** parameter. |
+| groupId | *random generated* | The consumer group that the consumer belongs to |
+| clientId | *random generated* | The client ID |
 | partition | | Specifies the partitions that the consumer should be assigned to for each of the topics specified. It should be noted that using this parameter will "assign" the consumer to the specified topics, rather than "subscribe" to them. This implies that the consumer will not use Kafka's group management feature. |
 | outputKeyAttributeName | "key" | Specifies the output attribute name that should contain the key. If not specified, the operator will attempt to store the message in an attribute named 'key'. |
 | outputMessageAttributeName | "message" | Specifies the output attribute name that will contain the message. If not specified, the operator will attempt to store the message in an attribute named 'message'. |
@@ -54,7 +55,10 @@ The operator will automatically select the appropriate deserializers for the key
 | org.apache.kafka.common.serialization.IntegerDeserializer | int32, uint32 |
 | org.apache.kafka.common.serialization.LongDeserializer | int64, uint64 |
 | org.apache.kafka.common.serialization.DoubleDeserializer | float64 |
+| org.apache.kafka.common.serialization.FloatDeserializer | float32 |
 | org.apache.kafka.common.serialization.ByteArrayDeserializer | blob | 
+
+All thses deserializers are extended by a corresponding wrapper that catches `SerializationException`.
 
 Users can override this behaviour and specify which deserializer to use by setting the `key.deserializer` and `value.deserializer` properties. 
 
@@ -98,7 +102,7 @@ The operator will have a single output port. Each individual record retrieved fr
 
 | Exception | Handling |
 | --- | --- |
-| SerializationException | For now, the operator has to throw a RuntimeException, which will cause the operator to restart. This exception can happen if there is a message on the queue that the Consumer is unable to deserialize with the specified deserializer. As of v0.10.2, there is no way to skip this message. Calling poll() after receiving this error results in the same set of records being retrieved, thus causing the same SerializationException to be thrown. This issue has been raised with Kafka and it appears to be getting fixed in the next release: [KAFKA-4740](https://issues.apache.org/jira/browse/KAFKA-4740) |
+| SerializationException | The Kafka message is dropped, and a metric is increased. This exception can happen if there is a message on the queue that the Consumer is unable to deserialize with the specified deserializer. See also [KAFKA-4740](https://issues.apache.org/jira/browse/KAFKA-4740) |
 | InvalidOffsetException | It is unlikely that this exception will be encountered. If this is encountered, a RuntimeException will be thrown resulting in the operator restarting. |
 | WakeupException | Should not be encountered as there is no place in the code where KafkaConsumer.wakeup() is being called. If for some reason this exception is encountered, a RuntimeException will be thrown, causing the operator to restart. |
 | InterruptException | A RuntimeException exception will be thrown, causing the operator to restart. |

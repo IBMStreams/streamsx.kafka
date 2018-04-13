@@ -1,0 +1,74 @@
+namespace com.ibm.streamsx.kafka.sample ;
+
+use com.ibm.streamsx.kafka::KafkaConsumer ;
+use com.ibm.streamsx.kafka::KafkaProducer ;
+
+/*
+ * This sample is a Consistent Region sample that demonstrates the use of transactional producer.
+ * You can kill any of the PEs in the graph that produces Kafka messages. The result file should always be the same.
+ */
+composite KafkaCRTransactionalProducer {
+    param
+        expression <uint32> $numTuples: 10000u;
+        expression <rstring> $topic: "test";
+
+    graph
+        // for Consistent Region we must include JobControlPlane operator
+        () as JCP = JobControlPlane() {}
+
+        @consistent (trigger = operatorDriven)
+        stream <int32 cnt, rstring message> OutputStream = Beacon() {
+            param
+                iterations : $numTuples;
+                period : 0.05;
+                initDelay : 10.0;
+                triggerCount: 250u;   // make the region consistent every 250 tuples 
+            output
+                OutputStream: cnt = (int32) IterationCount(), message = "this is message " +(rstring) IterationCount();
+            config
+                placement: partitionExlocation ("DoNotFuseWithKafkaProducer");
+        }
+
+        // do some dummy analytics
+        stream <I> Filtered = Filter (OutputStream as I) {
+            param
+                filter: cnt % 2 == 0;
+            config
+                placement: partitionExlocation ("DoNotFuseWithKafkaProducer");
+        }
+
+        () as KafkaProdTx = KafkaProducer (Filtered) {
+            param
+                topic: $topic;
+                keyAttribute: cnt;
+//                messageAttribute: message;    // 'message' is default value
+                propertiesFile : "etc/producer.properties";
+                consistentRegionPolicy: Transactional;
+            config
+                placement: partitionExlocation ("DoNotFuseWithKafkaProducer");
+        }
+
+
+        // consumer is not in consistent region.
+        // please not that the property file contains isolation.level=committed
+        @autonomous
+        stream <int32 cnt, rstring message> ConsumedMsgs = KafkaConsumer() {
+            param
+                topic: "test";
+                outputKeyAttributeName: "cnt";
+//                outputMessageAttributeName: "message";     // 'message' is default value
+                propertiesFile: "etc/consumer.properties";
+            config
+                placement: partitionExlocation ("DoNotFuseWithKafkaProducer"), partitionColocation("Consumer");
+        }
+        
+        
+        // FileSink for consumed messages
+        () as ReceivedFile = FileSink (ConsumedMsgs) {
+            param
+                file: "received_data.txt";
+                flush: 1u;
+            config
+                placement: partitionColocation("Consumer");
+        }
+}

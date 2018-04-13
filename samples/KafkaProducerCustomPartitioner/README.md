@@ -1,6 +1,6 @@
 # KafkaProducerCustomPartitioner
 
-This sample demonstrates how to use a custom partitioner withvthe KafkaProducer operator. In order for the KafkaProducer to use a custom partitioner, the following steps must be taken: 
+This sample demonstrates how to use a custom partitioner with the KafkaProducer operator. In order for the KafkaProducer to use a custom partitioner, the following steps must be taken: 
 
  1. The JAR file containing the custom partitioner must be specified via the **userLib** property.
  2. The `partitioner.class` property must be set in the KafkaProducer's property file (`producer.properties` in this sample)

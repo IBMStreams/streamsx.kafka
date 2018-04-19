@@ -10,7 +10,7 @@ To make this sample work, these preconditions must be met:
 
 Make sure that either the properties
 ```
-instance.checkpointRepository=redis
+instance.checkpointRepository
 instance.checkpointRepositoryConfiguration
 ```
 or

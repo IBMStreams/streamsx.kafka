@@ -390,17 +390,17 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                     if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
                     ConsumerRecords<?, ?> records = consumer.poll(timeout);
                     int numRecords = records == null? 0: records.count();
-                    if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
+                    if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
                     lastPollTimestamp = System.currentTimeMillis();
-                    if (records != null) {
+                    if (numRecords > 0) {
+                        if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
                         records.forEach(cr -> {
                             if (logger.isDebugEnabled()) {
                                 logger.debug(cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
                             }
-                        	messageQueue.add(cr);
+                            messageQueue.add(cr);
                         });
-                        // issue #60: commit immediately to avoid getting uncommited messages again after reassignment by group coordinator 
-                        if (!autoCommitEnabled && numRecords > 0) consumer.commitSync();
+                        if (!autoCommitEnabled) consumer.commitSync();
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 

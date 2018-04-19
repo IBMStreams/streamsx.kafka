@@ -26,12 +26,15 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public class TransactionalKafkaProducerClient extends KafkaProducerClient {
@@ -171,6 +174,12 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
     private HashMap<TopicPartition, Long> getControlTopicEndOffsets(KafkaConsumer<?, ?> consumer) throws Exception {
         List<PartitionInfo> partitionInfoList = consumer.partitionsFor(EXACTLY_ONCE_STATE_TOPIC);
+        if (partitionInfoList == null) {
+            // topic EXACTLY_ONCE_STATE_TOPIC is not present, cannot be auto-created
+            String msg = Messages.getString ("STREAMS_CONTROL_TOPIC_NOT_PRESENT", EXACTLY_ONCE_STATE_TOPIC);
+            logger.error(msg);
+            throw new KafkaConfigurationException(msg);
+        }
         List<TopicPartition> partitions = new ArrayList<TopicPartition>();
         partitionInfoList.forEach(pi -> partitions.add(new TopicPartition(pi.topic(), pi.partition())));
         Map<TopicPartition, Long> endOffsets = consumer.endOffsets(partitions);
@@ -195,14 +204,16 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
             ConsumerRecords<?, ?> records = consumer.poll(1000);
             if (logger.isDebugEnabled()) logger.debug("ConsumerRecords: " + records);
             Iterator<?> it = records.iterator();
+            // Records from different partitions can be scrambled. So we cannot assume that the last record returned by the iterator contains the last committed sequence-ID.
             while(it.hasNext()) {
                 ConsumerRecord record = (ConsumerRecord)it.next();
                 Headers headers = record.headers();
                 if (logger.isDebugEnabled()) logger.debug("Headers: " + headers);
                 String tid = new String(headers.lastHeader(TRANSACTION_ID).value(), StandardCharsets.UTF_8);
-                if (logger.isDebugEnabled()) logger.debug("Checking tid=" + tid + " (currentTid=" + getTransactionalId() + ")");
+                if (logger.isDebugEnabled()) logger.debug("Checking tid=" + tid + " (currentTid=" + getTransactionalId() + "); from " + record.topic() + "-" + record.partition());
                 if(tid.equals(getTransactionalId())) {
-                    committedSeqId = Long.valueOf(new String(headers.lastHeader(COMMITTED_SEQUENCE_ID).value(), StandardCharsets.UTF_8));
+                    long decodedSeqId = Long.valueOf(new String(headers.lastHeader(COMMITTED_SEQUENCE_ID).value(), StandardCharsets.UTF_8));
+                    if (decodedSeqId > committedSeqId) committedSeqId = decodedSeqId;
                 }
             }
 
@@ -238,8 +249,10 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         logger.debug("infered consumer properties: " + consumerProps);
         consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(CONSUMER_ID_PREFIX));
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GROUP_ID_PREFIX));
-        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, inferDeserializerFromSerializer(this.kafkaProperties.getValueSerializer()));
-        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, inferDeserializerFromSerializer(this.kafkaProperties.getKeySerializer()));
+        // deserializers for value and key should not be inferred from producer's serializers because this fails in case of custom serializers.
+        // use ByteArrayDeserializers instead. key and value are not used when reading from the control topic
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         // We have to setup isolation.level=read_committed for the case that we die between send to control topic and commitTransaction()
         consumerProps.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
@@ -349,7 +362,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         if (logger.isDebugEnabled()) logger.debug("Reset lastSuccessfulSequenceId: " + lastSuccessfulSequenceId);        
 
         controlTopicInitialOffsets = (HashMap<TopicPartition, Long>)checkpoint.getInputStream().readObject();
-        if (logger.isDebugEnabled()) logger.debug("Reset controlTopicInitialOffsets: " + lastSuccessfulSequenceId);
+        if (logger.isDebugEnabled()) logger.debug("Reset controlTopicInitialOffsets: " + controlTopicInitialOffsets);
 
         // check 'transactionInProgress' for true and set atomically to false
         if (transactionInProgress.compareAndSet (true, false)) {

@@ -66,7 +66,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String timestampAttributeName = null;
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.AtLeastOnce;
-
+    
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
     		description="Specifies the policy to use when in a consistent region. If `AtLeastOnce` "
     				+ "is specified, the operator will guarantee that every tuple is written to the "
@@ -428,15 +428,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
         logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
-
-//        /* TODO: remove this commented out old implementation
-//         * Close the producer and initialize a new once. Calling close() will
-//         * flush out all remaining messages and then shutdown the producer.
-//         */
-//        producer.close();
-//        producer = null;
-//        initProducer();
-
         logger.debug("Initiating reset..."); //$NON-NLS-1$
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.reset(checkpoint);

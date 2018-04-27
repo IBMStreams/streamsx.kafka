@@ -448,13 +448,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 : String.class; // default to String.class for key type
         Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
-        logger.debug("kafkaProperties: " + kafkaProperties); //$NON-NLS-1$
 
         // set the group ID property if the groupId parameter is specified
         if(groupId != null && !groupId.isEmpty()) {
             kafkaProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         }
-
         consumer = new KafkaConsumerClient.KafkaConsumerClientBuilder()
         			.setKafkaProperties(kafkaProperties)
         			.setKeyClass(keyClass)
@@ -595,7 +593,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     private void submitRecord(ConsumerRecord<?, ?> record) throws Exception {
         if (logger.isTraceEnabled())
-    	     logger.trace("Preparing to submit record: " + record); //$NON-NLS-1$
+    	     logger.trace("Preparing to submit record: " + record.topic() + "-" + record.partition() + "[" + record.offset() + "]"); //$NON-NLS-1$
         // issue #65 (https://github.com/IBMStreams/streamsx.kafka/issues/65):
         // in case of deserialization errors we return 'null', otherwise a vaild object.
         // In these cases we drop the record and increment the metric 'nMalformedMessages'.
@@ -642,7 +640,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if(hasOutputTimetamp) {
         	tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
         }            
-        if (logger.isDebugEnabled()) logger.debug("Submitting tuple: " + tuple); //$NON-NLS-1$
         out.submit(tuple);
     }
 

@@ -157,7 +157,6 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     @SuppressWarnings({"rawtypes"})
     @Override
     public boolean processTuple(ProducerRecord producerRecord) throws Exception {
-        logger.trace("Sending: " + producerRecord);
         // send always within a transaction
         checkAndBeginTransaction();
         this.send(producerRecord);

@@ -107,6 +107,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.nMalformedMessages = nMalformedMessages;
     }
 
+    private Metric nPendingMessages;
+
+    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of pending messages to be submitted as tuples.")
+    public void setnPendingMessages(Metric nPendingMessages) {
+        this.nPendingMessages = nPendingMessages;
+    }
+
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the record's timestamp. "

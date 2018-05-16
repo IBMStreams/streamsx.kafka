@@ -31,6 +31,7 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
+import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
@@ -76,6 +77,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     private boolean autoCommitEnabled = false;
     private Thread eventThread;
 
+    private final Metric nPendingMessages;
     
     /**
      * Callback to notify that topic partitions have been assigned by the group coordinator to the consumer.
@@ -145,6 +147,8 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
         this.operatorContext = operatorContext;
         crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
         this.partitions = partitions == null ? Collections.emptyList() : partitions;
+
+        this.nPendingMessages = operatorContext.getMetrics().getCustomMetric("nPendingMessages");
         
         consumerInitLatch = new CountDownLatch(1);
         eventThread = operatorContext.getThreadFactory().newThread(new Runnable() {
@@ -400,7 +404,10 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                             }
                             messageQueue.add(cr);
                         });
+                        nPendingMessages.setValue(messageQueue.size());
                         if (!autoCommitEnabled) consumer.commitSync();
+                    } else {
+                        nPendingMessages.setValue(messageQueue.size());
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
@@ -541,7 +548,10 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     }
 
     public ConsumerRecord<?, ?> getNextRecord() throws InterruptedException {
-        return messageQueue.poll(1, TimeUnit.SECONDS);
+         final ConsumerRecord<?,?> record = messageQueue.poll(1, TimeUnit.SECONDS);
+         if (record == null)
+             nPendingMessages.setValue(messageQueue.size());
+         return record;
     }
 
     private void refreshFromCluster() {

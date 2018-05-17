@@ -114,6 +114,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.nPendingMessages = nPendingMessages;
     }
 
+    private Metric nLowMemoryPause;
+    private Metric nQueueFullPause;
+
+    @CustomMetric (kind = Metric.Kind.COUNTER, description = "Number times message polling was paused due to low memory.")
+    public void setnLowMemoryPause(Metric nLowMemoryPause) {
+        this.nLowMemoryPause = nLowMemoryPause;
+    }
+    @CustomMetric (kind = Metric.Kind.COUNTER, description = "Number times message polling was paused due to full queue.")
+    public void setnQueueFullPause(Metric nQueueFullPause) {
+        this.nQueueFullPause = nQueueFullPause;
+    }
+
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the record's timestamp. "

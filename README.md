@@ -48,7 +48,7 @@ cd com.ibm.streamsx.kafka
 ## Test
 
 ```
-cd test/KafkaTests
+cd tests/KafkaTests
 ./setup.sh -b <list_of_bootstrap_servers>
 ../../gradlew test
 ```

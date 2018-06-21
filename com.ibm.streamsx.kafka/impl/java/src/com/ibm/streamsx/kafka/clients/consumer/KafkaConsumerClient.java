@@ -40,7 +40,9 @@ import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
-
+/**
+ * @deprecated This class is here for reference only. Use the refactored classes NonCrKafkaConsumerClient and CrKafkaStaticAssignConsumerClient instead. 
+ */
 public class KafkaConsumerClient extends AbstractKafkaClient implements ConsumerRebalanceListener {
 
     private static final Logger logger = Logger.getLogger(KafkaConsumerClient.class);

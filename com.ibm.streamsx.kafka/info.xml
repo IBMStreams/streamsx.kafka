@@ -4,7 +4,7 @@
  <info:identity>
    <info:name>com.ibm.streamsx.kafka</info:name>
    <info:description>The Kafka toolkit integrates IBM Streams with Apache Kafka brokers.</info:description>
-   <info:version>1.3.3</info:version>
+   <info:version>1.4.0</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

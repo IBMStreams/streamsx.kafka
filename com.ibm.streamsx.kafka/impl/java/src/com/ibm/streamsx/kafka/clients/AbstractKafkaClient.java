@@ -16,6 +16,7 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
+import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.serialization.DoubleDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.FloatDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.IntegerDeserializerExt;
@@ -26,7 +27,8 @@ public abstract class AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaClient.class);
 
-    public <T> String getSerializer(Class<T> clazz) throws Exception {
+    public <T> String getSerializer(Class<T> clazz) throws KafkaConfigurationException {
+        if (clazz == null) throw new KafkaConfigurationException ("Unable to find serializer for 'null'");
         if (clazz.equals(String.class) || clazz.equals(RString.class)) {
             return StringSerializer.class.getCanonicalName();
         } else if (clazz.equals(Long.class)) {
@@ -40,11 +42,12 @@ public abstract class AbstractKafkaClient {
         } else if (clazz.equals(Integer.class)) {
             return IntegerSerializer.class.getCanonicalName();
         } else {
-            throw new Exception("Unable to find serializer for: " + clazz.toString()); //$NON-NLS-1$
+            throw new KafkaConfigurationException("Unable to find serializer for: " + clazz.toString()); //$NON-NLS-1$
         }
     }
 
-    public String inferDeserializerFromSerializer(String serializerClassName) throws Exception {
+    public String inferDeserializerFromSerializer(String serializerClassName) throws KafkaConfigurationException {
+        if (serializerClassName == null) throw new KafkaConfigurationException ("Unable to infer deserializer from serializer 'null'");
         if (serializerClassName.equals(StringSerializer.class.getCanonicalName())) {
             return StringDeserializerExt.class.getCanonicalName();
         } else if (serializerClassName.equals(LongSerializer.class.getCanonicalName())) {
@@ -58,11 +61,12 @@ public abstract class AbstractKafkaClient {
         } else if (serializerClassName.equals(IntegerSerializer.class.getCanonicalName())) {
             return IntegerDeserializerExt.class.getCanonicalName();
         } else {
-            throw new Exception("Unable to infer deserializer from serializer: " + serializerClassName); //$NON-NLS-1$
+            throw new KafkaConfigurationException("Unable to infer deserializer from serializer: " + serializerClassName); //$NON-NLS-1$
         }
     }
 
-    public <T> String getDeserializer(Class<T> clazz) throws Exception {
+    public <T> String getDeserializer(Class<T> clazz) throws KafkaConfigurationException {
+        if (clazz == null) throw new KafkaConfigurationException ("Unable to find deserializer for 'null'");
         if (clazz.equals(String.class) || clazz.equals(RString.class)) {
             return StringDeserializerExt.class.getCanonicalName();
         } else if (clazz.equals(Long.class)) {
@@ -76,7 +80,7 @@ public abstract class AbstractKafkaClient {
         } else if (clazz.equals(Integer.class)) {
             return IntegerDeserializerExt.class.getCanonicalName();
         } else {
-            throw new Exception("Unable to find deserializer for: " + clazz.toString()); //$NON-NLS-1$
+            throw new KafkaConfigurationException("Unable to find deserializer for: " + clazz.toString()); //$NON-NLS-1$
         }
     }
 

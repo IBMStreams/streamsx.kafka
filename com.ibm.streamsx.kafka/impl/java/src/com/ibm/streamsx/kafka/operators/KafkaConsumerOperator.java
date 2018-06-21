@@ -123,12 +123,30 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		+ "`key.deserializer` and `value.deserializer` properties. \\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		
-    		"# Committing received Kafka messages\\n" +
-    		"\\n" +
-    		"As default, the operator sets the consusmer property `auto.commit.enable` to `false` and commits every "
-    		+ "received batch of messages after appending the messages to an internal queue. When users specify the value `true` for the "
-    		+ "`auto.commit.enable` property, the operator uses the auto-commit function of the Kafka client.\\n" +
-    		"\\n" +
+    		"# Committing received Kafka messages\\n"
+    		+ "\\n"
+    		+ "**a) The operator is not part of a consistent region**\\n"
+    		+ "\\n"
+    		+ "When not explicitly specified, the operator sets the consumer property `auto.commit.enable` to `false` "
+    		+ "to disable auto-committing messages by the Kafka client. After tuple submission, the consumer operator commits the offsets of "
+    		+ "those Kafka messages that have been submitted as tuples. The frequency in terms of "
+    		+ "number of tuples can be specified with the **commitCount** parameter. This parameter has a default value of 500. "
+    		+ "Offsets are committed asynchronously.\\n"
+    		+ "\\n"
+    		+ "It is also possible to enable automatic committing of consumed Kafka messages. To achieve this, the consumer "
+    		+ "property `auto.commit.enable` must be set to true. In addition, the frequency in milliseconds can be adjusted "
+    		+ "via consumer property `auto.commit.interval.ms`, which has a default value of 5000.\\n"
+    		+ "\\n"
+    		+ "**b) The operator is part of a consistent region**\\n"
+    		+ "\\n"
+    		+ "Offsets are always committed when the consistent region drains, i.e. when the region becomes a consistent state. "
+    		+ "On drain, the consumer operator commits the offsets of those Kafka messages that have been submitted as tuples. "
+    		+ "When the operator is in a consistent region, all auto-commit related settings via consumer properties are "
+    		+ "ignored by the operator. The parameter **commitCount** is also ignored because the commit frequency is given "
+    		+ "by the trigger period of the consistent region.\\n"
+    		+ "In a consistent region, offsets are committed synchronously, i.e. the offsets are committed when the drain "
+    		+ "processing of the operator finishes. Commit failures result in consistent region reset.\\n"
+    		+ "\\n" +
     		
     		"# Kafka's Group Management\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
@@ -137,7 +155,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		+ "must be met\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"* The operator cannot be in a consistent region\\n" +  //$NON-NLS-1$
-    		"* The **startPosition** parameter value cannot be `Beginning` (must be `End`, `Default`, or not specified)\\n" +  //$NON-NLS-1$
+    		"* The **startPosition** parameter value must be `Default`, or not specified\\n" +  //$NON-NLS-1$
     		"* None of the topics specified by the **topics** parameter can specify which partition to be assigned to\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"In addition to the above, the application needs to set the `group.id` Kafka property or the `groupId` parameter in " //$NON-NLS-1$

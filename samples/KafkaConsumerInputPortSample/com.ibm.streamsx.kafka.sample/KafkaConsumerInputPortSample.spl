@@ -5,62 +5,84 @@ use com.ibm.streamsx.kafka::* ;
 composite KafkaConsumerInputPortSample
 {
     graph
+        // ================ producers that continuously populate the topics t1 and t2
+        stream <int32 partitionNo, rstring key, rstring message> Data1 = Beacon() {
+            param
+                period: 0.1;
+                iterations: 2000;
+            output Data1: partitionNo = (int32)IterationCount() %2, key = "key", message = "t1 message no. " + (rstring)IterationCount();
+        }
+
+        () as ProducerT1 = KafkaProducer (Data1) {
+            param
+                propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+                partitionAttribute: partitionNo;
+                topic: "t1";
+        }
+        stream <int32 partitionNo, rstring key, rstring message> Data2 = Beacon() {
+            param
+                period: 0.1;
+                iterations: 2000;
+            output Data2: partitionNo = (int32)IterationCount() %2, key = "key", message = "t2 message no. " + (rstring)IterationCount();
+        }
+
+        () as ProducerT2 = KafkaProducer (Data2) {
+            param
+                propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+                partitionAttribute: partitionNo;
+                topic: "t2";
+        }
+        
+        // ================= control stream for the consumer
         (stream<rstring jsonString> TopicPartitionUpdateStream) as
-            TopicPartitionUpdater = Custom()
-        {
+            TopicPartitionUpdater = Custom() {
             logic
-                onProcess :
-                {
-                    rstring addSingleTopicMessage =
-                        createMessageAddTopicPartition("t1", 0, 90l) ;
-                    submit({ jsonString = addSingleTopicMessage },
-                        TopicPartitionUpdateStream) ;
-                    block(5f) ;
+                onProcess: {
+                    block(10f);
+
+                    // assign to topic/partition 't1/0', and start reading at offset 40
+                    rstring addSingleTopicMessage = createMessageAddTopicPartition("t1", 0, 40l);
+                    submit({ jsonString = addSingleTopicMessage }, TopicPartitionUpdateStream);
+                    block(5f);
+
+                    // assign to topic/partition 't1/1', start reading from the end and assign to 't2/1' starting at offset 40
+                    // Note, that negative offsets different from -1 and -2 are invalid.
                     rstring addMultipleTopicMessage =
-                        createMessageAddTopicPartition([ { topic = "t1", partition =
-                        1, offset = - 2l }, { topic = "t2", partition = 1,
-                        offset = 90l } ]) ;
-                    submit({ jsonString = addMultipleTopicMessage },
-                        TopicPartitionUpdateStream) ;
+                        createMessageAddTopicPartition([ { topic = "t1", partition = 1, offset = - 2l },
+                                                         { topic = "t2", partition = 1, offset = 40l } ]);
+                    submit({ jsonString = addMultipleTopicMessage }, TopicPartitionUpdateStream) ;
+                    block(5f);
+
+                    // stop consuming from topic/partition 't2/1'
+                    rstring removeSingleTopicMessage = createMessageRemoveTopicPartition("t2", 1) ;
+                    submit({ jsonString = removeSingleTopicMessage }, TopicPartitionUpdateStream) ;
                     block(5f) ;
-                    rstring removeSingleTopicMessage =
-                        createMessageRemoveTopicPartition("t2", 1) ;
-                    submit({ jsonString = removeSingleTopicMessage },
-                        TopicPartitionUpdateStream) ;
-                    block(5f) ;
+
+                    // stop consuming from 't1/0' and 't1/1'
                     rstring removeMultipleTopicsMessage =
-                        createMessageRemoveTopicPartition([ { topic = "t1", partition
-                        = 0 }, { topic = "t1", partition = 1 } ]) ;
-                    submit({ jsonString = removeMultipleTopicsMessage },
-                        TopicPartitionUpdateStream) ;
-                    while(! isShutdown())
-                    {
-                    // do nothing!    
+                        createMessageRemoveTopicPartition([ { topic = "t1", partition = 0 },
+                                                            { topic = "t1", partition = 1 } ]) ;
+                    submit({ jsonString = removeMultipleTopicsMessage }, TopicPartitionUpdateStream) ;
 
+                    // now nothing is consumed anymore.
+                    while(! isShutdown()) {
+                    // do nothing!
                     }
-
                 }
-
         }
 
         (stream<int64 messageTimestamp, rstring key, rstring message,
             rstring topic, int32 partition, int64 offset> MessageOutStream) as
-            KafkaConsumerOp = KafkaConsumer(TopicPartitionUpdateStream)
-        {
+            KafkaConsumerOp = KafkaConsumer(TopicPartitionUpdateStream) {
             param
-                propertiesFile : getThisToolkitDir() +
-                    "/etc/consumer.properties" ;
+                propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
         }
 
-        () as PrintOp = Custom(MessageOutStream as inputStream)
-        {
+        () as PrintOp = Custom(MessageOutStream as inputStream) {
             logic
-                onTuple inputStream :
-                {
+                onTuple inputStream: {
                     println(inputStream) ;
                 }
-
         }
-
 }
 

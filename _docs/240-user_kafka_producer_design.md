@@ -15,7 +15,7 @@ The KafkaProducer operator is used to produce messages on Kafka topics. The oper
 
 ### Apache Kafka - Supported Version
 
-These operators will only support Apache Kafka v0.10.x and newer. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used. 
+These operators will only support Apache Kafka v0.10.2 and newer. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used. 
 
 ### Supported SPL Types
 
@@ -24,7 +24,7 @@ The operator supports the following SPL types for the key and message attributes
  * rstring
  * int32/int64
  * uint32/uint64
- * float64/float32
+ * float32/float64
  * blob
 
 
@@ -38,8 +38,9 @@ The operator supports the following SPL types for the key and message attributes
 | userLib | '[application_dir]/etc/libs' | Allows the user to specify paths to JAR files that should be loaded into the operators classpath. This is useful if the user wants to be able to specify their own partitioners. The value of this parameter can either point to a specific JAR file, or to a directory. In the case of a directory, the operator will load all files ending in *.jar into the classpath.  By default, this parameter will load all jar files found in <application_dir>/etc/libs. |
 | topic | | Specifies the topic(s) that the producer should send messages to. The value of this parameter will take precedence over the **topicAttrName** parameter. This parameter will also take precedence if the input tuple schema contains an attribute named `topic`.|
 | messageAttribute | "message" | Specifies the attribute on the input port that contains the message payload. If not specified, the operator will look for an input attribute named "message". If this parameter is not specified and there is no input attribute named "message", the operator will throw an exception and terminate. |
-| keyAttribute | "key" | Specifies the input attribute that contains the Kafka key value. If not specified, the operator will look for an input attribute named "key".
-| topicAttribute | "topic" | Specifies the input attribute that contains the name of the topic that the message should be written to. If this parameter is not specified, the operator will attempt to look for an input attribute named `topic`. This parameter value is overridden if the **topic** parameter is specified.
+| keyAttribute | "key" | Specifies the input attribute that contains the Kafka key value. If not specified, the operator will look for an input attribute named "key". |
+| topicAttribute | "topic" | Specifies the input attribute that contains the name of the topic that the message should be written to. If this parameter is not specified, the operator will attempt to look for an input attribute named `topic`. This parameter value is overridden if the **topic** parameter is specified. |
+| timestampAttribute | "messageTimestamp" | Specifies the attribute on the input port that contains the timestamp for the message. If not specified, the operator will look for an input attribute named messageTimestamp. If this parameter is not specified and there is no input attribute named messageTimestamp, the operator will use the timestamp provided by Kafka (broker config `log.message.timestamp.type=\[CreateTime\|LogAppendTime\]`). |
 | partitionAttribute | "partition" | Specifies the input attribute that contains the partition number that the message should be written to. If this parameter is not specified, the operator will look for an input attribute named **partition**. If the user does not indicate which partition the message should be written to, then Kafka's default partitioning strategy will be used instead (partition based on the specified partitioner or in a round-robin fashion). |
 | consistentRegionPolicy | AtLeastOnce | Enables at least once or transactional producer in consistent region |
 
@@ -60,7 +61,8 @@ Users can override this behaviour and specify which serializer to use by setting
 
 ### Input Ports
 
-The operator will have a single input port. The `messageAttrName` and `keyAttrName` parameters are used to specify the input attributes that contain the message and key values, respectively. Each tuple received by this operator will be written to the topic.
+The operator will have a single input port. The `messageAttrName`, `partitionAttribute`, `topicAttribute`, `timestampAttribute`, and `keyAttrName` parameters are used to specify 
+the input attributes that contain the message and key values, respectively. Each tuple received by this operator will be written to the topic.
 
 ### Output Ports
 
@@ -68,7 +70,7 @@ The operator does not have any output ports.
 
 ### Consistent Region Strategy
 
-The operator can be part of a consistent region, however it cannot be the start of a consistent region. The operator is capable of supporting at least once message delivery semantics.
+The operator can be part of a consistent region, however it cannot be the start of a consistent region. The operator is capable of supporting at least once message delivery semantics and transactional message delivery.
 
 
 ### Error Handling

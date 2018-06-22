@@ -15,7 +15,7 @@ The KafkaConsumer operator is used to consume messages from Kafka topics. The op
 
 ### Apache Kafka - Supported Version
 
-These operators will only support Apache Kafka v0.10.x. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used.
+These operators will only support Apache Kafka v0.10.x and newer. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used.
 
 ### Supported SPL Types
 

@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.4.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.3.3</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -303,19 +303,7 @@
 <div class="section"><h2 class="title sectiontitle">Committing received Kafka messages
 </h2>
 
-<p class="p"><strong class="ph b">a) The operator is not part of a consistent region</strong>
-</p>
-
-<p class="p">When not explicitly specified, the operator sets the consumer property <tt class="ph tt">auto.commit.enable</tt> to <tt class="ph tt">false</tt> to disable auto-committing messages by the Kafka client. After tuple submission, the consumer operator commits the offsets of those Kafka messages that have been submitted as tuples. The frequency in terms of number of tuples can be specified with the <strong class="ph b">commitCount</strong> parameter. This parameter has a default value of 500. Offsets are committed asynchronously.
-</p>
-
-<p class="p">It is also possible to enable automatic committing of consumed Kafka messages. To achieve this, the consumer property <tt class="ph tt">auto.commit.enable</tt> must be set to true. In addition, the frequency in milliseconds can be adjusted via consumer property <tt class="ph tt">auto.commit.interval.ms</tt>, which has a default value of 5000.
-</p>
-
-<p class="p"><strong class="ph b">b) The operator is part of a consistent region</strong>
-</p>
-
-<p class="p">Offsets are always committed when the consistent region drains, i.e. when the region becomes a consistent state. On drain, the consumer operator commits the offsets of those Kafka messages that have been submitted as tuples. When the operator is in a consistent region, all auto-commit related settings via consumer properties are ignored by the operator. The parameter <strong class="ph b">commitCount</strong> is also ignored because the commit frequency is given by the trigger period of the consistent region. In a consistent region, offsets are committed synchronously, i.e. the offsets are committed when the drain processing of the operator finishes. Commit failures result in consistent region reset.
+<p class="p">As default, the operator sets the consusmer property <tt class="ph tt">auto.commit.enable</tt> to <tt class="ph tt">false</tt> and commits every received batch of messages after appending the messages to an internal queue. When users specify the value <tt class="ph tt">true</tt> for the <tt class="ph tt">auto.commit.enable</tt> property, the operator uses the auto-commit function of the Kafka client.
 </p>
 
 </div>
@@ -330,7 +318,7 @@
 <ul class="ul">
 <li class="li"> The operator cannot be in a consistent region</li>
 
-<li class="li"> The <strong class="ph b">startPosition</strong> parameter value must be <tt class="ph tt">Default</tt>, or not specified</li>
+<li class="li"> The <strong class="ph b">startPosition</strong> parameter value cannot be <tt class="ph tt">Beginning</tt> (must be <tt class="ph tt">End</tt>, <tt class="ph tt">Default</tt>, or not specified)</li>
 
 <li class="li"> None of the topics specified by the <strong class="ph b">topics</strong> parameter can specify which partition to be assigned to</li>
 
@@ -377,9 +365,9 @@
  
   <dt class="dt dlterm">Parameters</dt>
 
-  <dd class="dd">This operator supports 18 parameters.
+  <dd class="dd">This operator supports 17 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 </dd>
@@ -388,7 +376,7 @@
  
   <dt class="dt dlterm">Metrics</dt>
 
-  <dd class="dd">This operator reports 4 metrics.</dd>
+  <dd class="dd">This operator reports 1 metrics.</dd>
 
  
 </dl>
@@ -561,9 +549,9 @@
 
 <div class="section">
 <p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
-This operator supports 18 parameters.
+This operator supports 17 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 <dl class="dl">
@@ -611,37 +599,6 @@ This operator supports 18 parameters.
  <dd class="dd">
   <ul class="sl simple">
   <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
-  </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
-     </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
-     </li>
-
-  </ul>
-
- </dd>
-
-
-</dl>
-
-</dd>
-
-
-
-<dt class="dt dlterm"><a name="spldoc_operator__parameter__commitCount"><!-- --></a><tt class="ph tt">commitCount</tt></dt>
-
-<dd class="dd">
-<p class="p">This parameter specifies the number of tuples that will be submitted to the output port before committing their offsets. This parameter is optional and has a default value of 500. This parameter is only used when the operator is not part of a consistent region. When the operator participates in a consistent region, offsets are always committed when the region drains.
-</p>
-<dl class="dl">
-
- <dt class="dt dlterm">Properties </dt>
-
- <dd class="dd">
-  <ul class="sl simple">
-  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
   </li>
 
      <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
@@ -1156,50 +1113,11 @@ This operator supports 18 parameters.
 <p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics">Metrics</a></strong></p>
 <dl class="dl">
   
-    <dt class="dt dlterm"><tt class="ph tt">nLowMemoryPause</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
-
-    <dd class="dd">
-
-<p class="p">Number times message polling was paused due to low memory.
-</p>
-
-     <p class="p"/>
-
-     </dd>
-
-  
-  
     <dt class="dt dlterm"><tt class="ph tt">nDroppedMalformedMessages</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
 
     <dd class="dd">
 
 <p class="p">Number of dropped malformed messages
-</p>
-
-     <p class="p"/>
-
-     </dd>
-
-  
-  
-    <dt class="dt dlterm"><tt class="ph tt">nPendingMessages</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_gauge">Gauge</a></dt>
-
-    <dd class="dd">
-
-<p class="p">Number of pending messages to be submitted as tuples.
-</p>
-
-     <p class="p"/>
-
-     </dd>
-
-  
-  
-    <dt class="dt dlterm"><tt class="ph tt">nQueueFullPause</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
-
-    <dd class="dd">
-
-<p class="p">Number times message polling was paused due to full queue.
 </p>
 
      <p class="p"/>

@@ -311,7 +311,8 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
             if (logger.isDebugEnabled()) {
                 logger.debug("commitCount (" + commitCount + ") reached. Preparing to commit offsets ...");
             }
-            // commit partition by partition
+            // commit asynchronous, partition by partition.
+            // asynchronous commit implies that the operator is not restarted when commit fails.
             final boolean commitSync = false;
             final boolean commitPartitionWise = true;
             CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
@@ -324,13 +325,15 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
             }
             try {
                 nSubmittedRecords = 0l;
-                // sendCommitEvent terminates the poll loop, throws InterruptedException:
-                sendCommitEvent (offsets);
-                // when committing offsets for one partition fails, the reason can be that we are not 
-                // assigned to the partition any more when building a consumer group.
-                // Then a different consumer starts reading the records again creating duplicates within the application.
-                // This is normal Kafka methodology.
-                sendStartPollingEvent();
+                if (!offsets.isEmpty()) {
+                    // sendCommitEvent terminates the poll loop, throws InterruptedException:
+                    sendCommitEvent (offsets);
+                    // when committing offsets for one partition fails, the reason can be that we are not 
+                    // assigned to the partition any more when building a consumer group.
+                    // Then a different (or the same) consumer starts reading the records again creating duplicates within the application.
+                    // This is normal Kafka methodology.
+                    sendStartPollingEvent();
+                }
             } catch (InterruptedException e) {
                 // is not thrown when asynchronously committed; can be silently ignored.
                 // Only when we decide to change to synchronous commit, we can end up here.

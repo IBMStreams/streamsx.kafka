@@ -198,16 +198,19 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     maxPollIntervalMs = getMaxPollIntervalMsFromProperties(kafkaProperties);
                     consumer = new KafkaConsumer<>(kafkaProperties);
                     processing.set (true);
+                }
+                catch (Exception e) {
+                    initializationException = e;
+                }
+                finally {
                     consumerInitLatch.countDown();  // notify that consumer is ready
+                }
+                try {
                     runEventLoop();
                 }
                 catch (InterruptedException e) {
                     logger.debug ("Event thread interrupted. Terminating thread.");
                     return;
-                }
-                catch (Exception e) {
-                    initializationException = e;
-                    consumerInitLatch.countDown(); // remove lock
                 }
             }
         });
@@ -314,9 +317,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private void commitOffsets (CommitInfo offsets) throws RuntimeException {
         final Map<TopicPartition, OffsetAndMetadata> offsetMap = offsets.getMap();
         if (logger.isDebugEnabled()) {
-            logger.debug("Going to commit offsets: " + offsetMap 
-                    + "; sync = " + offsets.isCommitSynchronous() 
-                    + "; partition-wise = " + offsets.isCommitPartitionWise());
+            logger.debug("Going to commit offsets: " + offsets.toString());
+            if (offsetMap.isEmpty()) {
+                logger.debug ("no offsets to commit ...");
+            }
+        }
+        if (offsetMap.isEmpty()) {
+            return;
         }
         if (offsets.isCommitPartitionWise()) {
             Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>(1);
@@ -332,6 +339,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         // automatic group management with subscribe(Collection), or if there is an active
                         // group with the same groupId which is using group management.
                         logger.warn (Messages.getString("OFFSET_COMMIT_FAILED_FOR_PARTITION", tp, e.getLocalizedMessage()));
+                        // expose the exception to the runtime. When committing synchronous, 
+                        // we usually want the offsets really have committed or restart operator, for example when in a CR
+                        throw new RuntimeException (e.getMessage(), e);
                     }
                 }
                 else {
@@ -350,6 +360,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // automatic group management with subscribe(Collection), or if there is an active
                     // group with the same groupId which is using group management.
                     logger.warn (Messages.getString("OFFSET_COMMIT_FAILED", e.getLocalizedMessage()));
+                    // expose the exception to the runtime. When committing synchronous, 
+                    // we usually want the offsets really have committed or restart operator, for example when in a CR
+                    throw new RuntimeException (e.getMessage(), e);
                 }
             }
             else {

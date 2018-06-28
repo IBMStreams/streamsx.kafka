@@ -15,6 +15,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -31,13 +33,16 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
+import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
-
+/**
+ * @deprecated This class is here for reference only. Use the refactored classes NonCrKafkaConsumerClient and CrKafkaStaticAssignConsumerClient instead. 
+ */
 public class KafkaConsumerClient extends AbstractKafkaClient implements ConsumerRebalanceListener {
 
     private static final Logger logger = Logger.getLogger(KafkaConsumerClient.class);
@@ -76,6 +81,9 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     private boolean autoCommitEnabled = false;
     private Thread eventThread;
 
+    private final Metric nPendingMessages;
+    private final Metric nLowMemoryPause;
+    private final Metric nQueueFullPause;
     
     /**
      * Callback to notify that topic partitions have been assigned by the group coordinator to the consumer.
@@ -145,6 +153,10 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
         this.operatorContext = operatorContext;
         crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
         this.partitions = partitions == null ? Collections.emptyList() : partitions;
+
+        this.nPendingMessages = operatorContext.getMetrics().getCustomMetric("nPendingMessages");
+        this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
+        this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
         
         consumerInitLatch = new CountDownLatch(1);
         eventThread = operatorContext.getThreadFactory().newThread(new Runnable() {
@@ -373,8 +385,19 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
         // continue polling for messages until a new event
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
-            int remainingCapacityMsgQ = messageQueue.remainingCapacity();
-            if (remainingCapacityMsgQ >= maxPollRecords) {
+            boolean lowMemory = false;
+            boolean space = messageQueue.isEmpty();
+            if (!space) {
+                 if (messageQueue.size() <= 4 * maxPollRecords)
+                     space = true;
+                 else {
+                     lowMemory = isLowMemory();
+                     space = !lowMemory &&
+                         messageQueue.remainingCapacity() >= maxPollRecords;
+                 }
+            }
+            
+            if (space) {
                 try {
                     long now = System.currentTimeMillis();
                     long timeBetweenPolls = now -lastPollTimestamp;
@@ -400,7 +423,10 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                             }
                             messageQueue.add(cr);
                         });
+                        nPendingMessages.setValue(messageQueue.size());
                         if (!autoCommitEnabled) consumer.commitSync();
+                    } else {
+                        nPendingMessages.setValue(messageQueue.size());
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
@@ -412,14 +438,56 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
                 }
             } else {
                 if (logger.isDebugEnabled()) {
-                    logger.debug ("remaining capacity in message queue (" + remainingCapacityMsgQ //$NON-NLS-1$
+                    if (lowMemory)
+                        logger.debug ("low memory detected: messages queued (" + messageQueue.size() //$NON-NLS-1$
+                            + "). Skipping poll cycle."); //$NON-NLS-1$
+                    else
+                        logger.debug ("remaining capacity in message queue (" + messageQueue.remainingCapacity() //$NON-NLS-1$
                             + ") < maxPollRecords (" + maxPollRecords + "). Skipping poll cycle."); //$NON-NLS-1$
                 }
+
+                nPendingMessages.setValue(messageQueue.size());
+                if (lowMemory)
+                    nLowMemoryPause.increment();
+                else
+                    nQueueFullPause.increment();
+                    
                 // prevent busy-wait
-                Thread.sleep(100);
+                try {
+                    pausedLock.lock();
+                    paused.await(100, TimeUnit.MILLISECONDS);
+                } finally {
+                    pausedLock.unlock();
+                }
+                nPendingMessages.setValue(messageQueue.size());
             }
         }
         logger.debug("Stop polling, message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
+    }
+
+    // Lock/condition for when we pause processing due to
+    // no space on the queue or low memory.
+    private final ReentrantLock pausedLock = new ReentrantLock();
+    private final Condition paused = pausedLock.newCondition();
+
+    /**
+     * Try to determine if memory is getting low and thus
+     * avoid continuing to add read messages to message queue.
+     * See issue streamsx.kafka #91
+     */
+    private static boolean isLowMemory() {
+        Runtime rt = Runtime.getRuntime();
+        final double maxMemory = rt.maxMemory();
+        final double totalMemory = rt.totalMemory();
+
+        // Is there still room to grow?
+        if (totalMemory < (maxMemory * 0.95))
+             return false;
+
+        final double freeMemory = rt.freeMemory();
+
+        // Low memory if free memory at less than 5% of max.
+        return freeMemory < (maxMemory * 0.05);
     }
 
     public boolean isAssignedToTopics() {
@@ -541,7 +609,17 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     }
 
     public ConsumerRecord<?, ?> getNextRecord() throws InterruptedException {
-        return messageQueue.poll(1, TimeUnit.SECONDS);
+         final ConsumerRecord<?,?> record = messageQueue.poll(1, TimeUnit.SECONDS);
+         if (record == null) {
+             nPendingMessages.setValue(messageQueue.size());
+             try {
+                pausedLock.lock();
+                paused.signalAll();
+             } finally {
+                pausedLock.unlock();
+             }
+         }
+         return record;
     }
 
     private void refreshFromCluster() {

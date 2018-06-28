@@ -37,4 +37,19 @@ public class KafkaOperatorException extends Exception {
     public KafkaOperatorException (String message, Throwable rootCause) {
         super(message, rootCause);
     }
+    
+    /**
+     * gets the root cause of the exception
+     * 
+     * @return the root cause or `null` if there is none.
+     */
+    public Throwable getRootCause() {
+        Throwable rootCause = null;
+        Throwable cause = getCause();
+        while (cause != null) {
+            rootCause = cause;
+            cause = cause.getCause();
+        }
+        return rootCause;
+    }
 }

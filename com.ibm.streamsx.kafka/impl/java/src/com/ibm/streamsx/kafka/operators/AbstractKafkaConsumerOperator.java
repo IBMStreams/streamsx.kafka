@@ -37,7 +37,10 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
-import com.ibm.streamsx.kafka.clients.consumer.KafkaConsumerClient;
+import com.ibm.streamsx.kafka.KafkaClientInitializationException;
+import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
+import com.ibm.streamsx.kafka.clients.consumer.CrKafkaStaticAssignConsumerClient;
+import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
 import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate;
 import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdateAction;
@@ -47,8 +50,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
 	
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerOperator.class);
-    private static final Long DEFAULT_CONSUMER_TIMEOUT = 100l;
-    private static final Long SHUTDOWN_TIMEOUT = 5l;
+    private static final long DEFAULT_CONSUMER_TIMEOUT = 100l;
+    private static final long SHUTDOWN_TIMEOUT = 5l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
     private static final StartPosition DEFAULT_START_POSITION = StartPosition.Default;
     private static final String DEFAULT_OUTPUT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
@@ -68,10 +71,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
     private static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
     private static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
+    private static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
     private static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
+    private static final int DEFAULT_COMMIT_COUNT = 500;
     
     private Thread processThread;
-    private KafkaConsumerClient consumer;
+    private ConsumerClient consumer;
     private AtomicBoolean shutdown;
     private Gson gson;
 
@@ -87,10 +92,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private List<Long> startOffsets;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
+    private int commitCount = DEFAULT_COMMIT_COUNT;
     private String groupId = null;
     private Long startTime;
 
-    private Long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
+    private long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
     private boolean hasOutputTopic;
     private boolean hasOutputKey;
@@ -107,6 +113,20 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.nMalformedMessages = nMalformedMessages;
     }
 
+    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of pending messages to be submitted as tuples.")
+    public void setnPendingMessages(Metric nPendingMessages) {
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
+
+    @CustomMetric (kind = Metric.Kind.COUNTER, description = "Number times message polling was paused due to low memory.")
+    public void setnLowMemoryPause(Metric nLowMemoryPause) {
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
+
+    @CustomMetric (kind = Metric.Kind.COUNTER, description = "Number times message polling was paused due to full queue.")
+    public void setnQueueFullPause(Metric nQueueFullPause) {
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
     		description="Specifies the output attribute name that should contain the record's timestamp. "
@@ -277,6 +297,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.triggerCount = triggerCount;
     }
 
+    @Parameter(optional = true, name = COMMIT_COUNT_PARAM, description = 
+            "This parameter specifies the number of tuples that will be submitted to "
+            + "the output port before committing their offsets. This parameter is optional "
+            + "and has a default value of " + DEFAULT_COMMIT_COUNT + ". "
+            + "This parameter is only used when the "
+            + "operator is not part of a consistent region. When the operator participates in a "
+            + "consistent region, offsets are always committed when the region drains.")
+    public void setCommitCount (int commitCount) {
+        this.commitCount = commitCount;
+    }
+    
     @ContextCheck(compile = false, runtime = true)
     public static void checkParams(OperatorContextChecker checker) {
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingOutputs().get(0).getStreamSchema();
@@ -369,18 +400,29 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
     
     @ContextCheck(compile = true)
-    public static void checkTriggerCount(OperatorContextChecker checker) {
-        ConsistentRegionContext crContext = checker.getOperatorContext()
-                .getOptionalContext(ConsistentRegionContext.class);
+    public static void checkTriggerCOMMITCount(OperatorContextChecker checker) {
+        OperatorContext operatorContext = checker.getOperatorContext();
+        ConsistentRegionContext crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
+        Set<String> parameterNames = operatorContext.getParameterNames();
         if (crContext != null) {
+            if (parameterNames.contains(COMMIT_COUNT_PARAM)) {
+                System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_COUNT_PARAM));
+            }
             if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
-                if (!checker.getOperatorContext().getParameterNames().contains(TRIGGER_COUNT_PARAM)) {
+                if (!parameterNames.contains(TRIGGER_COUNT_PARAM)) {
                     checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
                 }
             }
         }
+        else {
+            // not in a CR ...
+            if (parameterNames.contains(TRIGGER_COUNT_PARAM)) {
+                System.err.println (Messages.getString ("PARAM_IGNORED_NOT_IN_CONSITENT_REGION", TRIGGER_COUNT_PARAM));
+            }
+       }
     }
 
+    
     @ContextCheck(compile = false, runtime = true)
     public static void checkTriggerCountValue (OperatorContextChecker checker) {
         ConsistentRegionContext crContext = checker.getOperatorContext()
@@ -453,37 +495,60 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if(groupId != null && !groupId.isEmpty()) {
             kafkaProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         }
-        consumer = new KafkaConsumerClient.KafkaConsumerClientBuilder()
-        			.setKafkaProperties(kafkaProperties)
-        			.setKeyClass(keyClass)
-        			.setValueClass(valueClass)
-        			.setOperatorContext(context)
-        			.build();
-        
-        // If an exception occurred during init, throw it!
-        if(consumer.getInitializationException() != null) {
-        	Exception e = consumer.getInitializationException();
+        crContext = context.getOptionalContext(ConsistentRegionContext.class);
+
+        if (crContext == null) {
+            NonCrKafkaConsumerClient.Builder builder = new NonCrKafkaConsumerClient.Builder();
+            builder.setOperatorContext(context)
+            .setKafkaProperties(kafkaProperties)
+            .setKeyClass(keyClass)
+            .setValueClass(valueClass)
+            .setPollTimeout(consumerPollTimeout)
+            .setCommitCount(commitCount);
+            consumer = builder.build();
+        } else {
+            CrKafkaStaticAssignConsumerClient.Builder builder = new CrKafkaStaticAssignConsumerClient.Builder();
+            builder.setOperatorContext(context)
+            .setKafkaProperties(kafkaProperties)
+            .setKeyClass(keyClass)
+            .setValueClass(valueClass)
+            .setPollTimeout(consumerPollTimeout)
+            .setTriggerCount(triggerCount);
+            consumer = builder.build();
+        }
+        try {
+            consumer.startConsumer();
+        }
+        catch (KafkaClientInitializationException e) {
+            
             e.printStackTrace();
             logger.error(e.getLocalizedMessage(), e);
-            throw e;      	
+            logger.error("root cause: " + e.getRootCause());
+
+            throw e;
         }
+//        consumer = new KafkaConsumerClient.KafkaConsumerClientBuilder()
+//        			.setKafkaProperties(kafkaProperties)
+//        			.setKeyClass(keyClass)
+//        			.setValueClass(valueClass)
+//        			.setOperatorContext(context)
+//        			.build();
         
         // input port not use, so topic must be defined
         if(context.getStreamingInputs().size() == 0) {
             if (topics != null) {
                 registerForDataGovernance(context, topics);
-                
+
                 if(startPosition == StartPosition.Time) {
-                	consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);
+                    consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);
                 } else if(startPosition == StartPosition.Offset) {
-                	consumer.subscribeToTopicsWithOffsets(topics, partitions, startOffsets);
+                    consumer.subscribeToTopicsWithOffsets(topics.get(0), partitions, startOffsets);
                 } else {
-                	consumer.subscribeToTopics(topics, partitions, startPosition);
+                    consumer.subscribeToTopics(topics, partitions, startPosition);
                 }
             }	
         }
-        
-        crContext = context.getOptionalContext(ConsistentRegionContext.class);
+
         if (crContext != null && context.getPE().getRelaunchCount() > 0) {
             resettingLatch = new CountDownLatch(1);
         }
@@ -493,12 +558,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             @Override
             public void run() {
                 try {
+                    // initiates start polling if assigned or subscribed by sending an event
                     produceTuples();
                 } catch (Exception e) {
                     Logger.getLogger(this.getClass()).error("Operator error", e); //$NON-NLS-1$
                     // Propagate all exceptions to the runtime to make the PE fail and possibly restart.
                     // Otherwise this thread terminates leaving the PE in a healthy state without being healthy.
-                    throw new RuntimeException (e);
+                    throw new RuntimeException (e.getLocalizedMessage(), e);
                 }
             }
         });
@@ -518,7 +584,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     private void produceTuples() throws Exception {
 
-        int nTuplesForOpDrivenCR = 0;
         if (crContext != null && resettingLatch != null) {
             logger.debug("Operator is in the middle of resetting. No tuples will be submitted until reset completes."); //$NON-NLS-1$
             try {
@@ -529,8 +594,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
 
-        if(consumer.isAssignedToTopics()) {
-        	consumer.sendStartPollingEvent(consumerPollTimeout);
+        if(consumer.isSubscribedOrAssigned()) {
+        	consumer.sendStartPollingEvent();
         }
         /*
          * Shutdown implementation:
@@ -553,12 +618,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
             try {
                 // Any exceptions except InterruptedException thrown here are propagated to the caller
-                //logger.trace("Polling for messages, timeout=" + consumerPollTimeout); //$NON-NLS-1$
-                ConsumerRecord<?, ?> record = consumer.getNextRecord();
-                if(record != null) {
+                ConsumerRecord<?, ?> record = consumer.getNextRecord (1, TimeUnit.SECONDS);
+                if (record != null) {
                 	submitRecord(record);
-
-                    if (crContext != null) {
+                	consumer.postSubmit(record);
+/*
+                	... int nTuplesForOpDrivenCR = 0;
+                	if (crContext != null) {
                         // save offset for *next* record for {topic, partition} 
                         consumer.getOffsetManager().savePosition(record.topic(), record.partition(), record.offset()+1l);
                         if (crContext.isTriggerOperator() && ++nTuplesForOpDrivenCR >= triggerCount) {
@@ -569,6 +635,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                             logger.debug("Completed call to makeConsistent: isSuccess=" + isSuccess); //$NON-NLS-1$
                         }
                     }
+                    */
                 }
             }
             catch (InterruptedException ie) {
@@ -712,7 +779,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         		}
         	}
         	
-        	consumer.sendStopPollingEvent();
+//        	consumer.sendStopPollingEvent();
         	consumer.sendUpdateTopicAssignmentEvent(new TopicPartitionUpdate(action, topicPartitionOffsetMap));
         } catch (InterruptedException e) {
             // interrupted during shutdown
@@ -720,7 +787,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     	} catch (Exception e) {
     		logger.error(e.getMessage(), e);
     	} finally {
-        	if (!interrupted) consumer.sendStartPollingEvent(consumerPollTimeout);
+        	if (!interrupted && consumer.isSubscribedOrAssigned()) {
+        	    consumer.sendStartPollingEvent();
+        	}
     	}
     }
     
@@ -750,6 +819,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void drain() throws Exception {
         logger.debug(">>> DRAIN"); //$NON-NLS-1$
+        consumer.onDrain();
         // When a checkpoint is to be created, the operator must stop sending tuples by pulling messages out of the messageQueue.
         // This is achieved via acquiring a permit. In the background, more messages are pushed into the queue by a receive thread
         // incrementing the read offset.
@@ -762,14 +832,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.debug(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         consumer.sendCheckpointEvent(checkpoint); // blocks until checkpoint completes
-        consumer.sendStartPollingEvent(consumerPollTimeout); // checkpoint is done, resume polling for records
+        consumer.sendStartPollingEvent(); // checkpoint is done, resume polling for records
     }
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
         logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         consumer.sendResetEvent(checkpoint); // blocks until reset completes
-        consumer.sendStartPollingEvent(consumerPollTimeout); // done resetting,start polling for records
+        consumer.sendStartPollingEvent(); // done resetting,start polling for records
 
         // latch will be null if the reset was caused
         // by another operator
@@ -781,7 +851,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void resetToInitialState() throws Exception {
         logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
         consumer.sendResetToInitEvent(); // blocks until resetToInit completes
-        consumer.sendStartPollingEvent(consumerPollTimeout); // done resettings, start polling for records
+        consumer.sendStartPollingEvent(); // done resettings, start polling for records
 
         // latch will be null if the reset was caused
         // by another operator

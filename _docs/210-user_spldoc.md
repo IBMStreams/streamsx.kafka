@@ -2,7 +2,7 @@
 title: "SPL documentation"
 permalink: /docs/user/SPLDoc/
 excerpt: "SPL documentation."
-last_modified_at: 2018-05-07T12:37:48+02:00
+last_modified_at: 2018-06-28T12:37:48+02:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -11,11 +11,15 @@ sidebar:
 {% include toc %}
 {%include editme %}
 
-### v1.4.0 (latest)
+### v1.4.1 (latest)
 
 [Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/spldoc/html/)
 
 ### Toolkit documentation for previous versions
+
+#### v1.4.0
+
+[Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.4.0/spldoc/html/)
 
 #### v1.3.3
 

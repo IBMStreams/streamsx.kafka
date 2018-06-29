@@ -9,6 +9,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
@@ -38,6 +39,7 @@ import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
+import com.ibm.streamsx.kafka.clients.consumer.ConsistentRegionAssignmentMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaStaticAssignConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
@@ -60,19 +62,22 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private static final String DEFAULT_OUTPUT_TIMESTAMP_ATTR_NAME = "messageTimestamp"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_OFFSET_ATTR_NAME = "offset"; //$NON-NLS-1$
     private static final String DEFAULT_OUTPUT_PARTITION_ATTR_NAME = "partition"; //$NON-NLS-1$
-    private static final String OUTPUT_KEY_ATTRIBUTE_NAME_PARAM = "outputKeyAttributeName"; //$NON-NLS-1$
-    private static final String OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM = "outputMessageAttributeName"; //$NON-NLS-1$
-    private static final String OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM = "outputTopicAttributeName"; //$NON-NLS-1$
-    private static final String OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM = "outputTimestampAttributeName"; //$NON-NLS-1$
-    private static final String OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM = "outputOffsetAttributeName"; //$NON-NLS-1$
-    private static final String OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM = "outputPartitionAttributeName"; //$NON-NLS-1$
-    private static final String TOPIC_PARAM = "topic"; //$NON-NLS-1$
-    private static final String PARTITION_PARAM = "partition"; //$NON-NLS-1$
-    private static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
-    private static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
-    private static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
-    private static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
-    private static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
+    // parameter names
+    public static final String OUTPUT_KEY_ATTRIBUTE_NAME_PARAM = "outputKeyAttributeName"; //$NON-NLS-1$
+    public static final String OUTPUT_MESSAGE_ATTRIBUTE_NAME_PARAM = "outputMessageAttributeName"; //$NON-NLS-1$
+    public static final String OUTPUT_TOPIC_ATTRIBUTE_NAME_PARAM = "outputTopicAttributeName"; //$NON-NLS-1$
+    public static final String OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM = "outputTimestampAttributeName"; //$NON-NLS-1$
+    public static final String OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM = "outputOffsetAttributeName"; //$NON-NLS-1$
+    public static final String OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM = "outputPartitionAttributeName"; //$NON-NLS-1$
+    public static final String CR_ASSIGNMENT_MODE_PARAM = "consistentRegionAssignmentMode"; //$NON-NLS-1$
+    public static final String TOPIC_PARAM = "topic"; //$NON-NLS-1$
+    public static final String PARTITION_PARAM = "partition"; //$NON-NLS-1$
+    public static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
+    public static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
+    public static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
+    public static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
+    public static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
+
     private static final int DEFAULT_COMMIT_COUNT = 500;
     
     private Thread processThread;
@@ -95,6 +100,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private int commitCount = DEFAULT_COMMIT_COUNT;
     private String groupId = null;
     private Long startTime;
+    private ConsistentRegionAssignmentMode consistentRegionAssignmentMode = ConsistentRegionAssignmentMode.Static; 
 
     private long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
@@ -126,6 +132,37 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @CustomMetric (kind = Metric.Kind.COUNTER, description = "Number times message polling was paused due to full queue.")
     public void setnQueueFullPause(Metric nQueueFullPause) {
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
+
+    @Parameter(optional = true, name = CR_ASSIGNMENT_MODE_PARAM,
+            description = "Specifies how the operator assigns topic partitions when in a consistent region. "
+                    + "If `Static` is specified, the operator assigns itself to the partitions specified in "
+                    + "**partition** parameter or assigns it self to all partitions of the specified topics. "
+                    + "The operator will not be managed by Kafka. Group management is disabled. "
+                    + "This mode guarantees that the operator "
+                    + "replays after reset of the consistent region the same tuples that it has submitted "
+                    + "before. The partition assignment of an operator does not change after region reset.\\n"
+                    + "\\n"
+                    + "If `GroupCoordinated` is specified, the operator will participate in a consumer group. "
+                    + "In this case, Kafka decides which topic partitions are consumed by the operator. "
+                    + "This implies that the partition assignment of an individual operator can change during "
+                    + "consistent region reset. After reset, the operator can replay tuples that have been "
+                    + "submitted by a different operator in the same consumer group before that reset. "
+                    + "All operators in the consumer group replay the same set of tuples, however.\\n"
+                    + "\\n"
+                    + "Using the `GroupCoordinated` parameter value, a **group ID** must be specified that "
+                    + "must be shared by all operators that participate in the consumer group. The group ID "
+                    + "can be specified as operator parameter **groupId** or as consumer property `group.id` "
+                    + "in a property file or app option. The operator will fail at runtime if "
+                    + "it detects the default random group ID.\\n"
+                    + "\\n"
+                    + "The `GroupCoordinated` parameter value is incompatible with the control port and with "
+                    + "the **partition** parameter. The **startPosition** value `Offset` cannot be used as "
+                    + "it requires the **partition** parameter.\\n"
+                    + "\\n"
+                    + "The default value is `Static`.")
+    public void setConsistentRegionAssignmentMode (ConsistentRegionAssignmentMode consistentRegionAssignmentMode) {
+        this.consistentRegionAssignmentMode = consistentRegionAssignmentMode;
     }
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
@@ -227,7 +264,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     				+ "is that **only one single topic** can be specified via the **topic** parameter.\\n"
     				+ "\\n"
     				+ "\\n"
-    				+ "If this parameter is not specified, the start position is `Default`.")
+    				+ "If this parameter is not specified, the start position is `Default`. The parameter is ignored "
+    				+ "when not in a consistent region.")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
     }
@@ -307,7 +345,83 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void setCommitCount (int commitCount) {
         this.commitCount = commitCount;
     }
+
+    @ContextCheck(compile = true)
+    public static void checkStartOffsetRequiresPartition(OperatorContextChecker checker) {
+        // parameters startOffset and partition must have the same size - can be checked only at runtime.
+        // This implies that partition parameter is required when startOffset is specified - can be checked at compile time.
+        OperatorContext operatorContext = checker.getOperatorContext();
+        Set<String> parameterNames = operatorContext.getParameterNames();
+        if (parameterNames.contains(START_OFFSET_PARAM) && !parameterNames.contains(PARTITION_PARAM)) {
+            checker.setInvalidContext(Messages.getString("PARAM_X_REQUIRED_WHEN_PARAM_Y_USED", PARTITION_PARAM, START_OFFSET_PARAM), new Object[0]); //$NON-NLS-1$
+        }
+    }
+
+    @ContextCheck(compile = true)
+    public static void checkTriggerCommitCount(OperatorContextChecker checker) {
+        OperatorContext operatorContext = checker.getOperatorContext();
+        ConsistentRegionContext crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
+        Set<String> parameterNames = operatorContext.getParameterNames();
+        if (crContext != null) {
+            if (parameterNames.contains(COMMIT_COUNT_PARAM)) {
+                System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_COUNT_PARAM));
+            }
+            if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
+                if (!parameterNames.contains(TRIGGER_COUNT_PARAM)) {
+                    checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
+                }
+            }
+        }
+        else {
+            // not in a CR ...
+            if (parameterNames.contains(TRIGGER_COUNT_PARAM)) {
+                System.err.println (Messages.getString ("PARAM_IGNORED_NOT_IN_CONSITENT_REGION", TRIGGER_COUNT_PARAM));
+            }
+       }
+    }
+
+    @ContextCheck(compile = true)
+    public static void checkCrAssignmentModeWhenNotInCr (OperatorContextChecker checker) {
+        OperatorContext operatorContext = checker.getOperatorContext();
+        ConsistentRegionContext crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
+        Set<String> parameterNames = operatorContext.getParameterNames();
+        if (crContext == null) {
+            // not in a CR
+            if (parameterNames.contains(CR_ASSIGNMENT_MODE_PARAM)) {
+                System.err.println (Messages.getString ("PARAM_IGNORED_NOT_IN_CONSITENT_REGION", CR_ASSIGNMENT_MODE_PARAM));
+            }
+        }
+    }
+    @ContextCheck(compile = true)
+    public static void checkInputPort(OperatorContextChecker checker) {
+        List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
+        Set<String> paramNames = checker.getOperatorContext().getParameterNames();
+        if(inputPorts.size() > 0) {
+            /*
+             * optional input port is present, thus need to ignore the following parameters:
+             *  * topic
+             *  * partition
+             *  * startPosition
+             */             
+            if(paramNames.contains(TOPIC_PARAM) 
+                    || paramNames.contains(PARTITION_PARAM) 
+                    || paramNames.contains(START_POSITION_PARAM)) {
+                System.err.println(Messages.getString("PARAMS_IGNORED_WITH_INPUT_PORT")); //$NON-NLS-1$
+            }
+            
+            StreamingInput<Tuple> inputPort = inputPorts.get(0);
+            checker.checkAttributeType(inputPort.getStreamSchema().getAttribute(0), MetaType.RSTRING);
+        }
+    }
     
+    @ContextCheck(compile = true)
+    public static void checkForTopicOrInputPort(OperatorContextChecker checker) {
+        List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
+        if(inputPorts.size() == 0 && !checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM)) {
+            checker.setInvalidContext(Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
+        }
+    }
+
     @ContextCheck(compile = false, runtime = true)
     public static void checkParams(OperatorContextChecker checker) {
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingOutputs().get(0).getStreamSchema();
@@ -382,6 +496,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         		}
         	}
         }
+        checkTriggerCountValue (checker);
+        checkCrPartitionAssignmentMode (checker);
     }
 
     private static void checkUserSpecifiedAttributeNameExists(OperatorContextChecker checker, String paramNameToCheck) {
@@ -398,33 +514,43 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
     }
-    
-    @ContextCheck(compile = true)
-    public static void checkTriggerCOMMITCount(OperatorContextChecker checker) {
+
+    private static void checkCrPartitionAssignmentMode (OperatorContextChecker checker) {
         OperatorContext operatorContext = checker.getOperatorContext();
         ConsistentRegionContext crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
+        List<StreamingInput<Tuple>> inputPorts = operatorContext.getStreamingInputs();
         Set<String> parameterNames = operatorContext.getParameterNames();
         if (crContext != null) {
-            if (parameterNames.contains(COMMIT_COUNT_PARAM)) {
-                System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_COUNT_PARAM));
-            }
-            if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
-                if (!parameterNames.contains(TRIGGER_COUNT_PARAM)) {
-                    checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
+            if (parameterNames.contains(CR_ASSIGNMENT_MODE_PARAM)) {
+                // get parameter value 
+                final String crAssignModeParamVal = operatorContext.getParameterValues (CR_ASSIGNMENT_MODE_PARAM).get(0);
+                if (crAssignModeParamVal.equals(ConsistentRegionAssignmentMode.GroupCoordinated.name())) {
+                    // incompatible with startPosition: Offset - would assign partitions
+                    if (parameterNames.contains(START_POSITION_PARAM)) {
+                        final String startPositionVal = operatorContext.getParameterValues (START_POSITION_PARAM).get(0);
+                        if (startPositionVal.equals (StartPosition.Offset.name())) {
+                            checker.setInvalidContext (Messages.getString ("PARAM_VAL_INCOMPATIBLE_WITH_OTHER_PARAM_VAL",
+                                    START_POSITION_PARAM, StartPosition.Offset,
+                                    CR_ASSIGNMENT_MODE_PARAM, crAssignModeParamVal), new Object[0]);
+                        }
+                    }
+                    // incompatible with 'partition' param - manual partition assignment incompatible with Group Management 
+                    if (parameterNames.contains(PARTITION_PARAM)) {
+                        checker.setInvalidContext (Messages.getString ("PARAM_INCOMPATIBLE_WITH_OTHER_PARAM_VAL",
+                                PARTITION_PARAM, CR_ASSIGNMENT_MODE_PARAM, crAssignModeParamVal), new Object[0]);
+                    }
+                    // incompatible with input port
+                    if(inputPorts.size() > 0) {
+                        checker.setInvalidContext (Messages.getString ("PARAM_VAL_INCOMPATIBLE_WITH_INPUT_PORT",
+                                CR_ASSIGNMENT_MODE_PARAM, crAssignModeParamVal), new Object[0]);
+                    }
                 }
             }
         }
-        else {
-            // not in a CR ...
-            if (parameterNames.contains(TRIGGER_COUNT_PARAM)) {
-                System.err.println (Messages.getString ("PARAM_IGNORED_NOT_IN_CONSITENT_REGION", TRIGGER_COUNT_PARAM));
-            }
-       }
     }
 
-    
-    @ContextCheck(compile = false, runtime = true)
-    public static void checkTriggerCountValue (OperatorContextChecker checker) {
+
+    private static void checkTriggerCountValue (OperatorContextChecker checker) {
         ConsistentRegionContext crContext = checker.getOperatorContext()
                 .getOptionalContext(ConsistentRegionContext.class);
         if (crContext != null) {
@@ -438,36 +564,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
     }
-    
-    @ContextCheck(compile = true)
-    public static void checkInputPort(OperatorContextChecker checker) {
-    	List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
-		Set<String> paramNames = checker.getOperatorContext().getParameterNames();
-    	if(inputPorts.size() > 0) {
-    		/*
-    		 * optional input port is present, thus need to ignore the following parameters:
-    		 *  * topic
-    		 *  * partition
-    		 *  * startPosition
-    		 */     		
-    		if(paramNames.contains(TOPIC_PARAM) 
-    				|| paramNames.contains(PARTITION_PARAM) 
-    				|| paramNames.contains(START_POSITION_PARAM)) {
-    			System.err.println(Messages.getString("PARAMS_IGNORED_WITH_INPUT_PORT")); //$NON-NLS-1$
-    		}
-    		
-    		StreamingInput<Tuple> inputPort = inputPorts.get(0);
-    		checker.checkAttributeType(inputPort.getStreamSchema().getAttribute(0), MetaType.RSTRING);
-    	}
-    }
-    
-    @ContextCheck(compile = true)
-    public static void checkForTopicOrInputPort(OperatorContextChecker checker) {
-    	List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
-    	if(inputPorts.size() == 0 && !checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM)) {
-    		checker.setInvalidContext(Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
-    	}
-    }
+
     
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
@@ -506,7 +603,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             .setPollTimeout(consumerPollTimeout)
             .setCommitCount(commitCount);
             consumer = builder.build();
-        } else {
+        } 
+        else switch (this.consistentRegionAssignmentMode) {
+        case GroupCoordinated:
+            System.err.println (this.consistentRegionAssignmentMode + " not yet implemented");
+        case Static:
             CrKafkaStaticAssignConsumerClient.Builder builder = new CrKafkaStaticAssignConsumerClient.Builder();
             builder.setOperatorContext(context)
             .setKafkaProperties(kafkaProperties)
@@ -515,6 +616,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             .setPollTimeout(consumerPollTimeout)
             .setTriggerCount(triggerCount);
             consumer = builder.build();
+            break;
+        default:
+            throw new NotImplementedException (this.consistentRegionAssignmentMode + " not implemented");
         }
         try {
             consumer.startConsumer();

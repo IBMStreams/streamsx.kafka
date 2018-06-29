@@ -249,7 +249,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 		ConsistentRegionContext crContext = opContext.getOptionalContext(ConsistentRegionContext.class);
 		if (crContext != null) {
 			if (crContext.isStartOfRegion()) {
-				checker.setInvalidContext(Messages.getString("PRODUCER_NOT_START_OF_CONSISTENT_REGION"), new Object[0]); ////$NON-NLS-1$ 
+				checker.setInvalidContext(Messages.getString("OPERATOR_NOT_START_OF_CONSISTENT_REGION", opContext.getKind()), new Object[0]); ////$NON-NLS-1$ 
 			}
 		}
 	}

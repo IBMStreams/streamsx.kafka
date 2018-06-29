@@ -310,8 +310,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
         
         initProducer();
-
-        registerForDataGovernance(context, topics);
+        final boolean registerAsInput = false;
+        registerForDataGovernance(context, topics, registerAsInput);
 
         logger.info(">>> Operator initialized! <<<"); //$NON-NLS-1$
     }

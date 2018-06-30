@@ -552,11 +552,7 @@ compile-time evaluatable to a constant. For example: output <tt class="ph tt">Ou
 The <tt class="ph tt">autoAssignment</tt> element defines whether unassigned attributes will be automatically assigned from the attributes of the input ports.
 If set to true, the SPL compiler will rewrite (at compile-time) the operator invocation as if the unassigned output attributes have 
 explicit assignments in the output section. For each output attribute that is missing an assignment, an input attribute that has 
-the same name and type,
-or that has the same name and type <tt class="ph tt">T</tt>,
-where the output attribute type is <tt class="ph tt">optional&lt;T&gt;</tt>,
-will be assigned to it.
-If there is no such input attribute or if there are more than one, an error is 
+the same name and type will be assigned to it. If there is no such input attribute or if there are more than one, an error is 
 reported at compile-time. Note that an expressionMode value of Constant is incompatible with an autoAssignment value of true. 
 This combination will result in a compilation error.
     </dd>

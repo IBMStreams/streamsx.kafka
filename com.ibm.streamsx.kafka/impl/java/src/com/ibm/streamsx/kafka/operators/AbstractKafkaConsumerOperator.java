@@ -641,7 +641,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // input port not use, so topic must be defined
         if(context.getStreamingInputs().size() == 0) {
             if (topics != null) {
-                registerForDataGovernance(context, topics);
+                final boolean registerAsInput = true;
+                registerForDataGovernance(context, topics, registerAsInput);
 
                 if(startPosition == StartPosition.Time) {
                     consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);

@@ -114,14 +114,14 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         context.addClassLibraries(userLib);
     }
 
-    protected void registerForDataGovernance(OperatorContext context, List<String> topics) {
+    protected void registerForDataGovernance(OperatorContext context, List<String> topics, boolean registerAsInput) {
         String opName = context.getLogicalName();
-        logger.info(opName + " - Registering for data governance"); //$NON-NLS-1$
+        logger.info(opName + " - Registering for data governance as " + (registerAsInput? "input/source": "output/sink")); //$NON-NLS-1$
         if (topics != null && topics.size() > 0) {
             for (String topic : topics) {
                 logger.info(opName + " - data governance - topic: " + topic); //$NON-NLS-1$
                 DataGovernanceUtil.registerForDataGovernance(this, topic, IGovernanceConstants.ASSET_KAFKA_TOPIC_TYPE,
-                        null, null, true, opName); // $NON-NLS-1$
+                        null, null, registerAsInput, opName); // $NON-NLS-1$
             }
         } else {
             logger.info(opName + " - Registering for data governance -- topics is empty"); //$NON-NLS-1$

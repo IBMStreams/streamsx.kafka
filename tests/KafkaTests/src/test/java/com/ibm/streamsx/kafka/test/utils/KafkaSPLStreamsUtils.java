@@ -120,6 +120,10 @@ public class KafkaSPLStreamsUtils {
                 return strings;
             }
 
+            public boolean failed() {
+                return false;
+            }
+
             @Override
             public boolean valid() {
                 List<String> strings =  getResult();

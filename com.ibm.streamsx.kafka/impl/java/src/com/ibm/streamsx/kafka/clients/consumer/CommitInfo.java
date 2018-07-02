@@ -18,7 +18,7 @@ public class CommitInfo {
     private Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>();
     private boolean commitSynchronous = false;
     private boolean commitPartitionWise = true;
-    
+
     /**
      * Creates a new CommitInfo object
      * @param commitSync Set this to true, to commit synchronous
@@ -38,7 +38,7 @@ public class CommitInfo {
     public void put (String topic, int partition, long offset) {
         map.put (new TopicPartition(topic, partition), new OffsetAndMetadata(offset));
     }
-    
+
     /**
      * Puts an offset for given topic and partition number
      * 
@@ -68,5 +68,23 @@ public class CommitInfo {
      */
     public boolean isCommitPartitionWise() {
         return commitPartitionWise;
+    }
+
+    /**
+     * Tests for an empty topic partition to offset map
+     * @return true if there are no offsets to be committed, false otherwise
+     */
+    public boolean isEmpty() {
+        return map.isEmpty();
+    }
+
+    /**
+     * @see java.lang.Object#toString()
+     */
+    @Override
+    public String toString() {
+        return map.toString()
+                + "; sync = " + commitSynchronous
+                + "; partition-wise = " + commitPartitionWise;
     }
 }

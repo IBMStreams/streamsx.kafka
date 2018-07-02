@@ -342,13 +342,19 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
             }
         }
         try {
-            // terminates the poll loop:
-            sendCommitEvent (offsets);
-            // drain is followed by checkpoint. Don't poll for new messages in the meantime.
-//            sendStartPollingEvent();
+            // Here we must terminates the poll loop.
+            if (offsets.isEmpty()) {
+                sendStopPollingEvent();
+            }
+            else {
+                // commit event stops polling before committing
+                sendCommitEvent (offsets);
+            }
+            // drain is followed by checkpoint. 
+            // Don't poll for new messages in the meantime. - Don't send a 'start polling event'
         } catch (InterruptedException e) {
             logger.info("Interrupted waiting for committing offsets");
-            // NOT to start polling for Kafka messages again, is ok. 
+            // NOT to start polling for Kafka messages again, is ok after interruption
         }
         logger.debug("onDrain() - exiting");
     }

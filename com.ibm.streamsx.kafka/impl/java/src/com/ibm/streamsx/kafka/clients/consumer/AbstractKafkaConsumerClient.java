@@ -84,8 +84,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     // Lock/condition for when we pause processing due to
     // no space on the queue or low memory.
-    private final ReentrantLock pausedLock = new ReentrantLock();
-    private final Condition paused = pausedLock.newCondition();
+    private final ReentrantLock msgQueueEmptyConditionLock = new ReentrantLock();
+    private final Condition msgQueueEmptyCondition = msgQueueEmptyConditionLock.newCondition();
 
 
     /**
@@ -130,11 +130,23 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         //        messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>>(getMessageQueueSize());
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean (false);
-        messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (MESSAGE_QUEUE_SIZE_MULTIPLIER * getMaxPollRecords());
+        messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (getMessageQueueSizeMultiplier() * getMaxPollRecords());
         this.nPendingMessages = operatorContext.getMetrics().getCustomMetric("nPendingMessages");
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
         this.operatorContext = operatorContext;
+    }
+
+
+    /**
+     * Gets the multiplier for the size of the message queue.
+     * The multiplier is those factor that is used to multiply the Kafka consumer property
+     * `max.poll.records` with to size the internal message queue. The default implementation uses
+     * {@value #MESSAGE_QUEUE_SIZE_MULTIPLIER} as the factor.
+     * @return the factor that `max.poll.records` is multiplied with to size the message queue.
+     */
+    protected int getMessageQueueSizeMultiplier() {
+        return MESSAGE_QUEUE_SIZE_MULTIPLIER;
     }
 
 
@@ -445,14 +457,32 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             // no messages - queue is empty
             nPendingMessages.setValue(messageQueue.size());
             try {
-                pausedLock.lock();
-                paused.signalAll();
+                msgQueueEmptyConditionLock.lock();
+                msgQueueEmptyCondition.signalAll();
             } finally {
-                pausedLock.unlock();
+                msgQueueEmptyConditionLock.unlock();
             }
         }
         return record;
     }
+
+
+    /**
+     * Waits that the message queue becomes empty by consuming messages by the tuple producer thread.
+     * @throws InterruptedException The waiting thread has been interrupted waiting
+     */
+    protected void awaitEmptyMessageQueue() throws InterruptedException {
+        while (!messageQueue.isEmpty()) {
+            try {
+                msgQueueEmptyConditionLock.lock();
+                msgQueueEmptyCondition.await (100l, TimeUnit.MILLISECONDS);
+            }
+            finally {
+                msgQueueEmptyConditionLock.unlock();
+            }
+        }
+    }
+
 
     /**
      * Gets a reference to the message queue for received Kafka messages.
@@ -538,10 +568,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 nQueueFullPause.increment();
 
             try {
-                pausedLock.lock();
-                paused.await(100, TimeUnit.MILLISECONDS);
+                msgQueueEmptyConditionLock.lock();
+                msgQueueEmptyCondition.await(100, TimeUnit.MILLISECONDS);
             } finally {
-                pausedLock.unlock();
+                msgQueueEmptyConditionLock.unlock();
             }
             nPendingMessages.setValue(messageQueue.size());
         }

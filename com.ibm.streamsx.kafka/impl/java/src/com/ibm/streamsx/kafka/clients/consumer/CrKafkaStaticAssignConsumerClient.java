@@ -35,6 +35,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClient {
 
     private static final Logger logger = Logger.getLogger(CrKafkaStaticAssignConsumerClient.class);
+    private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 20;
 
     private long triggerCount; 
     private long nSubmittedRecords = 0l;
@@ -89,6 +90,16 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         this.triggerCount = triggerCount;
     }
 
+
+    /**
+     * For this consumer client the message queue size shall be smaller than default to ensure fast drain.
+     * @return {@value #MESSAGE_QUEUE_SIZE_MULTIPLIER}
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#getMessageQueueSizeMultiplier()
+     */
+    @Override
+    protected int getMessageQueueSizeMultiplier() {
+        return MESSAGE_QUEUE_SIZE_MULTIPLIER;
+    }
 
 
     /**
@@ -323,33 +334,37 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
 
     /**
      * Called when the consistent region is drained.
-     * This implementation commits offsets on drain.
+     * On drain, polling is stopped, the function waits until 
+     * the message queue becomes empty, then it commits offsets.
      */
     @Override
     public void onDrain() throws Exception {
         logger.debug("onDrain() - entering");
-        final boolean commitSync = true;
-        final boolean commitPartitionWise = false;   // commit all partitions in one server request
-        CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
-
-        synchronized (offsetManager) {
-            for (TopicPartition tp: offsetManager.getMappedTopicPartitions()) {
-                offsets.put (tp, offsetManager.getOffset(tp.topic(), tp.partition()));
-            }
-        }
         try {
-            // Here we must terminates the poll loop.
-            if (offsets.isEmpty()) {
-                sendStopPollingEvent();
+            // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
+            sendStopPollingEvent();
+            if (!getMessageQueue().isEmpty()) {
+                logger.debug("onDrain() waiting for message queue to become empty ...");
+                long before = System.currentTimeMillis();
+                awaitEmptyMessageQueue();
+                logger.debug("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
             }
-            else {
-                // commit event stops polling before committing
+            final boolean commitSync = true;
+            final boolean commitPartitionWise = false;   // commit all partitions in one server request
+            CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
+
+            synchronized (offsetManager) {
+                for (TopicPartition tp: offsetManager.getMappedTopicPartitions()) {
+                    offsets.put (tp, offsetManager.getOffset(tp.topic(), tp.partition()));
+                }
+            }
+            if (!offsets.isEmpty()) {
                 sendCommitEvent (offsets);
             }
             // drain is followed by checkpoint. 
             // Don't poll for new messages in the meantime. - Don't send a 'start polling event'
         } catch (InterruptedException e) {
-            logger.info("Interrupted waiting for committing offsets");
+            logger.info("Interrupted waiting for empty queue or committing offsets");
             // NOT to start polling for Kafka messages again, is ok after interruption
         }
         logger.debug("onDrain() - exiting");

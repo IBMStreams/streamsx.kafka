@@ -112,8 +112,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
      * Creates an operator-scoped JCP control variable and stores the Offset manager in serialized format.
      * @throws Exception
      */
-    private void saveOffsetManagerToJCP() throws Exception {
-        logger.debug("saveOffsetManagerToJCP. offsetManager = " + offsetManager); 
+    private void createJcpCvFromOffsetManagerl() throws Exception {
+        logger.info("createJcpCvFromOffsetManagerl(). offsetManager = " + offsetManager); 
         ControlPlaneContext controlPlaneContext = getOperatorContext().getOptionalContext(ControlPlaneContext.class);
         offsetManagerCV = controlPlaneContext.createStringControlVariable(OffsetManager.class.getName(),
                 false, serializeObject(offsetManager));
@@ -138,28 +138,22 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
             Set<TopicPartition> partsToAssign;
             if(partitions == null || partitions.isEmpty()) {
                 // read meta data of the given topics to fetch all topic partitions
-                partsToAssign = getAllTopicPartitionsForTopic(topics);
-                assign(partsToAssign);
-                if(startPosition != StartPosition.Default) {
-                    seekToPosition(partsToAssign, startPosition);
-                }
+                partsToAssign = getAllTopicPartitionsForTopic (topics);
             } else {
                 partsToAssign = new HashSet<TopicPartition>();
                 topics.forEach(topic -> {
                     partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
                 });
-
-                assign(partsToAssign);
-
-                if(startPosition != StartPosition.Default) {
-                    seekToPosition(partsToAssign, startPosition);
-                }
+            }
+            assign(partsToAssign);
+            if(startPosition != StartPosition.Default) {
+                seekToPosition(partsToAssign, startPosition);
             }
             // update the offset manager
             offsetManager.addTopics (partsToAssign);
             // save the consumer offsets after moving it's position
             offsetManager.savePositionFromCluster();
-            saveOffsetManagerToJCP();
+            createJcpCvFromOffsetManagerl();
         }
     }
 
@@ -193,7 +187,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         offsetManager.addTopics (partsToAssign);
         // save the consumer offsets after moving it's position
         offsetManager.savePositionFromCluster();
-        saveOffsetManagerToJCP();
+        createJcpCvFromOffsetManagerl();
     }
 
     /**
@@ -222,7 +216,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         offsetManager.addTopics (topicPartitionOffsetMap.keySet());
         // save the consumer offsets after moving it's position
         offsetManager.savePositionFromCluster();
-        saveOffsetManagerToJCP();
+        createJcpCvFromOffsetManagerl();
     }
 
     /**
@@ -255,6 +249,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
      */
     @Override
     protected void updateAssignment(TopicPartitionUpdate update) {
+        // trace with info. to see this method call is important, and it happens not frequently.
+        logger.info ("updateAssignment(): update = " + update);
         try {
             // create a map of current topic partitions and their offsets
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
@@ -275,7 +271,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
                     offsetManager.updateTopics (currentTopicPartitionOffsets.keySet());
                     // save the consumer offsets after moving it's position
                     offsetManager.savePositionFromCluster();
-                    saveOffsetManagerToJCP();
+                    createJcpCvFromOffsetManagerl();
                 }
                 break;
             case REMOVE:
@@ -292,7 +288,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
                     assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
                     // save the consumer offsets after moving it's position
                     offsetManager.savePositionFromCluster();
-                    saveOffsetManagerToJCP();
+                    createJcpCvFromOffsetManagerl();
                 }
                 break;
             default:

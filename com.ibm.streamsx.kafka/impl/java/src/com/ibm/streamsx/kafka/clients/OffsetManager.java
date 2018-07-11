@@ -160,7 +160,8 @@ public class OffsetManager implements Serializable {
     }
 
     /**
-     * Saves for every topic and partition given in {@link #addTopic(String, List)} or {@link #updateTopics(Collection)} the offsets of 
+     * Saves for every topic and partition given in {@link #addTopic(String, List)}, 
+     * {@link #addTopics(Collection)}, or {@link #updateTopics(Collection)} the offsets of 
      * the next record that will be fetched (if a record with that offset exists).
      */
     public void savePositionFromCluster() {

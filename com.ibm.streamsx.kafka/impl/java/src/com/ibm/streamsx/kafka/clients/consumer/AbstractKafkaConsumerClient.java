@@ -177,10 +177,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected abstract void validate() throws Exception;
 
     /**
-     * creates the Kafka consumer and starts the consumer and event thread.
+     * Validates the setup of the consumer client by calling the {@link #validate()} method, 
+     * creates the Kafka consumer object and starts the consumer and event thread.
      * This method ensures that the event thread is running when it returns.
      * Methods that overwrite this method must call super.startConsumer().
      * @throws InterruptedException The thread has been interrupted.
+     * @throws KafkaClientInitializationException The client could not be initialized
      */
     public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
         try {
@@ -646,23 +648,26 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
-     * Assigns the consumer to the given set of topic partitions
-     * @param topicPartitions The topic partitions. An empty set is equivalent to unsubscribe from everything previously assigned.
+     * Assigns the consumer to the given set of topic partitions manually. No group management.
+     * @param topicPartitions The topic partitions. null or an empty set is equivalent to
+     *                        unsubscribe from everything previously subscribed or assigned.
      */
     protected void assign (Set<TopicPartition> topicPartitions) {
         logger.info("Assigning. topic-partitions = " + topicPartitions);
+        if (topicPartitions == null) topicPartitions = Collections.emptySet();
         consumer.assign(topicPartitions);
         this.assignedPartitions = new HashSet<TopicPartition> (topicPartitions);
         this.subscriptionMode = topicPartitions.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.ASSIGNED;
     }
 
     /**
-     * Subscribes the consumer to the given topics
-     * @param topics The topics to subscribe
+     * Subscribes the consumer to the given topics. Subscription enables dynamic group assignment.
+     * @param topics The topics to subscribe. An empty list or null is treated as unsubscribe from all.
      * @param rebalanceListener an optional ConsumerRebalanceListener
      */
     protected void subscribe(Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
         logger.info("Subscribing. topics = " + topics); //$NON-NLS-1$
+        if (topics == null) topics = Collections.emptyList();
         consumer.subscribe (topics, rebalanceListener);
         this.subscriptionMode = topics.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.SUBSCRIBED;
     }

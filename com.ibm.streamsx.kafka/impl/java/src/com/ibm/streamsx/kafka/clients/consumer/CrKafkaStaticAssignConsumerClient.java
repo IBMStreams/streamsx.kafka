@@ -343,7 +343,10 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         try {
             // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
             sendStopPollingEvent();
-            if (!getMessageQueue().isEmpty()) {
+            // when CR is operator driven, do not wait for queue to be emptied.
+            // This would never happen because the tuple submitter thread is blocked in makeConsistent() in postSubmit(...)
+            if (!crContext.isTriggerOperator() && !getMessageQueue().isEmpty()) {
+                // here we are only when we are NOT the CR trigger (for example, periodic CR) and the queue contains consumer records
                 logger.debug("onDrain() waiting for message queue to become empty ...");
                 long before = System.currentTimeMillis();
                 awaitEmptyMessageQueue();

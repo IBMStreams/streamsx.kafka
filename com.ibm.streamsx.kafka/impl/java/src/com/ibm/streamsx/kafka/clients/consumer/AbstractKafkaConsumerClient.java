@@ -418,7 +418,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
      * @param checkpoint A reference of a checkpoint object where the user provides the state to be saved.
      */
-    protected abstract void checkpoint(Checkpoint data);
+    protected abstract void checkpoint(Checkpoint checkpoint);
 
     /**
      * Updates the assignment of the client to topic partitions.
@@ -452,18 +452,19 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
-        final ConsumerRecord<?,?> record = messageQueue.poll (timeout, TimeUnit.SECONDS);
-        if (record == null) {
-            // no messages - queue is empty
-            nPendingMessages.setValue(messageQueue.size());
-            try {
-                msgQueueEmptyConditionLock.lock();
+        try {
+            msgQueueEmptyConditionLock.lock();
+            // poll throws InterruptedException
+            final ConsumerRecord<?,?> record = messageQueue.poll (timeout, TimeUnit.SECONDS);
+            if (record == null) {
+                // no messages - queue is empty
+                nPendingMessages.setValue(messageQueue.size());
                 msgQueueEmptyCondition.signalAll();
-            } finally {
-                msgQueueEmptyConditionLock.unlock();
             }
+            return record;
+        } finally {
+            msgQueueEmptyConditionLock.unlock();
         }
-        return record;
     }
 
 
@@ -472,14 +473,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The waiting thread has been interrupted waiting
      */
     protected void awaitEmptyMessageQueue() throws InterruptedException {
-        while (!messageQueue.isEmpty()) {
-            try {
-                msgQueueEmptyConditionLock.lock();
+        try{
+            msgQueueEmptyConditionLock.lock();
+            while (!messageQueue.isEmpty()) {
                 msgQueueEmptyCondition.await (100l, TimeUnit.MILLISECONDS);
             }
-            finally {
-                msgQueueEmptyConditionLock.unlock();
-            }
+        }
+        finally {
+            msgQueueEmptyConditionLock.unlock();
         }
     }
 

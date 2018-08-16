@@ -19,12 +19,41 @@ public class TopicManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger logger = Logger.getLogger(TopicManager.class);
 
-    private String topic;
+    private final String topic;
+
     private transient KafkaConsumer<?, ?> offsetConsumer;
     private Map<Integer /* partition */, Long /* offset */> offsetMap;
     private List<TopicPartition> topicPartitions;
     private Set<Integer> partitions;     // must be kept consistent with topicPartitions
 
+    /**
+     * Constructs a new TopicManager.
+     * @param topic     the topic
+     * @param topicPartitions the topic partitions. They must be partitions of the given topic. 
+     * @param offsetConsumer A consumer to retrieve the offsets of next record to consume from the broker
+     */
+    public <K, V> TopicManager(String topic, List<TopicPartition> topicPartitions, KafkaConsumer<K, V> offsetConsumer) {
+        this.topic = topic;
+        this.offsetConsumer = offsetConsumer;
+        this.offsetMap = new HashMap<Integer, Long>();
+        setTopicPartitions (topicPartitions);
+    }
+
+    /**
+     * @return the topic
+     */
+    public String getTopic() {
+        return topic;
+    }
+
+    /**
+     * Returns the number of mappings from partition number to an offset.
+     * @return the number of mappings
+     */
+    public int size() {
+        return offsetMap.size();
+    }
+    
     /**
      * Get the list of topic partitions used for {@link #savePositionFromCluster()}.
      * These are not the partitions that have a mapping to an offset.
@@ -44,19 +73,6 @@ public class TopicManager implements Serializable {
         topicPartitions.forEach(tp -> partitionNumbers.add(tp.partition()));
         this.topicPartitions = topicPartitions;
         this.partitions = partitionNumbers;
-    }
-
-    /**
-     * Constructs a new TopicManager.
-     * @param topic     the topic
-     * @param topicPartitions the topic partitions. They must be partitions of the given topic. 
-     * @param offsetConsumer A consumer to retrieve the offsets of next record to consume from the broker
-     */
-    public <K, V> TopicManager(String topic, List<TopicPartition> topicPartitions, KafkaConsumer<K, V> offsetConsumer) {
-        this.topic = topic;
-        this.offsetConsumer = offsetConsumer;
-        this.offsetMap = new HashMap<Integer, Long>();
-        setTopicPartitions (topicPartitions);
     }
 
     /**

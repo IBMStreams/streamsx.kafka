@@ -241,13 +241,43 @@ public class OffsetManager implements Serializable {
      */
     public Set<TopicPartition> getMappedTopicPartitions() {
         Set<TopicPartition> result = new HashSet<>();
-        for (String topic: managerMap.keySet()) {
-            TopicManager tm = managerMap.get (topic);
+        for (TopicManager tm: managerMap.values()) {
+            String topic = tm.getTopic();
             for (Integer partition: tm.getMappedPartitions()) {
                 result.add(new TopicPartition (topic, partition));
             }
         }
         return result;
+    }
+
+    /**
+     * Returns the number of mappings from topics and partitions to offsets.
+     * This call is logically identical to {@link #getMappedTopicPartitions()}.size(), nut of lower costs.
+     * 
+     * @return the number of mappings.
+     */
+    public int size() {
+        int s = 0;
+        for (TopicManager tm: managerMap.values()) {
+            s += tm.size();
+        }
+        return s;
+    }
+
+    /**
+     * Returns true if this OffsetManager contains no mappings from topics and partitions to offsets.
+     * This call is logically equivalent to {@link #getMappedTopicPartitions()}.isEmpty(), but at lower costs.
+     * @return true if this OffsetManager
+     */
+    public boolean isEmpty() {
+        if (managerMap.isEmpty()) return true;
+        for (String topic: managerMap.keySet()) {
+            if (!managerMap.get (topic).isEmpty()) {
+                return false;
+            }
+        }
+        // all topic managers tested for emptiness - no one contained partition - offset mappings 
+        return true;
     }
 
     /**

@@ -260,10 +260,6 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         return consumerProps;
     }    
 
-    protected String serializeObject(Serializable obj) {
-        return new String(Base64.getEncoder().encode(SerializationUtils.serialize(obj)));
-    }
-
     /**
      * Makes all buffered records immediately available to send and blocks until completion of the associated requests.
      * 

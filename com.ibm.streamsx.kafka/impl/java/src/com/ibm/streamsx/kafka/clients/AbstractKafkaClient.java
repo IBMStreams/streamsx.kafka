@@ -27,7 +27,7 @@ public abstract class AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaClient.class);
 
-    public <T> String getSerializer(Class<T> clazz) throws KafkaConfigurationException {
+    public static <T> String getSerializer(Class<T> clazz) throws KafkaConfigurationException {
         if (clazz == null) throw new KafkaConfigurationException ("Unable to find serializer for 'null'");
         if (clazz.equals(String.class) || clazz.equals(RString.class)) {
             return StringSerializer.class.getCanonicalName();
@@ -46,7 +46,7 @@ public abstract class AbstractKafkaClient {
         }
     }
 
-    public String inferDeserializerFromSerializer(String serializerClassName) throws KafkaConfigurationException {
+    public static String inferDeserializerFromSerializer(String serializerClassName) throws KafkaConfigurationException {
         if (serializerClassName == null) throw new KafkaConfigurationException ("Unable to infer deserializer from serializer 'null'");
         if (serializerClassName.equals(StringSerializer.class.getCanonicalName())) {
             return StringDeserializerExt.class.getCanonicalName();
@@ -73,7 +73,7 @@ public abstract class AbstractKafkaClient {
      * @return The class name of a deserializer
      * @throws KafkaConfigurationException No matching deserializer found
      */
-    public <T> String getDeserializer(Class<T> clazz) throws KafkaConfigurationException {
+    public static <T> String getDeserializer(Class<T> clazz) throws KafkaConfigurationException {
         if (clazz == null) throw new KafkaConfigurationException ("Unable to find deserializer for 'null'");
         if (clazz.equals(String.class) || clazz.equals(RString.class)) {
             return StringDeserializerExt.class.getCanonicalName();
@@ -105,7 +105,7 @@ public abstract class AbstractKafkaClient {
      * @param obj The object to be serialized
      * @return a base64 encoded String that represents the serialized object
      */
-    protected String serializeObject(Serializable obj) {
+    protected static String serializeObject(Serializable obj) {
         return new String(Base64.getEncoder().encode(SerializationUtils.serialize(obj)));
     }
     
@@ -113,12 +113,23 @@ public abstract class AbstractKafkaClient {
      * Creates a random String that can contain an optional prefix.
      * The length of the random part is 17 characters.
      * @param prefix A prefix. Can be null or empty if a prefix is not needed.
+     * @param randomLength the length of the random part
      * @return The prefix + 17 random alpha numeric characters
      */
-    protected String getRandomId (String prefix) {
-        String random = RandomStringUtils.randomAlphanumeric(17);
+    protected static String getRandomId (String prefix, int randomLength) {
+        String random = RandomStringUtils.randomAlphanumeric(randomLength);
         String id = prefix == null? random: prefix + random;
         logger.debug("Random id=" + id); //$NON-NLS-1$
         return id;
+    }
+
+    /**
+     * Creates a random String that can contain an optional prefix.
+     * The length of the random part is 17 characters.
+     * @param prefix A prefix. Can be null or empty if a prefix is not needed.
+     * @return The prefix + 17 random alpha numeric characters
+     */
+    protected static String getRandomId (String prefix) {
+        return getRandomId (prefix, 17);
     }
 }

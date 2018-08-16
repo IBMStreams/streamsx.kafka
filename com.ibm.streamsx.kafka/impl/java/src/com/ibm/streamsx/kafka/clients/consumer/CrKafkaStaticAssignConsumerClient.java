@@ -460,7 +460,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
     /**
      * Creates a checkpoint of the current state when used in consistent region.
      * Only the offset manager is included into the checkpoint.
-     * @param the reference of the checkpoint object
+     * @param checkpoint the reference of the checkpoint object
      */
     @Override
     protected void checkpoint (Checkpoint checkpoint) {

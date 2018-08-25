@@ -401,6 +401,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
     }
+
     @ContextCheck(compile = true)
     public static void checkInputPort(OperatorContextChecker checker) {
         List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
@@ -411,7 +412,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
              *  * topic
              *  * partition
              *  * startPosition
-             */             
+             */
             if(paramNames.contains(TOPIC_PARAM) 
                     || paramNames.contains(PARTITION_PARAM) 
                     || paramNames.contains(START_POSITION_PARAM)) {
@@ -696,7 +697,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         OperatorContext context = getOperatorContext();
         logger.trace("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
-        // start the thread that produces the tuples out of the message queue. The thread runs the produceTuples method.
+        // start the thread that produces the tuples out of the message queue. The thread runs the produceTuples() method.
         if(processThread != null)
             processThread.start();
     }
@@ -926,6 +927,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // For every tuple that is submitted, its next offset is stored in a data structure (offset manager).
         // On checkpoint, the offset manager is saved. On reset of the CR, the consumer starts reading at these previously saved offsets,
         // reading the messages since last checkpoint again.
+    }
+
+    /**
+     * @see com.ibm.streamsx.kafka.operators.AbstractKafkaOperator#retireCheckpoint(long)
+     */
+    @Override
+    public void retireCheckpoint (long id) throws Exception {
+        logger.debug(">>> RETIRE CHECKPOINT (ckpt id=" + id + ")");
+        consumer.onCheckpointRetire (id);
     }
 
     @Override

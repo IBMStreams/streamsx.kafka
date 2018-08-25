@@ -181,6 +181,6 @@ public class TopicManager implements Serializable {
 
     @Override
     public String toString() {
-        return "TopicManager [topic=" + topic + ", offsetMap=" + offsetMap + "]"; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+        return "TopicManager [topic=" + topic + "-" + partitions + ", offsetMap=" + offsetMap + "]"; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
     }
 }

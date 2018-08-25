@@ -91,6 +91,12 @@ public interface ConsumerClient {
      * @throws Exception
      */
     void onDrain() throws Exception;
+    
+    /**
+     * Action to be performed when a checkpoint is retired.
+     * @param id The checkpoint sequence ID
+     */
+    void onCheckpointRetire (long id);
 
     /**
      * Initiates checkpointing of the consumer client.

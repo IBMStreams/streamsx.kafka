@@ -634,7 +634,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     /**
      * Returns the maximum amount of time in milliseconds that the broker allows between 
      * each poll before kicking a consumer out of the consumer group.
-     * @return the maxPollIntervalMs
+     * @return the value of the consumer config max.poll.interval.ms
      */
     public long getMaxPollIntervalMs() {
         return maxPollIntervalMs;
@@ -676,6 +676,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(event);
         event.await();
+    }
+
+    /**
+     * Initiates stop polling for Kafka messages without waiting that the event has been processed.
+     * Effectively, it only inserts an event into the event queue.
+     */
+    protected void sendStopPollingEventAsync() {
+        Event event = new Event (EventType.STOP_POLLING);
+        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        eventQueue.add(event);
+
     }
 
     /**
@@ -774,6 +785,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         event.await (timeout, timeUnit);
     }
 
+
+
+    /**
+     * This is an empty default implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpointRetire(long)
+     */
+    @Override
+    public void onCheckpointRetire(long id) {
+    }
 
 
     /**

@@ -1,5 +1,6 @@
 package com.ibm.streamsx.kafka.operators;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -31,8 +32,6 @@ import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
-import com.ibm.streams.operator.control.ControlPlaneContext;
-import com.ibm.streams.operator.control.Controllable;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.Parameter;
@@ -164,8 +163,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "it requires the **partition** parameter.\\n"
                     + "\\n"
                     + "The default value is `Static`.")
-    public void setConsistentRegionAssignmentMode (ConsistentRegionAssignmentMode consistentRegionAssignmentMode) {
-        this.consistentRegionAssignmentMode = consistentRegionAssignmentMode;
+    public void setConsistentRegionAssignmentMode (String consistentRegionAssignmentMode) {
+        /*public void setConsistentRegionAssignmentMode (ConsistentRegionAssignmentMode consistentRegionAssignmentMode) {*/
+        try {
+            this.consistentRegionAssignmentMode = ConsistentRegionAssignmentMode.valueOf (consistentRegionAssignmentMode);
+        }
+        catch (Exception e) {
+            throw new RuntimeException (Messages.getString ("INVALID_PARAMETER_VALUE",
+                    consistentRegionAssignmentMode, CR_ASSIGNMENT_MODE_PARAM, Arrays.toString (ConsistentRegionAssignmentMode.values())));
+        }
     }
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,

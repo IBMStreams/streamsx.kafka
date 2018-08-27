@@ -81,6 +81,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nPendingMessages;
     private final Metric nLowMemoryPause;
     private final Metric nQueueFullPause;
+    protected final Metric nAssignedPartitions;
 
     // Lock/condition for when we pause processing due to
     // no space on the queue or low memory.
@@ -134,6 +135,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nPendingMessages = operatorContext.getMetrics().getCustomMetric("nPendingMessages");
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
+        this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric("nAssignedPartitions");
         this.operatorContext = operatorContext;
     }
 
@@ -699,6 +701,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (topicPartitions == null) topicPartitions = Collections.emptySet();
         consumer.assign(topicPartitions);
         this.assignedPartitions = new HashSet<TopicPartition> (topicPartitions);
+        // update metric:
+        nAssignedPartitions.setValue (this.assignedPartitions.size());
         this.subscriptionMode = topicPartitions.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.ASSIGNED;
     }
 

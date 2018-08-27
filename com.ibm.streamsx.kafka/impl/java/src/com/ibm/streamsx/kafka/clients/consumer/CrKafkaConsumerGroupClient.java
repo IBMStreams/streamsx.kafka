@@ -653,6 +653,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Set<TopicPartition> previousAssignment = new HashSet<>(getAssignedPartitions());
         getAssignedPartitions().clear();
         getAssignedPartitions().addAll (newAssignedPartitions);
+        nAssignedPartitions.setValue (newAssignedPartitions.size());
         Set<TopicPartition> gonePartitions = new HashSet<>(previousAssignment);
         gonePartitions.removeAll (newAssignedPartitions);
         logger.info("topic partitions that are not assigned anymore: " + gonePartitions);

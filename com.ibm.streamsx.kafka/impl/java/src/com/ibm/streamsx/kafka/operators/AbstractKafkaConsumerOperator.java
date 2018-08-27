@@ -136,6 +136,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }
 
+    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of Kafka topic partitions assigned to the consumer.")
+    public void setnAssignedPartitions(Metric nAssignedPartitions) {
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
+
     @Parameter(optional = true, name = CR_ASSIGNMENT_MODE_PARAM,
             description = "Specifies how the operator assigns topic partitions when in a consistent region. "
                     + "If `Static` is specified, the operator assigns itself to the partitions specified in "

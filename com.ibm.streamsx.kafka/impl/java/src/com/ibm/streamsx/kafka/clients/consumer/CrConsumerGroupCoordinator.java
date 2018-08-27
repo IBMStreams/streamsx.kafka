@@ -83,8 +83,8 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         MergeKey mergeKey = new MergeKey (chkptSequenceId, resetAttempt);
 
         synchronized (this) {
-            trace.info (MessageFormat.format("mergePartialCheckpoint() [{4}][{3}]: seqId/resetAttempt = {0}, expectedPartitions = {1}, partialResetOffsetMap = {2}",
-                    mergeKey, allPartitions, partialResetOffsetMap, operatorName, groupId));
+            trace.info (MessageFormat.format("mergeConsumerCheckpoint() -entering: [{0}, {1}] - seqId/resetAttempt = {2}, partialResetOffsetMap = {3}, expectedPartitions = {4}",
+                    operatorName, groupId, mergeKey, partialResetOffsetMap, allPartitions));
 
             Integer highestResetAttemptObj = highestResetAttempts.get (chkptSequenceId);
             if (highestResetAttemptObj == null) {
@@ -94,8 +94,8 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
                 // try to detect resetAttempt reset
                 int highestResetAttempt = highestResetAttemptObj.intValue();
                 if (resetAttempt < highestResetAttempt) {
-                    trace.info (MessageFormat.format("mergePartialCheckpoint() [{2}]: resetAttempt counter reset from {0} to {1} detected. Cleaning up ...",
-                            highestResetAttemptObj, resetAttempt, groupId));
+                    trace.info (MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - resetAttempt counter reset from {2} to {3} detected. Cleaning up ...",
+                            operatorName, groupId, highestResetAttemptObj, resetAttempt));
                     for (int attempt = 0; attempt <= highestResetAttempt; ++attempt) {
                         mergeMap.remove (new MergeKey(chkptSequenceId, attempt));
                     }
@@ -105,26 +105,29 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
 
             CheckpointMerge merge = mergeMap.get(mergeKey);
             if (merge == null) {
-                merge = new CheckpointMerge();
+                merge = new CheckpointMerge (mergeKey);
                 mergeMap.put (mergeKey, merge);
             }
             else {
                 if (merge.containsPartitionPart (partialResetOffsetMap)) {
-                    trace.info(MessageFormat.format("[{1}] partial offsets {0} already seen here. Creating new merge.", partialResetOffsetMap.keySet(), groupId));
-                    merge = new CheckpointMerge();
+                    trace.info(MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - partial offsets {2} already seen for seqId/attempt {3}. Creating new merge.",
+                            operatorName, groupId, partialResetOffsetMap.keySet(), mergeKey));
+                    merge = new CheckpointMerge (mergeKey);
                     mergeMap.put (mergeKey, merge);
                 }
             }
             completeBeforeMerge = merge.isComplete();
-            mergeComplete = merge.addContribution (allPartitions, partialResetOffsetMap);
+            mergeComplete = merge.addContribution (operatorName, allPartitions, partialResetOffsetMap);
         }
         if (mergeComplete && !completeBeforeMerge) {
-            trace.info(MessageFormat.format("mergeConsumerCheckpoint() [{1}]: offset merge became complete. Sending merge complete notification for seqId {0}", mergeKey, groupId));
+            trace.info(MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - offset merge became complete. Sending merge complete notification for seqId {2}",
+                    operatorName, groupId, mergeKey));
             // the sequence number is the checkpoint sequence ID, the message contains the reset attempt
             Notification notif = new Notification (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, this, chkptSequenceId, "" + resetAttempt);
             trace.info("sending JMX notification ...");
             sendNotification (notif);
-            trace.info(MessageFormat.format("mergeConsumerCheckpoint() [{1}]: notification sent: {0}", notif, groupId));
+            trace.info(MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - JMX notification sent: {2}",
+                    operatorName, groupId, notif));
         }
     }
 
@@ -140,17 +143,23 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
      */
     public Map<CrConsumerGroupCoordinator.TP, Long> getConsolidatedOffsetMap (long chkptSequenceId, int resetAttempt, String operatorName) {
         MergeKey mergeKey = new MergeKey (chkptSequenceId, resetAttempt);
-        trace.info (MessageFormat.format("getConsolidatedOffsetMap() [{2}][{1}]: seqId/resetAttempt = {0}", mergeKey, operatorName, groupId));
+        trace.info (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - seqId/resetAttempt = {2}",
+                operatorName, groupId, mergeKey));
         CheckpointMerge merge = mergeMap.get (mergeKey);
         if (merge == null) {
-            trace.warn (MessageFormat.format("[{1}]offset map for seqId {0} not found. Returning an empty Map.", mergeKey, groupId));
+            trace.warn (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - offset map for seqId {2} not found. Returning an empty Map.",
+                    operatorName, groupId, mergeKey));
             return (Collections.emptyMap());
         }
         assert (merge != null);
         if (!merge.isComplete()) {
-            trace.warn (MessageFormat.format("[{1}] returning incomplete offset map for seqId {0}.", mergeKey, groupId));
+            trace.warn (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - returning incomplete offset map for seqId {2}.",
+                    operatorName, groupId, mergeKey));
         }
-        return merge.getConsolidatedOffsetMap();
+        Map<CrConsumerGroupCoordinator.TP, Long> returnVal = merge.getConsolidatedOffsetMap();
+        trace.info (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - return = {2}",
+                operatorName, groupId, returnVal));
+        return returnVal;
     }
 
 
@@ -356,11 +365,20 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         private Set<Set<CrConsumerGroupCoordinator.TP>> nonEmptyContributions = new HashSet<>();
         private int nContributions = 0;
         private boolean complete = false;
+        private final MergeKey key;
 
-        public boolean addContribution (Set<CrConsumerGroupCoordinator.TP> allPartitions, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap) {
+        /**
+         * @param key
+         */
+        public CheckpointMerge (MergeKey key) {
+            this.key = key;
+        }
+
+        public boolean addContribution (String operatorName, Set<CrConsumerGroupCoordinator.TP> allPartitions, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap) {
             if (!this.expectedPartitions.isEmpty()) {
                 if (!this.expectedPartitions.equals (allPartitions)) {
-                    trace.info ("operator checkpoints have different allPartition sets: " + this.expectedPartitions + " <--> " + allPartitions);
+                    trace.info (MessageFormat.format ("addContribution(): [{0}, {1}] - operator checkpoints have different allPartition sets: {2} <--> {3}",
+                            operatorName, key, this.expectedPartitions, allPartitions));
                 }
             }
             this.expectedPartitions.addAll (allPartitions);
@@ -370,9 +388,11 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             }
             ++nContributions;
             this.consolidatedOffsetMap.putAll (partialResetOffsetMap);
-            trace.info ("addContribution(): consolidated offset map: " + consolidatedOffsetMap + ", expected partition set: " + expectedPartitions);
+            trace.info (MessageFormat.format ("addContribution(): [{0}, {1}] - consolidated offset map = {2}, expected partition set = {3}",
+                    operatorName, key, consolidatedOffsetMap, expectedPartitions));
             if (this.consolidatedOffsetMap.keySet().containsAll (this.expectedPartitions)) {
-                trace.info("addContribution(): consolidated offset map treated complete");
+                trace.info (MessageFormat.format ("addContribution(): [{0}, {1}] - consolidated offset map treated complete",
+                        operatorName, key));
                 complete = true;
             }
             return complete;

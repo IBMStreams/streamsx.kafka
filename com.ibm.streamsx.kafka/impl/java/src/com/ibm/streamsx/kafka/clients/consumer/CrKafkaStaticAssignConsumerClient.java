@@ -35,7 +35,6 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClient {
 
     private static final Logger logger = Logger.getLogger(CrKafkaStaticAssignConsumerClient.class);
-    private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 20;
 
     private long triggerCount; 
     private long nSubmittedRecords = 0l;
@@ -89,18 +88,6 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
     public void setTriggerCount (long triggerCount) {
         this.triggerCount = triggerCount;
     }
-
-
-    /**
-     * For this consumer client the message queue size shall be smaller than default to ensure fast drain.
-     * @return {@value #MESSAGE_QUEUE_SIZE_MULTIPLIER}
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#getMessageQueueSizeMultiplier()
-     */
-    @Override
-    protected int getMessageQueueSizeMultiplier() {
-        return MESSAGE_QUEUE_SIZE_MULTIPLIER;
-    }
-
 
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#validate()

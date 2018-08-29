@@ -68,7 +68,6 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient implements ConsumerRebalanceListener, Controllable, NotificationListener {
 
     private static final Logger logger = Logger.getLogger(CrKafkaConsumerGroupClient.class);
-    private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 10;
     private static final String MBEAN_DOMAIN_NAME = "com.ibm.streamsx.kafka";
 
     private static enum ClientState {
@@ -147,17 +146,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         ClientState newState = ClientState.INITIALIZED;
         logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
         state = newState;
-    }
-
-
-    /**
-     * For this consumer client the message queue size shall be smaller than default to ensure fast drain.
-     * @return {@value #MESSAGE_QUEUE_SIZE_MULTIPLIER}
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#getMessageQueueSizeMultiplier()
-     */
-    @Override
-    protected int getMessageQueueSizeMultiplier() {
-        return MESSAGE_QUEUE_SIZE_MULTIPLIER;
     }
 
     /**
@@ -470,6 +458,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         try {
             // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
             sendStopPollingEvent();
+            logger.debug("onDrain(): sendStopPollingEvent() exit: event processed by poll thread");
             ClientState newState = ClientState.DRAINING;
             logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
@@ -478,10 +467,10 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // and cannot empty the queue
             if (!getCrContext().isTriggerOperator() && !getMessageQueue().isEmpty()) {
                 // here we are only when we are NOT the CR trigger (for example, periodic CR) and the queue contains consumer records
-                logger.debug("onDrain() waiting for message queue to become empty ...");
+                logger.info("onDrain() waiting for message queue to become empty ...");
                 long before = System.currentTimeMillis();
                 awaitEmptyMessageQueue();
-                logger.debug("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
+                logger.info("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
             }
             final boolean commitSync = true;
             final boolean commitPartitionWise = false;   // commit all partitions in one server request
@@ -942,8 +931,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // check notification and wait
             jmxNotificationConditionLock.lock();
             long waitStartTime= System.currentTimeMillis();
-            long timeoutMillis = (long) (getCrContext().getResetTimeout() * 500.0);  // half of the reset timeout of the CR (seconds * 1000 /2)
-            if (timeoutMillis > 60000) timeoutMillis = 60000;
+            long timeoutMillis = (long) (getCrContext().getResetTimeout() * 250.0);  // 1/4 of the reset timeout of the CR (seconds * 1000 /4)
+            if (timeoutMillis > 30000) timeoutMillis = 30000;
             if (timeoutMillis > getMaxPollIntervalMs()/2) timeoutMillis = getMaxPollIntervalMs()/2; // must be smaller than max.poll.interval.ms
             boolean waitTimeLeft = true;
             int nWaits = 0;

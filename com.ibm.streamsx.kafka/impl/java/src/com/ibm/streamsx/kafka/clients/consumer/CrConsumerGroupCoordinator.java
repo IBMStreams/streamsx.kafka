@@ -26,7 +26,7 @@ import org.apache.log4j.Logger;
  * @author IBM Kafka toolkit maintainers
  * @see CrConsumerGroupCoordinatorMXBean
  */
-public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /*AbstractPersistentControlMBean<Set<CrConsumerGroupCoordinator.TP>>*/ implements CrConsumerGroupCoordinatorMXBean {
+public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /*AbstractPersistentControlMBean<Map<MergeKey, CheckpointMerge>>*/ implements CrConsumerGroupCoordinatorMXBean {
 
     private final static Logger trace = Logger.getLogger(CrConsumerGroupCoordinator.class);
 
@@ -221,7 +221,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         public MergeKey (long sequenceId, int resetAttempt) {
             this.sequenceId = sequenceId;
             this.resetAttempt = resetAttempt;
-            this.toString = MessageFormat.format("{0}-{1}", sequenceId, resetAttempt);
+            this.toString = MessageFormat.format("{0}/{1}", sequenceId, resetAttempt);
         }
 
         /**
@@ -360,7 +360,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
     private class CheckpointMerge implements Serializable {
         private static final long serialVersionUID = 1L;
         private Map<CrConsumerGroupCoordinator.TP, Long> consolidatedOffsetMap  = new HashMap<>();
-        /** Set of topic partitions for which we expect offsets by several calls of {@link #mergeConsumerCheckpoint(long, Set, Map)}*/
+        /** Set of topic partitions for which we expect offsets by several calls of {@link CrConsumerGroupCoordinator#mergeConsumerCheckpoint(long, int, Set, Map, String)}*/
         private Set<CrConsumerGroupCoordinator.TP> expectedPartitions = new HashSet<>();
         private Set<Set<CrConsumerGroupCoordinator.TP>> nonEmptyContributions = new HashSet<>();
         private int nContributions = 0;

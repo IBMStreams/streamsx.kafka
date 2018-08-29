@@ -1,0 +1,80 @@
+namespace com.ibm.streamsx.kafka.sample ;
+
+use com.ibm.streamsx.kafka::KafkaConsumer ;
+use com.ibm.streamsx.kafka::KafkaProducer ;
+
+/*
+ * This sample is a Consistent Region sample that demonstrates the use of multiple consumers in a consumer group.
+ * You can kill any of the PEs in the graph that produces Kafka messages. The result file should always be the same.
+ */
+composite KafkaConsumerGroupWithConsistentRegion {
+    param
+        // settings for the consumer group
+        expression <int32> $nConsumers: 3;   // number of consumers in the consumer group; can be different than number of partitions
+        expression <rstring> $topic: "test";
+        // settings for the producer
+        expression <int32> $nPartitions: 3;      // number of partitions; needed for tuple distribution
+        expression <uint32> $numTuples: 100000u; // number of tuples for the producer before it stops
+
+    graph
+        // for Consistent Region we must include JobControlPlane operator
+        () as JCP = JobControlPlane() {}
+
+        @parallel (width = $nConsumers)
+        @consistent (trigger=periodic, period=60.0 /*seconds*/, maxConsecutiveResetAttempts=10)
+        stream <rstring message, int32 partition, rstring key> ConsumedMsgs = KafkaConsumer() {
+            param
+                propertiesFile: "etc/consumer.properties";
+                topic: $topic;
+                groupId: "myGroupId";
+                startPosition: Default;
+                consistentRegionAssignmentMode: "GroupCoordinated";
+        }
+    
+        // some analytics; if we scale up the analytics using parallel channels, it is important
+        // that the parallel channels are partitioned by something within the message, so that replayed
+        // messages in case of consistent region reset go into the same channel even when the replayed tuples
+        // come from an other KafkaConsumer
+        @parallel (width = 2, partitionBy = [{port = I, attributes = [key]}])
+        stream <I> Analytics = Filter (ConsumedMsgs as I) {
+            param
+                filter: key != "";
+        }
+        
+        () as Stdout = Custom (Analytics as I) {
+            logic onTuple I: printStringLn ((rstring)I);
+        }
+
+        () as Outfile = FileSink (Analytics) {
+            param
+                file: "/tmp/KafkaConsumerGroupWithConsistentRegion.out.csv";
+                truncateOnReset: true;
+                flush: 1u;
+        }
+
+
+
+        // producer
+        stream <int32 cnt, rstring message> GeneratedData = Beacon() {
+            param
+                iterations : $numTuples;
+                period : 0.02;
+                initDelay : 10.0;
+            output
+                GeneratedData: cnt = (int32) IterationCount(), message = "this is Kafka message number " +(rstring) IterationCount();
+        }
+
+        
+        stream <rstring message, rstring key, int32 targetPartition> ProducerData = Functor (GeneratedData as I) {
+            output ProducerData: key = (rstring) hashCode(message), targetPartition = I.cnt % $nPartitions;
+        }
+
+        () as KafkaProducedMsgs = KafkaProducer (ProducerData) {
+            param
+                topic: $topic;
+//                keyAttribute: key;            // 'key' is default value
+//                messageAttribute: message;    // 'message' is default value
+                partitionAttribute: targetPartition;
+                propertiesFile : "etc/producer.properties";
+        }
+}

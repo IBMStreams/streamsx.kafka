@@ -264,7 +264,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 continue;
             }
 
-            logger.debug("Received event: " + event.getEventType().name()); //$NON-NLS-1$
+            logger.info ("Received event: " + event.getEventType().name()); //$NON-NLS-1$
             switch (event.getEventType()) {
             case START_POLLING:
                 runPollLoop ((Long) event.getData());
@@ -454,19 +454,21 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
+        ConsumerRecord<?,?> record = null;
         try {
             msgQueueEmptyConditionLock.lock();
-            // poll throws InterruptedException
-            final ConsumerRecord<?,?> record = messageQueue.poll (timeout, TimeUnit.SECONDS);
+            // messageQueue.poll throws InterruptedException
+            record = messageQueue.poll (timeout, timeUnit);
             if (record == null) {
+                if (logger.isInfoEnabled()) logger.info("message queue is empty");
                 // no messages - queue is empty
-                nPendingMessages.setValue(messageQueue.size());
+                nPendingMessages.setValue (messageQueue.size());
                 msgQueueEmptyCondition.signalAll();
             }
-            return record;
         } finally {
             msgQueueEmptyConditionLock.unlock();
         }
+        return record;
     }
 
 
@@ -532,13 +534,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     throw e;
                 }
             }
+            else {
+                logger.warn ("still no space in messagequeue ...");
+            }
         }
         logger.debug("Stop polling. Message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
     }
 
     /**
      * Checks for available space in the message queue including memory consumption
-     * and waits 100 ms if the space is not sufficient.
+     * and waits up to 100 ms if the space is not sufficient.
      * Maintains the metrics `nPendingMessages`, `nLowMemoryPause`, and `nQueueFullPause`.
      * 
      * @throws InterruptedException Thread interrupted while waiting.
@@ -546,25 +551,29 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private boolean isSpaceInMsgQueueWait() throws InterruptedException {
         boolean space = messageQueue.isEmpty();
         boolean lowMemory = false;
+        int remainingCapacity = 0;
+        int mqSize = 0;
         if (!space) {
-            if (messageQueue.size() <= 4 * maxPollRecords)
+            // queue not empty
+            mqSize = messageQueue.size();
+            if (mqSize <= 4 * maxPollRecords)
                 space = true;
             else {
                 lowMemory = isLowMemory();
-                space = !lowMemory &&
-                        messageQueue.remainingCapacity() >= maxPollRecords;
+                remainingCapacity = messageQueue.remainingCapacity();
+                space = !lowMemory && remainingCapacity >= maxPollRecords;
             }
         }
         if (!space) {
-            if (logger.isDebugEnabled()) {
+            if (logger.isInfoEnabled()) {
                 if (lowMemory)
-                    logger.debug ("low memory detected: messages queued (" + messageQueue.size() //$NON-NLS-1$
+                    logger.info ("low memory detected: messages queued (" + mqSize //$NON-NLS-1$
                     + "). Skipping poll cycle."); //$NON-NLS-1$
                 else
-                    logger.debug ("remaining capacity in message queue (" + messageQueue.remainingCapacity() //$NON-NLS-1$
+                    logger.info ("remaining capacity in message queue (" + remainingCapacity //$NON-NLS-1$
                     + ") < maxPollRecords (" + maxPollRecords + "). Skipping poll cycle."); //$NON-NLS-1$
             }
-            nPendingMessages.setValue(messageQueue.size());
+            nPendingMessages.setValue(mqSize);
             if (lowMemory)
                 nLowMemoryPause.increment();
             else
@@ -576,7 +585,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             } finally {
                 msgQueueEmptyConditionLock.unlock();
             }
-            nPendingMessages.setValue(messageQueue.size());
+            nPendingMessages.setValue(mqSize);
         }
         return space;
     }
@@ -651,7 +660,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     public void sendCommitEvent (CommitInfo offsets) throws InterruptedException {
         Event event = new Event (EventType.COMMIT_OFFSETS, offsets, offsets.isCommitSynchronous());
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info ("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add (event);
         event.await();
     }
@@ -663,7 +672,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendStartPollingEvent() {
         Event event = new Event (EventType.START_POLLING, new Long (pollTimeout), false);
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info ("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add (event);
     }
 
@@ -675,7 +684,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendStopPollingEvent() throws InterruptedException {
         Event event = new Event (EventType.STOP_POLLING, true);
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info("Sending " + event + " event ..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(event);
         event.await();
     }
@@ -686,7 +695,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void sendStopPollingEventAsync() {
         Event event = new Event (EventType.STOP_POLLING);
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info ("Sending " + event + " event async ..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(event);
 
     }
@@ -728,7 +737,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendUpdateTopicAssignmentEvent (final TopicPartitionUpdate update) throws InterruptedException {
         Event event = new Event(EventType.UPDATE_ASSIGNMENT, update, true);
-        logger.debug("Sending " + event + " event: " + update);
+        logger.info("Sending " + event + " event: " + update);
         eventQueue.add(event);
         event.await();
     }
@@ -742,7 +751,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendCheckpointEvent (Checkpoint checkpoint) throws InterruptedException {
         Event event = new Event(EventType.CHECKPOINT, checkpoint, true);
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(event);
         event.await();
     }
@@ -756,7 +765,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendResetEvent (final Checkpoint checkpoint) throws InterruptedException {
         Event event = new Event(EventType.RESET, checkpoint, true);
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(event);
         event.await();
     }
@@ -769,7 +778,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendResetToInitEvent() throws InterruptedException {
         Event event = new Event(EventType.RESET_TO_INIT, true);
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(event);
         event.await();
     }
@@ -784,7 +793,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendShutdownEvent (long timeout, TimeUnit timeUnit) throws InterruptedException {
         Event event = new Event(EventType.SHUTDOWN, true);
-        logger.debug("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
         eventQueue.add(event);
         event.await (timeout, timeUnit);
     }

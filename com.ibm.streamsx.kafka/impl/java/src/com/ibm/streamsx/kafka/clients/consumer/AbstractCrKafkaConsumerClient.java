@@ -19,6 +19,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsumerClient {
 
     private static final Logger tracer = Logger.getLogger(AbstractCrKafkaConsumerClient.class);
+    private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
+
     private final ConsistentRegionContext crContext;
     private final ControlPlaneContext jcpContext;
 
@@ -47,6 +49,16 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
             tracer.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
         }
         kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+    }
+
+    /**
+     * For this consumer client the message queue size shall be smaller than default to ensure fast drain.
+     * @return {@value #MESSAGE_QUEUE_SIZE_MULTIPLIER}
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#getMessageQueueSizeMultiplier()
+     */
+    @Override
+    protected int getMessageQueueSizeMultiplier() {
+        return MESSAGE_QUEUE_SIZE_MULTIPLIER;
     }
 
     /**

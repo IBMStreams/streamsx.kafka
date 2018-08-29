@@ -32,6 +32,7 @@ import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.management.MetricMXBean.MetricType;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.Parameter;
@@ -114,11 +115,25 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     // The number of messages in which the value was malformed and could not be deserialized
     private Metric nMalformedMessages;
+    // metrics for drain time
+    long maxDrainMillis = 0l;
+    private Metric drainTimeMillis;
+    private Metric maxDrainTimeMillis;
 
     // Initialize the metrics
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages")
     public void setnMalformedMessages (Metric nMalformedMessages) {
         this.nMalformedMessages = nMalformedMessages;
+    }
+
+    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Drain time of this operator in milliseconds", name = "drainTimeMillis")
+    public void setDrainTimeMillis (Metric drainTimeMillis) {
+        this.drainTimeMillis = drainTimeMillis;
+    }
+
+    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Maximum Drain time of this operator in milliseconds", name = "drainTimeMillisMax")
+    public void setMaxDrainTimeMillis(Metric maxDrainTimeMillis) {
+        this.maxDrainTimeMillis = maxDrainTimeMillis;
     }
 
     @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of pending messages to be submitted as tuples.")
@@ -743,7 +758,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
             try {
                 // Any exceptions except InterruptedException thrown here are propagated to the caller
-                ConsumerRecord<?, ?> record = consumer.getNextRecord (1, TimeUnit.SECONDS);
+                ConsumerRecord<?, ?> record = consumer.getNextRecord (100, TimeUnit.MILLISECONDS);
                 if (record != null) {
                     submitRecord(record);
                     consumer.postSubmit(record);
@@ -770,8 +785,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     private void submitRecord(ConsumerRecord<?, ?> record) throws Exception {
-        if (logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             logger.trace("Preparing to submit record: " + record.topic() + "-" + record.partition() + "[" + record.offset() + "]"); //$NON-NLS-1$
+        }
         // issue #65 (https://github.com/IBMStreams/streamsx.kafka/issues/65):
         // in case of deserialization errors we return 'null', otherwise a vaild object.
         // In these cases we drop the record and increment the metric 'nMalformedMessages'.
@@ -924,7 +940,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void drain() throws Exception {
-        logger.debug(">>> DRAIN"); //$NON-NLS-1$
+        logger.info(">>> DRAIN"); //$NON-NLS-1$
+        long before = System.currentTimeMillis();
         consumer.onDrain();
         // When a checkpoint is to be created, the operator must stop sending tuples by pulling messages out of the messageQueue.
         // This is achieved via acquiring a permit. In the background, more messages are pushed into the queue by a receive thread
@@ -932,6 +949,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // For every tuple that is submitted, its next offset is stored in a data structure (offset manager).
         // On checkpoint, the offset manager is saved. On reset of the CR, the consumer starts reading at these previously saved offsets,
         // reading the messages since last checkpoint again.
+        long after = System.currentTimeMillis();
+        final long drainMillis = after - before;
+        this.drainTimeMillis.setValue (drainMillis);
+        if (drainMillis > maxDrainMillis) {
+            this.maxDrainTimeMillis.setValue(drainMillis);
+            maxDrainMillis = drainMillis;
+        }
+        logger.info(">>> DRAIN took " + drainMillis + " ms");
     }
 
     /**

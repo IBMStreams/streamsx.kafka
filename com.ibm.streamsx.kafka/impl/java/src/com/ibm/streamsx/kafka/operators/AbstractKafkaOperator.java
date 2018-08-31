@@ -54,7 +54,11 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     @Parameter(optional = true, name="propertiesFile", 
     		description="Specifies the name of the properties file "
-    				+ "containing Kafka properties.")
+    				+ "containing Kafka properties.  A relative path is always "
+    				+ "interpreted as relative to the application directory of the "
+    				+ "Streams application. If the credential file is placed in the `etc` "
+    				+ "directory of the application bundle, specify "
+    				+ "`getThisToolkitDir() + \\\"/etc/<your filename>\\\"` as the parameter value.")
     public void setPropertiesFile(String propertiesFile) {
         this.propertiesFile = propertiesFile;
     }

@@ -15,6 +15,12 @@ sidebar:
 
 [Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/spldoc/html/)
 
+#### Toolkit documentation for 1.5.0 alpha release
+
+[Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.5.0.alpha/spldoc/html/)
+
+Please note, that this toolkit release is an early pre-release, which still constains instabilities.
+
 ### Toolkit documentation for previous versions
 
 #### v1.4.1

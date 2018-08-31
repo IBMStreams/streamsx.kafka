@@ -32,7 +32,6 @@ import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
-import com.ibm.streams.operator.management.MetricMXBean.MetricType;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.Parameter;
@@ -131,7 +130,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.drainTimeMillis = drainTimeMillis;
     }
 
-    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Maximum Drain time of this operator in milliseconds", name = "drainTimeMillisMax")
+    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Maximum drain time of this operator in milliseconds", name = "drainTimeMillisMax")
     public void setMaxDrainTimeMillis(Metric maxDrainTimeMillis) {
         this.maxDrainTimeMillis = maxDrainTimeMillis;
     }
@@ -157,32 +156,33 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @Parameter(optional = true, name = CR_ASSIGNMENT_MODE_PARAM,
-            description = "Specifies how the operator assigns topic partitions when in a consistent region. "
-                    + "If `Static` is specified, the operator assigns itself to the partitions specified in "
-                    + "**partition** parameter or assigns it self to all partitions of the specified topics. "
-                    + "The operator will not be managed by Kafka. Group management is disabled. "
+            description = "Specifies how the operator assigns topic partitions when in a consistent region."
+                    + "\\n"
+                    + "* If `Static` is specified, the operator assigns itself to the partitions specified in "
+                    + "**partition** parameter or assigns itself to all partitions of the specified topics. "
+                    + "The consumer will not be managed by Kafka. Group management is disabled. "
                     + "This mode guarantees that the operator "
-                    + "replays after reset of the consistent region the same tuples that it has submitted "
+                    + "replays the same tuples after reset of the consistent region that it has submitted "
                     + "before. The partition assignment of an operator does not change after region reset.\\n"
                     + "\\n"
-                    + "If `GroupCoordinated` is specified, the operator will participate in a consumer group. "
-                    + "In this case, Kafka decides which topic partitions are consumed by the operator. "
+                    + "* If `GroupCoordinated` is specified, the operator will participate in a consumer group. "
+                    + "In this case, Kafka decides which topic partitions are assigned to the operator for consumption. "
                     + "This implies that the partition assignment of an individual operator can change during "
                     + "consistent region reset. After reset, the operator can replay tuples that have been "
-                    + "submitted by a different operator in the same consumer group before that reset. "
-                    + "All operators in the consumer group replay the same set of tuples, however.\\n"
+                    + "submitted by a different operator in the same consumer group before the reset happened. "
+                    + "All operators in the consumer group together replay the same set of tuples, however.\\n"
                     + "\\n"
-                    + "Using the `GroupCoordinated` parameter value, a **group ID** must be specified that "
-                    + "must be shared by all operators that participate in the consumer group. The group ID "
+                    + "Using the `GroupCoordinated` parameter value, a **group ID** must be specified, which "
+                    + "must be shared by all operators that belong to the consumer group. The group ID "
                     + "can be specified as operator parameter **groupId** or as consumer property `group.id` "
-                    + "in a property file or app option. The operator will fail at runtime if "
-                    + "it detects the default random group ID.\\n"
+                    + "in a property file or app option. The operator will fail at initialization time when "
+                    + "it detects that the default random group ID is used.\\n"
                     + "\\n"
-                    + "The `GroupCoordinated` parameter value is incompatible with the control port and with "
+                    + "The `GroupCoordinated` parameter value is incompatible with the control input port and with "
                     + "the **partition** parameter. The **startPosition** value `Offset` cannot be used as "
                     + "it requires the **partition** parameter.\\n"
                     + "\\n"
-                    + "The default value is `Static`.")
+                    + "The default value is `Static` for backward compatibility.")
     public void setConsistentRegionAssignmentMode (String consistentRegionAssignmentMode) {
         /*public void setConsistentRegionAssignmentMode (ConsistentRegionAssignmentMode consistentRegionAssignmentMode) {*/
         try {
@@ -289,12 +289,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "The timestamp where to start consuming must be given as **startTime** parameter in milliseconds since Unix epoch."
                     + "\\n"
                     + "* `Offset`: The consumer starts consuming at a specific offset. The offsets must be specified "
-                    + "for all topic partitions by using the **startOffset** parameter. The limitation for using `Offset` as the start position "
-                    + "is that **only one single topic** can be specified via the **topic** parameter.\\n"
+                    + "for all topic partitions by using the **startOffset** parameter. This implies that the **partition** parameter "
+                    + "must be specified and that Kafka's group management feature cannot be used as the operator "
+                    + "assigns itself statically to the given partition(s). In consistent region, the value `Offset` "
+                    + "is therefore incompatible with the `GroupCoordinated` value of the **consistentRegionAssignmentMode** parameter. "
+                    + "When `Offset` is used as the start position **only one single topic** can be specified via the "
+                    + "**topic** parameter.\\n"
                     + "\\n"
                     + "\\n"
-                    + "If this parameter is not specified, the start position is `Default`. The parameter is ignored "
-                    + "when not in a consistent region.")
+                    + "If this parameter is not specified, the start position is `Default`.")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
     }
@@ -950,13 +953,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // On checkpoint, the offset manager is saved. On reset of the CR, the consumer starts reading at these previously saved offsets,
         // reading the messages since last checkpoint again.
         long after = System.currentTimeMillis();
-        final long drainMillis = after - before;
-        this.drainTimeMillis.setValue (drainMillis);
-        if (drainMillis > maxDrainMillis) {
-            this.maxDrainTimeMillis.setValue(drainMillis);
-            maxDrainMillis = drainMillis;
+        final long duration = after - before;
+        this.drainTimeMillis.setValue (duration);
+        if (duration > maxDrainMillis) {
+            this.maxDrainTimeMillis.setValue(duration);
+            maxDrainMillis = duration;
         }
-        logger.info(">>> DRAIN took " + drainMillis + " ms");
+        logger.info(">>> DRAIN took " + duration + " ms");
     }
 
     /**
@@ -970,32 +973,38 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
-        logger.debug(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         consumer.sendCheckpointEvent(checkpoint); // blocks until checkpoint completes
         consumer.sendStartPollingEvent(); // checkpoint is done, resume polling for records
     }
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        long before = System.currentTimeMillis();
         consumer.sendResetEvent(checkpoint); // blocks until reset completes
         consumer.sendStartPollingEvent(); // done resetting,start polling for records
 
         // latch will be null if the reset was caused
         // by another operator
-        if(resettingLatch != null)
-            resettingLatch.countDown();
+        if(resettingLatch != null) resettingLatch.countDown();
+        long after = System.currentTimeMillis();
+        final long duration = after - before;
+        logger.info(">>> RESET took " + duration + " ms");
     }
 
     @Override
     public void resetToInitialState() throws Exception {
-        logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
+        logger.info(">>> RESET TO INIT..."); //$NON-NLS-1$
+        long before = System.currentTimeMillis();
         consumer.sendResetToInitEvent(); // blocks until resetToInit completes
         consumer.sendStartPollingEvent(); // done resettings, start polling for records
 
         // latch will be null if the reset was caused
         // by another operator
-        if(resettingLatch != null)
-            resettingLatch.countDown();
+        if(resettingLatch != null) resettingLatch.countDown();
+        long after = System.currentTimeMillis();
+        final long duration = after - before;
+        logger.info(">>> RESET TO INIT took " + duration + " ms");
     }
 }

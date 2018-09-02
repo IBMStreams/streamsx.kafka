@@ -40,7 +40,7 @@ The operator uses the Kafka consumer Java API. This API is not thread-safe. That
 
 Each consumer operator has two threads.
 
-- The **event thread** invokes the consumer API for polling for messages, committing offsets, processing partition revocation and assignment. It also processes the *StateHandler* related events of the consistent region, like drain, checkpoint, and reset. This thread is controlled over events placed by other threads into the **event queue**. Most of the time, this thread polls for messages from Kafka and enqueues them into the **message queue**. Messages are received from the Kafka broker in batches, where the maximum batch size is configurable via the `max.poll.records` consumer configuration. The capacity of the message queue is `100 \* max.poll.records`. Leaving the default value for this config, the message queue has a capacity of 50,000 messages.
+- The **event thread** invokes the consumer API for polling for messages, committing offsets, processing partition revocation and assignment. It also processes the *StateHandler* related events of the consistent region, like drain, checkpoint, and reset. This thread is controlled over events placed by other threads into the **event queue**. Most of the time, this thread polls for messages from Kafka and enqueues them into the **message queue**. Messages are received from the Kafka broker in batches, where the maximum batch size is configurable via the `max.poll.records` consumer configuration. The capacity of the message queue is `100 * max.poll.records`. Leaving the default value for this config, the message queue has a capacity of 50,000 messages.
 
 - The **process thread** pulls messages from the message queue and, when a consistent region permit is acquired, it creates and submits tuples. This thread also saves the offsets of the submitted tuples for every topic and partition in a data structure called the *offset manager*.
 
@@ -135,7 +135,7 @@ The goal is to restore a seek offset map from data (2) of all consumer operators
 
 The data portions (2), are merged by using the MBean created in the JCP. Each consumer operator sends its partition-offset map (2) together with the assignable partitions (1), and the checkpoint-ID/resetAttempt to the MBean, which creates a merge in a map with \[checkpoint-ID, resetAttempt\] as the key. When the MBean has received mappings for all partitions in the assignable partitions (1) for the combination \[checkpoint-ID, resetAttempt\], the merge is treated being complete, and a JMX notification is emitted. The JMX notification also contains the checkpoint-ID and the resetAttempt, so that the operator can wait for exactly the notification for current reset attempt of a checkpoint sequence-ID. When an operator has received the right notification, it obtains the merged offset map from the MBean and creates the seek offset map from the merged offset map.
 
-When a consumer has not received the notification in time, the map in the MBean may be incomplete. In this case, the offset for the seek offset map is taken from the partition to offset map (3).
+When a consumer has not received the notification in time, the map in the MBean may be incomplete. In this case, a missing partition-to-offset mapping for the seek offset map is taken from the partition to offset map (3).
 
 The timeout for receiving the JMX notification is a quarter of the reset timeout, but not more than `min (max.poll.interval.ms/2, 30000)` milliseconds.
 

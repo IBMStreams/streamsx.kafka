@@ -196,7 +196,9 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     protected File convertToAbsolutePath(String filePath) {
         File f = new File(filePath);
         if (!f.isAbsolute()) {
-            f = new File(getOperatorContext().getPE().getApplicationDirectory(), filePath);
+            File appDir = getOperatorContext().getPE().getApplicationDirectory();
+            logger.info ("extending relative path '" + filePath + "' by the '" + appDir + "' directory");
+            f = new File(appDir, filePath);
         }
         return f;
     }

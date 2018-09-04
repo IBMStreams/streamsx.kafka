@@ -10,7 +10,7 @@ import java.util.Set;
  * 
  * All functions are declared throwing IOException to force the client to handle communication problems.
  * 
- * @see <a href="http://www.oracle.com/technetwork/java/javase/tech/best-practices-jsp-136021.html#mozTocId805713"JMX Best Practices by Oracle/>.
+ * @see <a href="http://www.oracle.com/technetwork/java/javase/tech/best-practices-jsp-136021.html#mozTocId805713">JMX Best Practices by Oracle</a>.
  * @author IBM Kafka toolkit maintainers
  */
 public interface CrConsumerGroupCoordinatorMXBean {

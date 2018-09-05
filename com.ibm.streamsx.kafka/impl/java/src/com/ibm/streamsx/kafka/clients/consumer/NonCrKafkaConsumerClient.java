@@ -218,6 +218,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
         Set<TopicPartition> previousAssignment = new HashSet<>(getAssignedPartitions());
         getAssignedPartitions().clear();
         getAssignedPartitions().addAll(partitions);
+        nAssignedPartitions.setValue(partitions.size());
         // When auto-commit is disabled and the assigned partitions change, 
         // we should remove the messages from the revoked partitions from the message queue.
         // The queue contains only uncommitted messages in this case.

@@ -54,7 +54,9 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     @Parameter(optional = true, name="propertiesFile", 
     		description="Specifies the name of the properties file "
-    				+ "containing Kafka properties.")
+    				+ "containing Kafka properties. A relative path is always "
+    				+ "interpreted as relative to the *application directory* of the "
+    				+ "Streams application.")
     public void setPropertiesFile(String propertiesFile) {
         this.propertiesFile = propertiesFile;
     }
@@ -194,7 +196,9 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     protected File convertToAbsolutePath(String filePath) {
         File f = new File(filePath);
         if (!f.isAbsolute()) {
-            f = new File(getOperatorContext().getPE().getApplicationDirectory(), filePath);
+            File appDir = getOperatorContext().getPE().getApplicationDirectory();
+            logger.info ("extending relative path '" + filePath + "' by the '" + appDir + "' directory");
+            f = new File(appDir, filePath);
         }
         return f;
     }

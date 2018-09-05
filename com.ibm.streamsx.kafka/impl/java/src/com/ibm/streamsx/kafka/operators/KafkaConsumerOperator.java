@@ -152,23 +152,43 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"\\n" +  //$NON-NLS-1$
     		"The operator is capable of taking advantage of Kafka's group management functionality. " //$NON-NLS-1$
     		+ "In order for the operator to use this functionality, the following requirements " //$NON-NLS-1$
-    		+ "must be met\\n" +  //$NON-NLS-1$
-    		"\\n" +  //$NON-NLS-1$
-    		"* The operator cannot be in a consistent region\\n" +  //$NON-NLS-1$
-    		"* The **startPosition** parameter value must be `Default`, or not specified\\n" +  //$NON-NLS-1$
-    		"* None of the topics specified by the **topics** parameter can specify which partition to be assigned to\\n" +  //$NON-NLS-1$
-    		"\\n" +  //$NON-NLS-1$
-    		"In addition to the above, the application needs to set the `group.id` Kafka property or the `groupId` parameter in " //$NON-NLS-1$
-    		+ "order to assign the KafkaConsumer to a specific group. \\n" +  //$NON-NLS-1$
-    		"\\n" +  //$NON-NLS-1$
-    		
-    		"# Consistent Region Support\\n" +  //$NON-NLS-1$
+    		+ "must be met\\n"
+    		+ "\\n"
+    		+ "* When the operator participates in a consistent region, the **consistentRegionAssignmentMode** "
+    		+ "parameter must have the value `GroupCoordinated`, and the **startPosition** parameter cannot have the "
+    		+ "value `Offset`. All other startPosition parameter values are supported."
+    		+ "In a consistent region, the consumer group must not have consumers outside of the consistent region.\\n"
+    		+ "* When the operator is not part of a consistent region, the **startPosition** parameter value must be "
+    		+ "`Default`, or not specified. The values `Beginning`, `End`, and `Time` are not supported.\\n"
+    		+ "* None of the topics specified by the **topics** parameter can specify which partition to be assigned to "
+    		+ "(the **partition** parameter cannot be used).\\n"
+    		+ "\\n"
+    		+ "In addition to the above, the application needs to set the `group.id` Kafka consumer property or "
+    		+ "the **groupId** parameter in order to assign the KafkaConsumer to a specific group. \\n"
+    		+ "\\n"
+    		+ "# Consistent Region Support\\n" +  //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
     		"The `KafkaConsumer` operator can participate in a consistent region. The operator " //$NON-NLS-1$
     		+ "can be the start of a consistent region. Both operator driven and periodic checkpointing " //$NON-NLS-1$
     		+ "are supported. If using operator driven, the **triggerCount** parameter must be set to " //$NON-NLS-1$
-    		+ "indicate how often the operator should initiate a consistent region. On checkpoint, the " //$NON-NLS-1$
-    		+ "operator will save the last offset for each topic-partition that it is assigned to. In the " //$NON-NLS-1$
+    		+ "indicate how often the operator should initiate a consistent region.\\n"
+    		+ "\\n"
+    		+ "In a consistent region, the topic partitions to be consumed can be assigned statically by the operator itself or by Kafka. "
+    		+ "This can be controlled via the operator parameter **consistentRegionAssignmentMode**. When partitions are assigned by Kafka, "
+    		+ "the operator is part of a Kafka consumer group together with other consumer operators that share a group ID. "
+    		+ "All consumer operators of a consumer group must belong to the same consistent region. A consistent region can have "
+    		+ "multiple consumer groups. When the consumers of a consumer group rebalance the partition assignment, for example, when a Streams job is "
+    		+ "submitted, multiple resets of the consistent region can occur when the consumers start up. It is recommended to set the "
+    		+ "`maxConsecutiveResetAttempts` parameter of the `@consistent` annotation to a higher value than the default value of 5.\\n"
+    		+ "\\n"
+    		+ "Details about consumer groups with consistent region can be found here: [https://ibmstreams.github.io/streamsx.kafka/docs/user/ConsumerGroupConsistentRegion/]\\n"
+    		+ "\\n"
+    		+ "When Kafka's group management is active, the consistent region is reset when rebalancing occurs during consumption of messages.\\n"
+    		+ "\\n"
+    		+ "On drain, the operator will flush messages and commit offsets. The drain duration of the last drain and the maximum drain "
+    		+ "duration in milliseconds is kept in the custom metrics **drainTimeMillis** and **drainTimeMillisMax**.\\n"
+    		+ "\\n"
+    		+ "On checkpoint, the operator will save the last offset for each topic-partition that it is assigned to. In the " //$NON-NLS-1$
     		+ "event of a reset, the operator will seek to the saved offset for each topic-partition and " //$NON-NLS-1$
     		+ "begin consuming messages from that point." + //$NON-NLS-1$
     		"\\n" +  //$NON-NLS-1$
@@ -176,6 +196,6 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		
 			"# Error Handling\\n" +  //$NON-NLS-1$
 			"\\n" +  //$NON-NLS-1$
-			"Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafa throws " //$NON-NLS-1$
+			"Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafka throws " //$NON-NLS-1$
 			+ "an exception, the operator will restart.\\n"; //$NON-NLS-1$
 }

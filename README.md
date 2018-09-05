@@ -2,7 +2,7 @@
 
 Welcome to the Kafka Toolkit. This toolkit enables SPL applications to integrate with Apache Kafka. 
 
-This version of the toolkit currently supports: <mark>Apache Kafka v0.10.x</mark>
+This version of the toolkit currently supports: <mark>Apache Kafka 0.10.2, 0.11, and 1.0x</mark>
 
 ## MessageHub
 

@@ -9,20 +9,22 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
 public class Messages {
     private static final String BUNDLE_NAME = "com.ibm.streamsx.kafka.i18n.KafkaMessages"; //$NON-NLS-1$
 
-    private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle(BUNDLE_NAME);
+    private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle (BUNDLE_NAME);
+    private static final ResourceBundle FALLBACK_RESOURCE_BUNDLE = ResourceBundle.getBundle (BUNDLE_NAME, new Locale ("en", "US"));
 
     private Messages() {
     }
 
     public static String getString(String key) {
         try {
-            return RESOURCE_BUNDLE.getString(key);
+            return getRawMsg (key);
         } catch (MissingResourceException e) {
             return '!' + key + '!';
         }
@@ -30,7 +32,7 @@ public class Messages {
 
     public static String getString(String key, Object... args) {
         try {
-            String msg = RESOURCE_BUNDLE.getString(key);
+            String msg = getRawMsg (key);
             return MessageFormat.format(msg, args);
         } catch (MissingResourceException e) {
             return '!' + key + '!';
@@ -67,6 +69,15 @@ public class Messages {
             String ns = "" + ++n;
             while (ns.length() < 3) ns += ' ';
             System.out.println (MessageFormat.format("{0} {1} {2}", ns, k, msg.getValue()));
+        }
+    }
+
+
+    private static String getRawMsg (String key) throws MissingResourceException {
+        try {
+            return RESOURCE_BUNDLE.getString(key);
+        } catch (MissingResourceException e) {
+            return FALLBACK_RESOURCE_BUNDLE.getString(key);
         }
     }
 }

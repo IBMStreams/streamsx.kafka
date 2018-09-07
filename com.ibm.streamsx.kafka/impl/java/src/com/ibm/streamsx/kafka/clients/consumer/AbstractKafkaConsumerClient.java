@@ -3,6 +3,7 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,6 +33,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
+import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
@@ -64,6 +66,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private KafkaOperatorProperties kafkaProperties;
     private BlockingQueue<Event> eventQueue;
     private BlockingQueue<ConsumerRecord<?, ?>> messageQueue;
+    private List <ConsumerRecord<?, ?>> drainBuffer;
     private OperatorContext operatorContext;
     private boolean groupIdGenerated = false;
     private long pollTimeout = DEFAULT_CONSUMER_POLL_TIMEOUT_MS;
@@ -85,8 +88,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     // Lock/condition for when we pause processing due to
     // no space on the queue or low memory.
-    private final ReentrantLock msgQueueEmptyConditionLock = new ReentrantLock();
-    private final Condition msgQueueEmptyCondition = msgQueueEmptyConditionLock.newCondition();
+    private final ReentrantLock msgQueueLock = new ReentrantLock();
+    private final Condition msgQueueEmptyCondition = msgQueueLock.newCondition();
 
 
     /**
@@ -132,6 +135,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean (false);
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (getMessageQueueSizeMultiplier() * getMaxPollRecords());
+        drainBuffer = new ArrayList<ConsumerRecord<?, ?>> (messageQueue.remainingCapacity());
         this.nPendingMessages = operatorContext.getMetrics().getCustomMetric("nPendingMessages");
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
@@ -257,14 +261,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             if (logger.isTraceEnabled()) {
                 logger.trace ("Checking event queue for message ..."); //$NON-NLS-1$
             }
-            Event event = eventQueue.poll (1, TimeUnit.SECONDS);
+            Event event = eventQueue.poll (30, TimeUnit.SECONDS);
 
             if (event == null) {
-                Thread.sleep (EVENT_LOOP_PAUSE_TIME_MS);
+//                Thread.sleep (EVENT_LOOP_PAUSE_TIME_MS);
                 continue;
             }
 
-            logger.info ("Received event: " + event.getEventType().name()); //$NON-NLS-1$
+            logger.info (MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
             switch (event.getEventType()) {
             case START_POLLING:
                 runPollLoop ((Long) event.getData());
@@ -332,8 +336,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     private void commitOffsets (CommitInfo offsets) throws RuntimeException {
         final Map<TopicPartition, OffsetAndMetadata> offsetMap = offsets.getMap();
-        if (logger.isDebugEnabled()) {
-            logger.debug("Going to commit offsets: " + offsets.toString());
+        if (logger.isInfoEnabled()) {
+            logger.info ("Going to commit offsets: " + offsets);
             if (offsetMap.isEmpty()) {
                 logger.debug ("no offsets to commit ...");
             }
@@ -358,6 +362,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         // expose the exception to the runtime. When committing synchronous, 
                         // we usually want the offsets really have committed or restart operator, for example when in a CR
                         throw new RuntimeException (e.getMessage(), e);
+                        // TODO: instead of Exception + operator restart, simply initiate reset of consistent region? Hmm .. during drain? Will this work?
                     }
                 }
                 else {
@@ -455,21 +460,44 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
         ConsumerRecord<?,?> record = null;
-        try {
-            msgQueueEmptyConditionLock.lock();
-            // messageQueue.poll throws InterruptedException
-            record = messageQueue.poll (timeout, timeUnit);
-            if (record == null) {
-                if (logger.isInfoEnabled()) logger.info("message queue is empty");
-                // no messages - queue is empty
-                nPendingMessages.setValue (messageQueue.size());
+        if (messageQueue.isEmpty()) {
+            try {
+                msgQueueLock.lock();
                 msgQueueEmptyCondition.signalAll();
+                nPendingMessages.setValue (messageQueue.size());
+            } finally {
+                msgQueueLock.unlock();
             }
-        } finally {
-            msgQueueEmptyConditionLock.unlock();
+        }
+        // messageQueue.poll throws InterruptedException
+        record = messageQueue.poll (timeout, timeUnit);
+        if (record == null) {
+            // no messages - queue is empty
+            if (logger.isTraceEnabled()) logger.trace("getNextRecord(): message queue is empty");
+            nPendingMessages.setValue (messageQueue.size());
         }
         return record;
     }
+
+
+    /**
+     * drains the message queue into a buffer of same capacity.
+     * The content of the buffer is enqueued when polling for records is initiated, before records are read from Kafka. 
+     */
+    protected int drainMessageQueueToBuffer() {
+        msgQueueLock.lock();
+        if (!drainBuffer.isEmpty()) {
+            logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Removing {0} consumer records from the buffer", drainBuffer.size()));
+            drainBuffer.clear();
+        }
+        int nRecords = messageQueue.drainTo (drainBuffer);
+        int qSize = messageQueue.size();
+        msgQueueEmptyCondition.signalAll();
+        msgQueueLock.unlock();
+        logger.info (MessageFormat.format ("drainMessageQueueToBuffer(): {0} consumer records drained to buffer. message queue size is {1} now.", nRecords, qSize));
+        return nRecords;
+    }
+
 
 
     /**
@@ -477,14 +505,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The waiting thread has been interrupted waiting
      */
     protected void awaitEmptyMessageQueue() throws InterruptedException {
-        try{
-            msgQueueEmptyConditionLock.lock();
-            while (!messageQueue.isEmpty()) {
+        while (!messageQueue.isEmpty()) {
+            try {
+                msgQueueLock.lock();
                 msgQueueEmptyCondition.await (100l, TimeUnit.MILLISECONDS);
             }
-        }
-        finally {
-            msgQueueEmptyConditionLock.unlock();
+            finally {
+                msgQueueLock.unlock();
+            }
         }
     }
 
@@ -504,7 +532,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException 
      */
     protected void runPollLoop (Long pollTimeout) throws InterruptedException {
-        logger.debug("Initiating polling ..."); //$NON-NLS-1$
+        logger.info("Initiating polling ..."); //$NON-NLS-1$
+        if (!drainBuffer.isEmpty()) {
+            // restore records that have been put aside to the drain buffer
+            messageQueue.addAll (drainBuffer);
+            int qSize = messageQueue.size();
+            int nDrained = drainBuffer.size();
+            drainBuffer.clear();
+            logger.info (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", nDrained, qSize));
+        }
         // continue polling for messages until a new event
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
@@ -524,7 +560,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     }
                     lastPollTimestamp = System.currentTimeMillis();
                     /*int nRecordsEnqueued = */pollAndEnqueue (pollTimeout.longValue());
-                    nPendingMessages.setValue(messageQueue.size());
+                    nPendingMessages.setValue (messageQueue.size());
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
                     // throw SerializationException, but custom deserializers may throw...
@@ -535,7 +571,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 }
             }
             else {
-                logger.warn ("still no space in messagequeue ...");
+                if (logger.isDebugEnabled()) logger.debug ("still no space in messagequeue ...");
             }
         }
         logger.debug("Stop polling. Message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
@@ -565,27 +601,29 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             }
         }
         if (!space) {
-            if (logger.isInfoEnabled()) {
-                if (lowMemory)
-                    logger.info ("low memory detected: messages queued (" + mqSize //$NON-NLS-1$
-                    + "). Skipping poll cycle."); //$NON-NLS-1$
-                else
-                    logger.info ("remaining capacity in message queue (" + remainingCapacity //$NON-NLS-1$
-                    + ") < maxPollRecords (" + maxPollRecords + "). Skipping poll cycle."); //$NON-NLS-1$
+            if (logger.isDebugEnabled()) {
+                if (lowMemory) {
+                    logger.debug (MessageFormat.format ("low memory detected: messages queued ({0}). Skipping poll.", mqSize));
+                } else {
+                    logger.debug (MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}). Skipping poll.",
+                            remainingCapacity, maxPollRecords));
+                }
             }
             nPendingMessages.setValue(mqSize);
             if (lowMemory)
                 nLowMemoryPause.increment();
             else
                 nQueueFullPause.increment();
-
             try {
-                msgQueueEmptyConditionLock.lock();
+                msgQueueLock.lock();
                 msgQueueEmptyCondition.await(100, TimeUnit.MILLISECONDS);
             } finally {
-                msgQueueEmptyConditionLock.unlock();
+                msgQueueLock.unlock();
             }
             nPendingMessages.setValue(mqSize);
+            if (logger.isTraceEnabled()) {
+                logger.trace ("isSpaceInMsgQueueWait() returning 'false'");
+            }
         }
         return space;
     }
@@ -652,6 +690,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
+     * adds an event to the event queue
+     * 
+     * @param event the event
+     */
+    protected void sendEvent (Event event) {
+        logger.info (MessageFormat.format("Sending event: {0}", event));
+        eventQueue.add (event);
+        logger.info(MessageFormat.format("Event {0} added, qsz={1}", event, eventQueue.size()));
+    }
+    
+    /**
      * Initiates committing offsets.
      * If committing offsets is set to synchronous, the implementation ensures that the offsets are committed when the method returns.
      * @param offsets the offsets to commit and an control indication for asynchronous or synchronous commit.
@@ -660,8 +709,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     public void sendCommitEvent (CommitInfo offsets) throws InterruptedException {
         Event event = new Event (EventType.COMMIT_OFFSETS, offsets, offsets.isCommitSynchronous());
-        logger.info ("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add (event);
+        sendEvent(event);
         event.await();
     }
 
@@ -672,8 +720,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendStartPollingEvent() {
         Event event = new Event (EventType.START_POLLING, new Long (pollTimeout), false);
-        logger.info ("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add (event);
+        sendEvent(event);
     }
 
     /**
@@ -684,8 +731,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendStopPollingEvent() throws InterruptedException {
         Event event = new Event (EventType.STOP_POLLING, true);
-        logger.info("Sending " + event + " event ..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add(event);
+        sendEvent(event);
         event.await();
     }
 
@@ -695,9 +741,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void sendStopPollingEventAsync() {
         Event event = new Event (EventType.STOP_POLLING);
-        logger.info ("Sending " + event + " event async ..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add(event);
-
+        sendEvent(event);
     }
 
     /**
@@ -737,13 +781,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendUpdateTopicAssignmentEvent (final TopicPartitionUpdate update) throws InterruptedException {
         Event event = new Event(EventType.UPDATE_ASSIGNMENT, update, true);
-        logger.info("Sending " + event + " event: " + update);
-        eventQueue.add(event);
+        sendEvent (event);
         event.await();
     }
 
     /**
-     * Initiates checkpointing of the consumer client.
+     * Initiates checkpointing of the consumer client and initiates start of polling.
      * Implementations ensure that checkpointing the client has completed when this method returns. 
      * @param checkpoint the checkpoint
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
@@ -751,13 +794,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendCheckpointEvent (Checkpoint checkpoint) throws InterruptedException {
         Event event = new Event(EventType.CHECKPOINT, checkpoint, true);
-        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add(event);
+        sendEvent (event);
         event.await();
+        sendStartPollingEvent();
     }
 
     /**
-     * Initiates resetting the client to a prior state. 
+     * Initiates resetting the client to a prior state and initiates start of polling.
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @param checkpoint the checkpoint that contains the state.
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
@@ -765,22 +808,22 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendResetEvent (final Checkpoint checkpoint) throws InterruptedException {
         Event event = new Event(EventType.RESET, checkpoint, true);
-        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add(event);
+        sendEvent (event);
         event.await();
+        sendStartPollingEvent();
     }
 
     /**
-     * Initiates resetting the client to the initial state. 
+     * Initiates resetting the client to the initial state and initiates start of polling.
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
     public void sendResetToInitEvent() throws InterruptedException {
         Event event = new Event(EventType.RESET_TO_INIT, true);
-        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add(event);
+        sendEvent (event);
         event.await();
+        sendStartPollingEvent();
     }
 
     /**
@@ -793,8 +836,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void sendShutdownEvent (long timeout, TimeUnit timeUnit) throws InterruptedException {
         Event event = new Event(EventType.SHUTDOWN, true);
-        logger.info("Sending " + event + " event..."); //$NON-NLS-1$ //$NON-NLS-2$
-        eventQueue.add(event);
+        sendEvent (event);
         event.await (timeout, timeUnit);
     }
 
@@ -965,8 +1007,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void onComplete (Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
         if (exception == null) {
-            if (logger.isDebugEnabled()) {
-                logger.debug ("Offsets successfully committed async: " + offsets);
+            if (logger.isInfoEnabled()) {
+                logger.info ("onComplete(): Offsets successfully committed async: " + offsets);
             }
         }
         else {

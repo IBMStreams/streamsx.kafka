@@ -114,25 +114,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     // The number of messages in which the value was malformed and could not be deserialized
     private Metric nMalformedMessages;
-    // metrics for drain time
     long maxDrainMillis = 0l;
-    private Metric drainTimeMillis;
-    private Metric maxDrainTimeMillis;
 
     // Initialize the metrics
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages")
     public void setnMalformedMessages (Metric nMalformedMessages) {
         this.nMalformedMessages = nMalformedMessages;
-    }
-
-    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Drain time of this operator in milliseconds", name = "drainTimeMillis")
-    public void setDrainTimeMillis (Metric drainTimeMillis) {
-        this.drainTimeMillis = drainTimeMillis;
-    }
-
-    @CustomMetric (kind = Metric.Kind.GAUGE, description = "Maximum drain time of this operator in milliseconds", name = "drainTimeMillisMax")
-    public void setMaxDrainTimeMillis(Metric maxDrainTimeMillis) {
-        this.maxDrainTimeMillis = maxDrainTimeMillis;
     }
 
     @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of pending messages to be submitted as tuples.")
@@ -761,7 +748,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
             try {
                 // Any exceptions except InterruptedException thrown here are propagated to the caller
-                ConsumerRecord<?, ?> record = consumer.getNextRecord (100, TimeUnit.MILLISECONDS);
+                ConsumerRecord<?, ?> record = consumer.getNextRecord (1000, TimeUnit.MILLISECONDS);
                 if (record != null) {
                     submitRecord(record);
                     consumer.postSubmit(record);
@@ -954,9 +941,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // reading the messages since last checkpoint again.
         long after = System.currentTimeMillis();
         final long duration = after - before;
-        this.drainTimeMillis.setValue (duration);
+        getOperatorContext().getMetrics().getCustomMetric(ConsumerClient.DRAIN_TIME_MILLIS_METRIC_NAME).setValue(duration);
         if (duration > maxDrainMillis) {
-            this.maxDrainTimeMillis.setValue(duration);
+            getOperatorContext().getMetrics().getCustomMetric(ConsumerClient.DRAIN_TIME_MILLIS_MAX_METRIC_NAME).setValue(duration);
             maxDrainMillis = duration;
         }
         logger.info(">>> DRAIN took " + duration + " ms");
@@ -975,15 +962,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.info(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         consumer.sendCheckpointEvent(checkpoint); // blocks until checkpoint completes
-        consumer.sendStartPollingEvent(); // checkpoint is done, resume polling for records
     }
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        logger.info(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        int attempt = crContext.getResetAttempt();
+        logger.info(">>> RESET (ckpt id/attempt=" + checkpoint.getSequenceId() + "/" + attempt + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         long before = System.currentTimeMillis();
         consumer.sendResetEvent(checkpoint); // blocks until reset completes
-        consumer.sendStartPollingEvent(); // done resetting,start polling for records
 
         // latch will be null if the reset was caused
         // by another operator
@@ -995,10 +981,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void resetToInitialState() throws Exception {
-        logger.info(">>> RESET TO INIT..."); //$NON-NLS-1$
+        int attempt = crContext.getResetAttempt();
+        logger.info(">>> RESET TO INIT... attempt=" + attempt); //$NON-NLS-1$
         long before = System.currentTimeMillis();
         consumer.sendResetToInitEvent(); // blocks until resetToInit completes
-        consumer.sendStartPollingEvent(); // done resettings, start polling for records
 
         // latch will be null if the reset was caused
         // by another operator

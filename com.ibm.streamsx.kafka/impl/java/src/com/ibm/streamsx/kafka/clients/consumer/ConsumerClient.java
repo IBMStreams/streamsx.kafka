@@ -14,6 +14,9 @@ import com.ibm.streamsx.kafka.KafkaClientInitializationException;
  */
 public interface ConsumerClient {
 
+    public static final String DRAIN_TIME_MILLIS_MAX_METRIC_NAME = "drainTimeMillisMax";
+    public static final String DRAIN_TIME_MILLIS_METRIC_NAME = "drainTimeMillis";
+
     /**
      * creates the Kafka consumer and starts the consumer and event thread.
      * This method ensures that the event thread is running when it returns.

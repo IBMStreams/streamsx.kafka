@@ -10,7 +10,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
@@ -19,7 +18,6 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
-import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
@@ -32,41 +30,21 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  * This class represents a consumer client that can be used in a consistent region.
  * It always assigns to topic partitions. Group coordination is disabled.
  */
-public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClient {
+public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerClient {
 
     private static final Logger logger = Logger.getLogger(CrKafkaStaticAssignConsumerClient.class);
 
     private long triggerCount; 
     private long nSubmittedRecords = 0l;
-    private ConsistentRegionContext crContext;
     private OffsetManager offsetManager;
     private ControlVariableAccessor<String> offsetManagerCV;
-    //    private Collection<Integer> partitions;
 
 
     private <K, V> CrKafkaStaticAssignConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
 
         super (operatorContext, keyClass, valueClass, kafkaProperties);
-
-        this.crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
-        if (crContext == null) {
-            throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' must be used in a consistent region. This consumer client implementation (" 
-                    + this.getClass() + ") requires a consistent region context.");
-        }
-        // always disable auto commit - we commit on drain
-        if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
-            if (kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
-                logger.warn("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been turned to 'false'. In a consistent region, offsets are always committed when the region drains.");
-            }
-        }
-        else {
-            logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
-        }
-        kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-
         offsetManager = new OffsetManager();
-        //    this.partitions = partitions == null ? Collections.emptyList() : partitions;
     }
 
     /**
@@ -112,8 +90,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
      */
     private void createJcpCvFromOffsetManagerl() throws Exception {
         logger.info("createJcpCvFromOffsetManagerl(). offsetManager = " + offsetManager); 
-        ControlPlaneContext controlPlaneContext = getOperatorContext().getOptionalContext(ControlPlaneContext.class);
-        offsetManagerCV = controlPlaneContext.createStringControlVariable(OffsetManager.class.getName(),
+        offsetManagerCV = getJcpContext().createStringControlVariable(OffsetManager.class.getName(),
                 false, serializeObject(offsetManager));
         OffsetManager mgr = getDeserializedOffsetManagerCV();
         logger.debug("Retrieved value for offsetManagerCV = " + mgr); 
@@ -233,6 +210,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
             // the topic/partition can have been removed when a partition has been removed via updateAssignment (control port method)
             logger.warn (e.getLocalizedMessage());
         }
+        
+        final ConsistentRegionContext crContext = getCrContext();
         if (crContext.isTriggerOperator() && ++nSubmittedRecords >= triggerCount) {
             logger.debug("Making region consistent..."); //$NON-NLS-1$
             // makeConsistent blocks until all operators in the CR have drained and checkpointed
@@ -332,7 +311,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
             sendStopPollingEvent();
             // when CR is operator driven, do not wait for queue to be emptied.
             // This would never happen because the tuple submitter thread is blocked in makeConsistent() in postSubmit(...)
-            if (!crContext.isTriggerOperator() && !getMessageQueue().isEmpty()) {
+            if (!getCrContext().isTriggerOperator() && !getMessageQueue().isEmpty()) {
                 // here we are only when we are NOT the CR trigger (for example, periodic CR) and the queue contains consumer records
                 logger.debug("onDrain() waiting for message queue to become empty ...");
                 long before = System.currentTimeMillis();

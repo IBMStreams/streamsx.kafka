@@ -8,6 +8,7 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
+import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -25,10 +26,11 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
     private final ControlPlaneContext jcpContext;
 
     /**
+     * Constructs a new AbstractCrKafkaConsumerClient and adjusts the Kafka properties for use in a consistent region.
      * @param operatorContext
      * @param keyClass
      * @param valueClass
-     * @param kafkaProperties the kafka properties are modified
+     * @param kafkaProperties modifies enable.auto.commit in the kafka properties
      * @throws KafkaConfigurationException
      */
     public <K, V> AbstractCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass, KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
@@ -49,6 +51,9 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
             tracer.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
         }
         kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+
+        operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_METRIC_NAME, "last drain time of this operator in milliseconds", Metric.Kind.GAUGE);
+        operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_MAX_METRIC_NAME, "maximum drain time of this operator in milliseconds", Metric.Kind.GAUGE);
     }
 
     /**

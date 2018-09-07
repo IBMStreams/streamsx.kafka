@@ -5,6 +5,8 @@ import java.util.Base64;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.DoubleSerializer;
@@ -14,9 +16,11 @@ import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
+import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 import com.ibm.streamsx.kafka.serialization.DoubleDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.FloatDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.IntegerDeserializerExt;
@@ -26,6 +30,71 @@ import com.ibm.streamsx.kafka.serialization.StringDeserializerExt;
 public abstract class AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaClient.class);
+
+    private final String clientId;
+    private boolean clientIdGenerated = false;
+    private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
+    private static final String GENERATED_PRODUCERID_PREFIX = "producer-"; //$NON-NLS-1$
+    
+    
+    /**
+     * Constructs a new AbstractKafkaClient using Kafka properties
+     * @param operatorContext the operator context
+     * @param kafkaProperties the kafka properties - modifies the client.id
+     * @param isConsumer use true, if this is a consumer client, false otherwise
+     */
+    public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
+
+        // Create a random client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
+        // This is important, otherwise running multiple consumers from the same
+        // application will result in a KafkaException when registering the client
+        final String clientIdConfig = isConsumer? ConsumerConfig.CLIENT_ID_CONFIG: ProducerConfig.CLIENT_ID_CONFIG;
+        if (!kafkaProperties.containsKey (clientIdConfig)) {
+            this.clientId = getRandomId (isConsumer? GENERATED_CLIENTID_PREFIX: GENERATED_PRODUCERID_PREFIX);
+            logger.info("generated client.id: " + this.clientId);
+            clientIdGenerated = true;
+        }
+        else {
+            clientIdGenerated = false;
+            int udpChannel = operatorContext.getChannel();
+            if (udpChannel >= 0) {
+                // we are in UDP
+                this.clientId = kafkaProperties.getProperty (clientIdConfig) + "-" + udpChannel;
+                logger.info("UDP detected. modified client.id: " + this.clientId);
+            }
+            else {
+                this.clientId = kafkaProperties.getProperty (clientIdConfig);
+            }
+        }
+        kafkaProperties.put (clientIdConfig, this.clientId);
+    }
+
+
+    /**
+     * @return the clientId (client.id) of the Kafka client
+     */
+    public String getClientId() {
+        return clientId;
+    }
+
+
+    /**
+     * Returns true if the client ID has a random generated value, false otherwise
+     * @return the clientIdGenerated
+     */
+    public boolean isClientIdGenerated() {
+        return clientIdGenerated;
+    }
+
+
+    /**
+     * Get the class name of this instance.
+     * @return The class name of 'this'
+     */
+    protected String getThisClassName() {
+        return this.getClass().getName();
+    }
+
 
     public static <T> String getSerializer(Class<T> clazz) throws KafkaConfigurationException {
         if (clazz == null) throw new KafkaConfigurationException ("Unable to find serializer for 'null'");
@@ -91,14 +160,7 @@ public abstract class AbstractKafkaClient {
             throw new KafkaConfigurationException("Unable to find deserializer for: " + clazz.toString()); //$NON-NLS-1$
         }
     }
-    
-    /**
-     * Get the class name of this instance.
-     * @return The class name of 'this'
-     */
-    protected String getThisClassName() {
-        return this.getClass().getName();
-    }
+
 
     /**
      * Serializes a Serializable to a base64 encoded String
@@ -108,7 +170,7 @@ public abstract class AbstractKafkaClient {
     protected static String serializeObject(Serializable obj) {
         return new String(Base64.getEncoder().encode(SerializationUtils.serialize(obj)));
     }
-    
+
     /**
      * Creates a random String that can contain an optional prefix.
      * The length of the random part is 17 characters.

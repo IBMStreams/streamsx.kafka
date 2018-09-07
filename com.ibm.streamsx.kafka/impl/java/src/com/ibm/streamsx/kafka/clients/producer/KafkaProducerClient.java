@@ -20,8 +20,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
     private static final int CLOSE_TIMEOUT = 5;
     private static final TimeUnit CLOSE_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
-    private static final String GENERATED_PRODUCERID_PREFIX = "producer-"; //$NON-NLS-1$
-
+    
     protected KafkaProducer<?, ?> producer;
     protected ProducerCallback callback;
     protected Exception sendException;
@@ -32,6 +31,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     
     public <K, V> KafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws Exception {
+        super (operatorContext, kafkaProperties, false);
         this.kafkaProperties = kafkaProperties;
         this.operatorContext = operatorContext;
         this.keyClass = keyClass;
@@ -60,14 +60,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
         if (!kafkaProperties.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)) {
             this.kafkaProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, getSerializer(valueClass));
-        }
-
-        // Create a random client ID for the producer if one is not specified.
-        // This is important, otherwise running multiple producers from the same
-        // application will result in a KafkaException when registering the
-        // client
-        if (!kafkaProperties.containsKey(ProducerConfig.CLIENT_ID_CONFIG)) {
-            this.kafkaProperties.put(ProducerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_PRODUCERID_PREFIX));
         }
     }
     

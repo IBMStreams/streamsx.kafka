@@ -18,6 +18,12 @@ public interface ConsumerClient {
     public static final String DRAIN_TIME_MILLIS_METRIC_NAME = "drainTimeMillis";
 
     /**
+     * Returns the client-ID, which is the value of the Kafka consumer property client.id
+     * @return the client-ID
+     */
+    public String getClientId();
+    
+    /**
      * creates the Kafka consumer and starts the consumer and event thread.
      * This method ensures that the event thread is running when it returns.
      * @throws InterruptedException The thread has been interrupted waiting for the consumer thread to start

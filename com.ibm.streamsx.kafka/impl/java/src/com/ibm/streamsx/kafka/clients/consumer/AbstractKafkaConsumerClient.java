@@ -52,7 +52,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerClient.class);
 
     private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
-    private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
     private static final long EVENT_LOOP_PAUSE_TIME_MS = 100;
     private static final long CONSUMER_CLOSE_TIMEOUT_MS = 2000;
 
@@ -106,6 +105,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected <K, V> AbstractKafkaConsumerClient (final OperatorContext operatorContext, final Class<K> keyClass, final Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
 
+        super (operatorContext, kafkaProperties, true);
         this.kafkaProperties = kafkaProperties;
         if (!kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeserializer(keyClass));
@@ -119,14 +119,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (!kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GENERATED_GROUPID_PREFIX));
             groupIdGenerated = true;
-        }
-
-        // Create a random client ID for the consumer if one is not specified.
-        // This is important, otherwise running multiple consumers from the same
-        // application will result in a KafkaException when registering the
-        // client
-        if (!kafkaProperties.containsKey(ConsumerConfig.CLIENT_ID_CONFIG)) {
-            this.kafkaProperties.put(ConsumerConfig.CLIENT_ID_CONFIG, getRandomId(GENERATED_CLIENTID_PREFIX));
         }
 
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);

@@ -264,7 +264,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             Event event = eventQueue.poll (30, TimeUnit.SECONDS);
 
             if (event == null) {
-//                Thread.sleep (EVENT_LOOP_PAUSE_TIME_MS);
+                //                Thread.sleep (EVENT_LOOP_PAUSE_TIME_MS);
                 continue;
             }
 
@@ -486,11 +486,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected int drainMessageQueueToBuffer() {
         msgQueueLock.lock();
-        if (!drainBuffer.isEmpty()) {
-            logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Removing {0} consumer records from the buffer", drainBuffer.size()));
-            drainBuffer.clear();
+        int nRecords = 0;
+        synchronized (drainBuffer) {
+
+            if (!drainBuffer.isEmpty()) {
+                logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Removing {0} consumer records from the buffer", drainBuffer.size()));
+                drainBuffer.clear();
+            }
+            nRecords = messageQueue.drainTo (drainBuffer);
         }
-        int nRecords = messageQueue.drainTo (drainBuffer);
         int qSize = messageQueue.size();
         msgQueueEmptyCondition.signalAll();
         msgQueueLock.unlock();
@@ -498,6 +502,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         return nRecords;
     }
 
+
+    protected void clearDrainBuffer() {
+        synchronized (drainBuffer) {
+            drainBuffer.clear();
+        }
+    }
 
 
     /**
@@ -533,13 +543,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void runPollLoop (Long pollTimeout) throws InterruptedException {
         logger.info("Initiating polling ..."); //$NON-NLS-1$
-        if (!drainBuffer.isEmpty()) {
-            // restore records that have been put aside to the drain buffer
-            messageQueue.addAll (drainBuffer);
-            int qSize = messageQueue.size();
-            int nDrained = drainBuffer.size();
-            drainBuffer.clear();
-            logger.info (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", nDrained, qSize));
+        synchronized (drainBuffer) {
+            if (!drainBuffer.isEmpty()) {
+                // restore records that have been put aside to the drain buffer
+                messageQueue.addAll (drainBuffer);
+                int qSize = messageQueue.size();
+                int nDrained = drainBuffer.size();
+                drainBuffer.clear();
+                logger.info (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", nDrained, qSize));
+            }
         }
         // continue polling for messages until a new event
         // arrives in the event queue
@@ -697,9 +709,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected void sendEvent (Event event) {
         logger.info (MessageFormat.format("Sending event: {0}", event));
         eventQueue.add (event);
-        logger.info(MessageFormat.format("Event {0} added, qsz={1}", event, eventQueue.size()));
+        logger.info(MessageFormat.format("Event {0} added, q={1}", event, eventQueue));
     }
-    
+
     /**
      * Initiates committing offsets.
      * If committing offsets is set to synchronous, the implementation ensures that the offsets are committed when the method returns.

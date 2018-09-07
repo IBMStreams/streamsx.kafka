@@ -356,6 +356,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             refreshFromCluster();
 
             // remove records from queue
+            clearDrainBuffer();
             getMessageQueue().clear();
 
         } catch (Exception e) {
@@ -415,6 +416,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             offsetManager = (OffsetManager) checkpoint.getInputStream().readObject();
             offsetManager.setOffsetConsumer (getConsumer());
             refreshFromCluster();
+            clearDrainBuffer();
             getMessageQueue().clear();
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);

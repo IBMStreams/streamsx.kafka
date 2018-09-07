@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
@@ -966,31 +967,32 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        int attempt = crContext.getResetAttempt();
-        logger.info(">>> RESET (ckpt id/attempt=" + checkpoint.getSequenceId() + "/" + attempt + ")"); //$NON-NLS-1$ //$NON-NLS-2$
-        long before = System.currentTimeMillis();
+        final int attempt = crContext.getResetAttempt();
+        final long sequenceId = checkpoint.getSequenceId();
+        logger.info(MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
+        final long before = System.currentTimeMillis();
         consumer.sendResetEvent(checkpoint); // blocks until reset completes
 
         // latch will be null if the reset was caused
         // by another operator
         if(resettingLatch != null) resettingLatch.countDown();
-        long after = System.currentTimeMillis();
+        final long after = System.currentTimeMillis();
         final long duration = after - before;
-        logger.info(">>> RESET took " + duration + " ms");
+        logger.info(MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
     }
 
     @Override
     public void resetToInitialState() throws Exception {
-        int attempt = crContext.getResetAttempt();
-        logger.info(">>> RESET TO INIT... attempt=" + attempt); //$NON-NLS-1$
-        long before = System.currentTimeMillis();
+        final int attempt = crContext.getResetAttempt();
+        logger.info(MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
+        final long before = System.currentTimeMillis();
         consumer.sendResetToInitEvent(); // blocks until resetToInit completes
 
         // latch will be null if the reset was caused
         // by another operator
         if(resettingLatch != null) resettingLatch.countDown();
-        long after = System.currentTimeMillis();
+        final long after = System.currentTimeMillis();
         final long duration = after - before;
-        logger.info(">>> RESET TO INIT took " + duration + " ms");
+        logger.info(MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
     }
 }

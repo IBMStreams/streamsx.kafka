@@ -882,6 +882,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     protected void resetToInitialState() {
         logger.info (MessageFormat.format("resetToInitialState() [{0}] - entering", state));
+        clearDrainBuffer();
         getMessageQueue().clear();
         try {
             initialOffsets = getInitialOffsetsFromJcpCv();
@@ -948,6 +949,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         int resetAttempt = getCrContext().getResetAttempt();
         MergeKey key = new MergeKey (chkptSeqId, resetAttempt);
         logger.info (MessageFormat.format("reset() [{0}] - entering. chkptSeqId = {1}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
+        clearDrainBuffer();
         getMessageQueue().clear();
         try {
             final ObjectInputStream inputStream = checkpoint.getInputStream();
@@ -1195,7 +1197,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
         if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
         // Note: within poll(...) the ConsumerRebalanceListener might be called, changing the state to POLLING_CR_RESET_PENDING
+        long before = 0;
+        if (logger.isDebugEnabled()) before = System.currentTimeMillis();
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
+        if (logger.isDebugEnabled()) {
+            logger.debug("consumer.poll took [ms] " + (System.currentTimeMillis() - before));
+        }
         if (state == ClientState.POLLING_CR_RESET_PENDING) {
             logger.info (MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
             return 0;

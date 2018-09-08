@@ -66,7 +66,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private BlockingQueue<Event> eventQueue;
     private BlockingQueue<ConsumerRecord<?, ?>> messageQueue;
     private List <ConsumerRecord<?, ?>> drainBuffer;
-    private OperatorContext operatorContext;
     private boolean groupIdGenerated = false;
     private long pollTimeout = DEFAULT_CONSUMER_POLL_TIMEOUT_MS;
     private int maxPollRecords;
@@ -132,7 +131,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric("nAssignedPartitions");
-        this.operatorContext = operatorContext;
     }
 
 
@@ -201,7 +199,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             throw new KafkaClientInitializationException (e.getLocalizedMessage(), e);
         }
         consumerInitLatch = new CountDownLatch(1);
-        Thread eventThread = operatorContext.getThreadFactory().newThread(new Runnable() {
+        Thread eventThread = getOperatorContext().getThreadFactory().newThread(new Runnable() {
 
             @Override
             public void run() {
@@ -250,13 +248,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private void runEventLoop() throws InterruptedException {
         logger.debug("Event loop started"); //$NON-NLS-1$
         while (processing.get()) {
-            if (logger.isTraceEnabled()) {
-                logger.trace ("Checking event queue for message ..."); //$NON-NLS-1$
+            if (logger.isInfoEnabled()) {
+                logger.info ("Checking event queue for control message ..."); //$NON-NLS-1$
             }
             Event event = eventQueue.poll (30, TimeUnit.SECONDS);
 
             if (event == null) {
-                //                Thread.sleep (EVENT_LOOP_PAUSE_TIME_MS);
                 continue;
             }
 
@@ -354,7 +351,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         // expose the exception to the runtime. When committing synchronous, 
                         // we usually want the offsets really have committed or restart operator, for example when in a CR
                         throw new RuntimeException (e.getMessage(), e);
-                        // TODO: instead of Exception + operator restart, simply initiate reset of consistent region? Hmm .. during drain? Will this work?
+                        // TODO: instead of Exception + operator restart, simply initiate reset of consistent region?
+                        // Hmm .. during drain? Will this work?
                     }
                 }
                 else {
@@ -539,8 +537,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             if (!drainBuffer.isEmpty()) {
                 // restore records that have been put aside to the drain buffer
                 messageQueue.addAll (drainBuffer);
-                int qSize = messageQueue.size();
-                int nDrained = drainBuffer.size();
+                final int qSize = messageQueue.size();
+                final int nDrained = drainBuffer.size();
                 drainBuffer.clear();
                 logger.info (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", nDrained, qSize));
             }
@@ -548,11 +546,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         // continue polling for messages until a new event
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
+            
             // can wait for 100 ms; throws InterruptedException:
             if (isSpaceInMsgQueueWait()) {
                 try {
-                    long now = System.currentTimeMillis();
-                    long timeBetweenPolls = now -lastPollTimestamp;
+                    final long now = System.currentTimeMillis();
+                    final long timeBetweenPolls = now -lastPollTimestamp;
                     if (lastPollTimestamp > 0) {
                         // this is not the first 'poll'
                         if (timeBetweenPolls >= maxPollIntervalMs) {
@@ -575,7 +574,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 }
             }
             else {
-                if (logger.isDebugEnabled()) logger.debug ("still no space in messagequeue ...");
+                if (logger.isTraceEnabled()) logger.trace ("no space in message queue ...");
             }
         }
         logger.debug("Stop polling. Message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
@@ -667,13 +666,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     public KafkaOperatorProperties getKafkaProperties() {
         return kafkaProperties;
-    }
-
-    /**
-     * @return the operatorContext
-     */
-    public OperatorContext getOperatorContext() {
-        return operatorContext;
     }
 
     /**
@@ -804,6 +796,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
+     * This is the empty default implementation. Subclasses may want to have their own implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
+    }
+
+
+    /**
      * Initiates resetting the client to a prior state and initiates start of polling.
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @param checkpoint the checkpoint that contains the state.
@@ -866,13 +867,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         final double totalMemory = rt.totalMemory();
 
         // Is there still room to grow?
-        if (totalMemory < (maxMemory * 0.95))
+        if (totalMemory < (maxMemory * 0.90))
             return false;
 
         final double freeMemory = rt.freeMemory();
 
-        // Low memory if free memory at less than 5% of max.
-        return freeMemory < (maxMemory * 0.05);
+        // Low memory if free memory at less than 10% of max.
+        return freeMemory < (maxMemory * 0.1);
     }
 
     /**

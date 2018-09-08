@@ -111,22 +111,32 @@ public interface ConsumerClient {
      * Initiates checkpointing of the consumer client.
      * Implementations ensure that checkpointing the client has completed when this method returns. 
      * @param checkpoint the checkpoint
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     void sendCheckpointEvent (Checkpoint checkpoint) throws InterruptedException;
 
     /**
-     * Initiates resetting the client to a prior state. 
+     * The consumer can prepare any data from the checkpoint. This method invocation is always followed by
+     * {@link #sendResetEvent(Checkpoint)} if not interrupted. This method is run by a runtime thread at 
+     * reset of the consistent region.
+     * @param checkpoint the checkpoint that contains the state.
+     * @throws InterruptedException The thread has been interrupted.
+     */
+    void resetPrepareData (final Checkpoint checkpoint) throws InterruptedException;
+    
+    /**
+     * Initiates resetting the client to a prior state.
+     * The client can prepare any data for the reset by implementing {@link #resetPrepareData(Checkpoint)}. 
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @param checkpoint the checkpoint that contains the state.
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     void sendResetEvent (final Checkpoint checkpoint) throws InterruptedException;
 
     /**
      * Initiates resetting the client to the initial state. 
      * Implementations ensure that resetting the client has completed when this method returns. 
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     void sendResetToInitEvent() throws InterruptedException;
 
@@ -135,7 +145,7 @@ public interface ConsumerClient {
      * Implementations ensure that shutting down the client has completed when this method returns. 
      * @param timeout    the timeout to wait for shutdown completion
      * @param timeUnit   the unit of time for the timeout
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     void sendShutdownEvent (long timeout, TimeUnit timeUnit) throws InterruptedException;
 

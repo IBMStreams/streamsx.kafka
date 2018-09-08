@@ -971,14 +971,22 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final long sequenceId = checkpoint.getSequenceId();
         logger.info(MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
         final long before = System.currentTimeMillis();
-        consumer.sendResetEvent(checkpoint); // blocks until reset completes
-
-        // latch will be null if the reset was caused
-        // by another operator
-        if(resettingLatch != null) resettingLatch.countDown();
-        final long after = System.currentTimeMillis();
-        final long duration = after - before;
-        logger.info(MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
+        try {
+            consumer.resetPrepareData(checkpoint);
+            consumer.sendResetEvent(checkpoint); // blocks until sent event is processed
+        }
+        catch (InterruptedException e) {
+            logger.info("RESET interrupted)");
+            return;
+        }
+        finally {
+            // latch will be null if the reset was caused
+            // by another operator
+            if(resettingLatch != null) resettingLatch.countDown();
+            final long after = System.currentTimeMillis();
+            final long duration = after - before;
+            logger.info(MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
+        }
     }
 
     @Override

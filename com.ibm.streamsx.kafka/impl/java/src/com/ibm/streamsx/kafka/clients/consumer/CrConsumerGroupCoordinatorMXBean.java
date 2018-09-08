@@ -19,7 +19,7 @@ public interface CrConsumerGroupCoordinatorMXBean {
      * JMX Notification type offset map merge is completed.
      */
     public final static String MERGE_COMPLETE_NTF_TYPE = "OFFSET.MAP.MERGE.COMPLETE";
-    
+
     /**
      * JMX Notification type partitions have been assigned to a consumer in the group
      */
@@ -38,6 +38,18 @@ public interface CrConsumerGroupCoordinatorMXBean {
      * @throws IOException
      */
     public String getGroupId() throws IOException;
+
+    /**
+     * registers a consumer operator 
+     * @param id a unique identifier of the operator, for example the operators full name
+     */
+    public void registerConsumerOperator (String id);
+
+    /**
+     * returns the number of registered consumers, which should be the size of the consumer group.
+     * @return the number of consumers
+     */
+    public int getNumRegisteredConsumers();
 
     /**
      * Merges the checkpoint data of a single consumer into the consolidated group checkpoint.
@@ -60,7 +72,7 @@ public interface CrConsumerGroupCoordinatorMXBean {
      * @throws IOException
      */
     public Map<CrConsumerGroupCoordinator.TP, Long> getConsolidatedOffsetMap (long chkptSequenceId, int resetAttempt, String operatorName) throws IOException;
-    
+
     /**
      * Cleans the merge map for the given checkpoint sequence ID
      * @param chkptSequenceId the checkpoint sequence ID

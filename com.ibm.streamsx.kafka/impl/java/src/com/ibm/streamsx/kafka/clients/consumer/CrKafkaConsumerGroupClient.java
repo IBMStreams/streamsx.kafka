@@ -48,6 +48,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ConsistentRegionMXBean;
 import com.ibm.streams.operator.control.Controllable;
@@ -114,7 +116,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     /** Condition for setting/checking/waiting for the JMX notification */
     private final Condition jmxNotificationCondition = jmxNotificationConditionLock.newCondition();
     /** group's checkpoint merge complete JMX notification */
-    private Map<MergeKey, Notification> jmxMergeCompletedNotifMap = new HashMap<>();
+    private Map<MergeKey, CrConsumerGroupCoordinator.CheckpointMerge> jmxMergeCompletedNotifMap = new HashMap<>();
 
     /** canonical name of the MXBean. Note: If you need a javax.management.ObjectName instance, use createMBeanObjectName() */
     private String crGroupCoordinatorMXBeanName = null;
@@ -134,6 +136,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     private Map<TopicPartition, Long> seekOffsetMap;
     /** current state of the consumer client */
     private ClientState state = null;
+    Gson gson;
 
     /**
      * Constructs a new CrKafkaConsumerGroupClient object.
@@ -148,6 +151,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         this.crGroupCoordinatorMXBeanName = createMBeanObjectName().getCanonicalName();
         this.initialOffsets = new OffsetManager();
         this.assignedPartitionsOffsetManager = new OffsetManager();
+        this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
         ConsistentRegionContext crContext = getCrContext();
         logger.info(MessageFormat.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
@@ -223,6 +227,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             crGroupCoordinatorMxBean = JMX.newMXBeanProxy (jcp, groupMbeanName, CrConsumerGroupCoordinatorMXBean.class, /*notificationEmitter=*/true);
             crMxBean = JMX.newMXBeanProxy (jcp, getCrContext().getConsistentRegionMXBeanName(), ConsistentRegionMXBean.class);
             logger.debug ("MBean Proxy get test: group-ID = " + crGroupCoordinatorMxBean.getGroupId() + "; CR index = " + crGroupCoordinatorMxBean.getConsistentRegionIndex());
+            crGroupCoordinatorMxBean.registerConsumerOperator (getOperatorContext().getName());
         }
         finally {
             jmxSetupLatch.countDown();
@@ -269,12 +274,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     public void handleNotification (Notification notification, Object handback) {
         logger.info (MessageFormat.format ("handleNotification() [{0}]; notification = {1}", this.state, notification));
         if (notification.getType().equals (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE)) {
-            long chkptSequenceId = notification.getSequenceNumber();
-            int resetAttempt = Integer.parseInt (notification.getMessage());
-            logger.info (MessageFormat.format("handleNotification(): notification sequence number = {0} (must match the checkpoint sequence ID)", chkptSequenceId));
+            CrConsumerGroupCoordinator.CheckpointMerge merge = gson.fromJson (notification.getMessage(), CrConsumerGroupCoordinator.CheckpointMerge.class);
+            MergeKey key = merge.getKey();
             jmxNotificationConditionLock.lock();
-            MergeKey key = new MergeKey(chkptSequenceId, resetAttempt);
-            jmxMergeCompletedNotifMap.put(key, notification);
+            jmxMergeCompletedNotifMap.put (key, merge);
+            logger.debug (MessageFormat.format("handleNotification(): notification {0} stored, signalling waiting threads ...", key));
             jmxNotificationCondition.signalAll();
             jmxNotificationConditionLock.unlock();
         }
@@ -921,8 +925,55 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
 
     /**
-     * Resets the consumer client to a previous state.
+     * prepares the reset by clearing queues and buffers and creating the seek offset map.
+     * This method is run within a runtime thread.
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
+        clearDrainBuffer();
+        getMessageQueue().clear();
+        createSeekOffsetMap (checkpoint);
+    }
+
+    /**
+     * Resets the consumer client to a previous state. The seek offsets must have been created before from a checkpoint.
+     * This method is run by the event thread.
      * Resetting the client involves following steps:
+     * <ul>
+     * <li>seek all assigned partitions</li>
+     * <li>reset the assignedPartitionsOffsetManager by setting the seekOffsets for all assigned partitions.</li>
+     * </ul>
+     * 
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#reset(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    protected void reset (Checkpoint checkpoint) {
+
+        // When no one of the KafkaConsumer in this group has been restarted before the region reset,
+        // partition assignment will most likely not change and no onPartitionsRevoked()/onPartitionsAssigned will be fired on our
+        // ConsumerRebalanceListener. That's why we must seek here to the partitions we think we are assigned to (can also be no partition).
+        // If a consumer within our group - but not this operator - restarted, partition assignment may have changed, but we
+        // are not yet notified about it. That's why we must handle the partitions for which the seek failed.
+        // When this operator is restarted and reset, getAssignedPartitions() will return an empty Set. 
+
+        // Reset also the assignedPartitionsOffsetManager to the initial offsets of the assigned partitions. The assignedPartitionsOffsetManager goes into the checkpoint,
+        // and its offsets are used as the seek position when it comes to reset from a checkpoint. There must be a seek position also in
+        // the case that no tuple has been submitted for a partition, which would update the assignedPartitionsOffsetManager.
+        assignedPartitionsOffsetManager.clear();
+        assignedPartitionsOffsetManager.addTopics (getAssignedPartitions());
+        Collection<TopicPartition> failedSeeks = seekPartitions (getAssignedPartitions(), this.seekOffsetMap);
+        failedSeeks.forEach (tp -> assignedPartitionsOffsetManager.remove (tp.topic(), tp.partition()));
+        assignedPartitionsOffsetManager.savePositionFromCluster();
+        ClientState newState = ClientState.RESET_COMPLETE;
+        logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+        state = newState;
+        logger.info (MessageFormat.format("reset() [{0}] - exiting", state));
+    }
+
+    /**
+     * The seek offsets are created with following algorithm from the checkpoint:
      * <ul>
      * <li>clear the operator internal message queue</li>
      * <li>restore 'assignablePartitions' from the checkpoint.
@@ -934,31 +985,26 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * <li>wait for the JMX notification that the partition-to-offset map has merged to match 'assignablePartitions'</li>
      * <li>fetch the merged map from the MX bean so that the operator has the seek offsets of all partitions of
      *     all topics (the group's view) and store this in the 'seekOffsetMap' member variable.</li>
-     * <li>seek all assigned partitions</li>
-     * <li>reset the assignedPartitionsOffsetManager by setting the seekOffsets for all assigned partitions.</li>
      * </ul>
-     * This method is run by the event thread. State must be POLLING_STOPPED.
-     * 
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#reset(com.ibm.streams.operator.state.Checkpoint)
+     * @param checkpoint
+     * @throws InterruptedException
      */
     @SuppressWarnings("unchecked")
-    @Override
-    protected void reset (Checkpoint checkpoint) {
+    private void createSeekOffsetMap (Checkpoint checkpoint) throws InterruptedException {
         String operatorName = getOperatorContext().getName();
         long chkptSeqId = checkpoint.getSequenceId();
         int resetAttempt = getCrContext().getResetAttempt();
         MergeKey key = new MergeKey (chkptSeqId, resetAttempt);
-        logger.info (MessageFormat.format("reset() [{0}] - entering. chkptSeqId = {1}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
-        clearDrainBuffer();
-        getMessageQueue().clear();
+        logger.info (MessageFormat.format("createSeekOffsetMap() [{0}] - entering. chkptSeqId = {1}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
         try {
+            logger.info(MessageFormat.format ("createSeekOffsetMap() - merging {0} operator checkpoints into a single group checkpoint", crGroupCoordinatorMxBean.getNumRegisteredConsumers()));
             final ObjectInputStream inputStream = checkpoint.getInputStream();
             Set<TP> assignableParts = (Set<TP>) inputStream.readObject();
             OffsetManager offsMgr = (OffsetManager) inputStream.readObject();
             Map <TopicPartition, Long> committedOffsetsMap = (Map <TopicPartition, Long>) inputStream.readObject();
-            logger.info(MessageFormat.format("reset(): assignablePartitions read from checkpoint: {0}", assignableParts));
-            logger.info(MessageFormat.format("reset(): offset manager read from checkpoint: {0}", offsMgr));
-            logger.info(MessageFormat.format("reset(): committedOffsetsMap read from checkpoint: {0}", committedOffsetsMap));
+            logger.info(MessageFormat.format("createSeekOffsetMap(): assignablePartitions read from checkpoint: {0}", assignableParts));
+            logger.info(MessageFormat.format("createSeekOffsetMap(): offset manager read from checkpoint: {0}", offsMgr));
+            logger.info(MessageFormat.format("createSeekOffsetMap(): committedOffsetsMap read from checkpoint: {0}", committedOffsetsMap));
             this.assignablePartitions.addAll (assignableParts);
             int nPartitionsTotal = assignableParts.size();
             int nPartitionsChckpt = offsMgr.size();
@@ -979,20 +1025,19 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 this.crGroupCoordinatorMxBean.mergeConsumerCheckpoint (chkptSeqId, resetAttempt, assignableParts, partialOffsetMap, operatorName);
             }
             else {
-                logger.info("reset(): no contribution to the group's checkpoint from this operator");
+                logger.info("createSeekOffsetMap(): no contribution to the group's checkpoint from this operator");
             }
 
-            // check notification and wait
+            // check JMX notification and wait for notification
             jmxNotificationConditionLock.lock();
             long waitStartTime= System.currentTimeMillis();
             long timeoutMillis = (long) (getCrContext().getResetTimeout() * 250.0);  // 1/4 of the reset timeout of the CR (seconds * 1000 /4)
-            if (timeoutMillis > 30000) timeoutMillis = 30000;
             if (timeoutMillis > getMaxPollIntervalMs()/2) timeoutMillis = getMaxPollIntervalMs()/2; // must be smaller than max.poll.interval.ms
             boolean waitTimeLeft = true;
             int nWaits = 0;
+            long timeElapsed = 0;
             logger.info(MessageFormat.format("checking receiption of JMX notification {0} for sequenceId {1}", CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key));
             while (!jmxMergeCompletedNotifMap.containsKey(key) && waitTimeLeft) {
-                long timeElapsed = System.currentTimeMillis() - waitStartTime;
                 long remainingTime = timeoutMillis - timeElapsed;
                 waitTimeLeft = remainingTime > 0;
                 if (waitTimeLeft) {
@@ -1000,17 +1045,24 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                             CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, remainingTime, timeoutMillis));
                     jmxNotificationCondition.await (100, TimeUnit.MILLISECONDS);
                 }
+                timeElapsed = System.currentTimeMillis() - waitStartTime;
             }
-            Notification jmxNotification = jmxMergeCompletedNotifMap.get(key);
-            if (jmxNotification == null) {
-                final String msg = MessageFormat.format ("Timeout receiving JMX notification for {0} from MXBean {1} in JCP. Current timeout is {2} milliseconds.",
-                        key, crGroupCoordinatorMXBeanName, timeoutMillis);
-                logger.error (msg);
+            CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get(key);
+            if (merge == null) {
+                final String msg = MessageFormat.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3} milliseconds.",
+                        CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, crGroupCoordinatorMXBeanName, timeoutMillis);
+                logger.warn (msg);
+                logger.info ("will restore group's checkpoint by merge of partly merged checkpoints with last committed offsets");
                 // JMX notification may have lost, an at least partly usable result may be available anyway...
             }
-            Map <TP, Long> mergedOffsetMap = crGroupCoordinatorMxBean.getConsolidatedOffsetMap (chkptSeqId, resetAttempt, operatorName);
-            logger.info ("resetOffsets (group's checkpoint) fetched from MXBean: " + mergedOffsetMap);
-            // reset Offsets may be incomplete when the checkpoint was take in the middle of rebalancing the group.
+            else {
+                logger.info(MessageFormat.format("waiting for JMX notification for sequenceId {0} took {1} ms", key, timeElapsed));
+            }
+
+            Map <TP, Long> mergedOffsetMap = merge != null? merge.getConsolidatedOffsetMap(): crGroupCoordinatorMxBean.getConsolidatedOffsetMap (chkptSeqId, resetAttempt, operatorName);
+            logger.info ("reset offsets (group's checkpoint) received/fetched from MXBean: " + mergedOffsetMap);
+
+            // reset offsets from MXBean may be incomplete when the checkpoint was taken in the middle of rebalancing the group.
             // In order to have an offset to which we can seek, merge with the committedOffsetsMap - which might be older.
             initSeekOffsetMap();
             mergedOffsetMap.forEach ((tp, offset) -> {
@@ -1018,47 +1070,22 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             });
             committedOffsetsMap.forEach ((tp, committedOffset) -> {
                 if (!this.seekOffsetMap.containsKey (tp)) {
-                    logger.warn (MessageFormat.format ("reset(): consolidated offset map is missing offset for topic partition {0}. Using last committed offset at drain time: {1}", tp, committedOffset));
+                    logger.warn (MessageFormat.format ("createSeekOffsetMap(): consolidated offset map is missing offset for topic partition {0}. Using last committed offset at drain time: {1}", tp, committedOffset));
                     this.seekOffsetMap.put (tp, committedOffset);
                 }
                 else {
                     // compare offsets and log when they are different
-                    // TODO: change the trace level to DEBUG
-                    if (logger.isInfoEnabled()) {
-                        long offset = seekOffsetMap.get(tp).longValue();
-                        if (committedOffset.longValue() != offset) {
-                            logger.info(MessageFormat.format("seek offsets for {0} from merged checkpoint {1} and committed at drain {2} differ. "
-                                    + " Assertion {1} > {2} mut be true.", tp, offset, committedOffset));
-                        }
-                        else {
-                            logger.info(MessageFormat.format("seek offsets for {0} from merged checkpoint {1} and committed at drain {2} match.",
-                                    tp, offset, committedOffset));
-                        }
+                    long offset = seekOffsetMap.get(tp).longValue();
+                    if (committedOffset.longValue() != offset) {
+                        logger.info (MessageFormat.format("seek offsets for {0} from merged checkpoint {1} and committed at drain {2} differ. "
+                                + " Assertion {1} > {2} must be true.", tp, offset, committedOffset));
+                    }
+                    else {
+                        logger.debug (MessageFormat.format("seek offsets for {0} from merged checkpoint {1} and committed at drain {2} match.",
+                                tp, offset, committedOffset));
                     }
                 }
             });
-
-            logger.info ("reset(): seekOffsetMap = " + this.seekOffsetMap);
-
-            // When no one of the KafkaConsumer in this group has been restarted before the region reset,
-            // partition assignment will most likely not change and no onPartitionsRevoked()/onPartitionsAssigned will be fired on our
-            // ConsumerRebalanceListener. That's why we must seek here to the partitions we think we are assigned to (can also be no partition).
-            // If a consumer within our group - but not this operator - restarted, partition assignment may have changed, but we
-            // are not yet notified about it. That's why we must handle the partitions for which the seek failed.
-            // When this operator is restarted and reset, getAssignedPartitions() will return an empty Set. 
-
-            // Reset also the assignedPartitionsOffsetManager to the initial offsets of the assigned partitions. The assignedPartitionsOffsetManager goes into the checkpoint,
-            // and its offsets are used as the seek position when it comes to reset from a checkpoint. There must be a seek position also in
-            // the case that no tuple has been submitted for a partition, which would update the assignedPartitionsOffsetManager.
-            assignedPartitionsOffsetManager.clear();
-            assignedPartitionsOffsetManager.addTopics (getAssignedPartitions());
-            Collection<TopicPartition> failedSeeks = seekPartitions (getAssignedPartitions(), this.seekOffsetMap);
-            failedSeeks.forEach (tp -> assignedPartitionsOffsetManager.remove (tp.topic(), tp.partition()));
-            assignedPartitionsOffsetManager.savePositionFromCluster();
-            ClientState newState = ClientState.RESET_COMPLETE;
-            logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
-            state = newState;
-            logger.info (MessageFormat.format("reset() [{0}] - exiting", state));
         }
         catch (InterruptedException e) {
             logger.debug ("reset(): interrupted waiting for the JMX notification");
@@ -1069,9 +1096,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
         }
         finally {
-            jmxMergeCompletedNotifMap.remove(key);
             jmxNotificationConditionLock.unlock();
         }
+        logger.info ("createSeekOffsetMap(): seekOffsetMap = " + this.seekOffsetMap);
     }
 
 
@@ -1093,7 +1120,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * <ul>
      * <li>assignablePartitions</li>
      * <li>assignedPartitionsOffsetManager</li>
-     * <li>current committed offsets fetched from the cluster. Gathering this data is expensive.
+     * <li>current committed offsets fetched from the cluster. Gathering this data is expensive as it involves a Kafka server request.
      * </ul
      * @param checkpoint the reference of the checkpoint object
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#checkpoint(com.ibm.streams.operator.state.Checkpoint)

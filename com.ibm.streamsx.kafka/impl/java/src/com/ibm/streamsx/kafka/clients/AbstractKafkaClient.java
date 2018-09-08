@@ -33,6 +33,7 @@ public abstract class AbstractKafkaClient {
 
     private final String clientId;
     private boolean clientIdGenerated = false;
+    private final OperatorContext operatorContext;
     private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
     private static final String GENERATED_PRODUCERID_PREFIX = "producer-"; //$NON-NLS-1$
     
@@ -45,6 +46,7 @@ public abstract class AbstractKafkaClient {
      */
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
+        this.operatorContext = operatorContext;
         // Create a random client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
         // This is important, otherwise running multiple consumers from the same
         // application will result in a KafkaException when registering the client
@@ -67,6 +69,15 @@ public abstract class AbstractKafkaClient {
             }
         }
         kafkaProperties.put (clientIdConfig, this.clientId);
+    }
+
+
+    /**
+     * returns the operator context.
+     * @return the operator context
+     */
+    public OperatorContext getOperatorContext() {
+        return operatorContext;
     }
 
 

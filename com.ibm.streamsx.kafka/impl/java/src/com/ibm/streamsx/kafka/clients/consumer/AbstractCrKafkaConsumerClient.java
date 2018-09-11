@@ -6,6 +6,7 @@ package com.ibm.streamsx.kafka.clients.consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Logger;
 
+import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.metrics.Metric;
@@ -30,7 +31,7 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
      * @param operatorContext
      * @param keyClass
      * @param valueClass
-     * @param kafkaProperties modifies enable.auto.commit in the kafka properties
+     * @param kafkaProperties modifies enable.auto.commit, max.poll.interval.ms, and potentially others in the kafka properties
      * @throws KafkaConfigurationException
      */
     public <K, V> AbstractCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass, KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
@@ -51,6 +52,21 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
             tracer.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
         }
         kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+
+        // adjust max.poll.interval.ms if too small
+        final long crResetTimeoutMs = (long) (crContext.getResetTimeout() * 1000.0);
+        final long crDrainTimeoutMs = (long) (crContext.getDrainTimeout() * 1000.0);
+        final long minMaxPollIntervalMs = 3 * (crResetTimeoutMs > crDrainTimeoutMs? crResetTimeoutMs: crDrainTimeoutMs);
+        if (getMaxPollIntervalMs() < minMaxPollIntervalMs) {
+            // need to adjust property
+            if (kafkaProperties.containsKey (ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)) {
+                tracer.warn (MessageFormat.format ("consumer config ''{0}'' has been increased from {1} to {2}, which is 3*max(resetTimeout, drainTimeout)", ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, getMaxPollIntervalMs(), minMaxPollIntervalMs));
+            }
+            else {
+                tracer.info (MessageFormat.format ("consumer config ''{0}'' has been adjusted to {1}, which is 3*max(resetTimeout, drainTimeout)", ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, minMaxPollIntervalMs));
+            }
+            kafkaProperties.put (ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "" + minMaxPollIntervalMs);
+        }
 
         operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_METRIC_NAME, "last drain time of this operator in milliseconds", Metric.Kind.GAUGE);
         operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_MAX_METRIC_NAME, "maximum drain time of this operator in milliseconds", Metric.Kind.GAUGE);

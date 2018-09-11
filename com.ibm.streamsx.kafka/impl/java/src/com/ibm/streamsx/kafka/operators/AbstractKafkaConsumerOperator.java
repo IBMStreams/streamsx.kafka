@@ -122,6 +122,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void setnMalformedMessages (Metric nMalformedMessages) {
         this.nMalformedMessages = nMalformedMessages;
     }
+    
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nPartitionRebalances", description = "Number of partition rebalances within the consumer group")
+    public void setnPartitionRebalances (Metric nPartitionRebalances) {
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
 
     @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of pending messages to be submitted as tuples.")
     public void setnPendingMessages(Metric nPendingMessages) {

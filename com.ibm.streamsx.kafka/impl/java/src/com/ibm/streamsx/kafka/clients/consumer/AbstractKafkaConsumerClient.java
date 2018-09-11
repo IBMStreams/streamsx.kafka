@@ -83,6 +83,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nPendingMessages;
     private final Metric nLowMemoryPause;
     private final Metric nQueueFullPause;
+    protected final Metric nPartitionRebalances;
     protected final Metric nAssignedPartitions;
 
     // Lock/condition for when we pause processing due to
@@ -132,6 +133,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric("nAssignedPartitions");
+        this.nPartitionRebalances = operatorContext.getMetrics().getCustomMetric("nPartitionRebalances");
     }
 
 

@@ -205,6 +205,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
      */
     @Override
     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        this.nPartitionRebalances.increment();
         logger.info("onPartitionsRevoked: old partition assignment = " + partitions);
     }
 

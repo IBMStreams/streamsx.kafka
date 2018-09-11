@@ -485,8 +485,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();
-        // in this client, we start polling after getting a permit to submit tuples
-                sendStartPollingEvent();
+        // we must poll, otherwise rebalances do not complete
+        sendStartPollingEvent();
     }
 
     /**
@@ -499,8 +499,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET_TO_INIT, true);
         sendEvent (event);
         event.await();
-        // in this client, we start polling after getting a permit to submit tuples
-                sendStartPollingEvent();
+        // we must poll, otherwise rebalances do not complete
+        sendStartPollingEvent();
     }
 
     /**
@@ -624,6 +624,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
         logger.info (MessageFormat.format("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
+        this.nPartitionRebalances.increment();
         if (!(state == ClientState.SUBSCRIBED || state == ClientState.RESET_COMPLETE)) {
             logger.warn ("onPartitionsRevoked(): initiating reset of the consistent region ...");
             ClientState newState = ClientState.POLLING_CR_RESET_PENDING;

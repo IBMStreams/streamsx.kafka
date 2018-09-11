@@ -16,6 +16,7 @@ import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
+import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
@@ -34,8 +35,6 @@ public abstract class AbstractKafkaClient {
     private final String clientId;
     private boolean clientIdGenerated = false;
     private final OperatorContext operatorContext;
-    private static final String GENERATED_CLIENTID_PREFIX = "client-"; //$NON-NLS-1$
-    private static final String GENERATED_PRODUCERID_PREFIX = "producer-"; //$NON-NLS-1$
     
     
     /**
@@ -47,12 +46,13 @@ public abstract class AbstractKafkaClient {
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
         this.operatorContext = operatorContext;
-        // Create a random client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
+        // Create a unique client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
         // This is important, otherwise running multiple consumers from the same
         // application will result in a KafkaException when registering the client
         final String clientIdConfig = isConsumer? ConsumerConfig.CLIENT_ID_CONFIG: ProducerConfig.CLIENT_ID_CONFIG;
         if (!kafkaProperties.containsKey (clientIdConfig)) {
-            this.clientId = getRandomId (isConsumer? GENERATED_CLIENTID_PREFIX: GENERATED_PRODUCERID_PREFIX);
+            this.clientId = MessageFormat.format ("{0}-J{1}-{2}",
+                    (isConsumer? "C": "P"), operatorContext.getPE().getJobId(), operatorContext.getName());
             logger.info("generated client.id: " + this.clientId);
             clientIdGenerated = true;
         }
@@ -62,7 +62,7 @@ public abstract class AbstractKafkaClient {
             if (udpChannel >= 0) {
                 // we are in UDP
                 this.clientId = kafkaProperties.getProperty (clientIdConfig) + "-" + udpChannel;
-                logger.info("UDP detected. modified client.id: " + this.clientId);
+                logger.warn ("UDP detected. modified client.id: " + this.clientId);
             }
             else {
                 this.clientId = kafkaProperties.getProperty (clientIdConfig);

@@ -78,7 +78,7 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
     		"---\\n" +  //$NON-NLS-1$
     		"| Property Name | Default Value |\\n" +  //$NON-NLS-1$
     		"|===|\\n" +  //$NON-NLS-1$
-    		"| client.id | Randomly generated ID in the form: `client-<random_string>` |\\n" +  //$NON-NLS-1$
+    		"| client.id | Generated ID in the form: `C-J<JobId>-<operator name>` |\\n" +  //$NON-NLS-1$
     		"|---|\\n" +  //$NON-NLS-1$
     		"| group.id | Randomly generated ID in the form: `group-<random_string>` |\\n" +  //$NON-NLS-1$
     		"|---|\\n" +  //$NON-NLS-1$

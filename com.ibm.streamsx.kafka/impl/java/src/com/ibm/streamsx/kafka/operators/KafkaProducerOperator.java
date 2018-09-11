@@ -40,7 +40,7 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 			"---\\n" +  //$NON-NLS-1$
 			"| Property name | Default Value |\\n" +  //$NON-NLS-1$
 			"|===|\\n" +  //$NON-NLS-1$
-			"| client.id | Randomly generated ID in the form: `producer-<random_string>` |\\n" +  //$NON-NLS-1$
+			"| client.id | Generated ID in the form: `C-J<JobId>-<operator name>` |\\n" +  //$NON-NLS-1$
 			"|---|\\n" +  //$NON-NLS-1$
 			"| key.serializer | See **Automatic Serialization** section below |\\n" +  //$NON-NLS-1$
             "|---|\\n" +  //$NON-NLS-1$

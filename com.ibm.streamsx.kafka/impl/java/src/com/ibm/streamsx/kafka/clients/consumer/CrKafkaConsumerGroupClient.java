@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
@@ -485,7 +486,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         sendEvent (event);
         event.await();
         // in this client, we start polling after getting a permit to submit tuples
-        //        sendStartPollingEvent();
+                sendStartPollingEvent();
     }
 
     /**
@@ -499,7 +500,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         sendEvent (event);
         event.await();
         // in this client, we start polling after getting a permit to submit tuples
-        //        sendStartPollingEvent();
+                sendStartPollingEvent();
     }
 
     /**
@@ -513,15 +514,15 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         logger.info (MessageFormat.format("onDrain() [{0}] - entering", state));
         try {
             // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
-            sendStopPollingEvent();
-            logger.debug("onDrain(): sendStopPollingEvent() exit: event processed by poll thread");
             ClientState newState = ClientState.DRAINING;
             logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
+            sendStopPollingEvent();
+            logger.info ("onDrain(): sendStopPollingEvent() exit: event processed by event thread");
             // when CR is operator driven, do not wait for queue to be emptied.
             // This would never happen because the tuple submitter thread is blocked in makeConsistent() in postSubmit(...) 
             // and cannot empty the queue
-            if (!getCrContext().isTriggerOperator()/* && !getMessageQueue().isEmpty()*/) {
+            if (!getCrContext().isTriggerOperator()) {
                 // here we are only when we are NOT the CR trigger (for example, periodic CR)
                 if (DRAIN_TO_BUFFER_ON_CR_DRAIN) {
                     drainMessageQueueToBuffer();
@@ -627,9 +628,26 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             logger.warn ("onPartitionsRevoked(): initiating reset of the consistent region ...");
             ClientState newState = ClientState.POLLING_CR_RESET_PENDING;
             logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+            state = newState;
             // initiate stop polling to avoid further rebalance listener callbacks before we get reset
             sendStopPollingEventAsync();
-            state = newState;
+            logger.info (MessageFormat.format ("runPollLoop() [{0}]: initiating consistent region reset", state));
+            
+            ThreadFactory thf = getOperatorContext().getThreadFactory();
+            thf.newThread (new Runnable() {
+
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(100);
+                        crMxBean.reset (false);
+                    }
+                    catch (InterruptedException e) {
+                        // ignore
+                    }
+                }
+            }).start();
+            
 
             // this callback is called within the context of a poll() invocation.
             // onPartitionsRevoked() is followed by onPartitionsAssigned() with the new assignment within that poll().
@@ -1197,14 +1215,17 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     protected void runPollLoop (Long pollTimeout) throws InterruptedException {
         pollingStartPending.set(false);
+        // do not change the state beforehand because the ConsumerRebalanceListener callbacks might be called, which behave state dependent
         super.runPollLoop(pollTimeout);
-        if (state == ClientState.POLLING_CR_RESET_PENDING) {
-            logger.info (MessageFormat.format ("runPollLoop() [{0}]: initiating consistent region reset", state));
-            crMxBean.reset (false);
+        // Don't change state, when state is something CR related, like DRAINING, RESETTING, ... 
+        if (state == ClientState.POLLING || state == ClientState.POLLING_CR_RESET_PENDING) {
+            ClientState newState = ClientState.POLLING_STOPPED;
+            logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+            state = newState;
         }
-        ClientState newState = ClientState.POLLING_STOPPED;
-        logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
-        state = newState;
+        else {
+            logger.info (MessageFormat.format ("runPollLoop() [{0}]: polling stopped", state));
+        }
     }
 
 
@@ -1239,6 +1260,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
         }
+        
         int numRecords = records == null? 0: records.count();
         if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
         if (numRecords > 0) {
@@ -1271,12 +1293,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
         //        if ((state == ClientState.RESET_COMPLETE || state == ClientState.CHECKPOINTED) && pollingStartPending.get() == false) {
-        if (!(state == ClientState.POLLING || state == ClientState.POLLING_CR_RESET_PENDING) && pollingStartPending.get() == false) {
+        if (!(state == ClientState.POLLING || state == ClientState.DRAINING || state == ClientState.POLLING_CR_RESET_PENDING) && pollingStartPending.get() == false) {
             logger.info(MessageFormat.format("getNextRecord() [{0}] - inititing polling for records", state)); 
-            pollingStartPending.set(true);
+            pollingStartPending.set (true);
             sendStartPollingEvent();
+            Thread.sleep(50);
         }
-        return super.getNextRecord(timeout, timeUnit);
+        return super.getNextRecord (timeout, timeUnit);
     }
 
     /**

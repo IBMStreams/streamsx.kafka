@@ -73,6 +73,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private long lastPollTimestamp = 0;
 
     private AtomicBoolean processing;
+    private boolean fetchPaused = false;
     private Set<TopicPartition> assignedPartitions = new HashSet<>();
     private SubscriptionMode subscriptionMode = SubscriptionMode.NONE;
 
@@ -454,7 +455,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             try {
                 msgQueueLock.lock();
                 msgQueueEmptyCondition.signalAll();
-                nPendingMessages.setValue (messageQueue.size());
             } finally {
                 msgQueueLock.unlock();
             }
@@ -471,24 +471,25 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
-     * drains the message queue into a buffer of same capacity.
-     * The content of the buffer is enqueued when polling for records is initiated, before records are read from Kafka. 
+     * drains the message queue into a buffer.
+     * The content of the buffer is enqueued when polling for records is initiated, before records are read from Kafka.
+     * @return the number of drained records
      */
     protected int drainMessageQueueToBuffer() {
-        msgQueueLock.lock();
         int nRecords = 0;
+        int qSize = 0;
+        int bufSize = 0;
+        logger.info ("drainMessageQueueToBuffer(): trying to acquire lock");
         synchronized (drainBuffer) {
-
             if (!drainBuffer.isEmpty()) {
-                logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Removing {0} consumer records from the buffer", drainBuffer.size()));
-                drainBuffer.clear();
+                logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Num records in buffer = {0}", drainBuffer.size()));
             }
             nRecords = messageQueue.drainTo (drainBuffer);
+            bufSize = drainBuffer.size();
         }
-        int qSize = messageQueue.size();
-        msgQueueEmptyCondition.signalAll();
-        msgQueueLock.unlock();
-        logger.info (MessageFormat.format ("drainMessageQueueToBuffer(): {0} consumer records drained to buffer. message queue size is {1} now.", nRecords, qSize));
+        qSize = messageQueue.size();
+        logger.info (MessageFormat.format ("drainMessageQueueToBuffer(): {0} consumer records drained to buffer. bufSz = {1}, queueSz = {2}.",
+                nRecords, bufSize, qSize));
         return nRecords;
     }
 
@@ -535,20 +536,57 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.info("Initiating polling ..."); //$NON-NLS-1$
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
+                final int bufSz = drainBuffer.size();
+                final int capacity = messageQueue.remainingCapacity();
                 // restore records that have been put aside to the drain buffer
+                if (capacity < bufSz) {
+                    String msg = MessageFormat.format ("drain buffer size {0} > capacity of message queue {1}", bufSz, capacity);
+                    logger.error ("runPollLoop() - " + msg);
+                    // must restart operator.
+                    throw new RuntimeException (msg);
+                }
                 messageQueue.addAll (drainBuffer);
                 final int qSize = messageQueue.size();
-                final int nDrained = drainBuffer.size();
                 drainBuffer.clear();
-                logger.info (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", nDrained, qSize));
+                logger.info (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
             }
         }
         // continue polling for messages until a new event
         // arrives in the event queue
         while (eventQueue.isEmpty()) {
-            
+
+            boolean doPoll = true;
             // can wait for 100 ms; throws InterruptedException:
-            if (isSpaceInMsgQueueWait()) {
+            if (!isSpaceInMsgQueueWait()) {
+                if (!fetchPaused) {
+                    try {
+                        consumer.pause (assignedPartitions);
+                        if (logger.isTraceEnabled()) logger.trace ("runPollLoop() - no space in message queue, fetching paused");
+                        fetchPaused = true;
+                    }
+                    catch (IllegalStateException e) {
+                        // one of the assigned partitions not assigned any more
+                        logger.warn ("runPollLoop(): " + e.getLocalizedMessage());
+                        // no space, could not pause - do not call poll
+                        doPoll = false;
+                    }
+                }
+            }
+            else {
+                // space in queue, resume fetching
+                if (fetchPaused) {
+                    try {
+                        // when not paused, 'resumed' is a no-op
+                        consumer.resume (assignedPartitions);
+                        if (logger.isTraceEnabled()) logger.trace ("runPollLoop() - fetching resumed");
+                        fetchPaused = false;
+                    }
+                    catch (IllegalStateException e) {
+                        logger.warn ("runPollLoop(): " + e.getLocalizedMessage());
+                    }
+                }
+            }
+            if (doPoll) {
                 try {
                     final long now = System.currentTimeMillis();
                     final long timeBetweenPolls = now -lastPollTimestamp;
@@ -572,9 +610,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // https://issues.apache.org/jira/browse/KAFKA-4740)
                     throw e;
                 }
-            }
-            else {
-                if (logger.isTraceEnabled()) logger.trace ("no space in message queue ...");
             }
         }
         logger.debug("Stop polling. Message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
@@ -718,6 +753,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         Event event = new Event (EventType.START_POLLING, new Long (pollTimeout), false);
         sendEvent(event);
     }
+
 
     /**
      * Initiates stop polling for Kafka messages.

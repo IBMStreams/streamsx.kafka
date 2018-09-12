@@ -266,7 +266,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * group than Kafka partitions, this consumers checkpoint does not contribute to the group's checkpoint on reset.
      * Then the other operator instances (which had partitions) only contribute to the checkpoint and cause the MXBean to fire the
      * 'merge complete' notification. An operator that does not contribute to the group's checkpoint can therefore receive
-     * the notification at any time during its reset phase, perhaps also before {@link #reset(Checkpoint)} has been invoked.
+     * the notification at any time during its reset phase, perhaps also before {@link #processResetEvent(Checkpoint)} has been invoked.
      * Therefore, the implementation of {@link #handleNotification(Notification, Object)} must not expect a particular client state to succeed.
      * 
      * @see javax.management.NotificationListener#handleNotification(javax.management.Notification, java.lang.Object)
@@ -465,7 +465,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void sendCheckpointEvent (Checkpoint checkpoint) throws InterruptedException {
+    public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.CHECKPOINT, checkpoint, true);
         sendEvent (event);
         event.await();
@@ -481,11 +481,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void sendResetEvent (final Checkpoint checkpoint) throws InterruptedException {
+    public void onReset (final Checkpoint checkpoint) throws InterruptedException {
+        resetPrepareData (checkpoint);
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();
         // we must poll, otherwise rebalances do not complete
+        // TODO: initiate a throttled version of polling and a specific event, or add parameters to the event
         sendStartPollingEvent();
     }
 
@@ -495,11 +497,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void sendResetToInitEvent() throws InterruptedException {
+    public void onResetToInitialState() throws InterruptedException {
         Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET_TO_INIT, true);
         sendEvent (event);
         event.await();
         // we must poll, otherwise rebalances do not complete
+        // TODO: initiate a throttled version of polling and a specific event, or add parameters to the event
         sendStartPollingEvent();
     }
 
@@ -900,11 +903,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * </ul>
      * This method is run by the event thread. State must be POLLING_STOPPED.
      *
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#resetToInitialState()
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processResetToInitEvent()
      */
     @Override
-    protected void resetToInitialState() {
-        logger.info (MessageFormat.format("resetToInitialState() [{0}] - entering", state));
+    protected void processResetToInitEvent() {
+        logger.info (MessageFormat.format("processResetToInitEvent() [{0}] - entering", state));
         clearDrainBuffer();
         getMessageQueue().clear();
         try {
@@ -938,7 +941,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         ClientState newState = ClientState.RESET_COMPLETE;
         logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.info (MessageFormat.format("resetToInitialState() [{0}] - exiting", state));
+        logger.info (MessageFormat.format("processResetToInitEvent() [{0}] - exiting", state));
     }
 
 
@@ -946,8 +949,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     /**
      * prepares the reset by clearing queues and buffers and creating the seek offset map.
      * This method is run within a runtime thread.
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
     public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
@@ -965,11 +967,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * <li>reset the assignedPartitionsOffsetManager by setting the seekOffsets for all assigned partitions.</li>
      * </ul>
      * 
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#reset(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processResetEvent(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
-    protected void reset (Checkpoint checkpoint) {
+    protected void processResetEvent (Checkpoint checkpoint) {
 
+        logger.info (MessageFormat.format("processResetEvent() [{0}] - entering", state));
         // When no one of the KafkaConsumer in this group has been restarted before the region reset,
         // partition assignment will most likely not change and no onPartitionsRevoked()/onPartitionsAssigned will be fired on our
         // ConsumerRebalanceListener. That's why we must seek here to the partitions we think we are assigned to (can also be no partition).
@@ -988,7 +991,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         ClientState newState = ClientState.RESET_COMPLETE;
         logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.info (MessageFormat.format("reset() [{0}] - exiting", state));
+        logger.info (MessageFormat.format("processResetEvent() [{0}] - exiting", state));
     }
 
     /**
@@ -1107,7 +1110,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             });
         }
         catch (InterruptedException e) {
-            logger.debug ("reset(): interrupted waiting for the JMX notification");
+            logger.debug ("createSeekOffsetMap(): interrupted waiting for the JMX notification");
             return;
         }
         catch (IOException | ClassNotFoundException e) {
@@ -1142,11 +1145,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * <li>current committed offsets fetched from the cluster. Gathering this data is expensive as it involves a Kafka server request.
      * </ul
      * @param checkpoint the reference of the checkpoint object
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#checkpoint(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processCheckpointEvent(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
-    protected void checkpoint (Checkpoint checkpoint) {
-        logger.info (MessageFormat.format ("checkpoint() [{0}] sequenceId = {1}", state, checkpoint.getSequenceId()));
+    protected void processCheckpointEvent (Checkpoint checkpoint) {
+        logger.info (MessageFormat.format ("processCheckpointEvent() [{0}] sequenceId = {1}", state, checkpoint.getSequenceId()));
         try {
             // get committed Offsets for all Partitions.
             // Note, that checkpoint() can be called before all consumers in the group have committed.
@@ -1190,7 +1193,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         ClientState newState = ClientState.CHECKPOINTED;
         logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.info ("checkpoint() - exiting.");
+        logger.info ("processCheckpointEvent() - exiting.");
     }
 
 
@@ -1200,11 +1203,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * This method should not be called because operator control port and this client implementation are incompatible.
      * A context check should exist to detect this mis-configuration.
      * We only log the method call. 
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#updateAssignment(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
      */
     @Override
-    protected void updateAssignment (TopicPartitionUpdate update) {
-        logger.warn("updateAssignment(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
+    protected void processUpdateAssignmentEvent (TopicPartitionUpdate update) {
+        logger.warn("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
     }
 
 

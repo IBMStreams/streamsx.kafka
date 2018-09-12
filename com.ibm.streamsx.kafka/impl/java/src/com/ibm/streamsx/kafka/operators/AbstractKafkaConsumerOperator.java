@@ -925,7 +925,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
      */
     public synchronized void shutdown() throws Exception {
         shutdown.set(true);
-        consumer.sendShutdownEvent(SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+        consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
         OperatorContext context = getOperatorContext();
         logger.trace("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
@@ -967,7 +967,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.info(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
-        consumer.sendCheckpointEvent(checkpoint); // blocks until checkpoint completes
+        consumer.onCheckpoint (checkpoint);
     }
 
     @Override
@@ -977,8 +977,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.info(MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
         final long before = System.currentTimeMillis();
         try {
-            consumer.resetPrepareData(checkpoint);
-            consumer.sendResetEvent(checkpoint); // blocks until sent event is processed
+            consumer.onReset (checkpoint);
         }
         catch (InterruptedException e) {
             logger.info("RESET interrupted)");
@@ -987,7 +986,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         finally {
             // latch will be null if the reset was caused
             // by another operator
-            if(resettingLatch != null) resettingLatch.countDown();
+            if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
             logger.info(MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
@@ -999,11 +998,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final int attempt = crContext.getResetAttempt();
         logger.info(MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
-        consumer.sendResetToInitEvent(); // blocks until resetToInit completes
+        consumer.onResetToInitialState();
 
         // latch will be null if the reset was caused
         // by another operator
-        if(resettingLatch != null) resettingLatch.countDown();
+        if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;
         logger.info(MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));

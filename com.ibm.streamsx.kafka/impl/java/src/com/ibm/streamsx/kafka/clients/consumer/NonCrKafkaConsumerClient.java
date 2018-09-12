@@ -19,7 +19,6 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
-import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -30,10 +29,9 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 /**
  * Kafka consumer client to be used when not in a consistent region.
  */
-public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implements ConsumerRebalanceListener {
+public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient implements ConsumerRebalanceListener {
 
     private static final Logger logger = Logger.getLogger(NonCrKafkaConsumerClient.class);
-    //    private static final boolean COMMIT_AFTER_TUPLE_SUBMIT_ENABLED = true;   // set true to enable the new commit behavior
 
     private boolean autoCommitEnabled;
     private long commitCount = 500l; 
@@ -243,10 +241,10 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#updateAssignment(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
      */
     @Override
-    protected void updateAssignment(TopicPartitionUpdate update) {
+    protected void processUpdateAssignmentEvent(TopicPartitionUpdate update) {
         try {
             // create a map of current topic partitions and their offsets
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
@@ -283,7 +281,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
                 assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
                 break;
             default:
-                throw new Exception ("updateAssignment: unimplemented action: " + update.getAction());
+                throw new Exception ("processUpdateAssignmentEvent(): unimplemented action: " + update.getAction());
             }
         } catch (Exception e) {
             logger.error(e.getLocalizedMessage(), e);
@@ -365,44 +363,6 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
         return numRecords;
     }
 
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onDrain()
-     */
-    @Override
-    public void onDrain() throws Exception {
-        // This is the NON-CR consumer client!
-        throw new Exception ("onDrain(): CR not supported by this consumer client: " + this.getClass().getName());
-    }
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#resetToInitialState()
-     */
-    @Override
-    protected void resetToInitialState() {
-        // This is the NON-CR consumer client!
-        throw new RuntimeException ("resetToInitialState(): CR not supported by this consumer client: " + this.getClass().getName());
-    }
-
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#reset(Checkpoint)
-     */
-    @Override
-    protected void reset(Checkpoint checkpoint) {
-        // when configured with config checkpoint, we can end up here.
-        logger.warn("'config checkpoint' is not supported by the " + getOperatorContext().getKind() + " operator.");
-    }
-
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#checkpoint(Checkpoint)
-     */
-    @Override
-    protected void checkpoint(Checkpoint data) {
-        // when configured with config checkpoint, we can end up here.
-        logger.warn("'config checkpoint' is not supported by the " + getOperatorContext().getKind() + " operator.");
-    }
 
 
 

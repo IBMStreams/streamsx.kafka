@@ -113,17 +113,8 @@ public interface ConsumerClient {
      * @param checkpoint the checkpoint
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendCheckpointEvent (Checkpoint checkpoint) throws InterruptedException;
+    void onCheckpoint (Checkpoint checkpoint) throws InterruptedException;
 
-    /**
-     * The consumer can prepare any data from the checkpoint. This method invocation is always followed by
-     * {@link #sendResetEvent(Checkpoint)} if not interrupted. This method is run by a runtime thread at 
-     * reset of the consistent region.
-     * @param checkpoint the checkpoint that contains the state.
-     * @throws InterruptedException The thread has been interrupted.
-     */
-    void resetPrepareData (final Checkpoint checkpoint) throws InterruptedException;
-    
     /**
      * Initiates resetting the client to a prior state.
      * The client can prepare any data for the reset by implementing {@link #resetPrepareData(Checkpoint)}. 
@@ -131,14 +122,14 @@ public interface ConsumerClient {
      * @param checkpoint the checkpoint that contains the state.
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendResetEvent (final Checkpoint checkpoint) throws InterruptedException;
+    void onReset (final Checkpoint checkpoint) throws InterruptedException;
 
     /**
      * Initiates resetting the client to the initial state. 
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendResetToInitEvent() throws InterruptedException;
+    void onResetToInitialState() throws InterruptedException;
 
     /**
      * Initiates a shutdown of the consumer client.
@@ -147,7 +138,7 @@ public interface ConsumerClient {
      * @param timeUnit   the unit of time for the timeout
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendShutdownEvent (long timeout, TimeUnit timeUnit) throws InterruptedException;
+    void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException;
 
     /**
      * Gets the next consumer record that has been received. If there are no records, the method waits the specified timeout.

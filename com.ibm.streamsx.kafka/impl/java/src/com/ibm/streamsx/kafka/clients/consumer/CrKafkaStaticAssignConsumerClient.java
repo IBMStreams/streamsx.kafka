@@ -210,7 +210,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             // the topic/partition can have been removed when a partition has been removed via updateAssignment (control port method)
             logger.warn (e.getLocalizedMessage());
         }
-        
+
         final ConsistentRegionContext crContext = getCrContext();
         if (crContext.isTriggerOperator() && ++nSubmittedRecords >= triggerCount) {
             logger.debug("Making region consistent..."); //$NON-NLS-1$
@@ -222,12 +222,12 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#updateAssignment(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
      */
     @Override
-    protected void updateAssignment(TopicPartitionUpdate update) {
+    protected void processUpdateAssignmentEvent(TopicPartitionUpdate update) {
         // trace with info. to see this method call is important, and it happens not frequently.
-        logger.info ("updateAssignment(): update = " + update);
+        logger.info ("processUpdateAssignmentEvent(): update = " + update);
         try {
             // create a map of current topic partitions and their offsets
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
@@ -269,7 +269,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                 }
                 break;
             default:
-                throw new Exception ("updateAssignment: unimplemented action: " + update.getAction());
+                throw new Exception ("processUpdateAssignmentEvent: unimplemented action: " + update.getAction());
             }
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
@@ -344,8 +344,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * Resets the client to an initial state when no checkpoint is available.
      */
     @Override
-    protected void resetToInitialState() {
-        logger.debug("resetToInitialState() - entering");
+    protected void processResetToInitEvent() {
+        logger.debug("processResetToInitEvent() - entering");
         try {
             offsetManager = getDeserializedOffsetManagerCV();
             offsetManager.setOffsetConsumer (getConsumer());
@@ -362,7 +362,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("resetToInitialState() - exiting");
+        logger.debug("processResetToInitEvent() - exiting");
     }
 
     /**
@@ -405,23 +405,34 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
         }
     }
 
+    /**
+     * prepares the reset by clearing queues and buffers.
+     * This method is run within a runtime thread.
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
+        clearDrainBuffer();
+        getMessageQueue().clear();
+    }
+
     /** 
      * Resets the client to a previous state.
      * @param checkpoint the checkpoint that contains the previous state.
      */
     @Override
-    protected void reset (Checkpoint checkpoint) {
-        logger.debug("reset() - entering. seq = " + checkpoint.getSequenceId());
+    protected void processResetEvent (Checkpoint checkpoint) {
+        logger.debug("processResetEvent() - entering. seq = " + checkpoint.getSequenceId());
         try {
+            clearDrainBuffer();
+            getMessageQueue().clear();
             offsetManager = (OffsetManager) checkpoint.getInputStream().readObject();
             offsetManager.setOffsetConsumer (getConsumer());
             refreshFromCluster();
-            clearDrainBuffer();
-            getMessageQueue().clear();
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("reset() - exiting");
+        logger.debug("processResetEvent() - exiting");
     }
 
 
@@ -431,8 +442,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * @param checkpoint the reference of the checkpoint object
      */
     @Override
-    protected void checkpoint (Checkpoint checkpoint) {
-        logger.debug("checkpoint() - entering. seq = " + checkpoint.getSequenceId());
+    protected void processCheckpointEvent (Checkpoint checkpoint) {
+        logger.debug("processCheckpointEvent() - entering. seq = " + checkpoint.getSequenceId());
         try {
             // offsetManager.savePositionFromCluster();
             checkpoint.getOutputStream().writeObject(offsetManager);
@@ -442,9 +453,16 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("checkpoint() - exiting");
+        logger.debug("processCheckpointEvent() - exiting");
     }
 
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#onCheckpointRetire(long)
+     */
+    @Override
+    public void onCheckpointRetire (long id) {
+    }
 
 
     /**

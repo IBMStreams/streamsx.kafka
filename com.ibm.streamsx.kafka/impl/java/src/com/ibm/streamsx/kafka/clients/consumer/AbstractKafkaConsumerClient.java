@@ -270,7 +270,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 break;
             case UPDATE_ASSIGNMENT:
                 try {
-                    updateAssignment ((TopicPartitionUpdate) event.getData());
+                    processUpdateAssignmentEvent ((TopicPartitionUpdate) event.getData());
                 } catch (Exception e) {
                     logger.error("The assignment '" + (TopicPartitionUpdate) event.getData() + "' update failed: " + e.getLocalizedMessage());
                 } finally {
@@ -279,21 +279,21 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 break;
             case CHECKPOINT:
                 try {
-                    checkpoint ((Checkpoint) event.getData());
+                    processCheckpointEvent ((Checkpoint) event.getData());
                 } finally {
                     event.countDownLatch();
                 }
                 break;
             case RESET:
                 try {
-                    reset ((Checkpoint) event.getData());
+                    processResetEvent ((Checkpoint) event.getData());
                 } finally {
                     event.countDownLatch();
                 }
                 break;
             case RESET_TO_INIT:
                 try {
-                    resetToInitialState();
+                    processResetToInitEvent();
                 } finally {
                     event.countDownLatch();
                 }
@@ -404,21 +404,21 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Resets the client to the initial state when used in consistent region.
      * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
      */
-    protected abstract void resetToInitialState();
+    protected abstract void processResetToInitEvent();
 
     /**
      * Resets the client to a previous state when used in consistent region.
      * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
      * @param checkpoint the checkpoint that contains the previous state
      */
-    protected abstract void reset(Checkpoint checkpoint);
+    protected abstract void processResetEvent(Checkpoint checkpoint);
 
     /**
      * Creates a checkpoint of the current state when used in consistent region.
      * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
      * @param checkpoint A reference of a checkpoint object where the user provides the state to be saved.
      */
-    protected abstract void checkpoint(Checkpoint checkpoint);
+    protected abstract void processCheckpointEvent(Checkpoint checkpoint);
 
     /**
      * Updates the assignment of the client to topic partitions.
@@ -427,7 +427,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param update the update increment/decrement
      * @throws Exception 
      */
-    protected abstract void updateAssignment (TopicPartitionUpdate update);
+    protected abstract void processUpdateAssignmentEvent (TopicPartitionUpdate update);
 
     /**
      * This method must be overwritten by concrete classes. 
@@ -819,55 +819,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         event.await();
     }
 
-    /**
-     * Initiates checkpointing of the consumer client and initiates start of polling.
-     * Implementations ensure that checkpointing the client has completed when this method returns. 
-     * @param checkpoint the checkpoint
-     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
-     */
-    @Override
-    public void sendCheckpointEvent (Checkpoint checkpoint) throws InterruptedException {
-        Event event = new Event(EventType.CHECKPOINT, checkpoint, true);
-        sendEvent (event);
-        event.await();
-        sendStartPollingEvent();
-    }
-
-    /**
-     * This is the empty default implementation. Subclasses may want to have their own implementation.
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
-     */
-    @Override
-    public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
-    }
-
-
-    /**
-     * Initiates resetting the client to a prior state and initiates start of polling.
-     * Implementations ensure that resetting the client has completed when this method returns. 
-     * @param checkpoint the checkpoint that contains the state.
-     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
-     */
-    @Override
-    public void sendResetEvent (final Checkpoint checkpoint) throws InterruptedException {
-        Event event = new Event(EventType.RESET, checkpoint, true);
-        sendEvent (event);
-        event.await();
-        sendStartPollingEvent();
-    }
-
-    /**
-     * Initiates resetting the client to the initial state and initiates start of polling.
-     * Implementations ensure that resetting the client has completed when this method returns. 
-     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
-     */
-    @Override
-    public void sendResetToInitEvent() throws InterruptedException {
-        Event event = new Event(EventType.RESET_TO_INIT, true);
-        sendEvent (event);
-        event.await();
-        sendStartPollingEvent();
-    }
 
     /**
      * Initiates a shutdown of the consumer client.
@@ -877,20 +828,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void sendShutdownEvent (long timeout, TimeUnit timeUnit) throws InterruptedException {
+    public void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
         Event event = new Event(EventType.SHUTDOWN, true);
         sendEvent (event);
         event.await (timeout, timeUnit);
-    }
-
-
-
-    /**
-     * This is an empty default implementation.
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpointRetire(long)
-     */
-    @Override
-    public void onCheckpointRetire(long id) {
     }
 
 

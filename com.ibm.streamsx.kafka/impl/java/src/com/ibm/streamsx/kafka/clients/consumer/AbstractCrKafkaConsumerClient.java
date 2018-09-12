@@ -10,13 +10,15 @@ import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.metrics.Metric;
+import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
- * This class represents a Consumer client that can be used in a consistent region.
+ * This class is the base class for Consumer clients that can be used in a consistent region.
  */
 public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsumerClient {
 
@@ -106,5 +108,62 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
      */
     public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
         super.startConsumer();
+    }
+    
+ 
+    /**
+     * Initiates checkpointing of the consumer client by sending an event to the event queue and initiates start of polling.
+     * Implementations ensure that checkpointing the client has completed when this method returns. 
+     * @param checkpoint the checkpoint
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
+     */
+    @Override
+    public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
+        Event event = new Event(EventType.CHECKPOINT, checkpoint, true);
+        sendEvent (event);
+        event.await();
+        sendStartPollingEvent();
+    }
+    
+    
+    /**
+     * The consumer can prepare any data from the checkpoint. This method invocation should be followed by by
+     * {@link #sendResetEvent(Checkpoint)} if not interrupted. This method is run by a runtime thread at 
+     * reset of the consistent region.
+     * This is the empty default implementation. Subclasses may want to have their own implementation.
+     * @param checkpoint the checkpoint that contains the state.
+     * @throws InterruptedException The thread has been interrupted.
+     */
+    protected abstract void resetPrepareData (final Checkpoint checkpoint) throws InterruptedException;
+    
+    
+    /**
+     * Initiates resetting the client to a prior state by sending an event to the event queue
+     * and initiates start of polling.
+     * Implementations ensure that resetting the client has completed when this method returns. 
+     * @param checkpoint the checkpoint that contains the state.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
+     */
+    @Override
+    public void onReset (final Checkpoint checkpoint) throws InterruptedException {
+        resetPrepareData (checkpoint);
+        Event event = new Event (EventType.RESET, checkpoint, true);
+        sendEvent (event);
+        event.await();
+        sendStartPollingEvent();
+    }
+
+    /**
+     * Initiates resetting the client to the initial state by sending an event to the event queue
+     * and initiates start of polling.
+     * Implementations ensure that resetting the client has completed when this method returns. 
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
+     */
+    @Override
+    public void onResetToInitialState() throws InterruptedException {
+        Event event = new Event(EventType.RESET_TO_INIT, true);
+        sendEvent (event);
+        event.await();
+        sendStartPollingEvent();
     }
 }

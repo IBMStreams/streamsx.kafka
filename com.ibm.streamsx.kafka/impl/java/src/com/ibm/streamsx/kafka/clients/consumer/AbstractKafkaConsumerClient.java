@@ -91,6 +91,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final ReentrantLock msgQueueLock = new ReentrantLock();
     private final Condition msgQueueEmptyCondition = msgQueueLock.newCondition();
 
+    private final ConsumerTimeouts timeouts;
+
 
     /**
      * Creates a new AbstractKafkaConsumerclient.
@@ -122,9 +124,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             groupIdGenerated = true;
         }
 
+        this.timeouts = new ConsumerTimeouts (operatorContext, kafkaProperties);
+        timeouts.adjust (this.kafkaProperties);
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);
         maxPollIntervalMs = getMaxPollIntervalMsFromProperties (this.kafkaProperties);
-        //        messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>>(getMessageQueueSize());
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean (false);
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (getMessageQueueSizeMultiplier() * getMaxPollRecords());

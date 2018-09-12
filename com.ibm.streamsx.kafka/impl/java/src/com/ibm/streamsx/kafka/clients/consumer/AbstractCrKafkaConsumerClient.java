@@ -55,21 +55,6 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
         }
         kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 
-        // adjust max.poll.interval.ms if too small
-        final long crResetTimeoutMs = (long) (crContext.getResetTimeout() * 1000.0);
-        final long crDrainTimeoutMs = (long) (crContext.getDrainTimeout() * 1000.0);
-        final long minMaxPollIntervalMs = 3 * (crResetTimeoutMs > crDrainTimeoutMs? crResetTimeoutMs: crDrainTimeoutMs);
-        if (getMaxPollIntervalMs() < minMaxPollIntervalMs) {
-            // need to adjust property
-            if (kafkaProperties.containsKey (ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)) {
-                tracer.warn (MessageFormat.format ("consumer config ''{0}'' has been increased from {1} to {2}, which is 3*max(resetTimeout, drainTimeout)", ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, getMaxPollIntervalMs(), minMaxPollIntervalMs));
-            }
-            else {
-                tracer.info (MessageFormat.format ("consumer config ''{0}'' has been adjusted to {1}, which is 3*max(resetTimeout, drainTimeout)", ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, minMaxPollIntervalMs));
-            }
-            kafkaProperties.put (ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "" + minMaxPollIntervalMs);
-        }
-
         operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_METRIC_NAME, "last drain time of this operator in milliseconds", Metric.Kind.GAUGE);
         operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_MAX_METRIC_NAME, "maximum drain time of this operator in milliseconds", Metric.Kind.GAUGE);
     }

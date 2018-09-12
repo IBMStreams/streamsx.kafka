@@ -76,7 +76,7 @@ public class ConsumerTimeouts {
 
     /**
      * Returns the minimum timeout for session.timeout.ms in milliseconds, which should be higher than the PE restart + reset time of an operator. 
-     * @return the recommended value for session.timeout.ms #
+     * @return the recommended value for session.timeout.ms
      */
     public long getSessionTimeoutMs () {
         return SESSION_TIMEOUT_MS;
@@ -84,10 +84,23 @@ public class ConsumerTimeouts {
 
     /**
      * Returns the minimum timeout for request.timeout.ms in milliseconds, which must be higher than session.timeout.ms.
-     * @return the recommended value for request.timeout.ms #
+     * @return the recommended value for request.timeout.ms
      */
     public long getRequestTimeoutMs () {
         return SESSION_TIMEOUT_MS + 5000;
+    }
+
+    /**
+     * Returns the timeout for the JMX notification 'checkpoint merge complete'.
+     * min (crResetTimeout/2, 15 seconds), but not more than max.poll.interval.ms /2.
+     * @return the minimum timeout in milliseconds.
+     */
+    public long getJmxResetNotificationTimeout() {
+        // min (crResetTimeout/2, 15 seconds)
+        long timeout = crResetTimeoutMs / 2 < 15000? crResetTimeoutMs / 2: 15000;
+        // not more than max.poll.interval.ms /2
+        if (timeout > getMaxPollIntervalMs()/2) timeout = getMaxPollIntervalMs()/2;
+        return timeout;
     }
 
     /** 
@@ -101,7 +114,8 @@ public class ConsumerTimeouts {
     }
 
     /**
-     * @param kafkaProperties  The kafka properties
+     * Mutates a single numeric property to a minimum value.
+     * @param kafkaProperties  The kafka properties that get mutated
      * @param propertyName     the property name
      * @param minValue         the minimum value
      * @throws NumberFormatException

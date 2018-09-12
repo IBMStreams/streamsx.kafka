@@ -1053,12 +1053,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // check JMX notification and wait for notification
             jmxNotificationConditionLock.lock();
             long waitStartTime= System.currentTimeMillis();
-            long timeoutMillis = (long) (getCrContext().getResetTimeout() * 250.0);  // 1/4 of the reset timeout of the CR (seconds * 1000 /4)
-            if (timeoutMillis > getMaxPollIntervalMs()/2) timeoutMillis = getMaxPollIntervalMs()/2; // must be smaller than max.poll.interval.ms
+            long timeoutMillis = timeouts.getJmxResetNotificationTimeout();
             boolean waitTimeLeft = true;
             int nWaits = 0;
             long timeElapsed = 0;
-            logger.info(MessageFormat.format("checking receiption of JMX notification {0} for sequenceId {1}", CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key));
+            logger.info(MessageFormat.format("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2} ms.",
+                    CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, timeoutMillis));
             while (!jmxMergeCompletedNotifMap.containsKey(key) && waitTimeLeft) {
                 long remainingTime = timeoutMillis - timeElapsed;
                 waitTimeLeft = remainingTime > 0;

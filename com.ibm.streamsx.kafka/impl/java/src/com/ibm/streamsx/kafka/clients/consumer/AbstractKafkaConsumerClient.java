@@ -91,7 +91,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final ReentrantLock msgQueueLock = new ReentrantLock();
     private final Condition msgQueueEmptyCondition = msgQueueLock.newCondition();
 
-    private final ConsumerTimeouts timeouts;
+    protected final ConsumerTimeouts timeouts;
 
 
     /**

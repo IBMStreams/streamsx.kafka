@@ -175,7 +175,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "the **partition** parameter. The **startPosition** value `Offset` cannot be used as "
                     + "it requires the **partition** parameter.\\n"
                     + "\\n"
-                    + "The default value is `Static` for backward compatibility.")
+                    + "The default value is `Static` for backward compatibility.\\n"
+                    + "\\n"
+                    + "The parameter is ignored when the operator is not part of a consistent region.")
     public void setConsistentRegionAssignmentMode (String consistentRegionAssignmentMode) {
         /*public void setConsistentRegionAssignmentMode (ConsistentRegionAssignmentMode consistentRegionAssignmentMode) {*/
         try {

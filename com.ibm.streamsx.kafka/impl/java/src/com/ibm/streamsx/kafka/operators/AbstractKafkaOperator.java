@@ -86,7 +86,9 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
                     + "specified by this parameter will override the `client.id` "
                     + "Kafka property if specified. If this parameter is not "
                     + "specified and the `client.id` Kafka property is not "
-                    + "specified, the operator will use a random client ID.")
+                    + "specified, the operator will create an ID with the pattern "
+                    + "`C-J<job-ID>-<operator name>` for a consumer operator, and "
+                    + "`P-J<job-ID>-<operator name>` for a producer operator.")
     public void setClientId(String clientId) {
         this.clientId = clientId;
     }

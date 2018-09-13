@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Set;
 
 import javax.management.Notification;
@@ -35,8 +36,9 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
     private final int crIndex;
     private long notifSequenceNo = System.currentTimeMillis();
     private Map<MergeKey, CheckpointMerge> mergeMap;
-    private Map<Long, Integer> highestResetAttempts;
     private Set<String> registeredConsumerOperators;
+
+    private AtomicBoolean rebalanceResetPending;
 
     /**
      * constructs a new consumer group MBean
@@ -46,8 +48,8 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         this.groupId = groupId;
         this.crIndex = consistentRegionIndex.intValue();
         this.mergeMap = Collections.synchronizedMap (new HashMap<>());
-        this.highestResetAttempts = new HashMap<>();
         this.registeredConsumerOperators = new HashSet<>();
+        this.rebalanceResetPending = new AtomicBoolean(false);
     }
 
     @Override
@@ -179,7 +181,6 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
                 CheckpointMerge m = mergeMap.remove(k);
                 if (m != null) ++removedKeys;
             }
-            this.highestResetAttempts.remove (chkptSequenceId);
         }
         if (removedKeys > 0) 
             trace.debug (MessageFormat.format ("cleanupMergeMap() {0} {1} removed for checkpoint sequence {2}",
@@ -518,5 +519,28 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             String pattern = "'{'\"consolidatedOffsetMap\":{0},\"expectedPartitions\":{1},\"nContributions\":{2},\"complete\":{3},\"key\":{4}'}'";
             return MessageFormat.format (pattern, offsetMap2Json(), expectedPartitionsToJson(), nContributions, complete, key.toJson());
         }
+    }
+
+    @Override
+    public boolean getAndSetRebalanceResetPending (boolean pending) {
+        boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
+        if (trace.isDebugEnabled()) 
+            trace.debug (MessageFormat.format ("getAndSetRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+        return previousVal;
+    }
+
+    @Override
+    public void setRebalanceResetPending (boolean pending) {
+        boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
+        if (trace.isDebugEnabled()) 
+            trace.debug (MessageFormat.format ("setRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+    }
+
+    @Override
+    public boolean isRebalanceResetPending() {
+        boolean val = this.rebalanceResetPending.get();
+        if (trace.isDebugEnabled()) 
+            trace.debug (MessageFormat.format ("getRebalanceResetPending: state = {0}", val));
+        return val;
     }
 }

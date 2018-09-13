@@ -52,7 +52,6 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.ibm.streams.operator.OperatorContext;
-import com.ibm.streams.operator.control.ConsistentRegionMXBean;
 import com.ibm.streams.operator.control.Controllable;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
@@ -123,8 +122,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     private String crGroupCoordinatorMXBeanName = null;
     /** MXBean proxy for coordinating the group's checkpoint */
     private CrConsumerGroupCoordinatorMXBean crGroupCoordinatorMxBean = null;
-    /** CR MXBean for async CR reset */
-    private ConsistentRegionMXBean crMxBean = null;
+//    /** CR MXBean for async CR reset */
+//    private ConsistentRegionMXBean crMxBean = null;
     /** stores the initial offsets of all partitions of all topics. Written to CV and used for reset to initial state */
     private OffsetManager initialOffsets;
     /** JCP control variable to persist the initialOffsets to JCP */
@@ -226,8 +225,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
             logger.info ("creating Proxies ...");
             crGroupCoordinatorMxBean = JMX.newMXBeanProxy (jcp, groupMbeanName, CrConsumerGroupCoordinatorMXBean.class, /*notificationEmitter=*/true);
-            crMxBean = JMX.newMXBeanProxy (jcp, getCrContext().getConsistentRegionMXBeanName(), ConsistentRegionMXBean.class);
+//            crMxBean = JMX.newMXBeanProxy (jcp, getCrContext().getConsistentRegionMXBeanName(), ConsistentRegionMXBean.class);
             logger.debug ("MBean Proxy get test: group-ID = " + crGroupCoordinatorMxBean.getGroupId() + "; CR index = " + crGroupCoordinatorMxBean.getConsistentRegionIndex());
+            crGroupCoordinatorMxBean.setRebalanceResetPending (false);
             crGroupCoordinatorMxBean.registerConsumerOperator (getOperatorContext().getName());
         }
         finally {
@@ -470,6 +470,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         sendEvent (event);
         event.await();
         // in this client, we start polling after getting a permit to submit tuples
+        // TODO: initiate a throttled version of polling and a specific event, or add parameters to the event
         //        sendStartPollingEvent();
     }
 
@@ -629,29 +630,45 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         logger.info (MessageFormat.format("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
         this.nPartitionRebalances.increment();
         if (!(state == ClientState.SUBSCRIBED || state == ClientState.RESET_COMPLETE)) {
-            logger.warn ("onPartitionsRevoked(): initiating reset of the consistent region ...");
             ClientState newState = ClientState.POLLING_CR_RESET_PENDING;
-            logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+            logger.info (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
             // initiate stop polling to avoid further rebalance listener callbacks before we get reset
+            // TODO: better go into throttled mode?
             sendStopPollingEventAsync();
-            logger.info (MessageFormat.format ("runPollLoop() [{0}]: initiating consistent region reset", state));
             
-            ThreadFactory thf = getOperatorContext().getThreadFactory();
-            thf.newThread (new Runnable() {
-
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(100);
-                        crMxBean.reset (false);
+            boolean resetPending = false;
+            try {
+                resetPending = crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true);
+            } catch (IOException ioe) {
+                logger.warn ("Could not test for already pending rebalance caused consistent region reset: " + ioe.getLocalizedMessage());
+            }
+            if (resetPending) {
+                logger.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: consistent region reset already initiated", state));
+            }
+            else {
+                logger.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
+                ThreadFactory thf = getOperatorContext().getThreadFactory();
+                thf.newThread (new Runnable() {
+                    
+                    @Override
+                    public void run() {
+                        try {
+                            // sleep 100 ms to give rebalance a chance to finish
+                            Thread.sleep(100);
+//                            crMxBean.reset (false);
+                            getCrContext().reset();
+                        }
+                        catch (InterruptedException e) {
+                            // ignore
+                        } catch (IOException e) {
+                            // restart the operator 
+                            e.printStackTrace();
+                            throw new RuntimeException ("Failed to reset the consistent region: " + e.getLocalizedMessage(), e);
+                        }
                     }
-                    catch (InterruptedException e) {
-                        // ignore
-                    }
-                }
-            }).start();
-            
+                }).start();
+            }
 
             // this callback is called within the context of a poll() invocation.
             // onPartitionsRevoked() is followed by onPartitionsAssigned() with the new assignment within that poll().
@@ -1296,10 +1313,16 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
-        //        if ((state == ClientState.RESET_COMPLETE || state == ClientState.CHECKPOINTED) && pollingStartPending.get() == false) {
+        //  if ((state == ClientState.RESET_COMPLETE || state == ClientState.CHECKPOINTED) && pollingStartPending.get() == false) {
         if (!(state == ClientState.POLLING || state == ClientState.DRAINING || state == ClientState.POLLING_CR_RESET_PENDING) && pollingStartPending.get() == false) {
             logger.info(MessageFormat.format("getNextRecord() [{0}] - inititing polling for records", state)); 
             pollingStartPending.set (true);
+            try {
+                crGroupCoordinatorMxBean.setRebalanceResetPending (false);
+            } catch (IOException e) {
+                // connection to MX bean is broken. state is reset on JMX initialization in setup()
+                e.printStackTrace();
+            }
             sendStartPollingEvent();
             Thread.sleep(50);
         }

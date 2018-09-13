@@ -87,4 +87,26 @@ public interface CrConsumerGroupCoordinatorMXBean {
      * @throws IOException
      */
     public void broadcastData (String data, String jmxNotificationType) throws IOException;
+    
+    /**
+     * Sets the rebalance reset pending state atomically to the given value and returns the old value.
+     * @param pending the new state
+     * @return the old state
+     * @throws IOException
+     */
+    public boolean getAndSetRebalanceResetPending (boolean pending) throws IOException;
+
+    /**
+     * Sets the rebalance reset pending state atomically to the given value.
+     * @param pending the new state
+     * @throws IOException
+     */
+    public void setRebalanceResetPending (boolean pending) throws IOException;
+
+    /**
+     * returms the current rebalance reset pending state.
+     * @return the state
+     * @throws IOException
+     */
+    public boolean isRebalanceResetPending() throws IOException;
 }

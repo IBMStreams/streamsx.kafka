@@ -93,7 +93,7 @@ public interface ConsumerClient {
      * @param update The the partition update.
      * @throws InterruptedException The thread waiting for finished condition has been interruped.
      */
-    void sendUpdateTopicAssignmentEvent (final TopicPartitionUpdate update) throws InterruptedException;
+    void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException;
     
     /**
      * Action to be performed on consistent region drain.

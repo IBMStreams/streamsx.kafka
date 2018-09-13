@@ -71,6 +71,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  */
 public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient implements ConsumerRebalanceListener, Controllable, NotificationListener {
 
+    private static final long THROTTLED_POLL_SLEEP_MS = 100l;
     private static final Logger logger = Logger.getLogger(CrKafkaConsumerGroupClient.class);
     private static final String MBEAN_DOMAIN_NAME = "com.ibm.streamsx.kafka";
 
@@ -82,6 +83,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         INITIALIZED, EVENT_THREAD_STARTED,
         SUBSCRIBED,
         POLLING,
+        POLLING_THROTTLED,
         DRAINING,
         DRAINED,
         CHECKPOINTED,
@@ -122,8 +124,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     private String crGroupCoordinatorMXBeanName = null;
     /** MXBean proxy for coordinating the group's checkpoint */
     private CrConsumerGroupCoordinatorMXBean crGroupCoordinatorMxBean = null;
-//    /** CR MXBean for async CR reset */
-//    private ConsistentRegionMXBean crMxBean = null;
     /** stores the initial offsets of all partitions of all topics. Written to CV and used for reset to initial state */
     private OffsetManager initialOffsets;
     /** JCP control variable to persist the initialOffsets to JCP */
@@ -225,7 +225,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
             logger.info ("creating Proxies ...");
             crGroupCoordinatorMxBean = JMX.newMXBeanProxy (jcp, groupMbeanName, CrConsumerGroupCoordinatorMXBean.class, /*notificationEmitter=*/true);
-//            crMxBean = JMX.newMXBeanProxy (jcp, getCrContext().getConsistentRegionMXBeanName(), ConsistentRegionMXBean.class);
             logger.debug ("MBean Proxy get test: group-ID = " + crGroupCoordinatorMxBean.getGroupId() + "; CR index = " + crGroupCoordinatorMxBean.getConsistentRegionIndex());
             crGroupCoordinatorMxBean.setRebalanceResetPending (false);
             crGroupCoordinatorMxBean.registerConsumerOperator (getOperatorContext().getName());
@@ -469,9 +468,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.CHECKPOINT, checkpoint, true);
         sendEvent (event);
         event.await();
-        // in this client, we start polling after getting a permit to submit tuples
-        // TODO: initiate a throttled version of polling and a specific event, or add parameters to the event
-        //        sendStartPollingEvent();
+        // in this client, we start polling at full speed after getting a permit to submit tuples
+        sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
     }
 
 
@@ -487,9 +485,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();
-        // we must poll, otherwise rebalances do not complete
-        // TODO: initiate a throttled version of polling and a specific event, or add parameters to the event
-        sendStartPollingEvent();
+        // in this client, we start polling at full speed after getting a permit to submit tuples
+        sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
+
     }
 
     /**
@@ -502,9 +500,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET_TO_INIT, true);
         sendEvent (event);
         event.await();
-        // we must poll, otherwise rebalances do not complete
-        // TODO: initiate a throttled version of polling and a specific event, or add parameters to the event
-        sendStartPollingEvent();
+        // in this client, we start polling at full speed after getting a permit to submit tuples
+        sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
     }
 
     /**
@@ -633,10 +630,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             ClientState newState = ClientState.POLLING_CR_RESET_PENDING;
             logger.info (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
-            // initiate stop polling to avoid further rebalance listener callbacks before we get reset
-            // TODO: better go into throttled mode?
-            sendStopPollingEventAsync();
-            
+//            sendStopPollingEventAsync();
+            sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
+
             boolean resetPending = false;
             try {
                 resetPending = crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true);
@@ -650,13 +646,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 logger.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
                 ThreadFactory thf = getOperatorContext().getThreadFactory();
                 thf.newThread (new Runnable() {
-                    
+
                     @Override
                     public void run() {
                         try {
                             // sleep 100 ms to give rebalance a chance to finish
-                            Thread.sleep(100);
-//                            crMxBean.reset (false);
+                            Thread.sleep (100);
                             getCrContext().reset();
                         }
                         catch (InterruptedException e) {
@@ -1230,16 +1225,16 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
 
     /**
-     * Same implementation as in superclass, buts goes into state POLLING_STOPPED on exit
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#runPollLoop(java.lang.Long)
+     * Same implementation as in superclass, but maintains consumer client state
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#runPollLoop(long, long)
      */
     @Override
-    protected void runPollLoop (Long pollTimeout) throws InterruptedException {
-        pollingStartPending.set(false);
+    protected void runPollLoop(long pollTimeout, long throttleSleepMillis) throws InterruptedException {
+        pollingStartPending.set (false);
         // do not change the state beforehand because the ConsumerRebalanceListener callbacks might be called, which behave state dependent
-        super.runPollLoop(pollTimeout);
+        super.runPollLoop (pollTimeout, throttleSleepMillis);
         // Don't change state, when state is something CR related, like DRAINING, RESETTING, ... 
-        if (state == ClientState.POLLING || state == ClientState.POLLING_CR_RESET_PENDING) {
+        if (state == ClientState.POLLING || state == ClientState.POLLING_CR_RESET_PENDING || state == ClientState.POLLING_THROTTLED) {
             ClientState newState = ClientState.POLLING_STOPPED;
             logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
@@ -1255,35 +1250,43 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * In the context of this method call also {@link #onPartitionsRevoked(Collection)}
      * and {@link #onPartitionsAssigned(Collection)} can be called
      * @param pollTimeout the timeout in milliseconds to wait for availability of consumer records.
+     * @param isThrottled true, when polling is throttled, false otherwise
      * @return the number of enqueued consumer records.
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long)
      */
     @Override
-    protected int pollAndEnqueue (long pollTimeout) throws InterruptedException, SerializationException {
+    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
 
-        if (logger.isInfoEnabled() && !(state == ClientState.POLLING /*|| state == ClientState.POLLING_CR_RESET_PENDING*/)) 
+        if (logger.isInfoEnabled() && !(state == ClientState.POLLING || state == ClientState.POLLING_THROTTLED)) {
             logger.info(MessageFormat.format ("pollAndEnqueue() [{0}]: Polling for records, Kafka poll timeout = {1}", state, pollTimeout)); //$NON-NLS-1$
-
-        if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
+        }
+        if (logger.isTraceEnabled()) logger.trace ("Polling for records..."); //$NON-NLS-1$
         // Note: within poll(...) the ConsumerRebalanceListener might be called, changing the state to POLLING_CR_RESET_PENDING
         long before = 0;
         if (logger.isDebugEnabled()) before = System.currentTimeMillis();
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
+        int numRecords = records == null? 0: records.count();
+        if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
         if (logger.isDebugEnabled()) {
-            logger.debug("consumer.poll took [ms] " + (System.currentTimeMillis() - before));
+            logger.debug (MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));
         }
         if (state == ClientState.POLLING_CR_RESET_PENDING) {
             logger.info (MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
             return 0;
         }
+        // state transition
+        ClientState newState = state;
         if (state != ClientState.POLLING) {
-            ClientState newState = ClientState.POLLING;
+            newState = isThrottled? ClientState.POLLING_THROTTLED: ClientState.POLLING;
+        }
+        if (state != ClientState.POLLING_THROTTLED) {
+            newState = isThrottled? ClientState.POLLING_THROTTLED: ClientState.POLLING;
+        }
+        if (state != newState) {
             logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
         }
-        
-        int numRecords = records == null? 0: records.count();
-        if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
+        // add records to message queue
         if (numRecords > 0) {
             if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
             records.forEach(cr -> {
@@ -1315,7 +1318,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
         //  if ((state == ClientState.RESET_COMPLETE || state == ClientState.CHECKPOINTED) && pollingStartPending.get() == false) {
         if (!(state == ClientState.POLLING || state == ClientState.DRAINING || state == ClientState.POLLING_CR_RESET_PENDING) && pollingStartPending.get() == false) {
-            logger.info(MessageFormat.format("getNextRecord() [{0}] - inititing polling for records", state)); 
+            logger.info(MessageFormat.format("getNextRecord() [{0}] - Acquired permit - initiating polling for records", state)); 
             pollingStartPending.set (true);
             try {
                 crGroupCoordinatorMxBean.setRebalanceResetPending (false);

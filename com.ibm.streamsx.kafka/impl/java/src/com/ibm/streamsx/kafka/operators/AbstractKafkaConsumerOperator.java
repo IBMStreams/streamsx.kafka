@@ -905,7 +905,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
 
             //        	consumer.sendStopPollingEvent();
-            consumer.sendUpdateTopicAssignmentEvent(new TopicPartitionUpdate(action, topicPartitionOffsetMap));
+            consumer.onTopicAssignmentUpdate (new TopicPartitionUpdate(action, topicPartitionOffsetMap));
         } catch (InterruptedException e) {
             // interrupted during shutdown
             interrupted = true;

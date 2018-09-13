@@ -212,8 +212,9 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         private final long sequenceId;
         private final int resetAttempt;
         private final String toString;
+
         /**
-         * @param notifSequenceNo
+         * @param sequenceId
          * @param resetAttempt
          */
         public MergeKey (long sequenceId, int resetAttempt) {
@@ -223,7 +224,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         }
 
         /**
-         * @return the notifSequenceNo
+         * @return the sequenceId
          */
         public long getSequenceId() {
             return sequenceId;
@@ -526,6 +527,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
         if (trace.isDebugEnabled()) 
             trace.debug (MessageFormat.format ("getAndSetRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+        if (previousVal != pending) trace.info ("rebalance reset pending state toggled to " + pending);
         return previousVal;
     }
 
@@ -534,6 +536,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
         if (trace.isDebugEnabled()) 
             trace.debug (MessageFormat.format ("setRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+        if (previousVal != pending) trace.info ("rebalance reset pending state toggled to " + pending);
     }
 
     @Override

@@ -73,7 +73,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private long lastPollTimestamp = 0;
 
     private AtomicBoolean processing;
-    private boolean fetchPaused = false;
     private Set<TopicPartition> assignedPartitions = new HashSet<>();
     private SubscriptionMode subscriptionMode = SubscriptionMode.NONE;
 
@@ -266,7 +265,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             logger.info (MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
             switch (event.getEventType()) {
             case START_POLLING:
-                runPollLoop ((Long) event.getData());
+                StartPollingEventParameters p = (StartPollingEventParameters) event.getData();
+                runPollLoop (p.getPollTimeoutMs(), p.getThrottlePauseMs());
                 break;
             case STOP_POLLING:
                 event.countDownLatch();  // indicates that polling has stopped
@@ -436,12 +436,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * This method must be overwritten by concrete classes. 
      * Here you implement polling for records and typically enqueue them into the message queue.
      * @param pollTimeout The time, in milliseconds, spent waiting in poll if data is not available in the buffer.
+     * @param isThrottled true, when polling is throttled, false otherwise
      * @return number of records enqueued into the message queue
      * @throws InterruptedException The thread has been interrupted 
      * @throws SerializationException The value or the key from the message could not be deserialized
      * @see AbstractKafkaConsumerClient#getMessageQueue()
      */
-    protected abstract int pollAndEnqueue (long pollTimeout) throws InterruptedException, SerializationException;
+    protected abstract int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException;
 
 
     /**
@@ -534,11 +535,18 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     /**
      * Runs the loop polling for Kafka messages until an event is received in the event queue.
      * @param pollTimeout the timeout in milliseconds used to wait for new Kafka messages if there are less than the maximum batch size.
+     * @param throttleSleepMillis the time in milliseconds the polling thread sleeps after each poll.
      * 
      * @throws InterruptedException 
      */
-    protected void runPollLoop (Long pollTimeout) throws InterruptedException {
-        logger.info("Initiating polling ..."); //$NON-NLS-1$
+    protected void runPollLoop (long pollTimeout, long throttleSleepMillis) throws InterruptedException {
+        if (throttleSleepMillis > 0l) {
+            logger.info (MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
+                    throttleSleepMillis, getMaxPollRecords()));
+        }
+        else {
+            logger.info (MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
+        }
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
                 final int bufSz = drainBuffer.size();
@@ -558,19 +566,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         }
         // continue polling for messages until a new event
         // arrives in the event queue
+        boolean fetchPaused = consumer.paused().size() > 0;
+        logger.info ("previously paused partitions: " + consumer.paused());
         while (eventQueue.isEmpty()) {
-
             boolean doPoll = true;
             // can wait for 100 ms; throws InterruptedException:
             if (!isSpaceInMsgQueueWait()) {
                 if (!fetchPaused) {
                     try {
                         consumer.pause (assignedPartitions);
-                        if (logger.isTraceEnabled()) logger.trace ("runPollLoop() - no space in message queue, fetching paused");
+                        if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - no space in message queue, fetching paused");
                         fetchPaused = true;
                     }
                     catch (IllegalStateException e) {
-                        // one of the assigned partitions not assigned any more
+                        // at least one of the assigned partitions is not assigned any more
                         logger.warn ("runPollLoop(): " + e.getLocalizedMessage());
                         // no space, could not pause - do not call poll
                         doPoll = false;
@@ -583,7 +592,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     try {
                         // when not paused, 'resumed' is a no-op
                         consumer.resume (assignedPartitions);
-                        if (logger.isTraceEnabled()) logger.trace ("runPollLoop() - fetching resumed");
+                        if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - fetching resumed");
                         fetchPaused = false;
                     }
                     catch (IllegalStateException e) {
@@ -605,8 +614,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         }
                     }
                     lastPollTimestamp = System.currentTimeMillis();
-                    /*int nRecordsEnqueued = */pollAndEnqueue (pollTimeout.longValue());
+                    /*int nRecordsEnqueued = */pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
                     nPendingMessages.setValue (messageQueue.size());
+                    if (throttleSleepMillis > 0l) {
+                        Thread.sleep (throttleSleepMillis);
+                    }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
                     // throw SerializationException, but custom deserializers may throw...
@@ -646,9 +658,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (!space) {
             if (logger.isDebugEnabled()) {
                 if (lowMemory) {
-                    logger.debug (MessageFormat.format ("low memory detected: messages queued ({0}). Skipping poll.", mqSize));
+                    logger.debug (MessageFormat.format ("low memory detected: messages queued ({0}).", mqSize));
                 } else {
-                    logger.debug (MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}). Skipping poll.",
+                    logger.debug (MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}).",
                             remainingCapacity, maxPollRecords));
                 }
             }
@@ -733,7 +745,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected void sendEvent (Event event) {
         logger.info (MessageFormat.format("Sending event: {0}", event));
         eventQueue.add (event);
-        logger.info(MessageFormat.format("Event {0} added, q={1}", event, eventQueue));
+        logger.info(MessageFormat.format("Event {0} inserted into queue, q={1}", event, eventQueue));
     }
 
     /**
@@ -753,10 +765,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Initiates start of polling for KafKa messages.
      * Implementations should ignore this event if the consumer is not subscribed or assigned to partitions.
      */
-    @Override
     public void sendStartPollingEvent() {
-        Event event = new Event (EventType.START_POLLING, new Long (pollTimeout), false);
+        Event event = new Event (EventType.START_POLLING, new StartPollingEventParameters (pollTimeout), false);
         sendEvent(event);
+    }
+
+    /**
+     * Initiates start of throttled polling for KafKa messages.
+     * Implementations should ignore this event if the consumer is not subscribed or assigned to partitions.
+     * @param throttlePauseMillis The time in milliseconds the consumer will sleep between the invocations of each consumer.poll().
+     */
+    public void sendStartThrottledPollingEvent (long throttlePauseMillis) {
+        Event event = new Event (EventType.START_POLLING, new StartPollingEventParameters (pollTimeout, throttlePauseMillis), false);
+        logger.info (MessageFormat.format("Sending event: {0}; throttled", event));
+        sendEvent (event);
     }
 
 
@@ -765,7 +787,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Implementations ensure that polling has stopped when this method returns. 
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    @Override
     public void sendStopPollingEvent() throws InterruptedException {
         Event event = new Event (EventType.STOP_POLLING, true);
         sendEvent(event);
@@ -816,7 +837,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void sendUpdateTopicAssignmentEvent (final TopicPartitionUpdate update) throws InterruptedException {
+    public void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException {
         Event event = new Event(EventType.UPDATE_ASSIGNMENT, update, true);
         sendEvent (event);
         event.await();

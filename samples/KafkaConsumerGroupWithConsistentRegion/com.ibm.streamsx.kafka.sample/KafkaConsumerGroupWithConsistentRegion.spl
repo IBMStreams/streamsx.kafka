@@ -28,7 +28,6 @@ composite KafkaConsumerGroupWithConsistentRegion {
                 topic: $topic;
                 groupId: "myGroupId";
                 startPosition: Default;
-                consistentRegionAssignmentMode: "GroupCoordinated";
         }
     
         // some analytics; if we scale up the analytics using parallel channels, it is important

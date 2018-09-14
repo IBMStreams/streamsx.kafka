@@ -122,8 +122,18 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GENERATED_GROUPID_PREFIX));
             groupIdGenerated = true;
         }
+        // always disable auto commit - we commit on drain
+        if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
+            if (kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
+                logger.warn("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been turned to 'false'.");
+            }
+        }
+        else {
+            logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
+        }
+        this.kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 
-        this.timeouts = new ConsumerTimeouts (operatorContext, kafkaProperties);
+        this.timeouts = new ConsumerTimeouts (operatorContext, this.kafkaProperties);
         timeouts.adjust (this.kafkaProperties);
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);
         maxPollIntervalMs = getMaxPollIntervalMsFromProperties (this.kafkaProperties);
@@ -942,7 +952,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             consumer.seekToEnd(topicPartitions);
             break;
         case Default:
-            logger.warn("seekToPosition: ignoring position " + startPosition);
+            logger.info("seekToPosition: ignoring position " + startPosition);
             break;
         default:
             throw new IllegalArgumentException("seekToPosition: illegal position: " + startPosition);

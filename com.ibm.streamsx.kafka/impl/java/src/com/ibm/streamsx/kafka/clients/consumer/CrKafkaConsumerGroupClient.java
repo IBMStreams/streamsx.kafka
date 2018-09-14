@@ -885,11 +885,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             logger.error (msg);
             throw new KafkaConfigurationException (msg);
         }
-        // test that group-ID has not default random value
+        // test that group-ID is not the generated (random) value
         if (isGroupIdGenerated()) {
-            final String msg = Messages.getString("GROUP_ID_REQUIRED_FOR_PARAM_VAL", AbstractKafkaConsumerOperator.CR_ASSIGNMENT_MODE_PARAM, ConsistentRegionAssignmentMode.GroupCoordinated);
-            logger.error (msg);
-            throw new KafkaConfigurationException (msg);
+            throw new KafkaConfigurationException (getThisClassName() + " cannot be used without specifying the groupId parameter or a group.id consumer property");
         }
         if (initialStartPosition == StartPosition.Offset) {
             throw new KafkaConfigurationException (getThisClassName() + " does not support startPosition = " + initialStartPosition);

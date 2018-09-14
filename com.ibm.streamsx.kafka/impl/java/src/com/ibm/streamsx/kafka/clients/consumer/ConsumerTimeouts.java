@@ -22,6 +22,7 @@ public class ConsumerTimeouts {
     private static final int CR_TIMEOUT_MULTIPLIER = 3;
     private static final long MAX_POLL_INTERVAL_MILLIS = 300000;
     private static final long SESSION_TIMEOUT_MS = 120000;
+    private static final long METADATA_MAX_AGE_MS = 2000;
 //    auto.commit.interval.ms = 5000     -
 //    connections.max.idle.ms = 540000   
 //    fetch.max.wait.ms = 500            
@@ -108,9 +109,10 @@ public class ConsumerTimeouts {
      * @param kafkaProperties The kafka properties that are modified
      */
     public void adjust (KafkaOperatorProperties kafkaProperties) {
-        adjustProperty (kafkaProperties, ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, getMaxPollIntervalMs());
-        adjustProperty (kafkaProperties, ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, getSessionTimeoutMs());
-        adjustProperty (kafkaProperties, ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, getRequestTimeoutMs());
+        adjustPropertyToMin (kafkaProperties, ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, getMaxPollIntervalMs());
+        adjustPropertyToMin (kafkaProperties, ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, getSessionTimeoutMs());
+        adjustPropertyToMin (kafkaProperties, ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, getRequestTimeoutMs());
+        adjustPropertyToMax (kafkaProperties, ConsumerConfig.METADATA_MAX_AGE_CONFIG, METADATA_MAX_AGE_MS);
     }
 
     /**
@@ -120,7 +122,7 @@ public class ConsumerTimeouts {
      * @param minValue         the minimum value
      * @throws NumberFormatException
      */
-    private void adjustProperty (KafkaOperatorProperties kafkaProperties, final String propertyName, final long minValue) throws NumberFormatException {
+    private void adjustPropertyToMin (KafkaOperatorProperties kafkaProperties, final String propertyName, final long minValue) throws NumberFormatException {
         boolean setProp = false;;
         if (kafkaProperties.containsKey (propertyName)) {
             long propValue = Long.valueOf (kafkaProperties.getProperty (propertyName));
@@ -133,9 +135,37 @@ public class ConsumerTimeouts {
         else {
             trace.info (MessageFormat.format ("consumer config ''{0}'' has been set to {1}.",
                     propertyName, minValue));
+            setProp = true;
         }
         if (setProp) {
             kafkaProperties.put (propertyName, "" + minValue);
+        }
+    }
+
+    /**
+     * Mutates a single numeric property to a maximum value.
+     * @param kafkaProperties  The kafka properties that get mutated
+     * @param propertyName     the property name
+     * @param maxValue         the maximum value
+     * @throws NumberFormatException
+     */
+    private void adjustPropertyToMax (KafkaOperatorProperties kafkaProperties, final String propertyName, final long maxValue) throws NumberFormatException {
+        boolean setProp = false;;
+        if (kafkaProperties.containsKey (propertyName)) {
+            long propValue = Long.valueOf (kafkaProperties.getProperty (propertyName));
+            if (propValue > maxValue) {
+                trace.warn (MessageFormat.format ("consumer config ''{0}'' has been decreased from {1} to {2}.",
+                        propertyName, propValue, maxValue));
+                setProp = true;
+            }
+        }
+        else {
+            trace.info (MessageFormat.format ("consumer config ''{0}'' has been set to {1}.",
+                    propertyName, maxValue));
+            setProp = true;
+        }
+        if (setProp) {
+            kafkaProperties.put (propertyName, "" + maxValue);
         }
     }
 }

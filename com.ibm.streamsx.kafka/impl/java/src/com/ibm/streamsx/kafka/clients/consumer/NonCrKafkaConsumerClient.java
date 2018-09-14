@@ -121,26 +121,23 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
 
         if(topics != null && !topics.isEmpty()) {
-            if(partitions == null || partitions.isEmpty()) {
-                // no partition information provided
-                if(startPosition == StartPosition.Default) {
-                    subscribe (topics, this);
-                } else {
-                    Set<TopicPartition> partsToAssign = getAllTopicPartitionsForTopic(topics);
-                    assign(partsToAssign);
-                    seekToPosition(partsToAssign, startPosition);
+            if (!isGroupIdGenerated() && (partitions == null || partitions.isEmpty()) && startPosition == StartPosition.Default) {
+                subscribe (topics, this);
+            }
+            else {
+                Set<TopicPartition> partsToAssign;
+                if (partitions == null || partitions.isEmpty()) {
+                    // no partition information provided
+                    partsToAssign = getAllTopicPartitionsForTopic(topics);
                 }
-            } else {
-                Set<TopicPartition> partsToAssign = new HashSet<TopicPartition>();
-                topics.forEach(topic -> {
-                    partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
-                });
-
-                assign(partsToAssign);
-
-                if(startPosition != StartPosition.Default) {
-                    seekToPosition(partsToAssign, startPosition);
-                }
+                else {
+                    partsToAssign = new HashSet<TopicPartition>();
+                    topics.forEach(topic -> {
+                        partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
+                    });
+                }    
+                assign (partsToAssign);
+                seekToPosition (partsToAssign, startPosition);
             }
         }
     }

@@ -3,10 +3,8 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Logger;
 
-import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.metrics.Metric;
@@ -22,6 +20,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  */
 public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsumerClient {
 
+    @SuppressWarnings("unused")
     private static final Logger tracer = Logger.getLogger(AbstractCrKafkaConsumerClient.class);
     private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
 
@@ -44,16 +43,6 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
             throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' must be used in a consistent region. This consumer client implementation (" 
                     + getThisClassName() + ") requires a Consistent Region context and a Control Plane context.");
         }
-        // always disable auto commit - we commit on drain
-        if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
-            if (kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
-                tracer.warn("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been turned to 'false'. In a consistent region, offsets are always committed when the region drains.");
-            }
-        }
-        else {
-            tracer.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
-        }
-        kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 
         operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_METRIC_NAME, "last drain time of this operator in milliseconds", Metric.Kind.GAUGE);
         operatorContext.getMetrics().createCustomMetric (DRAIN_TIME_MILLIS_MAX_METRIC_NAME, "maximum drain time of this operator in milliseconds", Metric.Kind.GAUGE);

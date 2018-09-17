@@ -803,7 +803,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param throttlePauseMillis The time in milliseconds the consumer will sleep between the invocations of each consumer.poll().
      */
     public void sendStartThrottledPollingEvent (long throttlePauseMillis) {
-        Event event = new Event (EventType.START_POLLING, new StartPollingEventParameters (pollTimeout, throttlePauseMillis), false);
+        Event event = new Event (EventType.START_POLLING, new StartPollingEventParameters (0, throttlePauseMillis), false);
         logger.info (MessageFormat.format("Sending event: {0}; throttled", event));
         sendEvent (event);
     }

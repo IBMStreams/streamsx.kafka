@@ -650,12 +650,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     @Override
                     public void run() {
                         try {
-                            // sleep 100 ms to give rebalance a chance to finish
-                            Thread.sleep (100);
                             getCrContext().reset();
-                        }
-                        catch (InterruptedException e) {
-                            // ignore
                         } catch (IOException e) {
                             // restart the operator 
                             e.printStackTrace();

@@ -21,6 +21,10 @@ public class ConsumerTimeouts {
 
     private static final int CR_TIMEOUT_MULTIPLIER = 3;
     private static final long MAX_POLL_INTERVAL_MILLIS = 300000;
+    // we make this timeout larger than the expected PE restart time to avoid 
+    // that the group coordinator rebalances the group among the not restarted
+    // consumers while a consumer is restarted. When a consumer restarts (subscribes)
+    // the partitions are re-assigned anyway.
     private static final long SESSION_TIMEOUT_MS = 120000;
     private static final long METADATA_MAX_AGE_MS = 2000;
 //    auto.commit.interval.ms = 5000     -

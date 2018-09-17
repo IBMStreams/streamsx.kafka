@@ -599,7 +599,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 assignedPartitionsOffsetManager.savePositionWhenRegistered (submittedRecord.topic(), submittedRecord.partition(), submittedRecord.offset() +1l);
             }
         } catch (Exception topicPartitionUnknown) {
-            // should never happen in this client
+            // can happen when onPartitionsAssigned happened between fetching a record from the queue by this thread and postSubmit.
+            // onPartitionsRevoked must have been called before, initiating a consistent region reset.
             logger.warn (topicPartitionUnknown.getLocalizedMessage());
         }
         ConsistentRegionContext crContext = getCrContext();

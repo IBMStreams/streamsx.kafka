@@ -234,6 +234,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
                 }
             }
         }
+        try {
+            checkSpaceInMessageQueueAndPauseFetching (true);
+        } catch (IllegalStateException | InterruptedException e) {
+            // IllegalStateException cannot happen
+            // On Interruption, do nothing
+        }
     }
 
 

@@ -765,6 +765,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // ... not observed during tests
             logger.warn (MessageFormat.format("onPartitionsAssigned() [{0}]: unexpected state for onPartitionsAssigned()", state));
         }
+        try {
+            checkSpaceInMessageQueueAndPauseFetching (true);
+        } catch (IllegalStateException | InterruptedException e) {
+            // IllegalStateException cannot happen
+            // On Interruption, do nothing
+        }
     }
 
     /**

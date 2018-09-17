@@ -89,7 +89,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     // no space on the queue or low memory.
     private final ReentrantLock msgQueueLock = new ReentrantLock();
     private final Condition msgQueueEmptyCondition = msgQueueLock.newCondition();
-
+    private boolean fetchPaused = false;
     protected final ConsumerTimeouts timeouts;
 
 
@@ -576,39 +576,18 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         }
         // continue polling for messages until a new event
         // arrives in the event queue
-        boolean fetchPaused = consumer.paused().size() > 0;
+        fetchPaused = consumer.paused().size() > 0;
         logger.info ("previously paused partitions: " + consumer.paused());
         while (eventQueue.isEmpty()) {
             boolean doPoll = true;
             // can wait for 100 ms; throws InterruptedException:
-            if (!isSpaceInMsgQueueWait()) {
-                if (!fetchPaused) {
-                    try {
-                        consumer.pause (assignedPartitions);
-                        if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - no space in message queue, fetching paused");
-                        fetchPaused = true;
-                    }
-                    catch (IllegalStateException e) {
-                        // at least one of the assigned partitions is not assigned any more
-                        logger.warn ("runPollLoop(): " + e.getLocalizedMessage());
-                        // no space, could not pause - do not call poll
-                        doPoll = false;
-                    }
-                }
+            try {
+                checkSpaceInMessageQueueAndPauseFetching (false);
             }
-            else {
-                // space in queue, resume fetching
-                if (fetchPaused) {
-                    try {
-                        // when not paused, 'resumed' is a no-op
-                        consumer.resume (assignedPartitions);
-                        if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - fetching resumed");
-                        fetchPaused = false;
-                    }
-                    catch (IllegalStateException e) {
-                        logger.warn ("runPollLoop(): " + e.getLocalizedMessage());
-                    }
-                }
+            catch (IllegalStateException e) {
+                logger.warn ("runPollLoop(): " + e.getLocalizedMessage());
+                // no space, could not pause - do not call poll
+                doPoll = false;
             }
             if (doPoll) {
                 try {
@@ -640,6 +619,44 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             }
         }
         logger.debug("Stop polling. Message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
+    }
+
+
+    /**
+     * checks available space in the message queue and pauses fetching
+     * if the space is not sufficient for a batch of consumer records.
+     * This method may block up to 100 milliseconds waiting for space to become available.
+     * 
+     * @throws IllegalStateException fetching could not be paused because one or more
+     * of the partitions to be paused are not assigned to the consumer any more.
+     * When this exception is thrown, the client should not poll for new records. 
+     * @throws InterruptedException Thread has been interrupted waiting for space become available
+     */
+    protected void checkSpaceInMessageQueueAndPauseFetching (boolean resetPausedState) throws IllegalStateException, InterruptedException {
+        if (resetPausedState) {
+            fetchPaused = consumer.paused().size() > 0;
+        }
+        if (!isSpaceInMsgQueueWait()) {
+            if (!fetchPaused) {
+                consumer.pause (assignedPartitions);
+                if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - no space in message queue, fetching paused");
+                fetchPaused = true;
+            }
+        }
+        else {
+            // space in queue, resume fetching
+            if (fetchPaused) {
+                try {
+                    // when not paused, 'resumed' is a no-op
+                    consumer.resume (assignedPartitions);
+                    if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - fetching resumed");
+                    fetchPaused = false;
+                }
+                catch (IllegalStateException e) {
+                    logger.warn ("runPollLoop(): " + e.getLocalizedMessage());
+                }
+            }
+        }
     }
 
     /**

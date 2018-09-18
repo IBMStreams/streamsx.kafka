@@ -651,6 +651,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     @Override
                     public void run() {
                         try {
+                            logger.info ("Resetting the consistent region NOW.");
                             getCrContext().reset();
                         } catch (IOException e) {
                             // restart the operator 

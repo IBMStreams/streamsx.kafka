@@ -25,7 +25,8 @@ public class ConsumerTimeouts {
     // that the group coordinator rebalances the group among the not restarted
     // consumers while a consumer is restarted. When a consumer restarts (subscribes)
     // the partitions are re-assigned anyway.
-    private static final long SESSION_TIMEOUT_MS = 120000;
+    // When a consumer closes the client (graceful shutdown on stopPE) the group coordinator initializes re-balance immediately.
+    private static final long SESSION_TIMEOUT_MS = 20000;
     private static final long METADATA_MAX_AGE_MS = 2000;
 //    auto.commit.interval.ms = 5000     -
 //    connections.max.idle.ms = 540000   
@@ -92,7 +93,11 @@ public class ConsumerTimeouts {
      * @return the recommended value for request.timeout.ms
      */
     public long getRequestTimeoutMs () {
-        return SESSION_TIMEOUT_MS + 5000;
+        long sessionTimeoutMs = SESSION_TIMEOUT_MS;
+        if (kafkaProperties.containsKey (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG)) {
+            sessionTimeoutMs = Long.valueOf (kafkaProperties.getProperty (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG));
+        }
+        return sessionTimeoutMs + 5000;
     }
 
     /**
@@ -114,7 +119,7 @@ public class ConsumerTimeouts {
      */
     public void adjust (KafkaOperatorProperties kafkaProperties) {
         adjustPropertyToMin (kafkaProperties, ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, getMaxPollIntervalMs());
-        adjustPropertyToMin (kafkaProperties, ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, getSessionTimeoutMs());
+        adjustPropertyToMax (kafkaProperties, ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, getSessionTimeoutMs());
         adjustPropertyToMin (kafkaProperties, ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, getRequestTimeoutMs());
         adjustPropertyToMax (kafkaProperties, ConsumerConfig.METADATA_MAX_AGE_CONFIG, METADATA_MAX_AGE_MS);
     }

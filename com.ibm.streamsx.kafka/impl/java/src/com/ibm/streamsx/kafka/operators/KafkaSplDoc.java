@@ -27,7 +27,7 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| session.timeout.ms | adjusted to a maximum of 20000 |\\n"
             + "|---|\\n"
-            + "| request.timeout.ms | adjusted to session.timeout.ms + 5000 |\\n"
+            + "| request.timeout.ms | adjusted to session.timeout.ms \\\\+ 5000 |\\n"
             + "---\\n"
             + "\\n"
             + "**NOTE:** Users can override any of the above properties by explicitly setting the property "

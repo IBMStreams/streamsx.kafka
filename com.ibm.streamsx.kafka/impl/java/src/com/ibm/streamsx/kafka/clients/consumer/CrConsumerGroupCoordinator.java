@@ -187,6 +187,38 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
                     removedKeys, (removedKeys == 1? "merge": "merges"), chkptSequenceId));
     }
 
+    @Override
+    public boolean getAndSetRebalanceResetPending (boolean pending, String operatorName) {
+        boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
+        if (trace.isDebugEnabled()) 
+            trace.debug (MessageFormat.format ("getAndSetRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+        if (previousVal != pending) {
+            trace.info (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
+                    operatorName, groupId, pending));
+        }
+        return previousVal;
+    }
+
+    @Override
+    public void setRebalanceResetPending (boolean pending, String operatorName) {
+        boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
+        if (trace.isDebugEnabled()) 
+            trace.debug (MessageFormat.format ("setRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+        if (previousVal != pending) {
+            trace.info (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
+                    operatorName, groupId, pending));
+        }
+    }
+
+    @Override
+    public boolean isRebalanceResetPending() {
+        boolean val = this.rebalanceResetPending.get();
+        if (trace.isDebugEnabled()) 
+            trace.debug (MessageFormat.format ("getRebalanceResetPending: state = {0}", val));
+        return val;
+    }
+
+
     /**
      * broadcasts a JMX message of type all registered notification listeners that contains the given data
      * the partitions given in the partitions parameter.
@@ -520,30 +552,5 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             String pattern = "'{'\"consolidatedOffsetMap\":{0},\"expectedPartitions\":{1},\"nContributions\":{2},\"complete\":{3},\"key\":{4}'}'";
             return MessageFormat.format (pattern, offsetMap2Json(), expectedPartitionsToJson(), nContributions, complete, key.toJson());
         }
-    }
-
-    @Override
-    public boolean getAndSetRebalanceResetPending (boolean pending) {
-        boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
-        if (trace.isDebugEnabled()) 
-            trace.debug (MessageFormat.format ("getAndSetRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
-        if (previousVal != pending) trace.info ("rebalance reset pending state toggled to " + pending);
-        return previousVal;
-    }
-
-    @Override
-    public void setRebalanceResetPending (boolean pending) {
-        boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
-        if (trace.isDebugEnabled()) 
-            trace.debug (MessageFormat.format ("setRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
-        if (previousVal != pending) trace.info ("rebalance reset pending state toggled to " + pending);
-    }
-
-    @Override
-    public boolean isRebalanceResetPending() {
-        boolean val = this.rebalanceResetPending.get();
-        if (trace.isDebugEnabled()) 
-            trace.debug (MessageFormat.format ("getRebalanceResetPending: state = {0}", val));
-        return val;
     }
 }

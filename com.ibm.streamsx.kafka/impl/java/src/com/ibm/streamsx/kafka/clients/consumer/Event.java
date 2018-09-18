@@ -51,6 +51,7 @@ public class Event {
      * Constructs a new event with data
      * @param eventType the type of the event
      * @param data the event type specific data
+     * @param withLatch if true, a CountDownLatch is associated with the event.
      */
     public Event(EventType eventType, Object data, boolean withLatch) {
         if (eventType == null) throw new IllegalArgumentException("eventType == null");

@@ -91,17 +91,19 @@ public interface CrConsumerGroupCoordinatorMXBean {
     /**
      * Sets the rebalance reset pending state atomically to the given value and returns the old value.
      * @param pending the new state
+     * @param operatorName The unique name of the operator
      * @return the old state
      * @throws IOException
      */
-    public boolean getAndSetRebalanceResetPending (boolean pending) throws IOException;
+    public boolean getAndSetRebalanceResetPending (boolean pending, String operatorName) throws IOException;
 
     /**
      * Sets the rebalance reset pending state atomically to the given value.
      * @param pending the new state
+     * @param operatorName The unique name of the operator
      * @throws IOException
      */
-    public void setRebalanceResetPending (boolean pending) throws IOException;
+    public void setRebalanceResetPending (boolean pending, String operatorName) throws IOException;
 
     /**
      * returms the current rebalance reset pending state.

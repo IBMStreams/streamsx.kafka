@@ -63,7 +63,6 @@ import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.MergeKey;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.TP;
 import com.ibm.streamsx.kafka.i18n.Messages;
-import com.ibm.streamsx.kafka.operators.AbstractKafkaConsumerOperator;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
@@ -88,7 +87,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         DRAINED,
         CHECKPOINTED,
         POLLING_STOPPED,
-        POLLING_CR_RESET_PENDING,
+        CR_RESET_PENDING,
         RESET_COMPLETE,
     }
 
@@ -226,7 +225,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             logger.info ("creating Proxies ...");
             crGroupCoordinatorMxBean = JMX.newMXBeanProxy (jcp, groupMbeanName, CrConsumerGroupCoordinatorMXBean.class, /*notificationEmitter=*/true);
             logger.debug ("MBean Proxy get test: group-ID = " + crGroupCoordinatorMxBean.getGroupId() + "; CR index = " + crGroupCoordinatorMxBean.getConsistentRegionIndex());
-            crGroupCoordinatorMxBean.setRebalanceResetPending (false);
+            crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
             crGroupCoordinatorMxBean.registerConsumerOperator (getOperatorContext().getName());
         }
         finally {
@@ -628,15 +627,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         logger.info (MessageFormat.format("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
         this.nPartitionRebalances.increment();
         if (!(state == ClientState.SUBSCRIBED || state == ClientState.RESET_COMPLETE)) {
-            ClientState newState = ClientState.POLLING_CR_RESET_PENDING;
+            ClientState newState = ClientState.CR_RESET_PENDING;
             logger.info (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
-//            sendStopPollingEventAsync();
-            sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
+            sendStopPollingEventAsync();
 
             boolean resetPending = false;
             try {
-                resetPending = crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true);
+                resetPending = crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true, getOperatorContext().getName());
             } catch (IOException ioe) {
                 logger.warn ("Could not test for already pending rebalance caused consistent region reset: " + ioe.getLocalizedMessage());
             }
@@ -755,7 +753,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // update the fetch positions for all assigned partitions - 
             break;
 
-        case POLLING_CR_RESET_PENDING:
+        case CR_RESET_PENDING:
             // silently ignore; we have updated assigned partitions and assignedPartitionsOffsetManager before
             break;
         default:
@@ -1235,7 +1233,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // do not change the state beforehand because the ConsumerRebalanceListener callbacks might be called, which behave state dependent
         super.runPollLoop (pollTimeout, throttleSleepMillis);
         // Don't change state, when state is something CR related, like DRAINING, RESETTING, ... 
-        if (state == ClientState.POLLING || state == ClientState.POLLING_CR_RESET_PENDING || state == ClientState.POLLING_THROTTLED) {
+        if (state == ClientState.POLLING /*|| state == ClientState.CR_RESET_PENDING*/ || state == ClientState.POLLING_THROTTLED) {
             ClientState newState = ClientState.POLLING_STOPPED;
             logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
             state = newState;
@@ -1259,10 +1257,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
 
         if (logger.isInfoEnabled() && !(state == ClientState.POLLING || state == ClientState.POLLING_THROTTLED)) {
-            logger.info(MessageFormat.format ("pollAndEnqueue() [{0}]: Polling for records, Kafka poll timeout = {1}", state, pollTimeout)); //$NON-NLS-1$
+            logger.info(MessageFormat.format ("pollAndEnqueue() [{0}]: Polling for records {1}, Kafka poll timeout = {2}",
+                    state, (isThrottled? "(throttled)": "(normal)"), pollTimeout)); //$NON-NLS-1$
         }
         if (logger.isTraceEnabled()) logger.trace ("Polling for records..."); //$NON-NLS-1$
-        // Note: within poll(...) the ConsumerRebalanceListener might be called, changing the state to POLLING_CR_RESET_PENDING
+        // Note: within poll(...) the ConsumerRebalanceListener might be called, changing the state to CR_RESET_PENDING
         long before = 0;
         if (logger.isDebugEnabled()) before = System.currentTimeMillis();
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
@@ -1271,21 +1270,22 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         if (logger.isDebugEnabled()) {
             logger.debug (MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));
         }
-        if (state == ClientState.POLLING_CR_RESET_PENDING) {
+        if (state == ClientState.CR_RESET_PENDING) {
             logger.info (MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
             return 0;
         }
         // state transition
-        ClientState newState = state;
-        if (state != ClientState.POLLING) {
-            newState = isThrottled? ClientState.POLLING_THROTTLED: ClientState.POLLING;
-        }
-        if (state != ClientState.POLLING_THROTTLED) {
-            newState = isThrottled? ClientState.POLLING_THROTTLED: ClientState.POLLING;
-        }
-        if (state != newState) {
-            logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
-            state = newState;
+        // if state is DRAINING, do not change the state
+        if (state != ClientState.DRAINING) {
+            ClientState newState = state;
+            // change state if it is none of POLLING, POLLING_THROTTLED
+            if (!(state == ClientState.POLLING || state == ClientState.POLLING_THROTTLED)) {
+                newState = isThrottled? ClientState.POLLING_THROTTLED: ClientState.POLLING;
+            }
+            if (state != newState) {
+                logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+                state = newState;
+            }
         }
         // add records to message queue
         if (numRecords > 0) {
@@ -1318,11 +1318,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
         //  if ((state == ClientState.RESET_COMPLETE || state == ClientState.CHECKPOINTED) && pollingStartPending.get() == false) {
-        if (!(state == ClientState.POLLING || state == ClientState.DRAINING || state == ClientState.POLLING_CR_RESET_PENDING) && pollingStartPending.get() == false) {
+        if (!(state == ClientState.POLLING || state == ClientState.DRAINING || state == ClientState.DRAINED || state == ClientState.CR_RESET_PENDING) && pollingStartPending.get() == false) {
             logger.info(MessageFormat.format("getNextRecord() [{0}] - Acquired permit - initiating polling for records", state)); 
             pollingStartPending.set (true);
             try {
-                crGroupCoordinatorMxBean.setRebalanceResetPending (false);
+                crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
             } catch (IOException e) {
                 // connection to MX bean is broken. state is reset on JMX initialization in setup()
                 e.printStackTrace();

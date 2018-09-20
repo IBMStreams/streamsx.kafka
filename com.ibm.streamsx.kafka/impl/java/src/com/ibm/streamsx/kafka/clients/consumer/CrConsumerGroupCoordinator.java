@@ -14,8 +14,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.Notification;
 import javax.management.NotificationBroadcasterSupport;
@@ -37,6 +37,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
     private long notifSequenceNo = System.currentTimeMillis();
     private Map<MergeKey, CheckpointMerge> mergeMap;
     private Set<String> registeredConsumerOperators;
+//    private Gson gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
 
     private AtomicBoolean rebalanceResetPending;
 
@@ -117,6 +118,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         }
         if (mergeComplete) {
             // the sequence number is the checkpoint sequence ID, the message contains the complete merge as JSON
+//            Notification notif = new Notification (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, this, chkptSequenceId, gson.toJson (merge));
             Notification notif = new Notification (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, this, chkptSequenceId, merge.toJson());
             if (trace.isDebugEnabled()) {
                 trace.debug(MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - offset merge is complete. Sending merge complete notification for seqId {2}",
@@ -308,6 +310,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             return toString;
         }
 
+        @Deprecated
         public String toJson() {
             String pattern = "'{'\"sequenceId\":{0},\"resetAttempt\":{1},\"toString\":\"{2}\"'}'";
             return MessageFormat.format (pattern, sequenceId, resetAttempt, toString);
@@ -388,6 +391,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             return toString;
         }
 
+        @Deprecated
         public String toJson() {
             String pattern = "'{'\"topic\":\"{0}\",\"partition\":{1},\"toString\":\"{2}\"'}'";
             return MessageFormat.format (pattern, topic, partition, toString);
@@ -548,6 +552,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
 
         }
 
+        @Deprecated
         public String toJson() {
             String pattern = "'{'\"consolidatedOffsetMap\":{0},\"expectedPartitions\":{1},\"nContributions\":{2},\"complete\":{3},\"key\":{4}'}'";
             return MessageFormat.format (pattern, offsetMap2Json(), expectedPartitionsToJson(), nContributions, complete, key.toJson());

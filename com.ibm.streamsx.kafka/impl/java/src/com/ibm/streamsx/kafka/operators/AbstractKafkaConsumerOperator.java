@@ -411,18 +411,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
     }
 
-//    @ContextCheck(compile = true)
-//    public static void checkCrAssignmentModeWhenNotInCr (OperatorContextChecker checker) {
-//        OperatorContext operatorContext = checker.getOperatorContext();
-//        ConsistentRegionContext crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
-//        Set<String> parameterNames = operatorContext.getParameterNames();
-//        if (crContext == null) {
-//            // not in a CR
-//            if (parameterNames.contains(CR_ASSIGNMENT_MODE_PARAM)) {
-//                System.err.println (Messages.getString ("PARAM_IGNORED_NOT_IN_CONSITENT_REGION", CR_ASSIGNMENT_MODE_PARAM));
-//            }
-//        }
-//    }
 
     @ContextCheck(compile = true)
     public static void checkInputPort(OperatorContextChecker checker) {
@@ -564,40 +552,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
     }
-
-//    private static void checkCrPartitionAssignmentMode (OperatorContextChecker checker) {
-//        OperatorContext operatorContext = checker.getOperatorContext();
-//        ConsistentRegionContext crContext = operatorContext.getOptionalContext(ConsistentRegionContext.class);
-//        List<StreamingInput<Tuple>> inputPorts = operatorContext.getStreamingInputs();
-//        Set<String> parameterNames = operatorContext.getParameterNames();
-//        if (crContext != null) {
-//            if (parameterNames.contains(CR_ASSIGNMENT_MODE_PARAM)) {
-//                // get parameter value 
-//                final String crAssignModeParamVal = operatorContext.getParameterValues (CR_ASSIGNMENT_MODE_PARAM).get(0);
-//                if (crAssignModeParamVal.equals(ConsistentRegionAssignmentMode.GroupCoordinated.name())) {
-//                    // incompatible with startPosition: Offset - would assign partitions
-//                    if (parameterNames.contains(START_POSITION_PARAM)) {
-//                        final String startPositionVal = operatorContext.getParameterValues (START_POSITION_PARAM).get(0);
-//                        if (startPositionVal.equals (StartPosition.Offset.name())) {
-//                            checker.setInvalidContext (Messages.getString ("PARAM_VAL_INCOMPATIBLE_WITH_OTHER_PARAM_VAL",
-//                                    START_POSITION_PARAM, StartPosition.Offset,
-//                                    CR_ASSIGNMENT_MODE_PARAM, crAssignModeParamVal), new Object[0]);
-//                        }
-//                    }
-//                    // incompatible with 'partition' param - manual partition assignment incompatible with Group Management 
-//                    if (parameterNames.contains(PARTITION_PARAM)) {
-//                        checker.setInvalidContext (Messages.getString ("PARAM_INCOMPATIBLE_WITH_OTHER_PARAM_VAL",
-//                                PARTITION_PARAM, CR_ASSIGNMENT_MODE_PARAM, crAssignModeParamVal), new Object[0]);
-//                    }
-//                    // incompatible with input port
-//                    if(inputPorts.size() > 0) {
-//                        checker.setInvalidContext (Messages.getString ("PARAM_VAL_INCOMPATIBLE_WITH_INPUT_PORT",
-//                                CR_ASSIGNMENT_MODE_PARAM, crAssignModeParamVal), new Object[0]);
-//                    }
-//                }
-//            }
-//        }
-//    }
 
 
     private static void checkTriggerCountValue (OperatorContextChecker checker) {

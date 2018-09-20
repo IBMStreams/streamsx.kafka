@@ -44,6 +44,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.RoundRobinAssignor;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
@@ -135,14 +136,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     private Map<TopicPartition, Long> seekOffsetMap;
     /** current state of the consumer client */
     private ClientState state = null;
-    Gson gson;
+    private Gson gson;
 
     /**
      * Constructs a new CrKafkaConsumerGroupClient object.
      * @throws KafkaConfigurationException 
      */
     private <K, V> CrKafkaConsumerGroupClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
+            KafkaOperatorProperties kafkaProperties, int nTopics) throws KafkaConfigurationException {
 
         super (operatorContext, keyClass, valueClass, kafkaProperties);
 
@@ -152,6 +153,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         this.assignedPartitionsOffsetManager = new OffsetManager();
         this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
         ConsistentRegionContext crContext = getCrContext();
+        // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
+        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
+            String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
+            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
+            logger.info (MessageFormat.format ("Multiple topics specified. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+        }
         logger.info(MessageFormat.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
         logger.info(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
@@ -1392,6 +1399,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         private long triggerCount;
         private StartPosition initialStartPosition;
         private long initialStartTimestamp;
+        private int numTopics = 0;
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -1423,6 +1431,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             return this;
         }
 
+        public final Builder setNumTopics (int n) {
+            this.numTopics = n;
+            return this;
+        }
+
         /**
          * @param initialStartPosition the initialStartPosition to set
          */
@@ -1446,7 +1459,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
          * @throws Exception
          */
         public ConsumerClient build() throws Exception {
-            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties);
+            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
             client.setPollTimeout (this.pollTimeout);
             client.setTriggerCount (this.triggerCount);
             client.setInitialStartPosition (this.initialStartPosition);

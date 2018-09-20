@@ -659,6 +659,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             .setKafkaProperties(kafkaProperties)
             .setKeyClass(keyClass)
             .setValueClass(valueClass)
+            .setNumTopics (this.topics == null? 0: this.topics.size())
             .setPollTimeout(this.consumerPollTimeout)
             .setCommitCount(commitCount);
             consumer = builder.build();
@@ -671,6 +672,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setKeyClass (keyClass)
                 .setValueClass (valueClass)
                 .setPollTimeout (this.consumerPollTimeout)
+                .setNumTopics (this.topics == null? 0: this.topics.size())
                 .setTriggerCount (this.triggerCount)
                 .setInitialStartPosition (this.startPosition)
                 .setInitialStartTimestamp (this.startTime);

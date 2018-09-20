@@ -14,10 +14,12 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.RoundRobinAssignor;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
+import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
@@ -50,7 +52,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      * @throws KafkaConfigurationException
      */
     private <K, V> NonCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
+            KafkaOperatorProperties kafkaProperties, int nTopics) throws KafkaConfigurationException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
 
         ConsistentRegionContext crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
@@ -58,7 +60,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
             throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' is used in a consistent region. This consumer client implementation (" 
                     + this.getClass() + ") does not support CR.");
         }
-        // if not explicitly configured, disable auto commit
+         // if not explicitly configured, disable auto commit
+        // TODO: remove this code; auto commit is always disabled by consumer base class
         if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
             autoCommitEnabled = kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true");
         }
@@ -68,6 +71,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
         }
         if (!autoCommitEnabled) {
             offsetManager = new OffsetManager ();
+        }
+        // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
+        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
+            String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
+            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
+            logger.info (MessageFormat.format ("Multiple topics specified. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
         }
     }
 
@@ -381,6 +390,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
         private KafkaOperatorProperties kafkaProperties;
         private long pollTimeout;
         private long commitCount;
+        private int numTopics = 0;
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -412,8 +422,13 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
             return this;
         }
 
+        public final Builder setNumTopics (int n) {
+            this.numTopics = n;
+            return this;
+        }
+
         public ConsumerClient build() throws Exception {
-            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient(operatorContext, keyClass, valueClass, kafkaProperties);
+            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
             client.setPollTimeout (pollTimeout);
             client.setCommitCount (commitCount);
             return client;

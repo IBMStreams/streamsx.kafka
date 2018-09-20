@@ -89,6 +89,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     // no space on the queue or low memory.
     private final ReentrantLock msgQueueLock = new ReentrantLock();
     private final Condition msgQueueEmptyCondition = msgQueueLock.newCondition();
+    private AtomicBoolean msgQueueProcessed = new AtomicBoolean (true);
     private boolean fetchPaused = false;
     protected final ConsumerTimeouts timeouts;
 
@@ -468,6 +469,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
         ConsumerRecord<?,?> record = null;
         if (messageQueue.isEmpty()) {
+            // assuming, that the queue is not filled concurrently...
+            msgQueueProcessed.set (true);
             try {
                 msgQueueLock.lock();
                 msgQueueEmptyCondition.signalAll();
@@ -475,6 +478,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 msgQueueLock.unlock();
             }
         }
+        else msgQueueProcessed.set (false);
+        // if filling the queue is NOT stopped, we can, of cause,
+        // fetch a record now from the queue, even when we have seen an empty queue, shortly before... 
+
         // messageQueue.poll throws InterruptedException
         record = messageQueue.poll (timeout, timeUnit);
         if (record == null) {
@@ -518,11 +525,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
-     * Waits that the message queue becomes empty by consuming messages by the tuple producer thread.
+     * Waits that the message queue becomes empty and has been processed by the tuple producer thread.
+     * This method should not be called, when filling the queue with new messages has not been stopped before.
      * @throws InterruptedException The waiting thread has been interrupted waiting
      */
-    protected void awaitEmptyMessageQueue() throws InterruptedException {
-        while (!messageQueue.isEmpty()) {
+    protected void awaitMessageQueueProcessed() throws InterruptedException {
+        while (!(messageQueue.isEmpty() && msgQueueProcessed.get())) {
             try {
                 msgQueueLock.lock();
                 msgQueueEmptyCondition.await (100l, TimeUnit.MILLISECONDS);

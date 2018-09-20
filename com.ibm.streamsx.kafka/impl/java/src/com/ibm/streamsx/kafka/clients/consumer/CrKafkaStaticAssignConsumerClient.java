@@ -315,7 +315,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                 // here we are only when we are NOT the CR trigger (for example, periodic CR) and the queue contains consumer records
                 logger.debug("onDrain() waiting for message queue to become empty ...");
                 long before = System.currentTimeMillis();
-                awaitEmptyMessageQueue();
+                awaitMessageQueueProcessed();
                 logger.debug("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
             }
             final boolean commitSync = true;

@@ -526,13 +526,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 // here we are only when we are NOT the CR trigger (for example, periodic CR)
                 if (DRAIN_TO_BUFFER_ON_CR_DRAIN) {
                     drainMessageQueueToBuffer();
+                    // also, when we drain the queue into a buffer, there may be in-flight messages
+                    // wait for them to be processed.
                 }
-                else {
-                    long before = System.currentTimeMillis();
-                    logger.info("onDrain() waiting for message queue to become empty ...");
-                    awaitEmptyMessageQueue();
-                    logger.info("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
-                }
+                long before = System.currentTimeMillis();
+                logger.info("onDrain() waiting for message queue to become empty ...");
+                awaitMessageQueueProcessed();
+                logger.info("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
             }
             final boolean commitSync = true;
             final boolean commitPartitionWise = false;   // commit all partitions in one server request

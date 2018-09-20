@@ -102,13 +102,12 @@ public class ConsumerTimeouts {
 
     /**
      * Returns the timeout for the JMX notification 'checkpoint merge complete'.
-     * min (crResetTimeout/2, 15 seconds), but not more than max.poll.interval.ms /2.
-     * @return the minimum timeout in milliseconds.
+     * 
+     * @return the minimum timeout in milliseconds, which is min (crResetTimeout/2, max.poll.interval.ms/2, 15 seconds)
      */
     public long getJmxResetNotificationTimeout() {
-        // min (crResetTimeout/2, 15 seconds)
+        // min (crResetTimeout/2, max.poll.interval.ms /2, 15 seconds)
         long timeout = crResetTimeoutMs / 2 < 15000? crResetTimeoutMs / 2: 15000;
-        // not more than max.poll.interval.ms /2
         if (timeout > getMaxPollIntervalMs()/2) timeout = getMaxPollIntervalMs()/2;
         return timeout;
     }

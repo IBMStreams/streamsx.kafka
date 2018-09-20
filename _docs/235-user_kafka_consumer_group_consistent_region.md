@@ -40,9 +40,9 @@ The operator uses the Kafka consumer Java API. This API is not thread-safe. That
 
 Each consumer operator has two threads.
 
-- The **event thread** invokes the consumer API for polling for messages, committing offsets, processing partition revocation and assignment. It also processes the *StateHandler* related events of the consistent region, like drain, checkpoint, and reset. This thread is controlled over events placed by other threads into the **event queue**. Most of the time, this thread polls for messages from Kafka and enqueues them into the **message queue**. Messages are received from the Kafka broker in batches, where the maximum batch size is configurable via the `max.poll.records` consumer configuration. The capacity of the message queue is `100 * max.poll.records`. Leaving the default value for this config, the message queue has a capacity of 50,000 messages.
+- The **event thread** invokes the consumer API for polling for messages, committing offsets, processing partition revocation and assignment. It also processes the *StateHandler* related events of the consistent region, checkpoint, and reset. This thread is controlled over events placed by other threads into the **event queue**. Most of the time, the event thread polls for messages from Kafka and enqueues them into the **message queue**. Messages are received from the Kafka broker in batches, where the maximum batch size is configurable via the `max.poll.records` consumer configuration. The capacity of the message queue is `100 * max.poll.records`. Leaving the default value for this config, the message queue has a capacity of 50,000 messages.
 
-- The **process thread** pulls messages from the message queue and, when a consistent region permit is acquired, it creates and submits tuples. This thread also saves the offsets of the submitted tuples for every topic and partition in a data structure called the *offset manager*.
+- The **process thread** pulls messages from the message queue and, when a consistent region permit is acquired, it creates and submits tuples. This thread also saves the offsets of the submitted tuples for every topic and partition in a data structure called the *offset manager* after tuple submission.
 
 ### Checkpointed data
 
@@ -73,7 +73,7 @@ Partition assignment and revocation is done by Kafka. The client is notified by 
 #### Partition revocation
 `onPartitionsRevoked` is ignored when the client has just subscribed, or after reset to initial state or to a checkpoint. Otherwise, a reset of the consistent region is initiated by the operator:
 - A stop polling event is submitted to the event queue, which lets the operator stop polling for new messages. Letting the operator stop polling avoids that the callbacks are called again before the reset event is processed.
-- A reset of the consitent region is triggered asynchronous. The state of the client changes to POLLING_CR_RESET_INITIATED.
+- A reset of the consitent region is triggered asynchronous. The state of the client changes to CR_RESET_INITIATED.
 - `onPartitionsAssigned` with the new partition assignment is always called back after `onPartitionsRevoked` within the context of the current poll.
 - When it comes to the consistent region reset, the operator places a reset event into the event queue. This event is 
 always processed by the event thread *after* the current `poll` has finished. Therefore also `onPartitionsAssigned` is called before the reset event can be processed.
@@ -82,20 +82,20 @@ always processed by the event thread *after* the current `poll` has finished. Th
 
 The cycle `onPartitionsRevoked` - `onPartitionsAssigned` can happen whenever the client polls for messages. The client performs following:
 
-- update the *assignable partitions* from the meta data of the subscribed topics. Partitions may have been added to the topics.
+- update the *assignable partitions* from the meta data of the subscribed topics. Partitions may have been added to the topics by an administrator.
 - for the partitions that are *not assigned anymore* to this consumer
     - remove all messages from the message queue, so that they will not be submitted as tuples
     - remove the \[topic, partition\] to offset mappings from the offset manager
 - save the newly assigned partitions for this operator
 - add the new partitions to the offset manager, and get the fetch positions for each assigned partition from the Kafka broker.
 - When the operator is in state SUBSCRIBED or RESET_COMPLETE, i.e. not awaiting a reset of the consistent region, seek all partitions to the offsets in the *seek offset map*. The seek position for those partitions, which are not in the map is calculated like an initial offset (what the **startPosition** parameter is).
-- When the operator is in state POLLING_CR_RESET_INITIATED (awaiting a reset) the assigned partitions are not seeked. This happens during reset later. 
+- When the operator is in state CR_RESET_INITIATED (awaiting a reset) the assigned partitions are not seeked. This happens during reset later. 
 
 The operator maintains the metric **nPartitionsAssigned** showing the number of currently assigned partitions.
 
 ## drain processing
 
-On drain, the operator stops polling for new messages, and, if the region is *not operator driven*, waits until the message queue has been emptied by the process thread. Then, the offsets from the offset manager are committed in one single synchronous server request. If this fails, for only one partition, an exception is thrown causing an operator restart with subsequent reset to the last consistent state.
+On drain, the operator stops polling for new messages, and, if the region is *not operator driven*, drains the entire content of the message queue into a temporary buffer. Then, the offsets from the offset manager are committed in one single synchronous server request. If this fails, for only one partition, an exception is thrown causing an operator restart with subsequent reset to the last consistent state.
 
 The operator maintains two metrics, the drain time of last drain, and the maximum drain time, both measured in milliseconds.
 
@@ -116,8 +116,8 @@ Each operator performs these steps on reset of the consistent region:
 - for the currently assigned partitions, seek to the offsets in the seek offset map. For partitions that have no mapping, seek to what the **startPosition** parameter is
 - update the offsets in the offset manager with the start positions for the assigned partitions
 - set the client state to RESET_COMPLETE
-- the operator starts polling for messages filling the message queue
-- when the operator acquires a permit to submit messages, the message queue is processed submitting tuples.
+- the operator starts polling in throttled mode for messages filling the message queue
+- when the operator acquires a permit to submit messages, the the operator starts polling at full speed, and the message queue is processed submitting tuples.
 
 ### create the seek offset map during reset to initial state
 
@@ -137,6 +137,6 @@ The data portions (2), are merged by using the MBean created in the JCP. Each co
 
 When a consumer has not received the notification in time, the map in the MBean may be incomplete. In this case, a missing partition-to-offset mapping for the seek offset map is taken from the partition to offset map (3).
 
-The timeout for receiving the JMX notification is a quarter of the reset timeout, but not more than `min (max.poll.interval.ms/2, 30000)` milliseconds.
+The timeout for receiving the JMX notification is `minimum (CR_resetTimeout/2, max.poll.interval.ms/2, 15000 ms)`.
 
 The merges in the MBean and the received JMX notifications are removed on `retireCheckpoint`.

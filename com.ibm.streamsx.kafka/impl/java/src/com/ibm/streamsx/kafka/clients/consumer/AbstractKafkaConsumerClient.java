@@ -49,6 +49,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  */
 public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient implements ConsumerClient, OffsetCommitCallback {
 
+    protected static final String N_PARTITION_REBALANCES = "nPartitionRebalances";
+
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerClient.class);
 
     private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
@@ -82,7 +84,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nPendingMessages;
     private final Metric nLowMemoryPause;
     private final Metric nQueueFullPause;
-    protected final Metric nPartitionRebalances;
     protected final Metric nAssignedPartitions;
 
     // Lock/condition for when we pause processing due to
@@ -146,7 +147,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric("nAssignedPartitions");
-        this.nPartitionRebalances = operatorContext.getMetrics().getCustomMetric("nPartitionRebalances");
     }
 
 
@@ -861,6 +861,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.info("Subscribing. topics = " + topics); //$NON-NLS-1$
         if (topics == null) topics = Collections.emptyList();
         consumer.subscribe (topics, rebalanceListener);
+        getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
         this.subscriptionMode = topics.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.SUBSCRIBED;
     }
 

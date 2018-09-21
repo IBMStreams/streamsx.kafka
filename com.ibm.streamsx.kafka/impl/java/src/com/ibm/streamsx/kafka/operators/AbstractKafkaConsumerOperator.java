@@ -128,11 +128,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.nMalformedMessages = nMalformedMessages;
     }
 
-    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nPartitionRebalances", description = "Number of partition rebalances within the consumer group")
-    public void setnPartitionRebalances (Metric nPartitionRebalances) {
-        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
-    }
-
     @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of pending messages to be submitted as tuples.")
     public void setnPendingMessages(Metric nPendingMessages) {
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
@@ -278,7 +273,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "When this time expires, the Consumer won't be able to resume after last committed offset, and the "
                     + "value of consumer property `auto.offset.reset` applies (default `latest`). "
                     + "**Note:** If you do not specify a group ID in Kafka consumer properties or via **groupId** parameter, "
-                    + "the operator uses a random generated group ID, which makes the operator start consuming at the last position "
+                    + "the operator uses a generated group ID, which makes the operator start consuming at the last position "
                     + "or what is specified in the `auto.offset.reset` consumer property."
                     + "\\n"
                     + "* `Time`: The consumer starts consuming messages with at a given timestamp. More precisely, "

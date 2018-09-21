@@ -632,7 +632,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
         logger.info (MessageFormat.format("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
-        this.nPartitionRebalances.increment();
+        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         if (!(state == ClientState.SUBSCRIBED || state == ClientState.RESET_COMPLETE)) {
             ClientState newState = ClientState.CR_RESET_PENDING;
             logger.info (MessageFormat.format("client state transition: {0} -> {1}", state, newState));

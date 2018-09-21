@@ -1,6 +1,5 @@
 package com.ibm.streamsx.kafka.clients.producer;
 
-import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;

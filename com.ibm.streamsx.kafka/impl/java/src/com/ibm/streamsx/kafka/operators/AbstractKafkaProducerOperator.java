@@ -48,6 +48,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     public static enum ConsistentRegionPolicy {
         AtLeastOnce,
+        NonTransactional,
         Transactional;
     }
     
@@ -65,21 +66,31 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String partitionAttributeName = null;
     private String timestampAttributeName = null;
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
-    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.AtLeastOnce;
+    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
-    		description="Specifies the policy to use when in a consistent region. If `AtLeastOnce` "
-    				+ "is specified, the operator will guarantee that every tuple is written to the "
-    				+ "topic(s) at least once. If `Transactional` is specified, the operator will write "
+    		description="Specifies the policy to use when in a consistent region.\\n"
+    		        + "\\n"
+    		        + "When `NonTransactional` "
+    				+ "is specified, the operator guarantees that every tuple is written to the "
+    				+ "topic(s) at least once. When the consistent region resets, duplicates will most "
+    				+ "likely appear in the output topic(s). For consumers of the output topics, "
+    				+ "messages appears as they are produced.\\n"
+    				+ "\\n"
+    				+ " When `Transactional` is specified, the operator will write "
     				+ "tuples to the topic(s) within the context of a transaction. Transactions are commited "
     				+ "when the operator checkpoints. This implies that downstream Kafka consumers may not see the messages "
     				+ "until operator checkpoints.\\n"
+    				+ "Transactional delivery minimizes (though not eliminates) duplicate messages for consumers of "
+    				+ "the output topics when they are configured with the consumer property `isolation.level=read_committed`. "
+    				+ "Consumers that read with the default isolation level `read_uncommitted` see all messages as "
+    				+ "they are produced. For these consumers, there is no difference between transactional and "
+    				+ "non-transactional message delivery.\\n"
     				+ "\\n"
-    				+ "To achieve *Exactly Once* behaviour for a Kafka consumer, the property *isolation.level* must be set "
-    				+ "to `read_committed` for that consumer. Otherwise also uncommitted messages are read from "
-    				+ "a Kafka topic, which then looks like *at least once* for the consumer."
+    				+ "For backward compatibility, the parameter value `AtLeastOnce` can also be specified. The value is equivalent to `NonTransactional`.\\n"
+    				+ "\\n"
     				+ "This parameter is ignored if the operator is not part of a consistent region. "
-    				+ "The default value is `AtLeastOnce`. **NOTE**: Kafka brokers older than version v0.11 "
+    				+ "The default value is `NonTransactional`. **NOTE**: Kafka brokers older than version v0.11 "
     				+ "do not support transactions.")
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
 		this.consistentRegionPolicy = consistentRegionPolicy;
@@ -325,6 +336,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         } else {
         	switch(consistentRegionPolicy) {
         	case AtLeastOnce:
+        	case NonTransactional:
             	logger.info("Creating AtLeastOnceKafkaProducerClient...");
         		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
         		break;

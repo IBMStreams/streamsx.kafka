@@ -24,6 +24,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.TransactionalKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -46,12 +47,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
-    public static enum ConsistentRegionPolicy {
-        AtLeastOnce,
-        NonTransactional,
-        Transactional;
-    }
-    
     /* Parameters */
     protected TupleAttribute<Tuple, ?> keyAttr;
     protected TupleAttribute<Tuple, ?> messageAttr;
@@ -439,25 +434,26 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         logger.debug("Initiating reset..."); //$NON-NLS-1$
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.reset(checkpoint);
 
         // reset complete
         isResetting.set(false);
-        logger.debug("Reset complete"); //$NON-NLS-1$
+        logger.info("Reset complete"); //$NON-NLS-1$
     }
 
     @Override
     public void resetToInitialState() throws Exception {
-        logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
+        logger.info(">>> RESET TO INIT..."); //$NON-NLS-1$
 
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.close();
         producer = null;
         initProducer();
         isResetting.set(false);
+        logger.info("Reset to init complete"); //$NON-NLS-1$
     }
 
     @Override

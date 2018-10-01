@@ -957,6 +957,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.info(MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
         final long before = System.currentTimeMillis();
         try {
+            consumer.sendStopPollingEvent();
             consumer.onReset (checkpoint);
         }
         catch (InterruptedException e) {
@@ -978,6 +979,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final int attempt = crContext.getResetAttempt();
         logger.info(MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
+        consumer.sendStopPollingEvent();
         consumer.onResetToInitialState();
 
         // latch will be null if the reset was caused

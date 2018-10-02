@@ -1,5 +1,6 @@
 package com.ibm.streamsx.kafka.clients.producer;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,9 +16,13 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public class TransactionalKafkaProducerClient extends KafkaProducerClient {
+
+    // default value of server config transaction.max.timeout.ms
+    private static final long TRANSACTION_MAX_TIMEOUT_MS = 900000l;
 
     private static final Logger logger = Logger.getLogger(TransactionalKafkaProducerClient.class);
 
@@ -48,10 +53,28 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         // Need to generate a transactional.id that is unique but persists 
         // across operator instances. In order to guarantee this, we will
         // store the transactional.id in the JCP
-        ControlPlaneContext crContext = operatorContext.getOptionalContext(ControlPlaneContext.class);
-        ControlVariableAccessor<String> transactionalIdCV = crContext.createStringControlVariable("transactional_id", false, getRandomId("tid-"));
+        ControlPlaneContext jcpContext = operatorContext.getOptionalContext(ControlPlaneContext.class);
+        ControlVariableAccessor<String> transactionalIdCV = jcpContext.createStringControlVariable("transactional_id", false, getRandomId("tid-"));
         transactionalId = transactionalIdCV.sync().getValue();
         logger.debug("Transactional ID = " + transactionalId);
+
+        // adjust transaction timeout transaction.timeout.ms
+        ConsistentRegionContext crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
+        long drainTimeoutMillis = (long) (crContext.getDrainTimeout() * 1000.0);
+        long minTransactionTimeout = drainTimeoutMillis + 120000l;
+        if (minTransactionTimeout > TRANSACTION_MAX_TIMEOUT_MS) minTransactionTimeout = TRANSACTION_MAX_TIMEOUT_MS;
+        if (kafkaProperties.containsKey (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG)) {
+            long propValue = Long.valueOf (kafkaProperties.getProperty (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG));
+            if (propValue < minTransactionTimeout) {
+                this.kafkaProperties.put (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, "" + minTransactionTimeout);
+                logger.warn (MessageFormat.format ("producer config ''{0}'' has been increased from {1} to {2}.",
+                        ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, propValue, minTransactionTimeout));
+            }
+        }
+        else {
+            this.kafkaProperties.put (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, "" + minTransactionTimeout);
+            logger.info (MessageFormat.format ("producer config ''{0}'' has been set to {1}.", ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, minTransactionTimeout));
+        }
 
         // The "enable.idempotence" property is required in order to guarantee idempotence
         this.kafkaProperties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");

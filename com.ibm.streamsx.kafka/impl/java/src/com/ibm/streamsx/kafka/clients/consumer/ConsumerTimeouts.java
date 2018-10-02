@@ -44,7 +44,6 @@ public class ConsumerTimeouts {
 
     @SuppressWarnings("unused")
     private final OperatorContext opContext;
-    @SuppressWarnings("unused")
     private final KafkaOperatorProperties kafkaProperties;
     private final ConsistentRegionContext crContext;
     private final boolean inConsistentRegion;
@@ -131,7 +130,7 @@ public class ConsumerTimeouts {
      * @throws NumberFormatException
      */
     private void adjustPropertyToMin (KafkaOperatorProperties kafkaProperties, final String propertyName, final long minValue) throws NumberFormatException {
-        boolean setProp = false;;
+        boolean setProp = false;
         if (kafkaProperties.containsKey (propertyName)) {
             long propValue = Long.valueOf (kafkaProperties.getProperty (propertyName));
             if (propValue < minValue) {
@@ -158,7 +157,7 @@ public class ConsumerTimeouts {
      * @throws NumberFormatException
      */
     private void adjustPropertyToMax (KafkaOperatorProperties kafkaProperties, final String propertyName, final long maxValue) throws NumberFormatException {
-        boolean setProp = false;;
+        boolean setProp = false;
         if (kafkaProperties.containsKey (propertyName)) {
             long propValue = Long.valueOf (kafkaProperties.getProperty (propertyName));
             if (propValue > maxValue) {

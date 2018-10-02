@@ -183,6 +183,8 @@ public class KafkaSplDoc {
             + "| enable.idempotence | `true` only when in consistent region and **consistentRegionPolicy** parameter is set to `Transactional`. |\\n"
             + "|---|\\n"
             + "| transactional.id | Randomly generated ID in the form: `tid-<random_string>` only when in consistent region and **consistentRegionPolicy** parameter is set to `Transactional`. |\\n"
+            + "|---|\\n"
+            + "| transaction.timeout.ms | adjusted to a minimum of `drain timeout \\\\+ 120000 milliseconds`, but not greater than `900000`. Adjusted only when in consistent region and **consistentRegionPolicy** parameter is set to `Transactional`. |\\n"
             + "---\\n"
             + "\\n"
             + "**NOTE:** Users can override any of the above properties by explicitly setting "

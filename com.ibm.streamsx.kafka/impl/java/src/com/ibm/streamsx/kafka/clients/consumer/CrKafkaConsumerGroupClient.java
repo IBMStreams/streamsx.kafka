@@ -1194,7 +1194,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             Map <TopicPartition, Long> committedOffsetsMap = new HashMap<>();
             for (TopicPartition tp: topicPartitions) {
                 OffsetAndMetadata ofsm = consumer.committed (tp);
-                committedOffsetsMap.put (tp, ofsm.offset());
+                // consumer.committed(...) returns null if there was no prior commit
+                committedOffsetsMap.put (tp, ofsm == null? 0l: ofsm.offset());
             }
             ObjectOutputStream oStream = checkpoint.getOutputStream();
             oStream.writeObject (this.assignablePartitions);

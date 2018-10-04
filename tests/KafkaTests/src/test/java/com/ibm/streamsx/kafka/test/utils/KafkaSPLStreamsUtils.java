@@ -120,6 +120,11 @@ public class KafkaSPLStreamsUtils {
                 return strings;
             }
 
+            /**
+             * @see com.ibm.streamsx.topology.tester.Condition#failed()
+             * @return false
+             */
+            @Override
             public boolean failed() {
                 return false;
             }

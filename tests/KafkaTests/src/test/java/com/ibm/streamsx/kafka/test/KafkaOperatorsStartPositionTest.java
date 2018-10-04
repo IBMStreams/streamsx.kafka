@@ -33,61 +33,60 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsStartPositionTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsStartPositionTest";
-	
-	public enum StartPosition {
-		Beginning;
-	}
-	
-	public KafkaOperatorsStartPositionTest() throws Exception {
-		super(TEST_NAME);
-	}
+    private static final String TEST_NAME = "KafkaOperatorsStartPositionTest";
 
-	@Test
-	public void kafkaStartPositionTest() throws Exception {
-		Topology producerTopo = createTopology("producerTopo");
-		
-		// create the producer (produces tuples after a short delay)
-		Map<String, Object> producerProps = new HashMap<>();
-		producerProps.put("topic", Constants.TOPIC_POS);
-		producerProps.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);
-		
-		TStream<String> stringSrcStream = producerTopo.strings(Constants.STRING_DATA);
-		SPL.invokeSink(Constants.KafkaProducerOp, 
-				KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream), 
-				producerProps);
+    public enum StartPosition {
+        Beginning;
+    }
 
-		// Launch the producer and allow it to finish writing
-		// the data to the queue. Consumer should run AFTER 
-		// producer is finished.
-		@SuppressWarnings("unchecked")
-		Future<BigInteger> future = (Future<BigInteger>)StreamsContextFactory.getStreamsContext(Type.STANDALONE).submit(producerTopo);
-		future.get();
-		Thread.sleep(TimeUnit.SECONDS.toMillis(20));
-		if(!future.isDone()) {
-			future.cancel(true);
-		}
-		
-		// create the consumer
-		Topology topo = getTopology();
-		
-		Map<String, Object> consumerParams = new HashMap<>();
-		consumerParams.put("topic", Constants.TOPIC_POS);
-		consumerParams.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);
-		consumerParams.put("startPosition", StartPosition.Beginning);
-		
-		SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, consumerParams, KafkaSPLStreamsUtils.STRING_SCHEMA);
-		SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> t.getString("message")));
-		
-		// test the output of the consumer
-		StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
-		Tester tester = topo.getTester();
-		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, Constants.STRING_DATA);
-		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
+    public KafkaOperatorsStartPositionTest() throws Exception {
+        super(TEST_NAME);
+    }
 
-		// check the results
-		Assert.assertTrue(condition.getResult().size() > 0);
-		Assert.assertTrue(condition.getResult().toString(), condition.valid());		
-	}
+    @Test
+    public void kafkaStartPositionTest() throws Exception {
+        Topology producerTopo = createTopology("producerTopo");
+
+        // create the producer (produces tuples after a short delay)
+        Map<String, Object> producerProps = new HashMap<>();
+        producerProps.put("topic", Constants.TOPIC_POS);
+        producerProps.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);
+
+        TStream<String> stringSrcStream = producerTopo.strings(Constants.STRING_DATA);
+        SPL.invokeSink(Constants.KafkaProducerOp, 
+                KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream), 
+                producerProps);
+
+        // Launch the producer and allow it to finish writing
+        // the data to the queue. Consumer should run AFTER 
+        // producer is finished.
+        @SuppressWarnings("unchecked")
+        Future<BigInteger> future = (Future<BigInteger>)StreamsContextFactory.getStreamsContext(Type.STANDALONE).submit(producerTopo);
+        future.get();
+        Thread.sleep(TimeUnit.SECONDS.toMillis(50));
+        if(!future.isDone()) {
+            future.cancel(true);
+        }
+
+        // create the consumer
+        Topology topo = getTopology();
+
+        Map<String, Object> consumerParams = new HashMap<>();
+        consumerParams.put("topic", Constants.TOPIC_POS);
+        consumerParams.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);
+        consumerParams.put("startPosition", StartPosition.Beginning);
+
+        SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, consumerParams, KafkaSPLStreamsUtils.STRING_SCHEMA);
+        SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> t.getString("message")));
+
+        // test the output of the consumer
+        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
+        Tester tester = topo.getTester();
+        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, Constants.STRING_DATA);
+        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+
+        // check the results
+        Assert.assertTrue(condition.getResult().size() > 0);
+        Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+    }
 }
-	

@@ -66,7 +66,7 @@ public class KafkaOperatorsFloatTypeTest extends AbstractKafkaTest {
         StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
         Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, DATA);
-        tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
+        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
 
         // check the results
         Assert.assertTrue(condition.getResult().size() > 0);
@@ -88,7 +88,7 @@ public class KafkaOperatorsFloatTypeTest extends AbstractKafkaTest {
         
         @Override
         public OutputTuple apply(Float val, OutputTuple outTuple) {
-            outTuple.setFloat("key", Float.valueOf(String.valueOf(counter++)));
+            outTuple.setFloat("key", (float)(counter++));
             outTuple.setFloat("message", val);
             return outTuple;
         }

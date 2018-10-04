@@ -32,44 +32,43 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsNoKey extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsNoKey";
-	
-	public KafkaOperatorsNoKey() throws Exception {
-		super(TEST_NAME);
-	}
+    private static final String TEST_NAME = "KafkaOperatorsNoKey";
 
-	@Test
-	public void kafkaNoKeyTest() throws Exception {
-		Topology topo = getTopology();
-		
-		// create the producer (produces tuples after a short delay)
-		TStream<String> stringSrcStream = topo.strings(Constants.STRING_DATA).modify(new Delay<>(5000));
-		SPL.invokeSink(Constants.KafkaProducerOp, 
-				KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream, false), 
-				getKafkaParams());
+    public KafkaOperatorsNoKey() throws Exception {
+        super(TEST_NAME);
+    }
 
-		// create the consumer
-		SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), KafkaSPLStreamsUtils.STRING_NOKEY_SCHEMA);
-		SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> t.getString("message")));
-		
-		// test the output of the consumer
-		StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
-		Tester tester = topo.getTester();
-		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, Constants.STRING_DATA);
-		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
+    @Test
+    public void kafkaNoKeyTest() throws Exception {
+        Topology topo = getTopology();
 
-		// check the results
-		Assert.assertTrue(condition.getResult().size() > 0);
-		Assert.assertTrue(condition.getResult().toString(), condition.valid());		
-	}
-	
-	private Map<String, Object> getKafkaParams() {
-		Map<String, Object> params = new HashMap<String, Object>();
-		
-		params.put("topic", Constants.TOPIC_TEST);
-		params.put("appConfigName", Constants.APP_CONFIG);
-		
-		return params;
-	}
+        // create the producer (produces tuples after a short delay)
+        TStream<String> stringSrcStream = topo.strings(Constants.STRING_DATA).modify(new Delay<>(5000));
+        SPL.invokeSink(Constants.KafkaProducerOp, 
+                KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream, false), 
+                getKafkaParams());
+
+        // create the consumer
+        SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), KafkaSPLStreamsUtils.STRING_NOKEY_SCHEMA);
+        SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> t.getString("message")));
+
+        // test the output of the consumer
+        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
+        Tester tester = topo.getTester();
+        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, Constants.STRING_DATA);
+        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+
+        // check the results
+        Assert.assertTrue(condition.getResult().size() > 0);
+        Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+    }
+
+    private Map<String, Object> getKafkaParams() {
+        Map<String, Object> params = new HashMap<String, Object>();
+
+        params.put("topic", Constants.TOPIC_TEST);
+        params.put("appConfigName", Constants.APP_CONFIG);
+
+        return params;
+    }
 }
-	

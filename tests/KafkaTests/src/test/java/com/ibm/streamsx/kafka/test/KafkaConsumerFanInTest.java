@@ -33,55 +33,54 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaConsumerFanInTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaConsumerFanInTest";
-	
-	public KafkaConsumerFanInTest() throws Exception {
-		super(TEST_NAME);
-	}
+    private static final String TEST_NAME = "KafkaConsumerFanInTest";
 
-	@Test
-	public void kafkaFanInTest() throws Exception {
-		Topology topo = getTopology();
+    public KafkaConsumerFanInTest() throws Exception {
+        super(TEST_NAME);
+    }
 
-		// create the producer (produces tuples after a short delay)
-		TStream<String> stringSrcStream = topo.strings(Constants.STRING_DATA).modify(new Delay<>(5000));
-		SPL.invokeSink(Constants.KafkaProducerOp, 
-				KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream), 
-				getKafkaParams());
-		
-		// create the consumer
-		SPLStream consumerStream1 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getConsumerParams(1), KafkaSPLStreamsUtils.STRING_SCHEMA);
-		SPLStream consumerStream2 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getConsumerParams(2), KafkaSPLStreamsUtils.STRING_SCHEMA);
-		SPLStream unionStream = KafkaSPLStreamsUtils.union(Arrays.asList(consumerStream1, consumerStream2), KafkaSPLStreamsUtils.STRING_SCHEMA);
-		SPLStream msgStream = SPLStreams.stringToSPLStream(unionStream.convert(t -> t.getString("message")));
+    @Test
+    public void kafkaFanInTest() throws Exception {
+        Topology topo = getTopology();
 
-		// test the output of the consumer
-		StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
-		Tester tester = topo.getTester();
+        // create the producer (produces tuples after a short delay)
+        TStream<String> stringSrcStream = topo.strings(Constants.STRING_DATA).modify(new Delay<>(5000));
+        SPL.invokeSink(Constants.KafkaProducerOp, 
+                KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream), 
+                getKafkaParams());
 
-		// both consumers consume the same data, so each result is duplicated
-		String[] expectedArr = KafkaSPLStreamsUtils.duplicateArrayEntries(Constants.STRING_DATA, 2);
-		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, expectedArr);
-		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
-		
-		// check the results
-		Assert.assertTrue(condition.getResult().size() > 0);
-		Assert.assertTrue(condition.getResult().toString(), condition.valid());		
-	}
-	
-	private Map<String, Object> getConsumerParams(int consumerNum) {
-		Map<String, Object> params = new HashMap<String, Object>(getKafkaParams());
-		params.put("clientId", "test-client-" + consumerNum);
-		return params;
-	}
-	
-	private Map<String, Object> getKafkaParams() {
-		Map<String, Object> params = new HashMap<String, Object>();
-		
-		params.put("topic", Constants.TOPIC_TEST);
-		params.put("appConfigName", Constants.APP_CONFIG);
-		
-		return params;
-	}
+        // create the consumer
+        SPLStream consumerStream1 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getConsumerParams(1), KafkaSPLStreamsUtils.STRING_SCHEMA);
+        SPLStream consumerStream2 = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getConsumerParams(2), KafkaSPLStreamsUtils.STRING_SCHEMA);
+        SPLStream unionStream = KafkaSPLStreamsUtils.union(Arrays.asList(consumerStream1, consumerStream2), KafkaSPLStreamsUtils.STRING_SCHEMA);
+        SPLStream msgStream = SPLStreams.stringToSPLStream(unionStream.convert(t -> t.getString("message")));
+
+        // test the output of the consumer
+        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
+        Tester tester = topo.getTester();
+
+        // both consumers consume the same data, so each result is duplicated
+        String[] expectedArr = KafkaSPLStreamsUtils.duplicateArrayEntries(Constants.STRING_DATA, 2);
+        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, expectedArr);
+        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+
+        // check the results
+        Assert.assertTrue(condition.getResult().size() > 0);
+        Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+    }
+
+    private Map<String, Object> getConsumerParams(int consumerNum) {
+        Map<String, Object> params = new HashMap<String, Object>(getKafkaParams());
+        params.put("clientId", "test-client-" + consumerNum);
+        return params;
+    }
+
+    private Map<String, Object> getKafkaParams() {
+        Map<String, Object> params = new HashMap<String, Object>();
+
+        params.put("topic", Constants.TOPIC_TEST);
+        params.put("appConfigName", Constants.APP_CONFIG);
+
+        return params;
+    }
 }
-	

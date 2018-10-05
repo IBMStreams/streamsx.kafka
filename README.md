@@ -63,11 +63,8 @@ cd tests/KafkaTests
 | topic name | number of partitions |
 | --- | --- |
 | test | 3 |
-| --- | --- |
 | other1 | 1 |
-| --- | --- |
 | other2 | 1 |
-| --- | --- |
 | position | 1 |
 
 Create them by hand before or make sure that they are automatically created with the required number of partitions.

@@ -124,14 +124,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GENERATED_GROUPID_PREFIX));
             groupIdGenerated = true;
         }
-        // always disable auto commit - we commit on drain
+        // always disable auto commit 
         if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
             if (kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
                 logger.warn("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been turned to 'false'.");
             }
         }
         else {
-            logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
+            logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false'");
         }
         this.kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 
@@ -264,8 +264,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private void runEventLoop() throws InterruptedException {
         logger.debug("Event loop started"); //$NON-NLS-1$
         while (processing.get()) {
-            if (logger.isInfoEnabled()) {
-                logger.info ("Checking event queue for control message ..."); //$NON-NLS-1$
+            if (logger.isDebugEnabled()) {
+                logger.debug ("Checking event queue for control message ..."); //$NON-NLS-1$
             }
             Event event = eventQueue.poll (30, TimeUnit.SECONDS);
 
@@ -273,7 +273,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 continue;
             }
 
-            logger.info (MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
+            logger.debug (MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
             switch (event.getEventType()) {
             case START_POLLING:
                 StartPollingEventParameters p = (StartPollingEventParameters) event.getData();
@@ -343,7 +343,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private void commitOffsets (CommitInfo offsets) throws RuntimeException {
         final Map<TopicPartition, OffsetAndMetadata> offsetMap = offsets.getMap();
         if (logger.isInfoEnabled()) {
-            logger.info ("Going to commit offsets: " + offsets);
+            logger.debug ("Going to commit offsets: " + offsets);
             if (offsetMap.isEmpty()) {
                 logger.debug ("no offsets to commit ...");
             }
@@ -502,7 +502,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         int nRecords = 0;
         int qSize = 0;
         int bufSize = 0;
-        logger.info ("drainMessageQueueToBuffer(): trying to acquire lock");
+        logger.debug ("drainMessageQueueToBuffer(): trying to acquire lock");
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
                 logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Num records in buffer = {0}", drainBuffer.size()));
@@ -511,7 +511,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             bufSize = drainBuffer.size();
         }
         qSize = messageQueue.size();
-        logger.info (MessageFormat.format ("drainMessageQueueToBuffer(): {0} consumer records drained to buffer. bufSz = {1}, queueSz = {2}.",
+        logger.debug (MessageFormat.format ("drainMessageQueueToBuffer(): {0} consumer records drained to buffer. bufSz = {1}, queueSz = {2}.",
                 nRecords, bufSize, qSize));
         return nRecords;
     }
@@ -559,11 +559,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void runPollLoop (long pollTimeout, long throttleSleepMillis) throws InterruptedException {
         if (throttleSleepMillis > 0l) {
-            logger.info (MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
+            logger.debug (MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
                     throttleSleepMillis, getMaxPollRecords()));
         }
         else {
-            logger.info (MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
+            logger.debug (MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
         }
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
@@ -579,13 +579,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 messageQueue.addAll (drainBuffer);
                 final int qSize = messageQueue.size();
                 drainBuffer.clear();
-                logger.info (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
+                logger.debug (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
             }
         }
         // continue polling for messages until a new event
         // arrives in the event queue
         fetchPaused = consumer.paused().size() > 0;
-        logger.info ("previously paused partitions: " + consumer.paused());
+        logger.debug ("previously paused partitions: " + consumer.paused());
         while (eventQueue.isEmpty()) {
             boolean doPoll = true;
             // can wait for 100 ms; throws InterruptedException:
@@ -778,9 +778,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param event the event
      */
     protected void sendEvent (Event event) {
-        logger.info (MessageFormat.format("Sending event: {0}", event));
+        logger.debug (MessageFormat.format("Sending event: {0}", event));
         eventQueue.add (event);
-        logger.info(MessageFormat.format("Event {0} inserted into queue, q={1}", event, eventQueue));
+        logger.debug(MessageFormat.format("Event {0} inserted into queue, q={1}", event, eventQueue));
     }
 
     /**
@@ -812,7 +812,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     public void sendStartThrottledPollingEvent (long throttlePauseMillis) {
         Event event = new Event (EventType.START_POLLING, new StartPollingEventParameters (0, throttlePauseMillis), false);
-        logger.info (MessageFormat.format("Sending event: {0}; throttled", event));
+        logger.debug (MessageFormat.format("Sending event: {0}; throttled", event));
         sendEvent (event);
     }
 
@@ -978,7 +978,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             consumer.seekToEnd(topicPartitions);
             break;
         case Default:
-            logger.info("seekToPosition: ignoring position " + startPosition);
+            logger.debug("seekToPosition: ignoring position " + startPosition);
             break;
         default:
             throw new IllegalArgumentException("seekToPosition: illegal position: " + startPosition);
@@ -1052,7 +1052,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     public void onComplete (Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
         if (exception == null) {
             if (logger.isInfoEnabled()) {
-                logger.info ("onComplete(): Offsets successfully committed async: " + offsets);
+                logger.debug ("onComplete(): Offsets successfully committed async: " + offsets);
             }
         }
         else {

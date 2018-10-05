@@ -195,7 +195,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         if (trace.isDebugEnabled()) 
             trace.debug (MessageFormat.format ("getAndSetRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
         if (previousVal != pending) {
-            trace.info (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
+            trace.debug (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
                     operatorName, groupId, pending));
         }
         return previousVal;
@@ -207,7 +207,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         if (trace.isDebugEnabled()) 
             trace.debug (MessageFormat.format ("setRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
         if (previousVal != pending) {
-            trace.info (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
+            trace.debug (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
                     operatorName, groupId, pending));
         }
     }
@@ -231,11 +231,11 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
      */
     @Override
     public void broadcastData (String data, String jmxNotificationType) {
-        trace.info ("broadcastData(): data = " + data + ", jmxNotificationType = " + jmxNotificationType);
+        trace.debug ("broadcastData(): data = " + data + ", jmxNotificationType = " + jmxNotificationType);
         Notification notif = new Notification (jmxNotificationType, this, this.notifSequenceNo++, data);
-        trace.info("sending JMX notification: " + notif);
+        trace.debug("sending JMX notification: " + notif);
         sendNotification (notif);
-        trace.info("notification sent: " + notif);
+        trace.debug("notification sent: " + notif);
     }
 
     /**

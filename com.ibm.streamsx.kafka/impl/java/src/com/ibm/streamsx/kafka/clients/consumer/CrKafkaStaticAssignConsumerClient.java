@@ -89,7 +89,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * @throws Exception
      */
     private void createJcpCvFromOffsetManagerl() throws Exception {
-        logger.info("createJcpCvFromOffsetManagerl(). offsetManager = " + offsetManager); 
+        logger.debug("createJcpCvFromOffsetManagerl(). offsetManager = " + offsetManager); 
         offsetManagerCV = getJcpContext().createStringControlVariable(OffsetManager.class.getName(),
                 false, serializeObject(offsetManager));
         OffsetManager mgr = getDeserializedOffsetManagerCV();
@@ -333,7 +333,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             // drain is followed by checkpoint. 
             // Don't poll for new messages in the meantime. - Don't send a 'start polling event'
         } catch (InterruptedException e) {
-            logger.info("Interrupted waiting for empty queue or committing offsets");
+            logger.debug("Interrupted waiting for empty queue or committing offsets");
             // NOT to start polling for Kafka messages again, is ok after interruption
         }
         logger.debug("onDrain() - exiting");

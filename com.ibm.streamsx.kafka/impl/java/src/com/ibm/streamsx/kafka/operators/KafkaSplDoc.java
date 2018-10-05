@@ -7,6 +7,12 @@ package com.ibm.streamsx.kafka.operators;
  * This class contains String constant with SPL Documentation.
  */
 public class KafkaSplDoc {
+    public static final String CONSUMER_WHERE_TO_FIND_PROPERTIES = ""
+            + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 1.0. As a result, it supports all "
+            + "Kafka properties that are supported by the underlying API. The consumer properties for the Kafka consumer v1.0 "
+            + "can be found in the [https://kafka.apache.org/10/documentation.html#newconsumerconfigs|Apache Kafka documentation].\\n"
+            ;
+
     public static final String CONSUMER_DEFAULT_AND_ADJUSTED_PROPERTIES = ""
             + "---\\n"
             + "| Property Name | Default Value |\\n"
@@ -32,7 +38,7 @@ public class KafkaSplDoc {
             + "| request.timeout.ms | adjusted to session.timeout.ms \\\\+ 5000 |\\n"
             + "---\\n"
             + "\\n"
-            + "**NOTE:** Users can override any of the above properties by explicitly setting the property "
+            + "**NOTE:** Although properties are adjusted, users can override any of the above properties by explicitly setting the property "
             + "value in either a properties file or in an application configuration.\\n"
             ;
 
@@ -48,12 +54,24 @@ public class KafkaSplDoc {
             + "participates automatically in a consumer group defined by the group ID. A consistent region can have "
             + "multiple consumer groups.\\n"
             + "\\n"
+            + "**Tuple replay after reset of the consistent region**\\n"
+            + "\\n"
+            + "After reset of the consistent region, the operators that participate in a consumer group may replay tuples that "
+            + "have been submitted by a different consumer before. The reason for this is, that the assignment of partitions to consumers "
+            + "can change. This property of a consumer group must be kept in mind when combining a consumer groups with "
+            + "consistent region.\\n"
+            + "\\n"
+            + "When **no group-ID is specified**, the partition assignment is static (a consumer consumes "
+            + "all partitions or those, which are specified), so that the consumer operator replays after consistent region "
+            + "reset those tuples, which it has submitted before.\\n"
+            + "\\n"
+            + "\\n"
             + "When the consumers of a consumer group rebalance the partition assignment, for example, immediately after job "
             + "submission, or when the broker node being the group's coordinator is shutdown, multiple resets of the consistent "
             + "region can occur when the consumers start up. It is recommended to set the "
             + "`maxConsecutiveResetAttempts` parameter of the `@consistent` annotation to a higher value than the default value of 5.\\n"
             + "\\n"
-            + "On drain, the operator will commit offsets.\\n"
+            + "On drain, the operator will commit offsets of the submitted tuples.\\n"
             + "\\n"
             + "On checkpoint, the operator will save the last offset for each topic-partition that it is assigned to. In the "
             + "event of a reset, the operator will seek to the saved offset for each topic-partition and "
@@ -133,7 +151,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "In the figure above, the topic **myTopic** with three partitions is consumed by two consumer groups. In *Group A*, which has "
             + "four consumers, one consumer is idle because the number of partitions is only three. All other consumers "
-            + "in the group consume exactly one topic partition.\\n"
+            + "in the group would consume exactly one topic partition.\\n"
             + "*Consumer group B* has less consumers than partitions. One consumer is assigned to two partitions. The assignment of "
             + "consumers to partition(s) is fully controlled by Kafka.\\n"
             + "\\n"
@@ -170,6 +188,14 @@ public class KafkaSplDoc {
             + "\\n"
             ;
 
+    public static final String PRODUCER_WHERE_TO_FIND_PROPERTIES = ""
+
+            + "The operator implements Kafka's KafkaProducer API of the Kafka client version 1.0. As a result, "
+            + "it supports all Kafka properties that are supported by the "
+            + "underlying API. The producer properties for the Kafka producer v1.0 "
+            + "can be found in the [https://kafka.apache.org/10/documentation.html#producerconfigs|Apache Kafka documentation].\\n"
+            ;
+
     public static final String PRODUCER_DEFAULT_AND_ADJUSTED_PROPERTIES = ""
             + "---\\n"
             + "| Property name | Default Value |\\n"
@@ -187,7 +213,7 @@ public class KafkaSplDoc {
             + "| transaction.timeout.ms | adjusted to a minimum of `drain timeout \\\\+ 120000 milliseconds`, but not greater than `900000`. Adjusted only when in consistent region and **consistentRegionPolicy** parameter is set to `Transactional`. |\\n"
             + "---\\n"
             + "\\n"
-            + "**NOTE:** Users can override any of the above properties by explicitly setting "
+            + "**NOTE:** Although properties are adjusted, users can override any of the above properties by explicitly setting "
             + "the property value in either a properties file or in an application configuration. \\n"
             ;
 
@@ -251,14 +277,13 @@ public class KafkaSplDoc {
             + "duplicate messages when the consistent region fails after the Kafka transaction has been "
             + "committed, but before the region has reached a consistent state.\\n"
             + "\\n"
-            + "**NOTE 1:** Transactions in Kafka have an inactivity timeout with default value of 60 seconds. "
-            + "If the consistent region triggers less frequently and you expect a low message rate, "
-            + "consider to to increase the timeout by setting the producer property `transaction.timeout.ms` "
-            + "to a higher value, for example 120000 (milliseconds)."
+            + "**NOTE 1:** Transactions in Kafka have an inactivity timeout, which is configured by the "
+            + "producer property `transaction.timeout.ms`. "
+            + "This timeout is adjusted by the operator to a minimum of the drain timeout plus 120 seconds. "
             + "The maximum value of this property is limited by the server property "
             + "`transaction.max.timeout.ms`, which has a default value of 900000.\\n"
-            + "The operator opens a transaction when the first tuple is processed. Every tuple being processed "
-            + "resets the inactivity timer.\\n"
+            + "The operator opens a transaction when the first tuple of a consistent cut is processed. "
+            + "Every tuple being processed resets the inactivity timer.\\n"
             + "\\n"
             + "\\n"
             + "**NOTE 2:** For *transactional* delivery, the Kafka broker must have version 0.11 or higher. "

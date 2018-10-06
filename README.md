@@ -2,7 +2,8 @@
 
 Welcome to the Kafka Toolkit. This toolkit enables SPL applications to integrate with Apache Kafka. 
 
-This version of the toolkit currently supports: Apache Kafka 0.10.2, 0.11, 1.0, 1.1, and 2.0
+This version of the toolkit currently supports: Apache Kafka 0.10.2, 0.11, 1.0, 1.1, and 2.0. For the older
+Kafka versions 0.9 and 0.10.0, please use the Kafka operators from the [com.ibm.streamsx.messaging](https://github.com/IBMStreams/streamsx.messaging) toolkit.
 
 ## Event Stream cloud service (Message Hub)
 
@@ -54,7 +55,7 @@ cd tests/KafkaTests
 ../../gradlew test
 ```
 
-**NOTE 1:** `setup.sh` will add an instance-level app config called "kafka-tests", as well as create a properties file containing the `bootstrap.servers` property
+**NOTE 1:** `setup.sh` will add a domain-level app config called "kafka-tests", as well as create a properties file containing the `bootstrap.servers` property.
 
 **NOTE 2:** Tests will run using the local domain specified by the STREAMS_DOMAIN_ID env var. All tests run in Distributed mode.
 

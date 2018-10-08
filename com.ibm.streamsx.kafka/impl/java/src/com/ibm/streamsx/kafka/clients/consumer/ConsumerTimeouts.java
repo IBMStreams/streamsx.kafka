@@ -3,10 +3,11 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.text.MessageFormat;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Logger;
 
-import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;

@@ -1,6 +1,7 @@
 package com.ibm.streamsx.kafka.clients;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.Base64;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -16,7 +17,6 @@ import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
-import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;

@@ -82,7 +82,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     				+ "they are produced. For these consumers, there is no difference between transactional and "
     				+ "non-transactional message delivery.\\n"
     				+ "\\n"
-    				+ "For backward compatibility, the parameter value `AtLeastOnce` can also be specified. The value is equivalent to `NonTransactional`.\\n"
+    				+ "For backward compatibility, the parameter value `AtLeastOnce` can also be specified, but is "
+    				+ "deprecated and can be removed in a future version. `AtLeastOnce` is equivalent to `NonTransactional`.\\n"
     				+ "\\n"
     				+ "This parameter is ignored if the operator is not part of a consistent region. "
     				+ "The default value is `NonTransactional`. **NOTE**: Kafka brokers older than version v0.11 "
@@ -319,14 +320,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         final boolean registerAsInput = false;
         registerForDataGovernance(context, topics, registerAsInput);
 
-        logger.info(">>> Operator initialized! <<<"); //$NON-NLS-1$
+        logger.debug(">>> Operator initialized <<<"); //$NON-NLS-1$
     }
 
     private void initProducer() throws Exception {
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
         if(crContext == null) {
-        	logger.info("Creating KafkaProducerClient...");
+        	logger.info ("Creating KafkaProducerClient...");
             producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, props);
         } else {
         	switch(consistentRegionPolicy) {
@@ -434,26 +435,26 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        logger.info(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.debug (">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         logger.debug("Initiating reset..."); //$NON-NLS-1$
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.reset(checkpoint);
 
         // reset complete
         isResetting.set(false);
-        logger.info("Reset complete"); //$NON-NLS-1$
+        logger.debug ("Reset complete"); //$NON-NLS-1$
     }
 
     @Override
     public void resetToInitialState() throws Exception {
-        logger.info(">>> RESET TO INIT..."); //$NON-NLS-1$
+        logger.debug (">>> RESET TO INIT..."); //$NON-NLS-1$
 
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.close();
         producer = null;
         initProducer();
         isResetting.set(false);
-        logger.info("Reset to init complete"); //$NON-NLS-1$
+        logger.debug ("Reset to init complete"); //$NON-NLS-1$
     }
 
     @Override

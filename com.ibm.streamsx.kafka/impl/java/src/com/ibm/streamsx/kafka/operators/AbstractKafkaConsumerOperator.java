@@ -69,7 +69,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM = "outputTimestampAttributeName"; //$NON-NLS-1$
     public static final String OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM = "outputOffsetAttributeName"; //$NON-NLS-1$
     public static final String OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM = "outputPartitionAttributeName"; //$NON-NLS-1$
-//    public static final String CR_ASSIGNMENT_MODE_PARAM = "consistentRegionAssignmentMode"; //$NON-NLS-1$
     public static final String TOPIC_PARAM = "topic"; //$NON-NLS-1$
     public static final String PARTITION_PARAM = "partition"; //$NON-NLS-1$
     public static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
@@ -101,7 +100,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private String groupId = null;
     private boolean groupIdSpecified = false;
     private Long startTime = -1l;
-    //    private ConsistentRegionAssignmentMode consistentRegionAssignmentMode = ConsistentRegionAssignmentMode.Static; 
 
     private long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
@@ -147,47 +145,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void setnAssignedPartitions(Metric nAssignedPartitions) {
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }
-
-    //    @Parameter(optional = true, name = CR_ASSIGNMENT_MODE_PARAM,
-    //            description = "Specifies how the operator assigns topic partitions when in a consistent region."
-    //                    + "\\n"
-    //                    + "* If `Static` is specified, the operator assigns itself to the partitions specified in "
-    //                    + "**partition** parameter or assigns itself to all partitions of the specified topics. "
-    //                    + "The consumer will not be managed by Kafka. Group management is disabled. "
-    //                    + "This mode guarantees that the operator "
-    //                    + "replays the same tuples after reset of the consistent region that it has submitted "
-    //                    + "before. The partition assignment of an operator does not change after region reset.\\n"
-    //                    + "\\n"
-    //                    + "* If `GroupCoordinated` is specified, the operator will participate in a consumer group. "
-    //                    + "In this case, Kafka decides which topic partitions are assigned to the operator for consumption. "
-    //                    + "This implies that the partition assignment of an individual operator can change during "
-    //                    + "consistent region reset. After reset, the operator can replay tuples that have been "
-    //                    + "submitted by a different operator in the same consumer group before the reset happened. "
-    //                    + "All operators in the consumer group together replay the same set of tuples, however.\\n"
-    //                    + "\\n"
-    //                    + "Using the `GroupCoordinated` parameter value, a **group ID** must be specified, which "
-    //                    + "must be shared by all operators that belong to the consumer group. The group ID "
-    //                    + "can be specified as operator parameter **groupId** or as consumer property `group.id` "
-    //                    + "in a property file or app option. The operator will fail at initialization time when "
-    //                    + "it detects that the default random group ID is used.\\n"
-    //                    + "\\n"
-    //                    + "The `GroupCoordinated` parameter value is incompatible with the control input port and with "
-    //                    + "the **partition** parameter. The **startPosition** value `Offset` cannot be used as "
-    //                    + "it requires the **partition** parameter.\\n"
-    //                    + "\\n"
-    //                    + "The default value is `Static` for backward compatibility.\\n"
-    //                    + "\\n"
-    //                    + "The parameter is ignored when the operator is not part of a consistent region.")
-    //    public void setConsistentRegionAssignmentMode (String consistentRegionAssignmentMode) {
-    //        /*public void setConsistentRegionAssignmentMode (ConsistentRegionAssignmentMode consistentRegionAssignmentMode) {*/
-    //        try {
-    //            this.consistentRegionAssignmentMode = ConsistentRegionAssignmentMode.valueOf (consistentRegionAssignmentMode);
-    //        }
-    //        catch (Exception e) {
-    //            throw new RuntimeException (Messages.getString ("INVALID_PARAMETER_VALUE",
-    //                    consistentRegionAssignmentMode, CR_ASSIGNMENT_MODE_PARAM, Arrays.toString (ConsistentRegionAssignmentMode.values())));
-    //        }
-    //    }
 
     @Parameter(optional = true, name=OUTPUT_TIMESTAMP_ATTRIBUTE_NAME_PARAM,
             description="Specifies the output attribute name that should contain the record's timestamp. "
@@ -594,7 +551,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
         final String gid = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
         this.groupIdSpecified = gid != null && !gid.isEmpty();
-        logger.info("group-ID specified: " + this.groupIdSpecified);
+        logger.debug ("group-ID specified: " + this.groupIdSpecified);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         boolean groupManagementEnabled;
         if (crContext == null)
@@ -638,6 +595,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 consumer = builder.build();
             }
         }
+        logger.info (MessageFormat.format ("consumer client {0} created", consumer.getClass().getName()));
         try {
             consumer.startConsumer();
         }
@@ -916,7 +874,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void drain() throws Exception {
-        logger.info(">>> DRAIN"); //$NON-NLS-1$
+        logger.debug (">>> DRAIN"); //$NON-NLS-1$
         long before = System.currentTimeMillis();
         consumer.onDrain();
         // When a checkpoint is to be created, the operator must stop sending tuples by pulling messages out of the messageQueue.
@@ -932,7 +890,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             getOperatorContext().getMetrics().getCustomMetric(ConsumerClient.DRAIN_TIME_MILLIS_MAX_METRIC_NAME).setValue(duration);
             maxDrainMillis = duration;
         }
-        logger.info(">>> DRAIN took " + duration + " ms");
+        logger.debug (">>> DRAIN took " + duration + " ms");
     }
 
     /**
@@ -946,7 +904,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
-        logger.info(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.debug (">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         consumer.onCheckpoint (checkpoint);
     }
 
@@ -954,14 +912,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void reset(Checkpoint checkpoint) throws Exception {
         final int attempt = crContext.getResetAttempt();
         final long sequenceId = checkpoint.getSequenceId();
-        logger.info(MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
+        logger.debug (MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
         final long before = System.currentTimeMillis();
         try {
             consumer.sendStopPollingEvent();
             consumer.onReset (checkpoint);
         }
         catch (InterruptedException e) {
-            logger.info("RESET interrupted)");
+            logger.debug ("RESET interrupted)");
             return;
         }
         finally {
@@ -970,14 +928,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
-            logger.info(MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
+            logger.debug (MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
         }
     }
 
     @Override
     public void resetToInitialState() throws Exception {
         final int attempt = crContext.getResetAttempt();
-        logger.info(MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
+        logger.debug (MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
         consumer.sendStopPollingEvent();
         consumer.onResetToInitialState();
@@ -987,6 +945,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;
-        logger.info(MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
+        logger.debug (MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
     }
 }

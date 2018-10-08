@@ -15,6 +15,7 @@ import com.ibm.streamsx.kafka.test.utils.Delay;
 import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
 import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
+import com.ibm.streamsx.topology.context.ContextProperties;
 import com.ibm.streamsx.topology.context.StreamsContext;
 import com.ibm.streamsx.topology.context.StreamsContext.Type;
 import com.ibm.streamsx.topology.context.StreamsContextFactory;
@@ -35,63 +36,64 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsDoubleTypeTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsDoubleTypeTest";
-	private static final String[] DATA = {"10.1", "20.2", "30.3", "40.4", "50.5"};
-	
-	public KafkaOperatorsDoubleTypeTest() throws Exception {
-		super(TEST_NAME);
-	}
+    private static final String TEST_NAME = "KafkaOperatorsDoubleTypeTest";
+    private static final String[] DATA = {"10.1", "20.2", "30.3", "40.4", "50.5"};
 
-	@Test
-	public void kafkaDoubleTypeTest() throws Exception {
-		Topology topo = getTopology();
-		
+    public KafkaOperatorsDoubleTypeTest() throws Exception {
+        super(TEST_NAME);
+    }
 
-		StreamSchema schema = KafkaSPLStreamsUtils.DOUBLE_SCHEMA;
-		
-		
-		// create the producer (produces tuples after a short delay)
-		TStream<Double> srcStream = topo.strings(DATA).transform(s -> Double.valueOf(s)).modify(new Delay<>(5000));
-		SPLStream splSrcStream = SPLStreams.convertStream(srcStream, new Converter(), schema);
-		SPL.invokeSink(Constants.KafkaProducerOp, 
-				splSrcStream, 
-				getKafkaParams());
+    @Test
+    public void kafkaDoubleTypeTest() throws Exception {
+        Topology topo = getTopology();
 
-		// create the consumer
-		SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), schema);
-		SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> String.valueOf(t.getDouble("message"))));
-		
-		// test the output of the consumer
-		StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
-		Tester tester = topo.getTester();
-		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, DATA);
-		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
+        StreamSchema schema = KafkaSPLStreamsUtils.DOUBLE_SCHEMA;
+        // create the producer (produces tuples after a short delay)
+        TStream<Double> srcStream = topo.strings(DATA).transform(s -> Double.valueOf(s)).modify(new Delay<>(5000));
+        SPLStream splSrcStream = SPLStreams.convertStream(srcStream, new Converter(), schema);
+        SPL.invokeSink(Constants.KafkaProducerOp, 
+                splSrcStream, 
+                getKafkaParams());
 
-		// check the results
-		Assert.assertTrue(condition.getResult().size() > 0);
-		Assert.assertTrue(condition.getResult().toString(), condition.valid());		
-	}
-	
-	private Map<String, Object> getKafkaParams() {
-		Map<String, Object> params = new HashMap<String, Object>();
-		
-		params.put("topic", Constants.TOPIC_TEST);
-		params.put("appConfigName", Constants.APP_CONFIG);
-		
-		return params;
-	}
-	
-	private static class Converter implements BiFunction<Double, OutputTuple, OutputTuple> {
-		private static final long serialVersionUID = 1L;
-		private int counter = 0;
-		
-		@Override
-		public OutputTuple apply(Double val, OutputTuple outTuple) {
-			outTuple.setDouble("key", Double.valueOf(String.valueOf(counter++)));
-			outTuple.setDouble("message", val);
-			return outTuple;
-		}
-		
-	}
+        // create the consumer
+        SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), schema);
+        SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> String.valueOf(t.getDouble("message"))));
+
+        // test the output of the consumer
+        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
+        Tester tester = topo.getTester();
+        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, DATA);
+        HashMap<String, Object> config = new HashMap<>();
+//        config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+
+        tester.complete(context, config, condition, 60, TimeUnit.SECONDS);
+
+        // check the results
+        Assert.assertTrue(condition.getResult().size() > 0);
+        Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+    }
+
+    private Map<String, Object> getKafkaParams() {
+        Map<String, Object> params = new HashMap<String, Object>();
+
+        params.put("topic", Constants.TOPIC_TEST);
+        params.put("appConfigName", Constants.APP_CONFIG);
+
+        return params;
+    }
+
+    private static class Converter implements BiFunction<Double, OutputTuple, OutputTuple> {
+        private static final long serialVersionUID = 1L;
+        private int counter = 0;
+
+        @Override
+        public OutputTuple apply(Double val, OutputTuple outTuple) {
+            outTuple.setDouble("key", (double)(counter++));
+            outTuple.setDouble("message", val);
+            return outTuple;
+        }
+
+    }
 }
-	
+

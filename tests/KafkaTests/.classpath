@@ -59,6 +59,7 @@
 			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/log4j/log4j/1.2.17/c10c20168206896442f3192d5417815df7fcbf9a/log4j-1.2.17-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/home/rolef/infosphereStreams/streams_install_dir_42/4.2.1.1/lib/com.ibm.streams.operator.jar"/>
-	<classpathentry kind="lib" path="/home/rolef/infosphereStreams/streams_install_dir_42/4.2.1.1/toolkits/com.ibm.streamsx.topology/lib/com.ibm.streamsx.topology.jar"/>
+	<classpathentry kind="lib" path="/home/rolef/infosphereStreams/streams_install_dir_43/4.3.0.0/lib/com.ibm.streams.operator.samples.jar"/>
+	<classpathentry kind="lib" path="/home/rolef/infosphereStreams/streams_install_dir_43/4.3.0.0/lib/com.ibm.streams.operator.jar"/>
+	<classpathentry kind="lib" path="/home/rolef/infosphereStreams/streams_install_dir_43/4.3.0.0/toolkits/com.ibm.streamsx.topology/lib/com.ibm.streamsx.topology.jar"/>
 </classpath>

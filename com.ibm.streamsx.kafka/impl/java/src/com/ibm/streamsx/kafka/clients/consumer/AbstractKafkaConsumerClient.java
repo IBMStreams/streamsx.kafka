@@ -39,6 +39,7 @@ import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -954,13 +955,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * 
      * @param topics A collection of topics
      * @return The topic partitions from the meta data of the topics
+     * @throws UnknownTopicException one of the given topics does not exist and cannot be automatically created by the broker
      */
-    protected Set<TopicPartition> getAllTopicPartitionsForTopic (Collection<String> topics) {
+    protected Set<TopicPartition> getAllTopicPartitionsForTopic (Collection<String> topics) throws UnknownTopicException {
         Set<TopicPartition> topicPartitions = new HashSet<TopicPartition>();
-        topics.forEach(topic -> {
+        for (String topic: topics) {
             List<PartitionInfo> partitions = consumer.partitionsFor(topic);
-            partitions.forEach(p -> topicPartitions.add(new TopicPartition(topic, p.partition())));
-        });
+            if (partitions == null) {
+                throw new UnknownTopicException ("Could not get partition information for topic " + topic);
+            }
+            for (PartitionInfo p: partitions) topicPartitions.add (new TopicPartition (topic, p.partition()));
+        }
         return topicPartitions;
     }
 

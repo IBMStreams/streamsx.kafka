@@ -1,11 +1,17 @@
 package com.ibm.streamsx.kafka.operators;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -13,7 +19,6 @@ import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Logger;
 
-import com.google.common.io.Files;
 import com.ibm.streams.operator.AbstractOperator;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.StreamingData;
@@ -147,17 +152,47 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
             return;
         }
         File propFile = convertToAbsolutePath(propertiesFile);
-        if(!propFile.exists()) {
-        	logger.warn(Messages.getString("PROPERTIES_FILE_NOT_FOUND", propFile.getAbsoluteFile())); //$NON-NLS-1$
-        	return;
-        }
-        
-        String propertyContent = Files.toString(propFile, StandardCharsets.UTF_8);
-        if (propertyContent != null) {
+        InputStream inStream = null;
+        try {
+            inStream = new FileInputStream (propFile);
             Properties props = new Properties();
-            props.load(new StringReader(propertyContent));
-            loadFromProperties(props);
+            props.load (new InputStreamReader(inStream, Charset.forName ("UTF-8")));
+            loadFromProperties (props);
         }
+        catch (FileNotFoundException filenotfound) {
+            logger.warn(Messages.getString ("PROPERTIES_FILE_NOT_FOUND", propFile.getAbsoluteFile())); //$NON-NLS-1$
+            return;
+        }
+        catch (IOException e) {
+            logger.error (Messages.getString ("PROPERTIES_FILE_NOT_READABLE", propFile.getAbsoluteFile(), e.getLocalizedMessage()));
+            throw e;
+        }
+        finally {
+            if (inStream != null) {
+                try {
+                    inStream.close();
+                }
+                catch (Exception e) {
+                    logger.debug (e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * traces the properties sorted according their keys at info level 
+     * @param props
+     */
+    protected void tracePropsSorted (Properties props) {
+        List<String> sortedKeys = new LinkedList<String>();
+        for (Object k: props.keySet()) sortedKeys.add((String)k);
+        sortedKeys.sort(new Comparator<String>() {
+            @Override
+            public int compare (String o1, String o2) {
+                return o1.compareToIgnoreCase(o2);
+            }
+        });
+        for (String key: sortedKeys) logger.info (MessageFormat.format("{0} = {1}",  key, props.getProperty(key)));
     }
 
     protected void loadFromAppConfig() throws Exception {

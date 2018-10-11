@@ -1,6 +1,7 @@
 package com.ibm.streamsx.kafka.operators;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -15,8 +16,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -187,7 +186,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "A limitation with using this parameter is that **only one single topic** can be specified "
                     + "via the **topic** parameter. ")
     public void setStartOffsets(long[] startOffsets) {
-        this.startOffsets = Longs.asList(startOffsets);
+        if (startOffsets != null) {
+            this.startOffsets = new ArrayList<>(startOffsets.length);
+            for (long o: startOffsets) this.startOffsets.add (o);
+        }
     }
 
     @Parameter(optional = true, name="startTime",
@@ -272,7 +274,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "to the topics. This implies that the consumer will not use Kafka's "
                     + "group management feature.")
     public void setPartitions(int[] partitions) {
-        this.partitions = Ints.asList(partitions);
+        if (partitions != null) {
+            this.partitions = new ArrayList<>(partitions.length);
+            for (int p: partitions) this.partitions.add (p);
+        }
+
     }
 
     @Parameter(optional = true, name=TOPIC_PARAM,

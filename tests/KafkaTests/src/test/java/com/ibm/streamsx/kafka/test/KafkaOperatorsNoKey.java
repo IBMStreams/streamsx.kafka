@@ -55,12 +55,16 @@ public class KafkaOperatorsNoKey extends AbstractKafkaTest {
         // test the output of the consumer
         StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
-        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, Constants.STRING_DATA);
-        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+        Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), Constants.STRING_DATA);
+        HashMap<String, Object> config = new HashMap<>();
+//      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+//      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+
+        tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue(condition.getResult().size() > 0);
-        Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+        Assert.assertTrue (stringContentsUnordered.valid());
+        Assert.assertTrue (stringContentsUnordered.getResult().size() == Constants.STRING_DATA.length);
     }
 
     private Map<String, Object> getKafkaParams() {

@@ -38,7 +38,7 @@ public class KafkaOperatorsFloatTypeTest extends AbstractKafkaTest {
 
     private static final String TEST_NAME = "KafkaOperatorsFloatTypeTest";
     private static final String[] DATA = {"10.1", "20.2", "30.3", "40.4", "50.5"};
-    
+
     public KafkaOperatorsFloatTypeTest() throws Exception {
         super(TEST_NAME);
     }
@@ -46,11 +46,11 @@ public class KafkaOperatorsFloatTypeTest extends AbstractKafkaTest {
     @Test
     public void kafkaFloatTypeTest() throws Exception {
         Topology topo = getTopology();
-        
+
 
         StreamSchema schema = KafkaSPLStreamsUtils.FLOAT_SCHEMA;
-        
-        
+
+
         // create the producer (produces tuples after a short delay)
         TStream<Float> srcStream = topo.strings(DATA).transform(s -> Float.valueOf(s)).modify(new Delay<>(5000));
         SPLStream splSrcStream = SPLStreams.convertStream(srcStream, new Converter(), schema);
@@ -61,37 +61,40 @@ public class KafkaOperatorsFloatTypeTest extends AbstractKafkaTest {
         // create the consumer
         SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), schema);
         SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> String.valueOf(t.getFloat("message"))));
-        
+
         // test the output of the consumer
         StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
-        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, DATA);
-        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+        Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), DATA);
+        HashMap<String, Object> config = new HashMap<>();
+//      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+//      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+
+        tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue(condition.getResult().size() > 0);
-        Assert.assertTrue(condition.getResult().toString(), condition.valid());
+        Assert.assertTrue (stringContentsUnordered.valid());
+        Assert.assertTrue (stringContentsUnordered.getResult().size() == DATA.length);
     }
-    
+
     private Map<String, Object> getKafkaParams() {
         Map<String, Object> params = new HashMap<String, Object>();
-        
+
         params.put("topic", Constants.TOPIC_TEST);
         params.put("appConfigName", Constants.APP_CONFIG);
-        
+
         return params;
     }
-    
+
     private static class Converter implements BiFunction<Float, OutputTuple, OutputTuple> {
         private static final long serialVersionUID = 1L;
         private int counter = 0;
-        
+
         @Override
         public OutputTuple apply(Float val, OutputTuple outTuple) {
             outTuple.setFloat("key", (float)(counter++));
             outTuple.setFloat("message", val);
             return outTuple;
         }
-        
     }
 }

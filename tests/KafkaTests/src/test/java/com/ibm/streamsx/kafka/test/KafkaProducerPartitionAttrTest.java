@@ -12,7 +12,6 @@ import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streamsx.kafka.test.utils.Constants;
 import com.ibm.streamsx.kafka.test.utils.Delay;
-import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
 import com.ibm.streamsx.kafka.test.utils.Message;
 import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
@@ -56,7 +55,7 @@ public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
         // create producer
         TStream<Message<Integer, String>> src = topo.limitedSource(new MySupplier(), 9).modify(new Delay<>(Constants.PRODUCER_DELAY));
         SPLStream outStream = SPLStreams.convertStream(src, new MessageConverter(), PRODUCER_SCHEMA);
-        SPL.invokeSink(Constants.KafkaProducerOp, outStream, getKafkaProducerParams());		
+        SPL.invokeSink(Constants.KafkaProducerOp, outStream, getKafkaProducerParams());
 
         // create the consumers
         SPLStream msgStream1 = createConsumer(topo, PARTITION_NUM);
@@ -64,16 +63,20 @@ public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
         TStream<String> unionStream = msgStream1.transform(t -> t.getString("message"));
         SPLStream msgStream = SPLStreams.stringToSPLStream(unionStream);
 
-        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);		
+        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
 
         String[] expectedArr = {"A0", "B1", "C2", "A3", "B4", "C5", "A6", "B7", "C8"};
-        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, expectedArr);
-        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+        Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), expectedArr);
+        HashMap<String, Object> config = new HashMap<>();
+//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+        
+        tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue(condition.getResult().size() > 0);
-        Assert.assertTrue(condition.getResult().toString(), condition.valid());				
+        Assert.assertTrue (stringContentsUnordered.valid());
+        Assert.assertTrue (stringContentsUnordered.getResult().size() == expectedArr.length);
     }
 
     private SPLStream createConsumer(Topology topo, int consumerNum) throws Exception {
@@ -118,7 +121,6 @@ public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
 
             return new Message<Integer, String>(key, message);
         }
-
     }
 
     private static class MessageConverter implements BiFunction<Message<Integer, String>, OutputTuple, OutputTuple> {
@@ -132,6 +134,5 @@ public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
 
             return outTuple;
         }
-
     }
 }

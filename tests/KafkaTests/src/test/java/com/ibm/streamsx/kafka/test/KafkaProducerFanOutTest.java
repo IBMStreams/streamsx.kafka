@@ -45,10 +45,10 @@ public class KafkaProducerFanOutTest extends AbstractKafkaTest {
         // create the producers (produces tuples after a short delay)
         TStream<String> stringSrcStream = topo.strings(Constants.STRING_DATA).modify(new Delay<>(5000)).lowLatency();
         SPL.invokeSink(Constants.KafkaProducerOp, 
-                KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream), 
+                KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream),
                 getKafkaParams());
         SPL.invokeSink(Constants.KafkaProducerOp, 
-                KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream), 
+                KafkaSPLStreamsUtils.convertStreamToKafkaTuple(stringSrcStream),
                 getKafkaParams());
 
         // create the consumer
@@ -60,13 +60,17 @@ public class KafkaProducerFanOutTest extends AbstractKafkaTest {
         Tester tester = topo.getTester();
 
         // both producers are sending the same data, so each result is duplicated
-        String[] expectedArr = KafkaSPLStreamsUtils.duplicateArrayEntries(Constants.STRING_DATA, 2); 		
-        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, expectedArr);
-        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+        String[] expectedArr = KafkaSPLStreamsUtils.duplicateArrayEntries(Constants.STRING_DATA, 2);
+        Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), expectedArr);
+        HashMap<String, Object> config = new HashMap<>();
+//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+        
+        tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue(condition.getResult().size() > 0);
-        Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+        Assert.assertTrue (stringContentsUnordered.valid());
+        Assert.assertTrue (stringContentsUnordered.getResult().size() == Constants.STRING_DATA.length *2);
     }
 
     private Map<String, Object> getKafkaParams() {

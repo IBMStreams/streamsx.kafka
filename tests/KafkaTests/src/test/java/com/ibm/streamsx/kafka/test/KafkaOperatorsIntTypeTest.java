@@ -64,12 +64,16 @@ public class KafkaOperatorsIntTypeTest extends AbstractKafkaTest {
         // test the output of the consumer
         StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
-        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, DATA);
-        tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
+        Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), DATA);
+        HashMap<String, Object> config = new HashMap<>();
+//      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+//      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+
+        tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue(condition.getResult().size() > 0);
-        Assert.assertTrue(condition.getResult().toString(), condition.valid());
+        Assert.assertTrue (stringContentsUnordered.valid());
+        Assert.assertTrue (stringContentsUnordered.getResult().size() == DATA.length);
     }
 
     private Map<String, Object> getKafkaParams() {
@@ -91,6 +95,5 @@ public class KafkaOperatorsIntTypeTest extends AbstractKafkaTest {
             outTuple.setInt("message", val.intValue());
             return outTuple;
         }
-
     }
 }

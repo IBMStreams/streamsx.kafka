@@ -11,11 +11,11 @@ sidebar:
 {% include toc %}
 {%include editme %}
 
-The KafkaConsumer operator is used to consume messages from Kafka topics. The operator can be configured to consume messages from one or more topics, as well as consume messages from specific partitions within topics. 
+The KafkaConsumer operator is used to consume messages from Kafka topics. The operator can be configured to consume messages from one or more topics, as well as consume messages from specific partitions within topics. The operator can also participate in a Kafka consumer group.
 
 ### Apache Kafka - Supported Version
 
-These operators will only support Apache Kafka v0.10.x and newer. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used.
+These operators will only support Apache Kafka v0.10.2 and newer. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used.
 
 ### Supported SPL Types
 
@@ -72,11 +72,12 @@ Users can override this behaviour and specify which deserializer to use by setti
 
 The operator is capable of taking advantage of Kafka's group management functionality. In order for the operator to use this functionality, the following requirements must be met
 
- * The operator cannot be in a consistent region
- * The **startPosition** parameter must be `Default` or not specified
- * None of the topics specified by the **topics** parameter can specify which partition to be assigned to
+ * A group-ID must be specified by the user. This can be done by using the **groupId** parameter or the `group.id` consumer property in an app option or property file.
+ * None of the topics specified by the **topics** parameter can specify which partition to be assigned to, i.e. the **partition** parameter must not be used.
+ * The **startPosition** parameter must be `Default` or not specified when the operator is *not* within a consistent region.
+ * When in consistent region, the toolkit version must be 1.5.0 or higher. Older toolkits do not support consumer groups when in consistent region.
 
-In addition to the above, the application needs to set the `group.id` Kafka property in order to assign the KafkaConsumer to a specific group. 
+The custom metric **isGroupManagementActive** indicates whether the operator is part of a consumer group. Then the metric's value is 1.
 
 ### Consistent Region Support
 
@@ -94,6 +95,8 @@ The operator will seek to the offset position saved in the checkpoint. The opera
 
 #### ResetToInitialState
 The first time the operator was started, the initial offset that the KafkaConsumer client would begin reading from was stored in the JCP operator. When `resetToInitialState()` is called, the operator will retrieve this initial offset from the JCP and seek to this position. The operator will begin consumer records starting from this position. 
+
+For details about the consistent region handling when operators are a group of consumers, read [this article](https://ibmstreams.github.io/streamsx.kafka/docs/user/ConsumerGroupConsistentRegion/).
 
 ### Input Ports
 

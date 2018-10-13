@@ -35,6 +35,7 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.ProcessingElement;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
@@ -54,7 +55,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerClient.class);
 
-    private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
     private static final long EVENT_LOOP_PAUSE_TIME_MS = 100;
     private static final long CONSUMER_CLOSE_TIMEOUT_MS = 2000;
 
@@ -122,7 +122,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
         // create a random group ID for the consumer if one is not specified
         if (!kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GENERATED_GROUPID_PREFIX));
+        	ProcessingElement pe = operatorContext.getPE();
+        	String groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
+        			+ pe.getJobId() + operatorContext.getName().hashCode();
+            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
             groupIdGenerated = true;
         }
         // always disable auto commit 

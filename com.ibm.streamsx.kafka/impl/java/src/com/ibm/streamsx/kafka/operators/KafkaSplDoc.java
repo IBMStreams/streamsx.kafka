@@ -19,7 +19,7 @@ public class KafkaSplDoc {
             + "|===|\\n"
             + "| client.id | Generated ID in the form: `C-J<JobId>-<operator name>` |\\n"
             + "|---|\\n"
-            + "| group.id | Randomly generated ID in the form: `group-<random_string>` |\\n"
+            + "| group.id | hash from domain-ID, instance-ID, job-ID, and operator name |\\n"
             + "|---|\\n"
             + "| key.deserializer | See **Automatic deserialization** section below |\\n"
             + "|---|\\n"

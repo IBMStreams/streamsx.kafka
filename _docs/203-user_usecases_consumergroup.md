@@ -1,5 +1,5 @@
 ---
-title: "Usecase Consumer Group"
+title: "Usecase: Kafka Consumer Group"
 permalink: /docs/user/UsecaseConsumerGroup/
 excerpt: "How to use this toolkit."
 last_modified_at: 2018-10-17T12:37:48+01:00
@@ -11,9 +11,7 @@ sidebar:
 {% include toc %}
 {%include editme %}
 
-## Kafka consumer group
-
-### Overview
+# Overview
 
 Multiple `KafkaConsumer` operators consume from the same topic(s) where the topic partitions are automatically distributed over the consumer operators.
 
@@ -21,7 +19,7 @@ Multiple `KafkaConsumer` operators consume from the same topic(s) where the topi
 * No assumption about which partition is consumed by which consumer operator, thus no guarantee that a message with key 'K' will be processed by the same operator.
 * When partitions are added to the subscribed topic, these new partitions will be automatically assigned to one of the consumers in the group.
 
-### Details
+# Details
 
 `N` Consumer operators within a single streams graph (using UDP or manually added to graph) have the same consumer group id (Kafka property `group.id`) accessing `M` partitions where (typically) N <= M.
 
@@ -55,25 +53,24 @@ Partition de-assignment and re-assignment can happen when
 
 Partition re-assignment makes the consumer replay Kafka messages beginning with last committed offsets. 
 
-### Pros and Cons
+# Pros and Contras
 
 * **Pro:** High volume by having multiple operators reading messages in parallel from partitions
 * **Pro:** Takeover of partitions from failed or stopped consumers by other members of the consumer group.
 * **Pro:** No manual assignment of partitions, any number of operators will always correctly read all messages.
 * **Con:** Keyed messages may be handled by any operator after failure and reassignment. As a workaround, the messages can be repartitioned by the message key in the Streams application with abutting parallel region.
 
-### Guaranteed processing
+# Guaranteed processing
 
 * Consistent region: Supported (periodic only)
 * Checkpointing via `config checkpoint`: Not supported
 
 When the operator is used in a consistent region, at least once processing through the Streams application is guaranteed.
+Without a consistent region, tuples can get lost within the Streams application when a PE restarts.
 
-Without a consistent region, tuples can get lost within the Streams application. When the consumer's PE restarts due to failure or PE relocation, the messages are consumed at least once, but  when an intermediate PE restarts, tuples can get lost.
+# Operator configuration
 
-### Operator configuration
-
-**Parameters / consumer properties**
+## Parameters / consumer properties
 
 * No assignment of partitions is configured through the **partition** operator parameter.
 * A group identifier must be specified either by the consumer property `group.id`, or by using the **groupId** parameter, which would have precedence over a bare property.
@@ -81,11 +78,25 @@ Without a consistent region, tuples can get lost within the Streams application.
 * When in a consistent region, the **startPosition** parameter must not be `Offset`.
 
 
-**Operator placement**
+## Operator placement
 
 Invocations of consumer operators should be exlocated from each other (separate PEs) to ensure upon failure multiple consumers are not taken out.
 
-**Example without consistent region:**
+## Consistent region
+
+The consumer group must not have consumers outside of the consistent region.
+
+## Multiple copies
+
+* Create a composite containing the `KafkaConsumer` invocation
+* Annotate composite invocation with `@parallel` with width N (e.g. `width=3` to handle 6 partitions).
+
+or
+
+* Invoke N copies of the operator.
+
+# Examples
+## Without consistent region
 
 ```
 composite ConsumerGroup {
@@ -119,7 +130,7 @@ graph
 }
 ```
 
-**Example with consumer group in a consistent region, group-ID specified in property file:**
+## Consumer group in a consistent region, group-ID specified in property file
 
 ```
 composite ConsumerGroupCR {

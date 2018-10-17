@@ -1,5 +1,5 @@
 ---
-title: "Usecase Consume All Partitions"
+title: "Usecase: Consume All Partitions"
 permalink: /docs/user/UsecaseAllPartitions/
 excerpt: "How to use this toolkit."
 last_modified_at: 2018-10-17T12:37:48+01:00
@@ -11,13 +11,11 @@ sidebar:
 {% include toc %}
 {%include editme %}
 
-## Consume all partitions
-
-### Overview
+# Overview
 
 A single `KafkaConsumer` operator consumes all messages from a topic regardless of the number of partitions.
 
-### Details
+# Details
 
 Without a partition specification, the operator will consume from all partitions of the topic. When a unique group identifier is given for the operator, the partitions of the subscribed topic are assigned by Kafka, and the operator represents a consumer group with only one member. In this case the operator will automatically be assigned new partitions, when partitions are added to the topic. On the other side, partition de-assignment and re-assignment can happen when
 
@@ -29,26 +27,25 @@ Partition re-assignment makes the consumer replay Kafka messages beginning with 
 
 When **no group identifier is given**, the operator self-assignes to all partitions of the topic. When new partitions are added to the topic, the PE that contains the operator must be restarted to read also added partitions.
 
-### Pros and Cons
+# Pros and Contras
 
 * **Pro:** Very simple
 * **Con:** Volume is limited by a single operator reading messages from all partitions
 
-### Guaranteed processing
+# Guaranteed processing
 
 * Consistent region: Supported (periodic and operator driven)
 * Checkpointing via `config checkpoint`: Not supported
 
 When the operator is used in a consistent region, at least once processing through the Streams application is guaranteed.
+Without a consistent region, tuples can get lost within the Streams application when a PE restarts.
 
-Without a consistent region, tuples can get lost within the Streams application. When the consumer's PE restarts due to failure or PE relocation, the messages are consumed at least once, but  when an intermediate PE restarts, tuples can get lost.
-
-### Operator configuration
+# Operator configuration
 
 No assignment of partitions is configured through the **partition** operator parameter.
 
-
-**Consume messages without a key**:
+# Examples
+## Consume messages without a key
 ```
     stream <rstring json> Messages = KafkaConsumer() {
         param
@@ -58,7 +55,7 @@ No assignment of partitions is configured through the **partition** operator par
     }
 ```
 
-**Consume keyed messages within an operator driven consistent region:**
+## Consume keyed messages within an operator driven consistent region
 ```
     () as JCP = JobControlPlane() {}
     
@@ -74,7 +71,7 @@ No assignment of partitions is configured through the **partition** operator par
 
 ```
 
-**Consume keyed messages within a periodic consistent region:**
+## Consume keyed messages within a periodic consistent region
 ```
     () as JCP = JobControlPlane() {}
     

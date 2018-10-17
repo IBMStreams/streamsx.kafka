@@ -150,8 +150,6 @@ graph
             propertiesFile: getThisToolkitDir() + "/etc/consumer.properties";
             topic: $topic;
             partition: $partition1, $partition2;
-            startPosition: Beginning;
-            triggerCount: 1000;
             outputMessageAttributeName: "json";
     }
 
@@ -170,7 +168,7 @@ graph
 | 2 | partition: 4, 5; |
 
 
-If the number of partitions would be chosen as an odd number, the channel with the highest channel number is assigned one partition. Its **partition** parameter has twice the same number, for example, `partition: 4, 4;`, when `$nPartitions: 5;` is configured.
+If the number of partitions would be chosen as an **odd number**, the channel with the highest channel number is assigned one partition. Its **partition** parameter has twice the same number, for example, `partition: 4, 4;`, when `$nPartitions: 5;` is configured.
 
 **Partitions per parallel channel for five partitions:**
 

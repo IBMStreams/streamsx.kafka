@@ -14,7 +14,7 @@ sidebar:
 # Overview
 
 Multiple `KafkaConsumer` reading from the same topic(s). Each operator assigned a specific set of partitions.
-With keyed partitions guarantee that a key is always processed by the same sub-flow/channel
+With keyed partitions it is guaranteed that a key is always processed by the same sub-flow/channel.
 
 # Details
 
@@ -51,7 +51,7 @@ Without a consistent region, tuples can get lost within the Streams application 
 * The **triggerCount** parameter must be used to specify the number of submitted tuples after which the region is made consistent
 * One region per parallel channel with one consumer operator per channel - reachability of consumer operators is limited to the channel. (single region is not supported as only a single source operator can drive the region, and in a UDP setting all source operators have the same configuraton).
 
-With manual invocation (e.g. explicitly invoke six operators with their own unique partition(s)) then any consistent region setup can be created, subject to the limitation of a region can only have a single operator driven source. (https://www.ibm.com/support/knowledgecenter/SSCRJU_4.2.1/com.ibm.streams.ref.doc/doc/consistentannotation.html)
+With manual invocation (e.g. explicitly invoke six operators with their own unique partition(s)) then any consistent region setup can be created, subject to the limitation of a region can only have a single operator driven source. <https://www.ibm.com/support/knowledgecenter/SSCRJU_4.2.1/com.ibm.streams.ref.doc/doc/consistentannotation.html>
 
 # Operator configuration
 
@@ -165,9 +165,9 @@ graph
 
 | channel number | partition parameter |
 | --- | --- |
-| 0 | `partition: 0, 1;` |
-| 1 | `partition: 2, 3;` |
-| 2 | `partition: 4, 5;` |
+| 0 | partition: 0, 1; |
+| 1 | partition: 2, 3; |
+| 2 | partition: 4, 5; |
 
 
 If the number of partitions would be chosen as an odd number, the channel with the highest channel number is assigned one partition. Its **partition** parameter has twice the same number, for example, `partition: 4, 4;`, when `$nPartitions: 5;` is configured.
@@ -176,7 +176,7 @@ If the number of partitions would be chosen as an odd number, the channel with t
 
 | channel number | partition parameter |
 | --- | --- |
-| 0 | `partition: 0, 1;` |
-| 1 | `partition: 2, 3;` |
-| 2 | `partition: 4, 4;` |
+| 0 | partition: 0, 1; |
+| 1 | partition: 2, 3; |
+| 2 | partition: 4, 4; |
 

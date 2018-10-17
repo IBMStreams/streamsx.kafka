@@ -117,6 +117,7 @@ public class KafkaConsumerClient extends AbstractKafkaClient implements Consumer
     private <K, V> KafkaConsumerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties)
                     throws Exception {
+        super (operatorContext, kafkaProperties, true);
         this.kafkaProperties = kafkaProperties;
         if (!this.kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeserializer(keyClass));

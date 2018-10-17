@@ -14,12 +14,13 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.RoundRobinAssignor;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
+import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
-import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -30,10 +31,9 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 /**
  * Kafka consumer client to be used when not in a consistent region.
  */
-public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implements ConsumerRebalanceListener {
+public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient implements ConsumerRebalanceListener {
 
     private static final Logger logger = Logger.getLogger(NonCrKafkaConsumerClient.class);
-    //    private static final boolean COMMIT_AFTER_TUPLE_SUBMIT_ENABLED = true;   // set true to enable the new commit behavior
 
     private boolean autoCommitEnabled;
     private long commitCount = 500l; 
@@ -52,7 +52,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
      * @throws KafkaConfigurationException
      */
     private <K, V> NonCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
+            KafkaOperatorProperties kafkaProperties, int nTopics) throws KafkaConfigurationException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
 
         ConsistentRegionContext crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
@@ -60,7 +60,8 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
             throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' is used in a consistent region. This consumer client implementation (" 
                     + this.getClass() + ") does not support CR.");
         }
-        // if not explicitly configured, disable auto commit
+         // if not explicitly configured, disable auto commit
+        // TODO: remove this code; auto commit is always disabled by consumer base class
         if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
             autoCommitEnabled = kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true");
         }
@@ -70,6 +71,12 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
         }
         if (!autoCommitEnabled) {
             offsetManager = new OffsetManager ();
+        }
+        // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
+        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
+            String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
+            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
+            logger.info (MessageFormat.format ("Multiple topics specified. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
         }
     }
 
@@ -123,26 +130,23 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
 
         if(topics != null && !topics.isEmpty()) {
-            if(partitions == null || partitions.isEmpty()) {
-                // no partition information provided
-                if(startPosition == StartPosition.Default) {
-                    subscribe (topics, this);
-                } else {
-                    Set<TopicPartition> partsToAssign = getAllTopicPartitionsForTopic(topics);
-                    assign(partsToAssign);
-                    seekToPosition(partsToAssign, startPosition);
+            if (!isGroupIdGenerated() && (partitions == null || partitions.isEmpty()) && startPosition == StartPosition.Default) {
+                subscribe (topics, this);
+            }
+            else {
+                Set<TopicPartition> partsToAssign;
+                if (partitions == null || partitions.isEmpty()) {
+                    // no partition information provided
+                    partsToAssign = getAllTopicPartitionsForTopic(topics);
                 }
-            } else {
-                Set<TopicPartition> partsToAssign = new HashSet<TopicPartition>();
-                topics.forEach(topic -> {
-                    partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
-                });
-
-                assign(partsToAssign);
-
-                if(startPosition != StartPosition.Default) {
-                    seekToPosition(partsToAssign, startPosition);
-                }
+                else {
+                    partsToAssign = new HashSet<TopicPartition>();
+                    topics.forEach(topic -> {
+                        partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
+                    });
+                }    
+                assign (partsToAssign);
+                seekToPosition (partsToAssign, startPosition);
             }
         }
     }
@@ -205,6 +209,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
      */
     @Override
     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         logger.info("onPartitionsRevoked: old partition assignment = " + partitions);
     }
 
@@ -218,6 +223,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
         Set<TopicPartition> previousAssignment = new HashSet<>(getAssignedPartitions());
         getAssignedPartitions().clear();
         getAssignedPartitions().addAll(partitions);
+        nAssignedPartitions.setValue(partitions.size());
         // When auto-commit is disabled and the assigned partitions change, 
         // we should remove the messages from the revoked partitions from the message queue.
         // The queue contains only uncommitted messages in this case.
@@ -237,14 +243,20 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
                 }
             }
         }
+        try {
+            checkSpaceInMessageQueueAndPauseFetching (true);
+        } catch (IllegalStateException | InterruptedException e) {
+            // IllegalStateException cannot happen
+            // On Interruption, do nothing
+        }
     }
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#updateAssignment(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
      */
     @Override
-    protected void updateAssignment(TopicPartitionUpdate update) {
+    protected void processUpdateAssignmentEvent(TopicPartitionUpdate update) {
         try {
             // create a map of current topic partitions and their offsets
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
@@ -281,7 +293,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
                 assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
                 break;
             default:
-                throw new Exception ("updateAssignment: unimplemented action: " + update.getAction());
+                throw new Exception ("processUpdateAssignmentEvent(): unimplemented action: " + update.getAction());
             }
         } catch (Exception e) {
             logger.error(e.getLocalizedMessage(), e);
@@ -346,7 +358,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long)
      */
     @Override
-    protected int pollAndEnqueue (long pollTimeout) throws InterruptedException, SerializationException {
+    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
         if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
         int numRecords = records == null? 0: records.count();
@@ -364,44 +376,6 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
     }
 
 
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onDrain()
-     */
-    @Override
-    public void onDrain() throws Exception {
-        // This is the NON-CR consumer client!
-        throw new Exception ("onDrain(): CR not supported by this consumer client: " + this.getClass().getName());
-    }
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#resetToInitialState()
-     */
-    @Override
-    protected void resetToInitialState() {
-        // This is the NON-CR consumer client!
-        throw new RuntimeException ("resetToInitialState(): CR not supported by this consumer client: " + this.getClass().getName());
-    }
-
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#reset(Checkpoint)
-     */
-    @Override
-    protected void reset(Checkpoint checkpoint) {
-        // when configured with config checkpoint, we can end up here.
-        logger.warn("'config checkpoint' is not supported by the " + getOperatorContext().getKind() + " operator.");
-    }
-
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#checkpoint(Checkpoint)
-     */
-    @Override
-    protected void checkpoint(Checkpoint data) {
-        // when configured with config checkpoint, we can end up here.
-        logger.warn("'config checkpoint' is not supported by the " + getOperatorContext().getKind() + " operator.");
-    }
-
 
 
 
@@ -416,6 +390,7 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
         private KafkaOperatorProperties kafkaProperties;
         private long pollTimeout;
         private long commitCount;
+        private int numTopics = 0;
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -447,8 +422,13 @@ public class NonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implem
             return this;
         }
 
+        public final Builder setNumTopics (int n) {
+            this.numTopics = n;
+            return this;
+        }
+
         public ConsumerClient build() throws Exception {
-            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient(operatorContext, keyClass, valueClass, kafkaProperties);
+            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
             client.setPollTimeout (pollTimeout);
             client.setCommitCount (commitCount);
             return client;

@@ -10,7 +10,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
@@ -19,7 +18,6 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
-import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
@@ -32,41 +30,21 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  * This class represents a consumer client that can be used in a consistent region.
  * It always assigns to topic partitions. Group coordination is disabled.
  */
-public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClient {
+public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerClient {
 
     private static final Logger logger = Logger.getLogger(CrKafkaStaticAssignConsumerClient.class);
 
     private long triggerCount; 
     private long nSubmittedRecords = 0l;
-    private ConsistentRegionContext crContext;
     private OffsetManager offsetManager;
     private ControlVariableAccessor<String> offsetManagerCV;
-    //    private Collection<Integer> partitions;
 
 
     private <K, V> CrKafkaStaticAssignConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
 
         super (operatorContext, keyClass, valueClass, kafkaProperties);
-
-        this.crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
-        if (crContext == null) {
-            throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' must be used in a consistent region. This consumer client implementation (" 
-                    + this.getClass() + ") requires a consistent region context.");
-        }
-        // always disable auto commit - we commit on drain
-        if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
-            if (kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
-                logger.warn("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been turned to 'false'. In a consistent region, offsets are always committed when the region drains.");
-            }
-        }
-        else {
-            logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false' for CR.");
-        }
-        kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-
         offsetManager = new OffsetManager();
-        //    this.partitions = partitions == null ? Collections.emptyList() : partitions;
     }
 
     /**
@@ -89,8 +67,6 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         this.triggerCount = triggerCount;
     }
 
-
-
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#validate()
      */
@@ -112,10 +88,9 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
      * Creates an operator-scoped JCP control variable and stores the Offset manager in serialized format.
      * @throws Exception
      */
-    private void saveOffsetManagerToJCP() throws Exception {
-        logger.debug("saveOffsetManagerToJCP. offsetManager = " + offsetManager); 
-        ControlPlaneContext controlPlaneContext = getOperatorContext().getOptionalContext(ControlPlaneContext.class);
-        offsetManagerCV = controlPlaneContext.createStringControlVariable(OffsetManager.class.getName(),
+    private void createJcpCvFromOffsetManagerl() throws Exception {
+        logger.debug("createJcpCvFromOffsetManagerl(). offsetManager = " + offsetManager); 
+        offsetManagerCV = getJcpContext().createStringControlVariable(OffsetManager.class.getName(),
                 false, serializeObject(offsetManager));
         OffsetManager mgr = getDeserializedOffsetManagerCV();
         logger.debug("Retrieved value for offsetManagerCV = " + mgr); 
@@ -138,28 +113,22 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
             Set<TopicPartition> partsToAssign;
             if(partitions == null || partitions.isEmpty()) {
                 // read meta data of the given topics to fetch all topic partitions
-                partsToAssign = getAllTopicPartitionsForTopic(topics);
-                assign(partsToAssign);
-                if(startPosition != StartPosition.Default) {
-                    seekToPosition(partsToAssign, startPosition);
-                }
+                partsToAssign = getAllTopicPartitionsForTopic (topics);
             } else {
                 partsToAssign = new HashSet<TopicPartition>();
                 topics.forEach(topic -> {
                     partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
                 });
-
-                assign(partsToAssign);
-
-                if(startPosition != StartPosition.Default) {
-                    seekToPosition(partsToAssign, startPosition);
-                }
+            }
+            assign(partsToAssign);
+            if(startPosition != StartPosition.Default) {
+                seekToPosition(partsToAssign, startPosition);
             }
             // update the offset manager
             offsetManager.addTopics (partsToAssign);
             // save the consumer offsets after moving it's position
             offsetManager.savePositionFromCluster();
-            saveOffsetManagerToJCP();
+            createJcpCvFromOffsetManagerl();
         }
     }
 
@@ -193,7 +162,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         offsetManager.addTopics (partsToAssign);
         // save the consumer offsets after moving it's position
         offsetManager.savePositionFromCluster();
-        saveOffsetManagerToJCP();
+        createJcpCvFromOffsetManagerl();
     }
 
     /**
@@ -222,7 +191,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         offsetManager.addTopics (topicPartitionOffsetMap.keySet());
         // save the consumer offsets after moving it's position
         offsetManager.savePositionFromCluster();
-        saveOffsetManagerToJCP();
+        createJcpCvFromOffsetManagerl();
     }
 
     /**
@@ -241,6 +210,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
             // the topic/partition can have been removed when a partition has been removed via updateAssignment (control port method)
             logger.warn (e.getLocalizedMessage());
         }
+
+        final ConsistentRegionContext crContext = getCrContext();
         if (crContext.isTriggerOperator() && ++nSubmittedRecords >= triggerCount) {
             logger.debug("Making region consistent..."); //$NON-NLS-1$
             // makeConsistent blocks until all operators in the CR have drained and checkpointed
@@ -251,10 +222,12 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#updateAssignment(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
      */
     @Override
-    protected void updateAssignment(TopicPartitionUpdate update) {
+    protected void processUpdateAssignmentEvent(TopicPartitionUpdate update) {
+        // trace with info. to see this method call is important, and it happens not frequently.
+        logger.info ("processUpdateAssignmentEvent(): update = " + update);
         try {
             // create a map of current topic partitions and their offsets
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
@@ -275,7 +248,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
                     offsetManager.updateTopics (currentTopicPartitionOffsets.keySet());
                     // save the consumer offsets after moving it's position
                     offsetManager.savePositionFromCluster();
-                    saveOffsetManagerToJCP();
+                    createJcpCvFromOffsetManagerl();
                 }
                 break;
             case REMOVE:
@@ -292,11 +265,11 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
                     assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
                     // save the consumer offsets after moving it's position
                     offsetManager.savePositionFromCluster();
-                    saveOffsetManagerToJCP();
+                    createJcpCvFromOffsetManagerl();
                 }
                 break;
             default:
-                throw new Exception ("updateAssignment: unimplemented action: " + update.getAction());
+                throw new Exception ("processUpdateAssignmentEvent: unimplemented action: " + update.getAction());
             }
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
@@ -307,7 +280,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long)
      */
     @Override
-    protected int pollAndEnqueue (long pollTimeout) throws InterruptedException, SerializationException {
+    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
         if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
         int numRecords = records == null? 0: records.count();
@@ -327,33 +300,40 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
 
     /**
      * Called when the consistent region is drained.
-     * This implementation commits offsets on drain.
+     * On drain, polling is stopped, the function waits until 
+     * the message queue becomes empty, then it commits offsets.
      */
     @Override
     public void onDrain() throws Exception {
         logger.debug("onDrain() - entering");
-        final boolean commitSync = true;
-        final boolean commitPartitionWise = false;   // commit all partitions in one server request
-        CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
-
-        synchronized (offsetManager) {
-            for (TopicPartition tp: offsetManager.getMappedTopicPartitions()) {
-                offsets.put (tp, offsetManager.getOffset(tp.topic(), tp.partition()));
-            }
-        }
         try {
-            // Here we must terminates the poll loop.
-            if (offsets.isEmpty()) {
-                sendStopPollingEvent();
+            // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
+            sendStopPollingEvent();
+            // when CR is operator driven, do not wait for queue to be emptied.
+            // This would never happen because the tuple submitter thread is blocked in makeConsistent() in postSubmit(...)
+            if (!getCrContext().isTriggerOperator() && !getMessageQueue().isEmpty()) {
+                // here we are only when we are NOT the CR trigger (for example, periodic CR) and the queue contains consumer records
+                logger.debug("onDrain() waiting for message queue to become empty ...");
+                long before = System.currentTimeMillis();
+                awaitMessageQueueProcessed();
+                logger.debug("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
             }
-            else {
-                // commit event stops polling before committing
+            final boolean commitSync = true;
+            final boolean commitPartitionWise = false;   // commit all partitions in one server request
+            CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
+
+            synchronized (offsetManager) {
+                for (TopicPartition tp: offsetManager.getMappedTopicPartitions()) {
+                    offsets.put (tp, offsetManager.getOffset(tp.topic(), tp.partition()));
+                }
+            }
+            if (!offsets.isEmpty()) {
                 sendCommitEvent (offsets);
             }
             // drain is followed by checkpoint. 
             // Don't poll for new messages in the meantime. - Don't send a 'start polling event'
         } catch (InterruptedException e) {
-            logger.info("Interrupted waiting for committing offsets");
+            logger.debug("Interrupted waiting for empty queue or committing offsets");
             // NOT to start polling for Kafka messages again, is ok after interruption
         }
         logger.debug("onDrain() - exiting");
@@ -364,8 +344,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
      * Resets the client to an initial state when no checkpoint is available.
      */
     @Override
-    protected void resetToInitialState() {
-        logger.debug("resetToInitialState() - entering");
+    protected void processResetToInitEvent() {
+        logger.debug("processResetToInitEvent() - entering");
         try {
             offsetManager = getDeserializedOffsetManagerCV();
             offsetManager.setOffsetConsumer (getConsumer());
@@ -376,12 +356,13 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
             refreshFromCluster();
 
             // remove records from queue
+            clearDrainBuffer();
             getMessageQueue().clear();
 
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("resetToInitialState() - exiting");
+        logger.debug("processResetToInitEvent() - exiting");
     }
 
     /**
@@ -424,33 +405,45 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         }
     }
 
+    /**
+     * prepares the reset by clearing queues and buffers.
+     * This method is run within a runtime thread.
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
+        clearDrainBuffer();
+        getMessageQueue().clear();
+    }
+
     /** 
      * Resets the client to a previous state.
      * @param checkpoint the checkpoint that contains the previous state.
      */
     @Override
-    protected void reset (Checkpoint checkpoint) {
-        logger.debug("reset() - entering. seq = " + checkpoint.getSequenceId());
+    protected void processResetEvent (Checkpoint checkpoint) {
+        logger.debug("processResetEvent() - entering. seq = " + checkpoint.getSequenceId());
         try {
+            clearDrainBuffer();
+            getMessageQueue().clear();
             offsetManager = (OffsetManager) checkpoint.getInputStream().readObject();
             offsetManager.setOffsetConsumer (getConsumer());
             refreshFromCluster();
-            getMessageQueue().clear();
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("reset() - exiting");
+        logger.debug("processResetEvent() - exiting");
     }
 
 
     /**
      * Creates a checkpoint of the current state when used in consistent region.
      * Only the offset manager is included into the checkpoint.
-     * @param the reference of the checkpoint object
+     * @param checkpoint the reference of the checkpoint object
      */
     @Override
-    protected void checkpoint (Checkpoint checkpoint) {
-        logger.debug("checkpoint() - entering. seq = " + checkpoint.getSequenceId());
+    protected void processCheckpointEvent (Checkpoint checkpoint) {
+        logger.debug("processCheckpointEvent() - entering. seq = " + checkpoint.getSequenceId());
         try {
             // offsetManager.savePositionFromCluster();
             checkpoint.getOutputStream().writeObject(offsetManager);
@@ -460,9 +453,16 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractKafkaConsumerClie
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("checkpoint() - exiting");
+        logger.debug("processCheckpointEvent() - exiting");
     }
 
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#onCheckpointRetire(long)
+     */
+    @Override
+    public void onCheckpointRetire (long id) {
+    }
 
 
     /**

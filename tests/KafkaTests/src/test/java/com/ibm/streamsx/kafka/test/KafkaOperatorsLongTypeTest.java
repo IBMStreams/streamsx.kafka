@@ -35,63 +35,57 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsLongTypeTest extends AbstractKafkaTest {
 
-	private static final String TEST_NAME = "KafkaOperatorsLongTypeTest";
-	private static final String[] DATA = {"10", "20", "30", "40", "50"};
-	
-	public KafkaOperatorsLongTypeTest() throws Exception {
-		super(TEST_NAME);
-	}
+    private static final String TEST_NAME = "KafkaOperatorsLongTypeTest";
+    private static final String[] DATA = {"10", "20", "30", "40", "50"};
 
-	@Test
-	public void kafkaLongTypeTest() throws Exception {
-		Topology topo = getTopology();
-		
+    public KafkaOperatorsLongTypeTest() throws Exception {
+        super(TEST_NAME);
+    }
 
-		StreamSchema schema = KafkaSPLStreamsUtils.LONG_SCHEMA;
-		
-		
-		// create the producer (produces tuples after a short delay)
-		TStream<Long> srcStream = topo.strings(DATA).transform(s -> Long.valueOf(s)).modify(new Delay<>(5000));
-		SPLStream splSrcStream = SPLStreams.convertStream(srcStream, new Converter(), schema);
-		SPL.invokeSink(Constants.KafkaProducerOp, 
-				splSrcStream, 
-				getKafkaParams());
+    @Test
+    public void kafkaLongTypeTest() throws Exception {
+        Topology topo = getTopology();
+        StreamSchema schema = KafkaSPLStreamsUtils.LONG_SCHEMA;
+        // create the producer (produces tuples after a short delay)
+        TStream<Long> srcStream = topo.strings(DATA).transform(s -> Long.valueOf(s)).modify(new Delay<>(5000));
+        SPLStream splSrcStream = SPLStreams.convertStream(srcStream, new Converter(), schema);
+        SPL.invokeSink(Constants.KafkaProducerOp, 
+                splSrcStream, 
+                getKafkaParams());
 
-		// create the consumer
-		SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), schema);
-		SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> String.valueOf(t.getLong("message"))));
-		
-		// test the output of the consumer
-		StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
-		Tester tester = topo.getTester();
-		Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, DATA);
-		tester.complete(context, new HashMap<>(), condition, 30, TimeUnit.SECONDS);
+        // create the consumer
+        SPLStream consumerStream = SPL.invokeSource(topo, Constants.KafkaConsumerOp, getKafkaParams(), schema);
+        SPLStream msgStream = SPLStreams.stringToSPLStream(consumerStream.convert(t -> String.valueOf(t.getLong("message"))));
 
-		// check the results
-		Assert.assertTrue(condition.getResult().size() > 0);
-		Assert.assertTrue(condition.getResult().toString(), condition.valid());		
-	}
-	
-	private Map<String, Object> getKafkaParams() {
-		Map<String, Object> params = new HashMap<String, Object>();
-		
-		params.put("topic", Constants.TOPIC_TEST);
-		params.put("appConfigName", Constants.APP_CONFIG);
-		
-		return params;
-	}
-	
-	private static class Converter implements BiFunction<Long, OutputTuple, OutputTuple> {
-		private static final long serialVersionUID = 1L;
-		private int counter = 0;
-		
-		@Override
-		public OutputTuple apply(Long val, OutputTuple outTuple) {
-			outTuple.setLong("key", Long.valueOf(String.valueOf(counter++)));
-			outTuple.setLong("message", val);
-			return outTuple;
-		}
-		
-	}
+        // test the output of the consumer
+        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
+        Tester tester = topo.getTester();
+        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, DATA);
+        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+
+        // check the results
+        Assert.assertTrue(condition.getResult().size() > 0);
+        Assert.assertTrue(condition.getResult().toString(), condition.valid());
+    }
+
+    private Map<String, Object> getKafkaParams() {
+        Map<String, Object> params = new HashMap<String, Object>();
+
+        params.put("topic", Constants.TOPIC_TEST);
+        params.put("appConfigName", Constants.APP_CONFIG);
+
+        return params;
+    }
+
+    private static class Converter implements BiFunction<Long, OutputTuple, OutputTuple> {
+        private static final long serialVersionUID = 1L;
+        private long counter = 0;
+
+        @Override
+        public OutputTuple apply(Long val, OutputTuple outTuple) {
+            outTuple.setLong("key", counter++);
+            outTuple.setLong("message", val.longValue());
+            return outTuple;
+        }
+    }
 }
-	

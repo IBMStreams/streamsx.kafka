@@ -36,9 +36,10 @@ echo "Using domain: $D"
 echo "Using instance: $I"
 
 echo "Creating appConfig \"${APP_CONFIG}\"..."
+streamtool rmappconfig -d $D --noprompt ${APP_CONFIG}
 streamtool rmappconfig -d $D -i $I --noprompt ${APP_CONFIG}
-streamtool mkappconfig -d $D -i $I --property bootstrap.servers=$B --property retries=30 ${APP_CONFIG}
-streamtool getappconfig -d $D -i $I ${APP_CONFIG}
+streamtool mkappconfig -d $D --property bootstrap.servers=$B --property retries=30 ${APP_CONFIG}
+streamtool getappconfig -d $D ${APP_CONFIG}
 
 echo "Creating properties file: \"etc/brokers.properties\"..."
 mkdir -p etc

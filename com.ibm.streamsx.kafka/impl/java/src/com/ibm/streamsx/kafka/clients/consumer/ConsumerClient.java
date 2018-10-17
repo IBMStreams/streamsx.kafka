@@ -14,6 +14,15 @@ import com.ibm.streamsx.kafka.KafkaClientInitializationException;
  */
 public interface ConsumerClient {
 
+    public static final String DRAIN_TIME_MILLIS_MAX_METRIC_NAME = "drainTimeMillisMax";
+    public static final String DRAIN_TIME_MILLIS_METRIC_NAME = "drainTimeMillis";
+
+    /**
+     * Returns the client-ID, which is the value of the Kafka consumer property client.id
+     * @return the client-ID
+     */
+    public String getClientId();
+    
     /**
      * creates the Kafka consumer and starts the consumer and event thread.
      * This method ensures that the event thread is running when it returns.
@@ -84,45 +93,52 @@ public interface ConsumerClient {
      * @param update The the partition update.
      * @throws InterruptedException The thread waiting for finished condition has been interruped.
      */
-    void sendUpdateTopicAssignmentEvent (final TopicPartitionUpdate update) throws InterruptedException;
+    void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException;
     
     /**
      * Action to be performed on consistent region drain.
      * @throws Exception
      */
     void onDrain() throws Exception;
+    
+    /**
+     * Action to be performed when a checkpoint is retired.
+     * @param id The checkpoint sequence ID
+     */
+    void onCheckpointRetire (long id);
 
     /**
      * Initiates checkpointing of the consumer client.
      * Implementations ensure that checkpointing the client has completed when this method returns. 
      * @param checkpoint the checkpoint
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendCheckpointEvent (Checkpoint checkpoint) throws InterruptedException;
+    void onCheckpoint (Checkpoint checkpoint) throws InterruptedException;
 
     /**
-     * Initiates resetting the client to a prior state. 
+     * Initiates resetting the client to a prior state.
+     * The client can prepare any data for the reset by implementing {@link #resetPrepareData(Checkpoint)}. 
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @param checkpoint the checkpoint that contains the state.
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendResetEvent (final Checkpoint checkpoint) throws InterruptedException;
+    void onReset (final Checkpoint checkpoint) throws InterruptedException;
 
     /**
      * Initiates resetting the client to the initial state. 
      * Implementations ensure that resetting the client has completed when this method returns. 
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendResetToInitEvent() throws InterruptedException;
+    void onResetToInitialState() throws InterruptedException;
 
     /**
      * Initiates a shutdown of the consumer client.
      * Implementations ensure that shutting down the client has completed when this method returns. 
      * @param timeout    the timeout to wait for shutdown completion
      * @param timeUnit   the unit of time for the timeout
-     * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
-    void sendShutdownEvent (long timeout, TimeUnit timeUnit) throws InterruptedException;
+    void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException;
 
     /**
      * Gets the next consumer record that has been received. If there are no records, the method waits the specified timeout.

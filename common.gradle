@@ -39,6 +39,6 @@ ext.cleanApp = { namespace, mainComp ->
 
 ext.spldoc = { toolkit, title ->
     exec() {
-        commandLine System.getenv("STREAMS_INSTALL") + '/bin/spl-make-doc', '--warn-no-comments', '-i', toolkit, '--output-dir', 'docs/spldoc', '--doc-title', title
+        commandLine System.getenv("STREAMS_INSTALL") + '/bin/spl-make-doc', '--warn-no-comments', '--copy-image-files', '-i', toolkit, '--output-dir', 'docs/spldoc', '--doc-title', title
     }
 }

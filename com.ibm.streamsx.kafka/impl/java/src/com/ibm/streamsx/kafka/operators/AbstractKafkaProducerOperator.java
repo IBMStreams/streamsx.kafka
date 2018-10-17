@@ -24,6 +24,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.TransactionalKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -46,11 +47,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
-    public static enum ConsistentRegionPolicy {
-        AtLeastOnce,
-        Transactional;
-    }
-    
     /* Parameters */
     protected TupleAttribute<Tuple, ?> keyAttr;
     protected TupleAttribute<Tuple, ?> messageAttr;
@@ -65,21 +61,32 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String partitionAttributeName = null;
     private String timestampAttributeName = null;
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
-    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.AtLeastOnce;
+    private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
-    		description="Specifies the policy to use when in a consistent region. If `AtLeastOnce` "
-    				+ "is specified, the operator will guarantee that every tuple is written to the "
-    				+ "topic(s) at least once. If `Transactional` is specified, the operator will write "
+    		description="Specifies the policy to use when in a consistent region.\\n"
+    		        + "\\n"
+    		        + "When `NonTransactional` "
+    				+ "is specified, the operator guarantees that every tuple is written to the "
+    				+ "topic(s) at least once. When the consistent region resets, duplicates will most "
+    				+ "likely appear in the output topic(s). For consumers of the output topics, "
+    				+ "messages appears as they are produced.\\n"
+    				+ "\\n"
+    				+ " When `Transactional` is specified, the operator will write "
     				+ "tuples to the topic(s) within the context of a transaction. Transactions are commited "
     				+ "when the operator checkpoints. This implies that downstream Kafka consumers may not see the messages "
     				+ "until operator checkpoints.\\n"
+    				+ "Transactional delivery minimizes (though not eliminates) duplicate messages for consumers of "
+    				+ "the output topics when they are configured with the consumer property `isolation.level=read_committed`. "
+    				+ "Consumers that read with the default isolation level `read_uncommitted` see all messages as "
+    				+ "they are produced. For these consumers, there is no difference between transactional and "
+    				+ "non-transactional message delivery.\\n"
     				+ "\\n"
-    				+ "To achieve *Exactly Once* behaviour for a Kafka consumer, the property *isolation.level* must be set "
-    				+ "to `read_committed` for that consumer. Otherwise also uncommitted messages are read from "
-    				+ "a Kafka topic, which then looks like *at least once* for the consumer."
+    				+ "For backward compatibility, the parameter value `AtLeastOnce` can also be specified, but is "
+    				+ "deprecated and can be removed in a future version. `AtLeastOnce` is equivalent to `NonTransactional`.\\n"
+    				+ "\\n"
     				+ "This parameter is ignored if the operator is not part of a consistent region. "
-    				+ "The default value is `AtLeastOnce`. **NOTE**: Kafka brokers older than version v0.11 "
+    				+ "The default value is `NonTransactional`. **NOTE**: Kafka brokers older than version v0.11 "
     				+ "do not support transactions.")
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
 		this.consistentRegionPolicy = consistentRegionPolicy;
@@ -249,7 +256,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 		ConsistentRegionContext crContext = opContext.getOptionalContext(ConsistentRegionContext.class);
 		if (crContext != null) {
 			if (crContext.isStartOfRegion()) {
-				checker.setInvalidContext(Messages.getString("PRODUCER_NOT_START_OF_CONSISTENT_REGION"), new Object[0]); ////$NON-NLS-1$ 
+				checker.setInvalidContext(Messages.getString("OPERATOR_NOT_START_OF_CONSISTENT_REGION", opContext.getKind()), new Object[0]); ////$NON-NLS-1$ 
 			}
 		}
 	}
@@ -313,18 +320,19 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         final boolean registerAsInput = false;
         registerForDataGovernance(context, topics, registerAsInput);
 
-        logger.info(">>> Operator initialized! <<<"); //$NON-NLS-1$
+        logger.debug(">>> Operator initialized <<<"); //$NON-NLS-1$
     }
 
     private void initProducer() throws Exception {
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
         if(crContext == null) {
-        	logger.info("Creating KafkaProducerClient...");
+        	logger.info ("Creating KafkaProducerClient...");
             producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, props);
         } else {
         	switch(consistentRegionPolicy) {
         	case AtLeastOnce:
+        	case NonTransactional:
             	logger.info("Creating AtLeastOnceKafkaProducerClient...");
         		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
         		break;
@@ -427,25 +435,26 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        logger.debug(">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.debug (">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         logger.debug("Initiating reset..."); //$NON-NLS-1$
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.reset(checkpoint);
 
         // reset complete
         isResetting.set(false);
-        logger.debug("Reset complete"); //$NON-NLS-1$
+        logger.debug ("Reset complete"); //$NON-NLS-1$
     }
 
     @Override
     public void resetToInitialState() throws Exception {
-        logger.debug(">>> RESET TO INIT..."); //$NON-NLS-1$
+        logger.debug (">>> RESET TO INIT..."); //$NON-NLS-1$
 
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.close();
         producer = null;
         initProducer();
         isResetting.set(false);
+        logger.debug ("Reset to init complete"); //$NON-NLS-1$
     }
 
     @Override

@@ -52,6 +52,8 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
             + "\\n"
             + KafkaSplDoc.PRODUCER_AUTOMATIC_SERIALIZATION
             + "\\n"
+            + KafkaSplDoc.CHECKPOINTING_CONFIG
+            + "\\n"
             + KafkaSplDoc.PRODUCER_CONSISTENT_REGION_SUPPORT
             + "\\n"
             + "# Error Handling\\n"

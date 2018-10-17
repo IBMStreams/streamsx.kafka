@@ -7,6 +7,12 @@ package com.ibm.streamsx.kafka.operators;
  * This class contains String constant with SPL Documentation.
  */
 public class KafkaSplDoc {
+    public static final String CHECKPOINTING_CONFIG = ""
+            + "# Checkpointing\\n"
+            + "\\n"
+            + "The operator does not support a `config checkpoint` clause. A compiler error will occur when checkpointing is configured.\\n"
+            ;
+    
     public static final String CONSUMER_WHERE_TO_FIND_PROPERTIES = ""
             + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 1.0. As a result, it supports all "
             + "Kafka properties that are supported by the underlying API. The consumer properties for the Kafka consumer v1.0 "

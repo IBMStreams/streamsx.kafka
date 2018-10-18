@@ -5,9 +5,9 @@ Welcome to the Kafka Toolkit. This toolkit enables SPL applications to integrate
 This version of the toolkit currently supports: Apache Kafka 0.10.2, 0.11, 1.0, 1.1, and 2.0. For the older
 Kafka versions 0.9 and 0.10.0, please use the Kafka operators from the [com.ibm.streamsx.messaging](https://github.com/IBMStreams/streamsx.messaging) toolkit.
 
-## Event Stream cloud service (Message Hub)
+## Event Streams cloud service (Message Hub)
 
-For building applications that connect to the IBM Cloud Event Stream service, it is recommended that the [**com.ibm.streamsx.messagehub**](https://github.com/IBMStreams/streamsx.messagehub) toolkit be used.
+For building applications that connect to the IBM Cloud Event Streams service, it is recommended that the [**com.ibm.streamsx.messagehub**](https://github.com/IBMStreams/streamsx.messagehub) toolkit be used.
 This toolkit provides functionality on top of the Kafka toolkit to simplify the configuration needed to connect to the cloud service. 
 
 
@@ -16,11 +16,15 @@ This toolkit provides functionality on top of the Kafka toolkit to simplify the 
 To migrate applications using the old Kafka operators in the `com.ibm.streamsx.messaging` toolkit, refer to the [Migration Document](https://github.com/IBMStreams/streamsx.kafka/wiki/Migration-Document-(Messaging-Toolkit-to-Kafka-Toolkit)).
 
 
-## Documentation 
+## Documentation
+### Documentation on GitHub
+- Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) 
+- Standard use cases for Consumers and Partitions can be found on the [overview page of the user documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/):
+- [Toolkit reference](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/) for latest and older versions
+### Other Articles
 - [Toolkit overview](https://developer.ibm.com/streamsdev/docs/introducing-kafka-toolkit/)
 - [Improve performance when consuming from Kafka](https://developer.ibm.com/streamsdev/docs/improving-application-throughput-consuming-kafka/)
 - [Other kafka related content on Streamsdev](https://developer.ibm.com/streamsdev/tag/kafka/)
-- Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) 
 
 
 ## Build the toolkit
@@ -74,4 +78,4 @@ Create them by hand before or make sure that they are automatically created with
 
 ## Samples
 
-Each sample contains a build.gradle file and a makefile. The samples can be built/compiled by running `../../gradlew build` or `make` from the sample directory. 
+Each sample contains a `build.gradle` file and a `Makefile`. The samples can be built/compiled by running `../../gradlew build` or `make` from the sample directory. 

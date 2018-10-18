@@ -19,7 +19,7 @@ To migrate applications using the old Kafka operators in the `com.ibm.streamsx.m
 ## Documentation
 ### Documentation on GitHub
 - Toolkit documentation can be found here: [SPLDoc](https://ibmstreams.github.io/streamsx.kafka/) 
-- Standard use cases for Consumers and Partitions can be found on the [overview page of the user documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/):
+- Standard use cases for Consumers and Partitions can be found on the [overview page of the user documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/)
 - [Toolkit reference](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/) for latest and older versions
 ### Other Articles
 - [Toolkit overview](https://developer.ibm.com/streamsdev/docs/introducing-kafka-toolkit/)

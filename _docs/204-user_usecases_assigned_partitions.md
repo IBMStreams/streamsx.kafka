@@ -68,9 +68,8 @@ Invocations of consumer operators should be exlocated from each other (separate 
 
 ## Multiple copies
 
-
 * Create a composite containing a consumer operator invocation - it is sensible to add more operators, for example a parser
-* Set partition operator parameter based upon `getChannel()`
+* Set **partition** operator parameter based upon `getChannel()`
 * Annotate composite invocation with `@parallel` with width N (e.g. `width = 6` to handle 6 partitions).
 
 or

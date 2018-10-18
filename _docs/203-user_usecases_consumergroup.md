@@ -2,7 +2,7 @@
 title: "Usecase: Kafka Consumer Group"
 permalink: /docs/user/UsecaseConsumerGroup/
 excerpt: "How to use this toolkit."
-last_modified_at: 2018-10-17T12:37:48+01:00
+last_modified_at: 2018-10-18T12:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -88,12 +88,12 @@ The consumer group must not have consumers outside of the consistent region.
 
 ## Multiple copies
 
-* Create a composite containing the `KafkaConsumer` invocation
-* Annotate composite invocation with `@parallel` with width N (e.g. `width=3` to handle 6 partitions).
+* Create a composite containing the `KafkaConsumer` invocation if you want to add more operators to the parallel channel besides the `KafkaConsumer`
+* Annotate `KafkaConsumer` or the composite invocation with `@parallel` with width N (e.g. `width = 3` to handle 6 partitions).
 
 or
 
-* Invoke N copies of the operator.
+* Invoke N copies of the `KafkaConsumer` operator.
 
 # Examples
 ## Without consistent region
@@ -118,15 +118,15 @@ graph
     // do partitioned processing in Streams
     // messages with same key go always into the same parallel channel
     @parallel (width = 4, partitionBy = [{port = Messages, attributes = [messageKey]}])
-    stream <rstring json> Processed = StatefulLogic (Messages) {
+    stream <rstring json> Processed = Processing (Messages) {
     }
+    
+    ...
 }
 
-public composite StatefulLogic (input In; output Out) {
+public composite Processing (input In; output Out) {
 graph
-    // In fact, this logic is stateless ...
-    stream <rstring json> Out = Functor (In) {
-    }
+    ...
 }
 ```
 
@@ -155,13 +155,12 @@ graph
     @parallel (width = 4, partitionBy = [{port = Messages, attributes = [messageKey]}])
     stream <rstring json> Processed = Processing (Messages) {
     }
+    ...
 }
 
 public composite Processing (input In; output Out) {
 graph
-    // In fact, this logic is stateless ...
-    stream <rstring json> Out = Functor (In) {
-    }
+    ...
 }
 ```
 
@@ -169,4 +168,4 @@ The `etc/consumer.properties` file must contain a line with
 ```
 group.id=myConsumerGroup
 ```
-additional to the other properties, like `bootstrap.servers`.
+besides the other properties, like `bootstrap.servers`.

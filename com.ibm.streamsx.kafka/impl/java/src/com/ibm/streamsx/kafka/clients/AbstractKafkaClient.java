@@ -1,6 +1,7 @@
 package com.ibm.streamsx.kafka.clients;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.Base64;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -16,7 +17,6 @@ import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
-import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
@@ -187,7 +187,7 @@ public abstract class AbstractKafkaClient {
      * The length of the random part is 17 characters.
      * @param prefix A prefix. Can be null or empty if a prefix is not needed.
      * @param randomLength the length of the random part
-     * @return The prefix + 17 random alpha numeric characters
+     * @return The prefix + n random alpha numeric characters, where n is randomLength
      */
     protected static String getRandomId (String prefix, int randomLength) {
         String random = RandomStringUtils.randomAlphanumeric(randomLength);

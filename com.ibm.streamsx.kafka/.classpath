@@ -19,11 +19,6 @@
 			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.5/337310e98410d577aca675930bb46405a0a8fb0c/commons-lang3-3.5-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/21.0/b9ed26b8c23fe7cd3e6b463b34e54e5c6d9536d5/guava-21.0-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/21.0/3a3d111be1be1b745edfa7d91678a12d7ed38709/guava-21.0.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/21.0/7d48c9b5304b8bab31d1ed7c9ef9670b646866c0/guava-21.0-javadoc.jar!/"/>
-		</attributes>
-	</classpathentry>
 	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.8.1/c10732c97eccba635e20596a02c3824fef0605bf/gson-2.8.1-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.8.1/2a8e0aa38a2e21cb39e2f5a7d6704cbdc941da0/gson-2.8.1.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.8.1/826a4f336b856f2d4077b396ecfe354765c43547/gson-2.8.1-javadoc.jar!/"/>
@@ -64,5 +59,5 @@
 			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/ad09811315f1d4f5756986575b0ea16b99cd686f/hamcrest-core-1.3-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/home/rolef/infosphereStreams/streams_install_dir_42/4.2.1.1/lib/com.ibm.streams.operator.jar"/>
+	<classpathentry kind="lib" path="/home/rolef/infosphereStreams/streams_install_dir_43/4.3.0.0/lib/com.ibm.streams.operator.jar"/>
 </classpath>

@@ -57,6 +57,9 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
             + "The operator can be configured to consume messages from one or more topics, "
             + "as well as consume messages from specific partitions within topics.\\n"
             + "\\n"
+            + "The standard use patterns for the KafkaConsumer operator are described in the "
+            + "[https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/|overview] of the user documentation.\\n"
+            + "\\n"
             + "# Supported Kafka Version\\n"
             + "\\n"
             + "This version of the toolkit supports **Apache Kafka v0.10.2, v0.11.x, 1.0.x, 1.1.x**, and **v2.0.0**.\\n"
@@ -83,6 +86,8 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
             + KafkaSplDoc.CONSUMER_COMMITTING_OFFSETS
             + "\\n"
             + KafkaSplDoc.CONSUMER_KAFKA_GROUP_MANAGEMENT
+            + "\\n"
+            + KafkaSplDoc.CHECKPOINTING_CONFIG
             + "\\n"
             + KafkaSplDoc.CONSUMER_CONSISTENT_REGION_SUPPORT
             + "\\n"

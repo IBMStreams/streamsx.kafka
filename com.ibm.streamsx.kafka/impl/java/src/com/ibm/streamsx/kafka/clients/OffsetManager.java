@@ -330,4 +330,21 @@ public class OffsetManager implements Serializable {
     public String toString() {
         return "OffsetManager [managerMap=" + managerMap + "]"; //$NON-NLS-1$ //$NON-NLS-2$
     }
+
+    /**
+     * Adds the offsets from the given OffsetManager replacing potentially existing offsets for topic partitions.
+     * @param ofsm The source offset manager
+     */
+    public void putOffsets (OffsetManager ofsm) {
+        final Set<TopicPartition> ofsmMappedTopicPartitions = ofsm.getMappedTopicPartitions();
+        Set<TopicPartition> mappedTopicPartitions = this.getMappedTopicPartitions();
+        mappedTopicPartitions.addAll (ofsmMappedTopicPartitions);
+        this.updateTopics (mappedTopicPartitions);
+        for (TopicPartition tp: ofsmMappedTopicPartitions) {
+            final String topic = tp.topic();
+            final int partition = tp.partition();
+            final long offset = ofsm.getOffset (topic, partition);
+            this.setOffset (topic, partition, offset);
+        }
+    }
 }

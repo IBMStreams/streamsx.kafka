@@ -347,10 +347,9 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     protected void processResetToInitEvent() {
         logger.debug("processResetToInitEvent() - entering");
         try {
-            offsetManager = getDeserializedOffsetManagerCV();
-            offsetManager.setOffsetConsumer (getConsumer());
-            logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
-
+            final OffsetManager ofsm = getDeserializedOffsetManagerCV();
+            offsetManager.putOffsets (ofsm);
+            logger.debug("offsetManager after applying initial state = " + offsetManager); //$NON-NLS-1$
             // refresh from the cluster as we may
             // have written to the topics
             refreshFromCluster();
@@ -398,7 +397,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
 
         // assign the consumer to the partitions and seek to the
         // last saved offset
-        getConsumer().assign(startOffsetMap.keySet());
+        assign (startOffsetMap.keySet());
         for (Entry<TopicPartition, Long> entry : startOffsetMap.entrySet()) {
             logger.debug("Consumer seeking: TopicPartition=" + entry.getKey() + ", new_offset=" + entry.getValue()); //$NON-NLS-1$ //$NON-NLS-2$
             getConsumer().seek(entry.getKey(), entry.getValue());
@@ -426,8 +425,10 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
         try {
             clearDrainBuffer();
             getMessageQueue().clear();
-            offsetManager = (OffsetManager) checkpoint.getInputStream().readObject();
-            offsetManager.setOffsetConsumer (getConsumer());
+            final OffsetManager ofsm = (OffsetManager) checkpoint.getInputStream().readObject();
+            logger.debug("offsetManager from checkpoint = " + ofsm); //$NON-NLS-1$
+            offsetManager.putOffsets (ofsm);
+            logger.debug("offsetManager after applying checkpoint = " + offsetManager); //$NON-NLS-1$
             refreshFromCluster();
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);

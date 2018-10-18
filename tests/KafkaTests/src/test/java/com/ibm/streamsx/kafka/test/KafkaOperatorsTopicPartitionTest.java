@@ -15,7 +15,6 @@ import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streamsx.kafka.test.utils.Constants;
 import com.ibm.streamsx.kafka.test.utils.Delay;
-import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
 import com.ibm.streamsx.kafka.test.utils.Message;
 import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
@@ -69,16 +68,20 @@ public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
         TStream<String> unionStream = msgStream1.union(s).transform(t -> t.getString("message"));
         SPLStream msgStream = SPLStreams.stringToSPLStream(unionStream);
 
-        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);		
+        StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
 
         String[] expectedArr = {"A0", "B1", "C2", "A3", "B4", "C5", "A6", "B7", "C8"};
-        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, expectedArr);
-        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+        Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), expectedArr);
+        HashMap<String, Object> config = new HashMap<>();
+//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+        
+        tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue(condition.getResult().size() > 0);
-        Assert.assertTrue(condition.getResult().toString(), condition.valid());				
+        Assert.assertTrue (stringContentsUnordered.valid());
+        Assert.assertTrue (stringContentsUnordered.getResult().size() == expectedArr.length);
     }
 
     private SPLStream createConsumer(Topology topo, int consumerNum) throws Exception {
@@ -137,6 +140,5 @@ public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
 
             return outTuple;
         }
-
     }
 }

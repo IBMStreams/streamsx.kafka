@@ -3,6 +3,7 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,12 +34,13 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
-import com.ibm.icu.text.MessageFormat;
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.ProcessingElement;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -53,7 +55,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerClient.class);
 
-    private static final String GENERATED_GROUPID_PREFIX = "group-"; //$NON-NLS-1$
     private static final long EVENT_LOOP_PAUSE_TIME_MS = 100;
     private static final long CONSUMER_CLOSE_TIMEOUT_MS = 2000;
 
@@ -121,7 +122,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
         // create a random group ID for the consumer if one is not specified
         if (!kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, getRandomId(GENERATED_GROUPID_PREFIX));
+        	ProcessingElement pe = operatorContext.getPE();
+        	String groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
+        			+ pe.getJobId() + operatorContext.getName().hashCode();
+            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
             groupIdGenerated = true;
         }
         // always disable auto commit 
@@ -954,13 +958,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * 
      * @param topics A collection of topics
      * @return The topic partitions from the meta data of the topics
+     * @throws UnknownTopicException one of the given topics does not exist and cannot be automatically created by the broker
      */
-    protected Set<TopicPartition> getAllTopicPartitionsForTopic (Collection<String> topics) {
+    protected Set<TopicPartition> getAllTopicPartitionsForTopic (Collection<String> topics) throws UnknownTopicException {
         Set<TopicPartition> topicPartitions = new HashSet<TopicPartition>();
-        topics.forEach(topic -> {
+        for (String topic: topics) {
             List<PartitionInfo> partitions = consumer.partitionsFor(topic);
-            partitions.forEach(p -> topicPartitions.add(new TopicPartition(topic, p.partition())));
-        });
+            if (partitions == null) {
+                throw new UnknownTopicException ("Could not get partition information for topic " + topic);
+            }
+            for (PartitionInfo p: partitions) topicPartitions.add (new TopicPartition (topic, p.partition()));
+        }
         return topicPartitions;
     }
 

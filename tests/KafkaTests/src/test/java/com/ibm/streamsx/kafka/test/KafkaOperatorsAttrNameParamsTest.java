@@ -42,7 +42,7 @@ public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
     private static final String PROD_PARTITION_ATTR_NAME = "myPartitionNum";
     private static final String CONS_KEY_ATTR_NAME = "myConsKey";
     private static final String CONS_MSG_ATTR_NAME = "myConsMsg";
-    private static final String CONS_TOPIC_ATTR_NAME = "myConsTopic";	
+    private static final String CONS_TOPIC_ATTR_NAME = "myConsTopic";
 
     private static final Integer PARTITION_NUM = 0;
     private static final Integer KEY = 100;
@@ -87,12 +87,15 @@ public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
         // test the output of the consumer
         StreamsContext<?> context = StreamsContextFactory.getStreamsContext(Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
-        Condition<List<String>> condition = KafkaSPLStreamsUtils.stringContentsUnordered(tester, msgStream, Constants.TOPIC_TEST + ":" + KEY + ":" + MSG);
-        tester.complete(context, new HashMap<>(), condition, 60, TimeUnit.SECONDS);
+        Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), Constants.TOPIC_TEST + ":" + KEY + ":" + MSG);
+        HashMap<String, Object> config = new HashMap<>();
+//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+        tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue(condition.getResult().size() > 0);
-        Assert.assertTrue(condition.getResult().toString(), condition.valid());		
+        Assert.assertTrue (stringContentsUnordered.valid());
+        Assert.assertTrue (stringContentsUnordered.getResult().size() > 0);
     }
 
     private static class ProducerConverter implements BiFunction<String, OutputTuple, OutputTuple> {
@@ -106,6 +109,6 @@ public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
             outTuple.setInt(PROD_PARTITION_ATTR_NAME, PARTITION_NUM);
 
             return outTuple;
-        }		
+        }
     }
 }

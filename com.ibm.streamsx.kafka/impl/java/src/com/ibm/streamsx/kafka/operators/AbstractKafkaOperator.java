@@ -1,11 +1,17 @@
 package com.ibm.streamsx.kafka.operators;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -13,13 +19,15 @@ import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Logger;
 
-import com.google.common.io.Files;
 import com.ibm.streams.operator.AbstractOperator;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.StreamingData;
+import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.Type.MetaType;
+import com.ibm.streams.operator.compile.OperatorContextChecker;
 import com.ibm.streams.operator.model.Libraries;
 import com.ibm.streams.operator.model.Parameter;
+import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.state.StateHandler;
 import com.ibm.streams.operator.types.Blob;
@@ -36,8 +44,8 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     private static final String DEFAULT_USER_LIB_DIR = "/etc/libs/*"; //$NON-NLS-1$
     protected static final MetaType[] SUPPORTED_ATTR_TYPES = { 
-    		MetaType.RSTRING, MetaType.INT32, 
-    		MetaType.INT64, MetaType.UINT32, MetaType.UINT64,
+            MetaType.RSTRING, MetaType.INT32, 
+            MetaType.INT64, MetaType.UINT32, MetaType.UINT64,
             MetaType.FLOAT32, MetaType.FLOAT64, MetaType.BLOB 
     };
 
@@ -53,33 +61,33 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     private KafkaOperatorProperties kafkaProperties;
 
     @Parameter(optional = true, name="propertiesFile", 
-    		description="Specifies the name of the properties file "
-    				+ "containing Kafka properties. A relative path is always "
-    				+ "interpreted as relative to the *application directory* of the "
-    				+ "Streams application.")
+            description="Specifies the name of the properties file "
+                    + "containing Kafka properties. A relative path is always "
+                    + "interpreted as relative to the *application directory* of the "
+                    + "Streams application.")
     public void setPropertiesFile(String propertiesFile) {
         this.propertiesFile = propertiesFile;
     }
 
     @Parameter(optional = true, name="appConfigName",
-    		description="Specifies the name of the application configuration "
-    				+ "containing Kafka properties.")
+            description="Specifies the name of the application configuration "
+                    + "containing Kafka properties.")
     public void setAppConfigName(String appConfigName) {
         this.appConfigName = appConfigName;
     }
 
     @Parameter(optional = true, name="userLib",
-    		description="Allows the user to specify paths to JAR files that should "
-    				+ "be loaded into the operators classpath. This is useful if "
-    				+ "the user wants to be able to specify their own partitioners. "
-    				+ "The value of this parameter can either point to a specific JAR file, "
-    				+ "or to a directory. In the case of a directory, the operator will "
-    				+ "load all files ending in `.jar` onto the classpath. By default, "
-    				+ "this parameter will load all jar files found in `<application_dir>/etc/libs`.")
+            description="Allows the user to specify paths to JAR files that should "
+                    + "be loaded into the operators classpath. This is useful if "
+                    + "the user wants to be able to specify their own partitioners. "
+                    + "The value of this parameter can either point to a specific JAR file, "
+                    + "or to a directory. In the case of a directory, the operator will "
+                    + "load all files ending in `.jar` onto the classpath. By default, "
+                    + "this parameter will load all jar files found in `<application_dir>/etc/libs`.")
     public void setUserLib(String[] userLib) {
         this.userLib = userLib;
     }
-    
+
     @Parameter(optional = true, name="clientId",
             description="Specifies the client ID that should be used "
                     + "when connecting to the Kafka cluster. The value "
@@ -93,10 +101,20 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         this.clientId = clientId;
     }
 
+    @ContextCheck (compile = true)
+    public static void checkCheckpointConfig (OperatorContextChecker checker) {
+        OperatorContext operatorContext = checker.getOperatorContext();
+        CheckpointContext ckptContext = operatorContext.getOptionalContext(CheckpointContext.class);
+        if (ckptContext != null) {
+            checker.setInvalidContext (Messages.getString("CHECKPOINT_CONFIG_NOT_SUPPORTED", operatorContext.getKind()), new Object[0]);
+        }
+    }
+
+
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
         super.initialize(context);
-        
+
         // load the Kafka properties
         kafkaProperties = new KafkaOperatorProperties();
         loadProperties();
@@ -147,17 +165,47 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
             return;
         }
         File propFile = convertToAbsolutePath(propertiesFile);
-        if(!propFile.exists()) {
-        	logger.warn(Messages.getString("PROPERTIES_FILE_NOT_FOUND", propFile.getAbsoluteFile())); //$NON-NLS-1$
-        	return;
-        }
-        
-        String propertyContent = Files.toString(propFile, StandardCharsets.UTF_8);
-        if (propertyContent != null) {
+        InputStream inStream = null;
+        try {
+            inStream = new FileInputStream (propFile);
             Properties props = new Properties();
-            props.load(new StringReader(propertyContent));
-            loadFromProperties(props);
+            props.load (new InputStreamReader(inStream, Charset.forName ("UTF-8")));
+            loadFromProperties (props);
         }
+        catch (FileNotFoundException filenotfound) {
+            logger.warn(Messages.getString ("PROPERTIES_FILE_NOT_FOUND", propFile.getAbsoluteFile())); //$NON-NLS-1$
+            return;
+        }
+        catch (IOException e) {
+            logger.error (Messages.getString ("PROPERTIES_FILE_NOT_READABLE", propFile.getAbsoluteFile(), e.getLocalizedMessage()));
+            throw e;
+        }
+        finally {
+            if (inStream != null) {
+                try {
+                    inStream.close();
+                }
+                catch (Exception e) {
+                    logger.debug (e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * traces the properties sorted according their keys at info level 
+     * @param props
+     */
+    protected void tracePropsSorted (Properties props) {
+        List<String> sortedKeys = new LinkedList<String>();
+        for (Object k: props.keySet()) sortedKeys.add((String)k);
+        sortedKeys.sort(new Comparator<String>() {
+            @Override
+            public int compare (String o1, String o2) {
+                return o1.compareToIgnoreCase(o2);
+            }
+        });
+        for (String key: sortedKeys) logger.info (MessageFormat.format("{0} = {1}",  key, props.getProperty(key)));
     }
 
     protected void loadFromAppConfig() throws Exception {
@@ -186,11 +234,11 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     }
 
     protected Object toJavaPrimitveObject(Class<?> type, Object attrObj) {
-    	if(attrObj instanceof RString) {
-    		attrObj = ((RString)attrObj).getString();
-    	} else if(attrObj instanceof Blob) {
-    		attrObj = ((Blob)attrObj).getData();
-    	}
+        if(attrObj instanceof RString) {
+            attrObj = ((RString)attrObj).getString();
+        } else if(attrObj instanceof Blob) {
+            attrObj = ((Blob)attrObj).getData();
+        }
 
         return attrObj;
     }

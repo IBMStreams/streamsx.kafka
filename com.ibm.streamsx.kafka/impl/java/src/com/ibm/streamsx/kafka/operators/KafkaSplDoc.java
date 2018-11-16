@@ -166,7 +166,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "* A `group.id` consumer property must be given. The group-ID defines which operators belong to a consumer group. When no group-ID is given,"
             + " group management will not be in place."
-            + "The `group.id` can be specified via property file, app option, or the **groupId** parameter.\\n"
+            + "The `group.id` can be specified via property file, app configuration, or the **groupId** parameter.\\n"
             + "* The operator must not be configured with the optional input port.\\n"
             + "* The parameter **partition** must not be used.\\n"
             + "* **Restriction, when not in a consistent region:** The **startPosition** parameter must have the "

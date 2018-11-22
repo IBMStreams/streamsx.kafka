@@ -29,6 +29,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
@@ -40,9 +41,12 @@ import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.KafkaMetricException;
 import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
+import com.ibm.streamsx.kafka.clients.metrics.MetricsFetcher;
+import com.ibm.streamsx.kafka.clients.metrics.MetricsProvider;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -94,6 +98,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private AtomicBoolean msgQueueProcessed = new AtomicBoolean (true);
     private boolean fetchPaused = false;
     protected final ConsumerTimeouts timeouts;
+    private MetricsFetcher metricsFetcher;
 
 
     /**
@@ -138,7 +143,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false'");
         }
         this.kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-
+        
+        // add our metric reporter
+        if (kafkaProperties.containsKey (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG)) {
+            String propVal = kafkaProperties.getProperty (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG);
+            this.kafkaProperties.put (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, 
+                    propVal + "," + ConsumerMetricsReporter.class.getCanonicalName());
+        }
+        else {
+            this.kafkaProperties.put (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, ConsumerMetricsReporter.class.getCanonicalName());
+        }
+        
         this.timeouts = new ConsumerTimeouts (operatorContext, this.kafkaProperties);
         timeouts.adjust (this.kafkaProperties);
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);
@@ -246,6 +261,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         });
         eventThread.setDaemon(false);
         eventThread.start();
+        if (this.metricsFetcher == null) {
+            this.metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
+                
+                @Override
+                public Map<MetricName, ? extends org.apache.kafka.common.Metric> getMetrics() {
+                    return consumer.metrics();
+                }
+                
+                @Override
+                public String createCustomMetricName (MetricName metricName) throws KafkaMetricException {
+                    return ConsumerMetricsReporter.createOperatorMetricName (metricName);
+                }
+            }, ConsumerMetricsReporter.getMetricsFilter(), METRICS_REPORT_INTERVAL);
+        }
         // wait for consumer thread to be running before returning
         consumerInitLatch.await();
         if (initializationException != null)

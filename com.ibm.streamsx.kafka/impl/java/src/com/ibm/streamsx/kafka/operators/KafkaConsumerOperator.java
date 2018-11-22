@@ -83,6 +83,8 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
             + "\\n"
             + KafkaSplDoc.CONSUMER_AUTOMATIC_DESERIALIZATION
             + "\\n"
+            + KafkaSplDoc.CONSUMER_EXPOSED_KAFKA_METRICS
+            + "\\n"
             + KafkaSplDoc.CONSUMER_COMMITTING_OFFSETS
             + "\\n"
             + KafkaSplDoc.CONSUMER_KAFKA_GROUP_MANAGEMENT

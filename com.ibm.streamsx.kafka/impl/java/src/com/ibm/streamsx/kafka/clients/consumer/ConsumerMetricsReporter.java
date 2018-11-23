@@ -50,6 +50,7 @@ group=kafka-metrics-count,
         .add (CONSUMER_COORDINATOR_METRICS_GROUP, "commit-rate", new RoundingConverter("commit-rate"))
         //        .add (CONSUMER_COORDINATOR_METRICS_GROUP, "assigned-partitions", new RoundingConverter("assigned-partitions"))
         .add (CONSUMER_FETCH_MANAGER_METRICS_GROUP, "fetch-size-avg", new RoundingConverter("fetch-size-avg"))
+        .add (CONSUMER_FETCH_MANAGER_METRICS_GROUP, "records-lag-max", new RoundingConverter("records-lag-max"))
         // placeholder that we have this metric group in the filter; There is one metric per topic partition <topic-partition>.records-lag
         .add (CONSUMER_FETCH_MANAGER_METRICS_GROUP, "*.records-lag", new RoundingConverter("*.records-lag"))
         ;

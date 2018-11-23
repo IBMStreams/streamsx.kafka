@@ -62,6 +62,8 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| *topic*-*partition*:records-lag | The latest lag of the partition |\\n"
             + "|---|\\n"
+            + "| records-lag-max | The maximum lag in terms of number of records for any partition in this window |\\n"
+            + "|---|\\n"
             + "| fetch-size-avg | The average number of bytes fetched per request |\\n"
             + "|---|\\n"
             + "| *topic*:fetch-size-avg | The average number of bytes fetched per request for a topic |\\n"

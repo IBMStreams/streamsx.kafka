@@ -783,7 +783,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     private Collection<TopicPartition> seekPartitions (Collection <TopicPartition> partitions, Map<TopicPartition, Long> offsetMap) {
         KafkaConsumer <?, ?> consumer = getConsumer();
-        seekOffsetMap.equals(consumer);
         // collection and map for seeking to inital startposition
         Collection <TopicPartition> tp1 = new ArrayList<>(1);
         Map <TopicPartition, Long> tpTimestampMap1 = new HashMap<>();

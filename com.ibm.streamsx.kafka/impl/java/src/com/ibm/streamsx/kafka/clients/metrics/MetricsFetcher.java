@@ -3,6 +3,7 @@
  */
 package com.ibm.streamsx.kafka.clients.metrics;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.kafka.common.Metric;
@@ -25,7 +26,7 @@ public class MetricsFetcher implements Runnable {
     private final OperatorContext operatorContext;
     private final Thread runnerThread;
     private Object lock = new Object();
-
+    private Map <MetricName, String> nameMap = new HashMap<>();
 
     /**
      * @param operatorContext The operator context
@@ -77,7 +78,12 @@ public class MetricsFetcher implements Runnable {
                 continue;
             }
             try {
-                final String customMetricName = provider.createCustomMetricName (m.metricName());
+                final MetricName mName = m.metricName();
+                String customMetricName = nameMap.get (mName);
+                if (customMetricName == null) {
+                    customMetricName = provider.createCustomMetricName (m.metricName());
+                    nameMap.put (mName, customMetricName);
+                }
                 com.ibm.streams.operator.metrics.Metric customMetric = operatorContext.getMetrics().getCustomMetric (customMetricName);
                 final long val = metricsFilter.getConverter (m).convert (m.metricValue());
                 customMetric.setValue (val);

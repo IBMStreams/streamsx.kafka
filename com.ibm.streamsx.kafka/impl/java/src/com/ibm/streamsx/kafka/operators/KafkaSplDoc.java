@@ -305,8 +305,6 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| outgoing-byte-rate | The number of outgoing bytes sent to all servers per second |\\n"
             + "|---|\\n"
-            + "| io-wait-ratio | The fraction of time the I/O thread spent waiting (as percentage) |\\n"
-            + "|---|\\n"
             + "| bufferpool-wait-time-total | The total time an appender waits for space allocation. |\\n"
             + "|---|\\n"
             + "| buffer-available-bytes | The total amount of buffer memory that is not being used (either unallocated or in the free list). |\\n"

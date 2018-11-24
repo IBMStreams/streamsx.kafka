@@ -148,7 +148,6 @@ public class ProducerMetricsReporter extends AbstractCustomMetricReporter {
         .add (PRODUCER_METRICS_GROUP, "compression-rate-avg", new MultiplyConverter ("compression-rate-avg", 100.0))
         .add (PRODUCER_METRICS_GROUP, "outgoing-byte-rate", new RoundingConverter ("outgoing-byte-rate"))
         .add (PRODUCER_METRICS_GROUP, "bufferpool-wait-time-total", new RoundingConverter ("bufferpool-wait-time-total"))
-        .add (PRODUCER_METRICS_GROUP, "io-wait-ratio", new MultiplyConverter ("io-wait-ratio", 100.0))
         .add (PRODUCER_TOPIC_METRICS_GROUP, "record-send-total", new RoundingConverter ("record-send-total"))
         .add (PRODUCER_TOPIC_METRICS_GROUP, "record-retry-total", new RoundingConverter ("record-retry-total"))
         .add (PRODUCER_TOPIC_METRICS_GROUP, "record-error-total", new RoundingConverter ("record-error-total"))

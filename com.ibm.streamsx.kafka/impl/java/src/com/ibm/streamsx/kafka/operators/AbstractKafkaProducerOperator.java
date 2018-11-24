@@ -31,6 +31,7 @@ import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperator {
+    protected static final String GUARANTEE_ORDERING_PARAM_NAME = "guaranteeOrdering";
     protected static final String DEFAULT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
     protected static final String DEFAULT_KEY_ATTR_NAME = "key"; //$NON-NLS-1$
     protected static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
@@ -62,6 +63,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private String timestampAttributeName = null;
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
+    private boolean guaranteeOrdering = false;
     
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
     		description="Specifies the policy to use when in a consistent region.\\n"
@@ -91,6 +93,21 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
 		this.consistentRegionPolicy = consistentRegionPolicy;
 	}
+
+    @Parameter(optional = true, name = GUARANTEE_ORDERING_PARAM_NAME,
+            description = "If set to true, the operator guarantees that the order of records within "
+                    + "a topic partition is the same as the order of processed tuples when it comes "
+                    + "to retries. This implies that the operator sets the "
+                    + "`max.in.flight.requests.per.connection` producer property automatically to 1 "
+                    + "if retries are enabled, i.e. when the `retries` property is unequal 0, what "
+                    + "is the operator default value.\\n"
+                    + "\\n"
+                    + "If unset, the default value of this parameter is `false`, which means that the "
+                    + "order can change due to retries.")
+    public void setGuaranteeOrdering (boolean guaranteeOrdering) {
+        this.guaranteeOrdering = guaranteeOrdering;
+    }
+
 
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
     		description="Specifies the input attribute that contains "
@@ -328,17 +345,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         KafkaOperatorProperties props = getKafkaProperties();
         if(crContext == null) {
         	logger.info ("Creating KafkaProducerClient...");
-            producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+            producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
         } else {
         	switch(consistentRegionPolicy) {
         	case AtLeastOnce:
         	case NonTransactional:
             	logger.info("Creating AtLeastOnceKafkaProducerClient...");
-        		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, props);
+        		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
         		break;
         	case Transactional:
         		logger.info("Creating TransactionalKafkaProducerClient...");
-        		producer = new TransactionalKafkaProducerClient(getOperatorContext(), keyType, messageType, props, /*lazyTransactionBegin*/true);
+        		producer = new TransactionalKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props, /*lazyTransactionBegin*/true);
         		break;
         	default:
         		throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);

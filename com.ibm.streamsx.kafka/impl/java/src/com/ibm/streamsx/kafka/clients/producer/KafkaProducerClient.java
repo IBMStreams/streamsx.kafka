@@ -35,14 +35,17 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     protected Class<?> valueClass;
     protected OperatorContext operatorContext;
     private MetricsFetcher metricsFetcher;
+    protected final boolean guaranteeOrdering;
 
     public <K, V> KafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
+            boolean guaranteeRecordOrder,
             KafkaOperatorProperties kafkaProperties) throws Exception {
         super (operatorContext, kafkaProperties, false);
         this.kafkaProperties = kafkaProperties;
         this.operatorContext = operatorContext;
         this.keyClass = keyClass;
         this.valueClass = valueClass;
+        this.guaranteeOrdering = guaranteeRecordOrder;
 
         configureProperties();
         createProducer();
@@ -68,13 +71,56 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
     protected void configureProperties() throws Exception {
         if (!this.kafkaProperties.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
-            if(keyClass != null) {
+            if (keyClass != null) {
                 this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(keyClass));	
             } else {
                 // Kafka requires a key serializer to be specified, even if no
                 // key is going to be used. Setting the StringSerializer class.  
                 this.kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, getSerializer(String.class));
             }
+        }
+        // acks influences data integrity and has a good default value: '1' - no change
+        if (kafkaProperties.containsKey (ProducerConfig.ACKS_CONFIG)) {
+            final String acks = kafkaProperties.getProperty (ProducerConfig.ACKS_CONFIG);
+            if (acks.equals ("0")) {
+                logger.warn ("Producer property " + ProducerConfig.ACKS_CONFIG + " is set to '0'. "
+                        + "This value is not recommended at all. If set to zero then the producer "
+                        + "will not wait for any acknowledgment from the server at all. "
+                        + "The record will be immediately added to the socket buffer and considered sent. "
+                        + "No guarantee can be made that the server has received the record in this case, "
+                        + "and the retries configuration will not take effect (as the client won't "
+                        + "generally know of any failures).");
+            }
+        }
+        // compression.type
+        if (!kafkaProperties.containsKey (ProducerConfig.COMPRESSION_TYPE_CONFIG)) {
+            this.kafkaProperties.put (ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
+        }
+        // linger.ms
+        if (!kafkaProperties.containsKey (ProducerConfig.LINGER_MS_CONFIG)) {
+            this.kafkaProperties.put (ProducerConfig.LINGER_MS_CONFIG, "100");
+        }
+        // retries
+        if (!kafkaProperties.containsKey (ProducerConfig.RETRIES_CONFIG)) {
+            this.kafkaProperties.put (ProducerConfig.RETRIES_CONFIG, "10");
+        }
+        // max.in.flight.requests.per.connection
+        // when record order is to be kept and retries are enabled, max.in.flight.requests.per.connection must be 1
+        final long retries = Long.parseLong (this.kafkaProperties.getProperty (ProducerConfig.RETRIES_CONFIG).trim());
+        final String maxInFlightRequestsPerConWhenUnset = guaranteeOrdering && retries > 0l? "1": "10";
+        if (!kafkaProperties.containsKey (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION)) {
+            this.kafkaProperties.put (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequestsPerConWhenUnset);
+        }
+        else {
+            final long maxInFlightRequests = Long.parseLong (this.kafkaProperties.getProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION).trim());
+            if (guaranteeOrdering && maxInFlightRequests > 1l && retries > 0l) {
+                this.kafkaProperties.put (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+                logger.warn("producer config '" + ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION + "' has been turned to '1' for guaranteed retention of record order per topic partition.");
+            }
+        }
+        // batch.size
+        if (!kafkaProperties.containsKey (ProducerConfig.BATCH_SIZE_CONFIG)) {
+            this.kafkaProperties.put (ProducerConfig.BATCH_SIZE_CONFIG, "32768");
         }
 
         // add our metric reporter

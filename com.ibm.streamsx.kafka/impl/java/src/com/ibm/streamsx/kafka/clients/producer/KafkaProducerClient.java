@@ -1,8 +1,10 @@
 package com.ibm.streamsx.kafka.clients.producer;
 
+import java.text.MessageFormat;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -16,6 +18,8 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaMetricException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
+import com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener;
+import com.ibm.streamsx.kafka.clients.metrics.CustomMetricUpdateListener;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsFetcher;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsProvider;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -37,7 +41,57 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private MetricsFetcher metricsFetcher;
     protected final boolean guaranteeOrdering;
 
-    public <K, V> KafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
+    private MetricsMonitor metricsMonitor = new MetricsMonitor();
+
+    private Object flushLock = new Object();
+    private AtomicReference<MetricName> bufferAvailMName = new AtomicReference<>();
+    private AtomicReference<MetricName> outGoingByteRateMName = new AtomicReference<>();
+    private AtomicReference<MetricName> recordQueueTimeMaxMName = new AtomicReference<>();
+    private final long bufferSize;
+
+    /** monitors operator metrics by logging them on update **/
+    private class MetricsMonitor implements MetricsUpdatedListener {
+
+        private long recordQueueTimeMax = 0l;
+        private long outgoingByteRate = 0l;
+        private long recordsPerRequestAvg = 0l;
+        private long batchSizeAvg = 0l;
+        private long bufferAvailBytes = 0l;
+        private long recordQueueTimeAvg = 0l;
+        private long bufferPoolWaitTimeTotal = 0l;
+        private long requestRate = 0l;
+
+        public void setRecordQueueTimeMax (long v) { this.recordQueueTimeMax = v; }
+        public void setOutgoingByteRate (long v) { this.outgoingByteRate  = v; }
+        public void setRecordsPerRequestAvg (long v) { this.recordsPerRequestAvg = v; }
+        public void setBatchSizeAvg (long v) { this.batchSizeAvg = v; }
+        public void setBufferAvailBytes (long v) { this.bufferAvailBytes = v; }
+        public void setRecordQueueTimeAvg (long v) { this.recordQueueTimeAvg = v; }
+        public void setBufferPoolWaitTimeTotal (long v) { this.bufferPoolWaitTimeTotal = v; }
+        public void setRequestRate (long v) { this.requestRate = v; }
+
+        /**
+         * @see com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener#afterCustomMetricsUpdated()
+         */
+        @Override
+        public void afterCustomMetricsUpdated() {
+            if (logger.isInfoEnabled()) {
+                logger.info (MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotal= {7}",
+                        recordQueueTimeMax,
+                        recordQueueTimeAvg,
+                        outgoingByteRate,
+                        requestRate,
+                        recordsPerRequestAvg,
+                        batchSizeAvg,
+                        bufferAvailBytes,
+                        bufferPoolWaitTimeTotal));
+            }
+        }
+        @Override
+        public void beforeCustomMetricsUpdated() { }
+    }
+
+    public <K, V> KafkaProducerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             boolean guaranteeRecordOrder,
             KafkaOperatorProperties kafkaProperties) throws Exception {
         super (operatorContext, kafkaProperties, false);
@@ -48,6 +102,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         this.guaranteeOrdering = guaranteeRecordOrder;
 
         configureProperties();
+        bufferSize = this.kafkaProperties.getBufferMemory();
         createProducer();
     }
 
@@ -60,12 +115,64 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                 public Map<MetricName, ? extends Metric> getMetrics() {
                     return producer.metrics();
                 }
-
                 @Override
                 public String createCustomMetricName (MetricName metricName)  throws KafkaMetricException {
                     return ProducerMetricsReporter.createOperatorMetricName(metricName);
                 }
             }, ProducerMetricsReporter.getMetricsFilter(), METRICS_REPORT_INTERVAL);
+            metricsFetcher.registerUpdateListener (this.metricsMonitor);
+
+            metricsFetcher.registerUpdateListener("record-queue-time-max", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setRecordQueueTimeMax (value);
+                    recordQueueTimeMaxMName.compareAndSet (null, kafkaMetricName);
+                }
+            });
+            metricsFetcher.registerUpdateListener("outgoing-byte-rate", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setOutgoingByteRate (value);
+                    outGoingByteRateMName.compareAndSet (null, kafkaMetricName);
+                }
+            });
+            metricsFetcher.registerUpdateListener("records-per-request-avg", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setRecordsPerRequestAvg (value);
+                }
+            });
+            metricsFetcher.registerUpdateListener("batch-size-avg", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setBatchSizeAvg (value);
+                }
+            });
+            metricsFetcher.registerUpdateListener("buffer-available-bytes", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setBufferAvailBytes (value);
+                    bufferAvailMName.compareAndSet (null, kafkaMetricName);
+                }
+            });
+            metricsFetcher.registerUpdateListener ("record-queue-time-avg", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setRecordQueueTimeAvg (value);
+                }
+            });
+            metricsFetcher.registerUpdateListener ("bufferpool-wait-time-total", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setBufferPoolWaitTimeTotal (value);
+                }
+            });
+            metricsFetcher.registerUpdateListener ("request-rate", new CustomMetricUpdateListener() {
+                @Override
+                public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
+                    metricsMonitor.setRequestRate (value);
+                }
+            });
         }
     }
 
@@ -124,6 +231,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         }
 
         // add our metric reporter
+        this.kafkaProperties.put (ProducerConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "10000");
         if (kafkaProperties.containsKey (ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG)) {
             String propVal = kafkaProperties.getProperty (ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG);
             this.kafkaProperties.put (ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG, 
@@ -138,12 +246,60 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         }
     }
 
+    private final static long METRICS_CHECK_INTERVAL = 100;
+    private final static long MAX_QUEUE_TIME_SECONDS = 5;
+    private final static long INITIAL_Q_TIME_THRESHOLD_MS = MAX_QUEUE_TIME_SECONDS * 100l;
+    private long nRecords = 0l;
+    private long bufferUseThreshold = -1;
+    private double exponentiallySmoothedFlushTime = 0.0;
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
         if (sendException != null) {
             logger.error(Messages.getString("PREVIOUS_BATCH_FAILED_TO_SEND", sendException.getLocalizedMessage()), //$NON-NLS-1$
                     sendException);
             throw sendException;
+        }
+        synchronized (flushLock) {
+            if (++nRecords >= METRICS_CHECK_INTERVAL && 
+                    bufferAvailMName.get() != null && 
+                    outGoingByteRateMName.get() != null && 
+                    recordQueueTimeMaxMName.get() != null &&
+                    metricsFetcher.getCurrentValue (recordQueueTimeMaxMName.get()) > INITIAL_Q_TIME_THRESHOLD_MS) {
+
+                if (bufferUseThreshold == -1) {
+                    // estimate initial threshold
+                    long outGoingByteRate = metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
+                    // assume outgoing rate not below 10000 byte/s
+                    if (outGoingByteRate < 10000) outGoingByteRate = 10000;
+                    bufferUseThreshold = MAX_QUEUE_TIME_SECONDS * metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
+                }
+                long bufferUsed = bufferSize - metricsFetcher.getCurrentValue (bufferAvailMName.get());
+                if (bufferUsed >= bufferUseThreshold) {
+                    long before = System.currentTimeMillis();
+                    producer.flush();
+                    long after = System.currentTimeMillis();
+                    final double weightHistory = 0.5;   // must be between 0 and 1
+                    exponentiallySmoothedFlushTime = weightHistory * exponentiallySmoothedFlushTime + (1.0 -weightHistory) * (after - before);
+                    if (logger.isDebugEnabled()) {
+                        logger.debug (MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, after - before, exponentiallySmoothedFlushTime));
+                    }
+                    nRecords = 0;
+                    // time spent for flush() is also the maximum queue time for the last appended record.
+                    // difference of maximum queue time to flush time is used to adjust the threshold
+                    double deltaTMillis = 1000.0 * (double) MAX_QUEUE_TIME_SECONDS - exponentiallySmoothedFlushTime;
+                    double outGoingByteRatePerSecond = metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
+                    final long oldThreshold = bufferUseThreshold;
+                    bufferUseThreshold += (long) (0.5 * deltaTMillis * outGoingByteRatePerSecond /1000.0);
+                    // limit the threshold to [1024 ... buffer size]
+                    if (bufferUseThreshold > bufferSize) 
+                        bufferUseThreshold = bufferSize;
+                    else if (bufferUseThreshold < 1024)
+                        bufferUseThreshold = 1024;
+                    if (logger.isDebugEnabled()) {
+                        logger.debug (MessageFormat.format ("producer flush threshold adjusted from {0} to {1}", oldThreshold, bufferUseThreshold));
+                    }
+                }
+            }
         }
         return producer.send(record, callback);
     }
@@ -154,9 +310,11 @@ public class KafkaProducerClient extends AbstractKafkaClient {
      * 
      * @throws InterruptedException. If flush is interrupted, an InterruptedException is thrown.
      */
-    public synchronized void flush() {
-        logger.trace("Flusing..."); //$NON-NLS-1$
-        producer.flush();
+    public void flush() {
+        logger.trace("Flushing..."); //$NON-NLS-1$
+        synchronized (flushLock) {
+            producer.flush();
+        }
     }
 
     public void close() {

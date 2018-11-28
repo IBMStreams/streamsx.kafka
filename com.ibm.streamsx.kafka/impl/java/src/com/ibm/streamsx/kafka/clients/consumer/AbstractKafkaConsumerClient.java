@@ -145,6 +145,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         
         // add our metric reporter
+        this.kafkaProperties.put (ConsumerConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "10000");
         if (kafkaProperties.containsKey (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG)) {
             String propVal = kafkaProperties.getProperty (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG);
             this.kafkaProperties.put (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, 

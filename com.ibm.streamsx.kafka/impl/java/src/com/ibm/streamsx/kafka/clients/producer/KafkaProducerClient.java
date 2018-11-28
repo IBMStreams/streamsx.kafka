@@ -47,7 +47,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private AtomicReference<MetricName> bufferAvailMName = new AtomicReference<>();
     private AtomicReference<MetricName> outGoingByteRateMName = new AtomicReference<>();
     private AtomicReference<MetricName> recordQueueTimeMaxMName = new AtomicReference<>();
-    private final long bufferSize;
 
     /** monitors operator metrics by logging them on update **/
     private class MetricsMonitor implements MetricsUpdatedListener {
@@ -103,6 +102,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
         configureProperties();
         bufferSize = this.kafkaProperties.getBufferMemory();
+        maxBufSizeThresh = 100 * bufferSize / 90;
+        compressionEnabled = !this.kafkaProperties.getProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "none").trim().equalsIgnoreCase("none");
         createProducer();
     }
 
@@ -252,6 +253,9 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private long nRecords = 0l;
     private long bufferUseThreshold = -1;
     private double exponentiallySmoothedFlushTime = 0.0;
+    private final long bufferSize;
+    private final long maxBufSizeThresh;
+    private boolean compressionEnabled;
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
         if (sendException != null) {
@@ -271,7 +275,9 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                     long outGoingByteRate = metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
                     // assume outgoing rate not below 10000 byte/s
                     if (outGoingByteRate < 10000) outGoingByteRate = 10000;
-                    bufferUseThreshold = MAX_QUEUE_TIME_SECONDS * metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
+                    bufferUseThreshold = MAX_QUEUE_TIME_SECONDS * outGoingByteRate;
+                    if (bufferUseThreshold > maxBufSizeThresh) 
+                        bufferUseThreshold = maxBufSizeThresh;
                 }
                 long bufferUsed = bufferSize - metricsFetcher.getCurrentValue (bufferAvailMName.get());
                 if (bufferUsed >= bufferUseThreshold) {
@@ -279,7 +285,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                     producer.flush();
                     long after = System.currentTimeMillis();
                     final double weightHistory = 0.5;   // must be between 0 and 1
-                    exponentiallySmoothedFlushTime = weightHistory * exponentiallySmoothedFlushTime + (1.0 -weightHistory) * (after - before);
+                    exponentiallySmoothedFlushTime = weightHistory * exponentiallySmoothedFlushTime + (1.0 - weightHistory) * (after - before);
                     if (logger.isDebugEnabled()) {
                         logger.debug (MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, after - before, exponentiallySmoothedFlushTime));
                     }
@@ -287,12 +293,13 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                     // time spent for flush() is also the maximum queue time for the last appended record.
                     // difference of maximum queue time to flush time is used to adjust the threshold
                     double deltaTMillis = 1000.0 * (double) MAX_QUEUE_TIME_SECONDS - exponentiallySmoothedFlushTime;
+                    if (compressionEnabled) deltaTMillis *= 1.8;
                     double outGoingByteRatePerSecond = metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
                     final long oldThreshold = bufferUseThreshold;
                     bufferUseThreshold += (long) (0.5 * deltaTMillis * outGoingByteRatePerSecond /1000.0);
                     // limit the threshold to [1024 ... buffer size]
-                    if (bufferUseThreshold > bufferSize) 
-                        bufferUseThreshold = bufferSize;
+                    if (bufferUseThreshold > maxBufSizeThresh) 
+                        bufferUseThreshold = maxBufSizeThresh;
                     else if (bufferUseThreshold < 1024)
                         bufferUseThreshold = 1024;
                     if (logger.isDebugEnabled()) {

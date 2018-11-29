@@ -262,6 +262,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         });
         eventThread.setDaemon(false);
         eventThread.start();
+        // wait for consumer thread to be running before returning
+        consumerInitLatch.await();
         if (this.metricsFetcher == null) {
             this.metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
                 
@@ -274,10 +276,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 public String createCustomMetricName (MetricName metricName) throws KafkaMetricException {
                     return ConsumerMetricsReporter.createOperatorMetricName (metricName);
                 }
-            }, ConsumerMetricsReporter.getMetricsFilter(), METRICS_REPORT_INTERVAL);
+            }, ConsumerMetricsReporter.getMetricsFilter(), AbstractKafkaClient.METRICS_REPORT_INTERVAL);
         }
-        // wait for consumer thread to be running before returning
-        consumerInitLatch.await();
         if (initializationException != null)
             throw new KafkaClientInitializationException (initializationException.getLocalizedMessage(), initializationException);
     }

@@ -43,11 +43,20 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
     private MetricsMonitor metricsMonitor = new MetricsMonitor();
 
+    // members for queue time monitoring 
+    private final static long METRICS_CHECK_INTERVAL = 50;
+    private final static long TARGET_MAX_QUEUE_TIME_MS = 5000;
+    private final static long INITIAL_Q_TIME_THRESHOLD_MS = TARGET_MAX_QUEUE_TIME_MS / 10l;
     private Object flushLock = new Object();
     private AtomicReference<MetricName> bufferAvailMName = new AtomicReference<>();
     private AtomicReference<MetricName> outGoingByteRateMName = new AtomicReference<>();
     private AtomicReference<MetricName> recordQueueTimeMaxMName = new AtomicReference<>();
-    private AtomicReference<MetricName> recordQueueTimeAvgMName = new AtomicReference<>();
+    private long nRecords = 0l;
+    private long bufferUseThreshold = -1;
+    private double expSmoothedFlushDurationMs = 0.0;
+    private final long bufferSize;
+    private final long maxBufSizeThresh;
+    private boolean compressionEnabled;
 
     /** monitors operator metrics by logging them on update **/
     private class MetricsMonitor implements MetricsUpdatedListener {
@@ -121,7 +130,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                 public String createCustomMetricName (MetricName metricName)  throws KafkaMetricException {
                     return ProducerMetricsReporter.createOperatorMetricName(metricName);
                 }
-            }, ProducerMetricsReporter.getMetricsFilter(), METRICS_REPORT_INTERVAL);
+            }, ProducerMetricsReporter.getMetricsFilter(), AbstractKafkaClient.METRICS_REPORT_INTERVAL);
             metricsFetcher.registerUpdateListener (this.metricsMonitor);
 
             metricsFetcher.registerUpdateListener("record-queue-time-max", new CustomMetricUpdateListener() {
@@ -161,7 +170,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                 @Override
                 public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
                     metricsMonitor.setRecordQueueTimeAvg (value);
-                    recordQueueTimeAvgMName.compareAndSet (null, kafkaMetricName);
                 }
             });
             metricsFetcher.registerUpdateListener ("bufferpool-wait-time-total", new CustomMetricUpdateListener() {
@@ -249,15 +257,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         }
     }
 
-    private final static long METRICS_CHECK_INTERVAL = 100;
-    private final static long MAX_QUEUE_TIME_SECONDS = 5;
-    private final static long INITIAL_Q_TIME_THRESHOLD_MS = MAX_QUEUE_TIME_SECONDS * 100l;
-    private long nRecords = 0l;
-    private long bufferUseThreshold = -1;
-    private double exponentiallySmoothedFlushTime = 0.0;
-    private final long bufferSize;
-    private final long maxBufSizeThresh;
-    private boolean compressionEnabled;
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
         if (sendException != null) {
@@ -270,48 +269,50 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                     bufferAvailMName.get() != null && 
                     outGoingByteRateMName.get() != null && 
                     recordQueueTimeMaxMName.get() != null &&
-                    recordQueueTimeAvgMName.get() != null &&
                     metricsFetcher.getCurrentValue (recordQueueTimeMaxMName.get()) > INITIAL_Q_TIME_THRESHOLD_MS) {
 
                 if (bufferUseThreshold == -1) {
                     // estimate initial threshold
                     long outGoingByteRate = metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
-                    // assume outgoing rate not below 10000 byte/s
-                    if (outGoingByteRate < 10000) outGoingByteRate = 10000;
-                    bufferUseThreshold = MAX_QUEUE_TIME_SECONDS * outGoingByteRate;
-                    if (bufferUseThreshold > maxBufSizeThresh) 
+                    // assume outgoing rate not below 5000 byte/s
+                    if (outGoingByteRate < 5000) outGoingByteRate = 5000;
+                    bufferUseThreshold = TARGET_MAX_QUEUE_TIME_MS * outGoingByteRate / 1000;
+                    if (bufferUseThreshold > maxBufSizeThresh)
                         bufferUseThreshold = maxBufSizeThresh;
+                    if (logger.isDebugEnabled()) {
+                        logger.debug (MessageFormat.format ("producer flush threshold initialized with {0}", bufferUseThreshold));
+                    }
                 }
                 long bufferUsed = bufferSize - metricsFetcher.getCurrentValue (bufferAvailMName.get());
                 if (bufferUsed >= bufferUseThreshold) {
                     long before = System.currentTimeMillis();
                     producer.flush();
                     long after = System.currentTimeMillis();
-                    final double weightHistory = 0.5;   // must be between 0 and 1
-                    exponentiallySmoothedFlushTime = weightHistory * exponentiallySmoothedFlushTime + (1.0 - weightHistory) * (after - before);
-                    if (logger.isInfoEnabled()) {
-                        logger.info (MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, after - before, exponentiallySmoothedFlushTime));
+                    final double weightHistory = 0.5;   // must be between 0 and 1 for exponential smoothing
+                    expSmoothedFlushDurationMs = weightHistory * expSmoothedFlushDurationMs + (1.0 - weightHistory) * (after - before);
+                    if (logger.isDebugEnabled()) {
+                        logger.debug (MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, after - before, expSmoothedFlushDurationMs));
                     }
                     nRecords = 0;
-                    // time spent for flush() is also the maximum queue time for the last appended record.
+                    // time spent for flush() is approximately the maximum queue time for the last appended record.
                     // difference of maximum queue time to flush time is used to adjust the threshold
-                    double deltaTMillis = 1000.0 * (double) MAX_QUEUE_TIME_SECONDS - exponentiallySmoothedFlushTime * (compressionEnabled? 1.8: 1.0);
-//                    deltaTMillis = 1000.0 * MAX_QUEUE_TIME_SECONDS - metricsFetcher.getCurrentValue (recordQueueTimeAvgMName.get());
+                    double deltaTMillis = 1.0 * (double) TARGET_MAX_QUEUE_TIME_MS - expSmoothedFlushDurationMs * (compressionEnabled? 1.5: 1.0);
                     double outGoingByteRatePerSecond = metricsFetcher.getCurrentValue (outGoingByteRateMName.get());
                     final long oldThreshold = bufferUseThreshold;
+                    // integrate only the half to avoid overshooting or instability of threshold
                     bufferUseThreshold += (long) (0.5 * deltaTMillis * outGoingByteRatePerSecond /1000.0);
-                    // limit the threshold to [1024 ... buffer size]
+                    // limit the threshold to [1024 ... 90 % of buffer size]
                     if (bufferUseThreshold > maxBufSizeThresh) 
                         bufferUseThreshold = maxBufSizeThresh;
                     else if (bufferUseThreshold < 1024)
                         bufferUseThreshold = 1024;
-                    if (logger.isInfoEnabled()) {
-                        logger.info (MessageFormat.format ("producer flush threshold adjusted from {0} to {1}", oldThreshold, bufferUseThreshold));
+                    if (logger.isDebugEnabled()) {
+                        logger.debug (MessageFormat.format ("producer flush threshold adjusted from {0} to {1}", oldThreshold, bufferUseThreshold));
                     }
                 }
             }
         }
-        return producer.send(record, callback);
+        return producer.send (record, callback);
     }
 
     /**

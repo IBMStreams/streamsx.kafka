@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.6.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.5.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
 
 </div>
 
@@ -61,13 +61,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d10811e98">
+<th class="entry" colspan="1" valign="top" id="d10102e98">
 <p class="p">Property name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d10811e104">
+<th class="entry" colspan="1" valign="top" id="d10102e104">
 <p class="p">Default Value
 </p>
 
@@ -79,13 +79,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e98 ">
 <p class="p">client.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e104 ">
 <p class="p">Generated ID in the form: <tt class="ph tt">C-J&lt;JobId&gt;-&lt;operator name&gt;</tt>
 </p>
 
@@ -94,13 +94,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e98 ">
 <p class="p">key.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e104 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -109,13 +109,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e98 ">
 <p class="p">value.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e104 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -124,103 +124,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">acks
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p">adjusted to <tt class="ph tt">all</tt> when this property is provided and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">retries
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p"><tt class="ph tt">10</tt>. When <tt class="ph tt">0</tt> is provided as <strong class="ph b">retries</strong> and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt> <strong class="ph b">retries</strong> is adjusted to <tt class="ph tt">1</tt>.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">compression.type
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p"><tt class="ph tt">lz4</tt>
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">linger.ms
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p"><tt class="ph tt">100</tt>
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">batch.size
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p"><tt class="ph tt">32768</tt>
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">max.in.flight.requests.per.connection
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p"><tt class="ph tt">1</tt> when <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, limited to <tt class="ph tt">5</tt> when provided and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>, or <tt class="ph tt">10</tt> in all other cases.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e98 ">
 <p class="p">enable.idempotence
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e104 ">
 <p class="p"><tt class="ph tt">true</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
@@ -229,13 +139,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e98 ">
 <p class="p">transactional.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e104 ">
 <p class="p">Randomly generated ID in the form: <tt class="ph tt">tid-&lt;random_string&gt;</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
@@ -244,44 +154,14 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e98 ">
 <p class="p">transaction.timeout.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e104 ">
 <p class="p">adjusted to a minimum of <tt class="ph tt">drain timeout + 120000 milliseconds</tt>, but not greater than <tt class="ph tt">900000</tt>. Adjusted only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">metric.reporters
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p">added to provided reporters: <tt class="ph tt">com.ibm.streamsx.kafka.clients.producer.ProducerMetricsReporter</tt>
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e98 ">
-<p class="p">metrics.sample.window.ms
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e104 ">
-<p class="p">adjusted to <tt class="ph tt">10000</tt>
 </p>
 
 </td>
@@ -321,13 +201,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d10811e476">
+<th class="entry" colspan="1" valign="top" id="d10102e292">
 <p class="p">Serializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d10811e482">
+<th class="entry" colspan="1" valign="top" id="d10102e298">
 <p class="p">SPL Types
 </p>
 
@@ -339,13 +219,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e476 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e292 ">
 <p class="p">org.apache.kafka.common.serialization.StringSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e482 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e298 ">
 <p class="p">rstring
 </p>
 
@@ -354,13 +234,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e476 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e292 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e482 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e298 ">
 <p class="p">int32, uint32
 </p>
 
@@ -369,13 +249,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e476 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e292 ">
 <p class="p">org.apache.kafka.common.serialization.LongSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e482 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e298 ">
 <p class="p">int64, uint64
 </p>
 
@@ -384,13 +264,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e476 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e292 ">
 <p class="p">org.apache.kafka.common.serialization.FloatSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e482 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e298 ">
 <p class="p">float32
 </p>
 
@@ -399,13 +279,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e476 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e292 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e482 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e298 ">
 <p class="p">float64
 </p>
 
@@ -414,350 +294,14 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e476 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e292 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d10811e482 ">
+<td class="entry" colspan="1" valign="top" headers="d10102e298 ">
 <p class="p">blob
-</p>
-
-</td>
-
-</tr>
-
-</tbody>
-
-</table>
-</div>
-
-</div>
-
-</div>
-
-<div class="section"><h2 class="title sectiontitle">Following metrics created by the Kafka producer client are exposed as custom metrics:
-</h2>
-
-<div class="p">
-
-<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
-
-
-<thead class="thead" align="left">
-<tr class="row">
-<th class="entry" colspan="1" valign="top" id="d10811e607">
-<p class="p">Custom Metric
-</p>
-
-</th>
-
-<th class="entry" colspan="1" valign="top" id="d10811e613">
-<p class="p">Description
-</p>
-
-</th>
-
-</tr>
-
-</thead>
-
-<tbody class="tbody">
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">connection-count
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The current number of active connections.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">compression-rate-avg
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average compression rate of record batches (as percentage, 100 means no compression).
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p"><em class="ph i">topic</em>:compression-rate
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average compression rate of record batches for a topic (as percentage, 100 means no compression).
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">record-queue-time-avg
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average time in ms record batches spent in the send buffer.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">record-queue-time-max
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The maximum time in ms record batches spent in the send buffer.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">record-send-rate
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average number of records sent per second.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">record-retry-total
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The total number of retried record sends
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p"><em class="ph i">topic</em>:record-send-total
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The total number of records sent for a topic.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p"><em class="ph i">topic</em>:record-retry-total
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The total number of retried record sends for a topic
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p"><em class="ph i">topic</em>:record-error-total
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The total number of record sends that resulted in errors for a topic
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">records-per-request-avg
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average number of records per request.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">requests-in-flight
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The current number of in-flight requests awaiting a response.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">request-rate
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The number of requests sent per second
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">request-size-avg
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average size of requests sent.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">request-latency-avg
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average request latency in ms
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">request-latency-max
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The maximum request latency in ms
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">batch-size-avg
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The average number of bytes sent per partition per-request.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">outgoing-byte-rate
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The number of outgoing bytes sent to all servers per second
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">bufferpool-wait-time-total
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The total time an appender waits for space allocation.
-</p>
-
-</td>
-
-</tr>
-
-<tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d10811e607 ">
-<p class="p">buffer-available-bytes
-</p>
-
-</td>
-
-<td class="entry" colspan="1" valign="top" headers="d10811e613 ">
-<p class="p">The total amount of buffer memory that is not being used (either unallocated or in the free list).
 </p>
 
 </td>
@@ -846,9 +390,9 @@
  
   <dt class="dt dlterm">Parameters</dt>
 
-  <dd class="dd">This operator supports 12 parameters.
+  <dd class="dd">This operator supports 11 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 </dd>
@@ -920,9 +464,9 @@
 
 <div class="section">
 <p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
-This operator supports 12 parameters.
+This operator supports 11 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 <dl class="dl">
@@ -1022,40 +566,6 @@ This operator supports 12 parameters.
      </li>
 
      <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: CustomLiteral
-     </li>
-
-  </ul>
-
- </dd>
-
-
-</dl>
-
-</dd>
-
-
-
-<dt class="dt dlterm"><a name="spldoc_operator__parameter__guaranteeOrdering"><!-- --></a><tt class="ph tt">guaranteeOrdering</tt></dt>
-
-<dd class="dd">
-<p class="p">If set to true, the operator guarantees that the order of records within a topic partition is the same as the order of processed tuples when it comes to retries. This implies that the operator sets the <tt class="ph tt">max.in.flight.requests.per.connection</tt> producer property automatically to 1 if retries are enabled, i.e. when the <tt class="ph tt">retries</tt> property is unequal 0, what is the operator default value.
-</p>
-
-<p class="p">If unset, the default value of this parameter is <tt class="ph tt">false</tt>, which means that the order can change due to retries.
-</p>
-<dl class="dl">
-
- <dt class="dt dlterm">Properties </dt>
-
- <dd class="dd">
-  <ul class="sl simple">
-  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: boolean
-  </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
-     </li>
-
-     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
      </li>
 
   </ul>

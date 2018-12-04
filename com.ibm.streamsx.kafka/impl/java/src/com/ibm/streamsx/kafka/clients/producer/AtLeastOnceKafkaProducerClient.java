@@ -20,8 +20,8 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
     private List<Future<RecordMetadata>> futuresList;
     
     public <K, V> AtLeastOnceKafkaProducerClient(OperatorContext operatorContext, Class<?> keyType,
-            Class<?> messageType, KafkaOperatorProperties props) throws Exception {
-        super(operatorContext, keyType, messageType, props);
+            Class<?> messageType, boolean guaranteeOrdering, KafkaOperatorProperties props) throws Exception {
+        super(operatorContext, keyType, messageType, guaranteeOrdering, props);
         logger.debug("AtLeastOnceKafkaProducerClient starting...");
         
         this.futuresList = Collections.synchronizedList(new ArrayList<Future<RecordMetadata>>());

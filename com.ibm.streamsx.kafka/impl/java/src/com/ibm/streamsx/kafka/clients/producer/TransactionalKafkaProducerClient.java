@@ -32,8 +32,8 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     private AtomicBoolean transactionInProgress = new AtomicBoolean (false);
 
     public <K, V> TransactionalKafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties, boolean lazyTransactionBegin) throws Exception {
-        super(operatorContext, keyClass, valueClass, kafkaProperties);
+            boolean guaranteeOrdering, KafkaOperatorProperties kafkaProperties, boolean lazyTransactionBegin) throws Exception {
+        super(operatorContext, keyClass, valueClass, guaranteeOrdering, kafkaProperties);
         logger.debug("ExaxtlyOnceKafkaProducerClient starting...");
         this.lazyTransactionBegin = lazyTransactionBegin;
         // If this variable has not been set before, then set it to the current end offset.
@@ -66,21 +66,66 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         if (kafkaProperties.containsKey (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG)) {
             long propValue = Long.valueOf (kafkaProperties.getProperty (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG));
             if (propValue < minTransactionTimeout) {
-                this.kafkaProperties.put (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, "" + minTransactionTimeout);
+                this.kafkaProperties.setProperty (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, "" + minTransactionTimeout);
                 logger.warn (MessageFormat.format ("producer config ''{0}'' has been increased from {1} to {2}.",
                         ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, propValue, minTransactionTimeout));
             }
         }
         else {
-            this.kafkaProperties.put (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, "" + minTransactionTimeout);
-            logger.info (MessageFormat.format ("producer config ''{0}'' has been set to {1}.", ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, minTransactionTimeout));
+            this.kafkaProperties.setProperty (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, "" + minTransactionTimeout);
         }
 
         // The "enable.idempotence" property is required in order to guarantee idempotence
-        this.kafkaProperties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
-
+        this.kafkaProperties.setProperty (ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
+        // --- begin adjustment for enable.idempotence = true
+        // Note that enabling idempotence requires max.in.flight.requests.per.connection 
+        // to be less than or equal to 5, retries to be greater than 0 and acks must be 'all'.
+        if (kafkaProperties.containsKey (ProducerConfig.ACKS_CONFIG)) {
+            final String acks =  kafkaProperties.getProperty (ProducerConfig.ACKS_CONFIG);
+            if (!(acks.equals("all") || acks.equals("-1"))) {
+                logger.warn (MessageFormat.format ("producer config ''{0}'' has been changed from {1} to {2} for enable.idempotence=true.",
+                        ProducerConfig.ACKS_CONFIG, acks, "all"));
+                this.kafkaProperties.setProperty (ProducerConfig.ACKS_CONFIG, "all");
+            }
+        }
+        else this.kafkaProperties.setProperty (ProducerConfig.ACKS_CONFIG, "all");
+        if (kafkaProperties.containsKey (ProducerConfig.RETRIES_CONFIG)) {
+            final long retries =  Long.parseLong (kafkaProperties.getProperty (ProducerConfig.RETRIES_CONFIG).trim());
+            if (retries < 1l) {
+                logger.warn (MessageFormat.format ("producer config ''{0}'' has been changed from {1} to {2} for enable.idempotence=true.",
+                        ProducerConfig.RETRIES_CONFIG, retries, "1"));
+                this.kafkaProperties.setProperty (ProducerConfig.RETRIES_CONFIG, "1");
+            }
+        }
+        // we have enabled retries for idempotence.
+        // This requires max.in.flight.requests.per.connection = 1 when guaranteeOrdering is true.
+        if (kafkaProperties.containsKey (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION)) {
+            final long maxInFlightRequests = Long.parseLong (kafkaProperties.getProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION).trim());
+            if (guaranteeOrdering && maxInFlightRequests > 1) {
+                // we ensured that retries is > 0 for idempotence.
+                // max.in.flight.requests.per.connection must be 1 to guarantee record sequence
+                final String val = "1";
+                logger.warn (MessageFormat.format ("producer config ''{0}'' has been reduced from {1} to {2} for for guaranteed retention of record order per topic partition when retries > 0.",
+                        ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, val));
+                this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, val);
+            } else if (maxInFlightRequests > 5l) {
+                final String val = "5";
+                logger.warn (MessageFormat.format ("producer config ''{0}'' has been reduced from {1} to {2} for enable.idempotence=true.",
+                        ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, val));
+                this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, val);
+            }
+        }
+        else {
+            // property not set:
+            if (guaranteeOrdering) {
+                // we ensured that retries is > 0 for idempotence.
+                // max.in.flight.requests.per.connection must be 1 to guarantee record sequence
+                this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
+            }
+        }
+        // --- end adjustment for enable.idempotence = true
         // The "transactional.id" property is mandatory in order to support transactions.
-        this.kafkaProperties.setProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
+        this.kafkaProperties.setProperty (ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
     }
 
     public String getTransactionalId() {

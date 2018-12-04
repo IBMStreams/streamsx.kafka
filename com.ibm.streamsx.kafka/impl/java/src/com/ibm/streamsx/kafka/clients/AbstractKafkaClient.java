@@ -31,6 +31,7 @@ import com.ibm.streamsx.kafka.serialization.StringDeserializerExt;
 public abstract class AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaClient.class);
+    protected static final long METRICS_REPORT_INTERVAL = 2_000;
 
     private final String clientId;
     private boolean clientIdGenerated = false;

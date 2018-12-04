@@ -40,6 +40,14 @@ public class KafkaOperatorProperties extends Properties {
     /*
      * Convenience methods
      */
+    /**
+     * Gets the 'buffer.memory' config or the default value of 33554432
+     * @return the total buffer memory in bytes
+     */
+    public long getBufferMemory() {
+        return Long.parseLong (getProperty (ProducerConfig.BUFFER_MEMORY_CONFIG, "33554432").trim());
+    }
+    
     public String getBootstrapServers() {
         return getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG);
     }

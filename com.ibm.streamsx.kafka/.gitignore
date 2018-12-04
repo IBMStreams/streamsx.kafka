@@ -5,6 +5,7 @@
 impl/lib
 build
 com.ibm.streamsx.kafka/*
+!com.ibm.streamsx.kafka/Types.spl
 !com.ibm.streamsx.kafka/Functions.spl
 !com.ibm.streamsx.kafka/namespace-info.spl
 opt

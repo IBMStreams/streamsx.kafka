@@ -76,7 +76,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
     public static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
 
-    private static final int DEFAULT_COMMIT_COUNT = 500;
+    private static final int DEFAULT_COMMIT_COUNT = 2000;
 
     private Thread processThread;
     private ConsumerClient consumer;

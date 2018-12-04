@@ -1,0 +1,65 @@
+namespace com.ibm.streamsx.kafka;
+
+/**
+ * Defines Message types with default attribute names and types.
+ */
+public composite MessageType {
+    type
+        /**
+         * This type represents a message with `message` and `key` attribute, both being `rstring`.
+         * The type can be used for consumed messages and messages to be produced.
+         * 
+         * Example use:
+         *     // messages get de-serialized into rstring
+         *     stream <MessageType.StringMessage> ReceivedMessages = KafkaConsumer() {
+         *         param
+         *             topic: "myTopic";
+         *             groupId: "consumerGroup1";
+         *             propertiesFile: "etc/consumer.properties";
+         *     }
+         */
+        static StringMessage = rstring message, rstring key;
+
+        /**
+         * This type represents a message with `message` attribute of type `blob` and `key` attribute with SPL type `rstring`.
+         * The type can be used for consumed messages or messages to be produced.
+         * 
+         * Example use:
+         * 
+         *     // messages get de-serialized into blob
+         *     stream <MessageType.BlobMessage> ReceivedMessages = KafkaConsumer() {
+         *         param
+         *             topic: "myTopic";
+         *             groupId: "consumerGroup1";
+         *             propertiesFile: "etc/consumer.properties";
+         *     }
+         */
+        static BlobMessage = blob message, rstring key;
+        
+        /**
+         * This type represents the meta data of a received message.
+         * 
+         * It consists of following attributes:
+         * * topic (rstring)
+         * * partition (int32)
+         * * offset (int64)
+         * * messageTimestamp (int64) - milliseconds since Unix Epoch
+         * 
+         * Example Use:
+         * 
+         *     stream <MessageType.BlobMessage, MessageType.ConsumerMessageMetadata> ReceivedMessages = KafkaConsumer() {
+         *         param
+         *             topic: "myTopic";
+         *             groupId: "consumerGroup1";
+         *             propertiesFile: "etc/consumer.properties";
+         *     }
+         * 
+         */
+        static ConsumerMessageMetadata = rstring topic, int32 partition, int64 offset, int64 messageTimestamp;
+        
+        /**
+         * This type represents a topic and a partition number. It can be used to store meta data of received messages
+         * and to specify the topic and partition number of messages to be published (produced).
+         */
+        static TopicPartition = rstring topic, int32 partition;
+}

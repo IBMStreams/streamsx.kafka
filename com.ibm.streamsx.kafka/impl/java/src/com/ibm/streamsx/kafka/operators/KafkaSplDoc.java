@@ -62,7 +62,7 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| incoming-byte-rate | The number of bytes read off all sockets per second |\\n"
             + "|---|\\n"
-            + "| *topic*-*partition*:records-lag | The latest lag of the partition |\\n"
+            + "| *topic*-*partition*:records-lag | The latest lag of the specific partition. A value of `-1` indicates that the metric is not applicable to the operator. |\\n"
             + "|---|\\n"
             + "| records-lag-max | The maximum lag in terms of number of records for any partition in this window |\\n"
             + "|---|\\n"

@@ -25,6 +25,8 @@ import com.ibm.streamsx.kafka.KafkaMetricException;
  */
 public abstract class AbstractCustomMetricReporter implements MetricsReporter {
 
+    /** value for a metric that is not applicable (any more) */
+    private static final long METRIC_NOT_APPLICABLE = -1l;
     private static final Logger trace = Logger.getLogger (AbstractCustomMetricReporter.class);
     private OperatorContext operatorCtx = PERuntime.getCurrentContext();
 
@@ -76,6 +78,13 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
         }
     }
 
+    /**
+     * Creates the name of an operator custom metric from Metric name within the Kafka library.
+     * This method must be overwritten by subclasses.
+     * @param metricName  Kafka's metric name
+     * @return            the metric name of the operator metric
+     * @throws KafkaMetricException
+     */
     public abstract String createCustomMetricName (MetricName metricName) throws KafkaMetricException;
 
     /**
@@ -97,19 +106,38 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
             operatorMetrics.getCustomMetric(customMetricName).setValue(getFilter().getConverter(metric).convert(metric.metricValue()));
             trace.info ("custom metric created: " + customMetricName + " (" + metricName.description() + ")");
         } catch (KafkaMetricException e) {
-            trace.warn ("Cannot create custom metric from Kafka producer metric '" + metricName + "': " + e.getLocalizedMessage());
+            trace.warn ("Cannot create custom metric from Kafka metric '" + metricName + "': " + e.getLocalizedMessage());
         }
     }
 
 
     /**
-     * This is called whenever a metric is removed
-     * @param metric
+     * This is called whenever a metric is removed.
+     * It sets the value of the corresponding operator metric,
+     * if there is one, to {@value #METRIC_NOT_APPLICABLE} as custom metrics cannot be deleted from operators.
+     * 
+     * @param metric The metric that is removed from Kafka
      */
     @Override
     public void metricRemoval (KafkaMetric metric) {
-        trace.debug ("metricRemoval(): " + metric.metricName());
-        // No way to remove custom metrics from the operator context
+        trace.info ("metricRemoval(): " + metric.metricName());
+        synchronized (this) {
+            if (getFilter().apply (metric)) {
+                final MetricName metricName = metric.metricName();
+                try {
+                    final String customMetricName = createCustomMetricName (metricName);
+                    OperatorMetrics operatorMetrics = operatorCtx.getMetrics();
+                    if (operatorMetrics.getCustomMetrics().containsKey (customMetricName)) {
+                        operatorMetrics.getCustomMetric(customMetricName).setValue (METRIC_NOT_APPLICABLE);
+                    }
+                } catch (KafkaMetricException e) {
+                    trace.warn ("Cannot derive custom metric from Kafka metric '" + metricName + "': " + e.getLocalizedMessage());
+                }
+            }
+            else {
+                trace.debug ("Kafka metric NOT exposed as custom metric: " + metric.metricName());
+            }
+        }
     }
 
     /**

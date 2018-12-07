@@ -35,7 +35,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
 
     private static final Logger logger = Logger.getLogger(NonCrKafkaConsumerClient.class);
 
-    private boolean autoCommitEnabled;
     private long commitCount = 500l; 
     private long nSubmittedRecords = 0l;
     private OffsetManager offsetManager = null;
@@ -60,18 +59,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
             throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' is used in a consistent region. This consumer client implementation (" 
                     + this.getClass() + ") does not support CR.");
         }
-         // if not explicitly configured, disable auto commit
-        // TODO: remove this code; auto commit is always disabled by consumer base class
-        if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
-            autoCommitEnabled = kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true");
+
+        // Test for enable.auto.commit -- should always be set to false by a base class.
+        if (!kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG) || kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
+            throw new KafkaConfigurationException ("enable.auto.commit is unset (defaults to true) or has the value true. It must be false.");
         }
-        else {
-            kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-            autoCommitEnabled = false;
-        }
-        if (!autoCommitEnabled) {
-            offsetManager = new OffsetManager ();
-        }
+        offsetManager = new OffsetManager ();
         // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
         if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
             String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
@@ -104,13 +97,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      */
     @Override
     protected void validate() throws Exception {
-        if (autoCommitEnabled) {
-            logger.warn (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + " is 'true'. 'commitCount' parameter - id set - is ignored.");
-        }
-        else {
-            if (commitCount <= 0) {
-                throw new KafkaConfigurationException (Messages.getString ("INVALID_PARAMETER_VALUE_GT", new Integer(0)));
-            }
+        if (commitCount <= 0) {
+            throw new KafkaConfigurationException (Messages.getString ("INVALID_PARAMETER_VALUE_GT", new Integer(0)));
         }
     }
 
@@ -224,22 +212,19 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
         getAssignedPartitions().clear();
         getAssignedPartitions().addAll(partitions);
         nAssignedPartitions.setValue(partitions.size());
-        // When auto-commit is disabled and the assigned partitions change, 
+        // When the assigned partitions change, 
         // we should remove the messages from the revoked partitions from the message queue.
-        // The queue contains only uncommitted messages in this case.
-        // With auto-commit enabled, the message queue can also contain committed messages - do not remove!
-        if (!autoCommitEnabled) {
-            Set<TopicPartition> gonePartitions = new HashSet<>(previousAssignment);
-            gonePartitions.removeAll(partitions);
-            logger.info("topic partitions that are not assigned anymore: " + gonePartitions);
-            if (!gonePartitions.isEmpty()) {
-                logger.info("removing consumer records from gone partitions from message queue");
-                getMessageQueue().removeIf(queuedRecord -> belongsToPartition (queuedRecord, gonePartitions));
-                // remove the topic partition also from the offset manager
-                synchronized (offsetManager) {
-                    for (TopicPartition tp: gonePartitions) {
-                        offsetManager.remove(tp.topic(), tp.partition());
-                    }
+        // The queue contains only uncommitted messages.
+        Set<TopicPartition> gonePartitions = new HashSet<>(previousAssignment);
+        gonePartitions.removeAll(partitions);
+        logger.info("topic partitions that are not assigned anymore: " + gonePartitions);
+        if (!gonePartitions.isEmpty()) {
+            logger.info("removing consumer records from gone partitions from message queue");
+            getMessageQueue().removeIf(queuedRecord -> belongsToPartition (queuedRecord, gonePartitions));
+            // remove the topic partition also from the offset manager
+            synchronized (offsetManager) {
+                for (TopicPartition tp: gonePartitions) {
+                    offsetManager.remove(tp.topic(), tp.partition());
                 }
             }
         }
@@ -307,7 +292,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      */
     @Override
     public void postSubmit (ConsumerRecord<?, ?> submittedRecord) {
-        if (autoCommitEnabled) return;
         // collect submitted offsets per topic partition for periodic commit.
         try {
             synchronized (offsetManager) {

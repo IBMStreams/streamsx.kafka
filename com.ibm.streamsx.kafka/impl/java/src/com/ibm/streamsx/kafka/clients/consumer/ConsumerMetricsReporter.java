@@ -84,7 +84,7 @@ group=kafka-metrics-count,
     /**
      * Creates a name for a operator custom metric.
      * The name is topic + ":" + metricName.name() for metrics that have a topic tag 
-     * or only the kafka metric name, where '.' is reeplaced by ':'.
+     * or only the kafka metric name, where '.' is replaced by ':'.
      * @param metricName
      * @return The name of a the corresponding operator custom metric
      * @throws KafkaMetricException

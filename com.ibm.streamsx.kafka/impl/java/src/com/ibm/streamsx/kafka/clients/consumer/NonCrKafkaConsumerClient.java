@@ -15,6 +15,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.RoundRobinAssignor;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
@@ -35,7 +36,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
 
     private static final Logger logger = Logger.getLogger(NonCrKafkaConsumerClient.class);
 
-    private boolean autoCommitEnabled;
     private long commitCount = 500l; 
     private long nSubmittedRecords = 0l;
     private OffsetManager offsetManager = null;
@@ -60,18 +60,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
             throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' is used in a consistent region. This consumer client implementation (" 
                     + this.getClass() + ") does not support CR.");
         }
-         // if not explicitly configured, disable auto commit
-        // TODO: remove this code; auto commit is always disabled by consumer base class
-        if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
-            autoCommitEnabled = kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true");
+
+        // Test for enable.auto.commit -- should always be set to false by a base class.
+        if (!kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG) || kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
+            throw new KafkaConfigurationException ("enable.auto.commit is unset (defaults to true) or has the value true. It must be false.");
         }
-        else {
-            kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-            autoCommitEnabled = false;
-        }
-        if (!autoCommitEnabled) {
-            offsetManager = new OffsetManager ();
-        }
+        offsetManager = new OffsetManager ();
         // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
         if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
             String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
@@ -104,13 +98,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      */
     @Override
     protected void validate() throws Exception {
-        if (autoCommitEnabled) {
-            logger.warn (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + " is 'true'. 'commitCount' parameter - id set - is ignored.");
-        }
-        else {
-            if (commitCount <= 0) {
-                throw new KafkaConfigurationException (Messages.getString ("INVALID_PARAMETER_VALUE_GT", new Integer(0)));
-            }
+        if (commitCount <= 0) {
+            throw new KafkaConfigurationException (Messages.getString ("INVALID_PARAMETER_VALUE_GT", new Integer(0)));
         }
     }
 
@@ -208,9 +197,39 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsRevoked(java.util.Collection)
      */
     @Override
-    public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+    public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
         getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         logger.info("onPartitionsRevoked: old partition assignment = " + partitions);
+        // remove the content of the queue. It contains uncommitted messages.
+        // They will fetched again after rebalance.
+        getMessageQueue().clear();
+        try {
+            awaitMessageQueueProcessed();
+            // the post-condition is, that all messages from the queue have submitted as 
+            // tuples and its offsets +1 are stored in OffsetManager.
+            final boolean commitSync = true;
+            final boolean commitPartitionWise = false;
+            CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
+            synchronized (offsetManager) {
+                Set <TopicPartition> partitionsInOffsetManager = offsetManager.getMappedTopicPartitions();
+                for (TopicPartition tp: partitions) {
+                    if (partitionsInOffsetManager.contains (tp)) {
+                        offsets.put (tp, offsetManager.getOffset (tp.topic(), tp.partition()));
+                    }
+                }
+            }
+            if (!offsets.isEmpty()) {
+                commitOffsets (offsets);
+            }
+            // reset the counter for periodic commit
+            this.nSubmittedRecords = 0l;
+        }
+        catch (InterruptedException | RuntimeException e) {
+            // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
+        }
+        finally {
+            offsetManager.clear();
+        }
     }
 
     /**
@@ -218,31 +237,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsAssigned(java.util.Collection)
      */
     @Override
-    public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+    public void onPartitionsAssigned (Collection<TopicPartition> partitions) {
         logger.info("onPartitionsAssigned: new partition assignment = " + partitions);
-        Set<TopicPartition> previousAssignment = new HashSet<>(getAssignedPartitions());
         getAssignedPartitions().clear();
         getAssignedPartitions().addAll(partitions);
         nAssignedPartitions.setValue(partitions.size());
-        // When auto-commit is disabled and the assigned partitions change, 
-        // we should remove the messages from the revoked partitions from the message queue.
-        // The queue contains only uncommitted messages in this case.
-        // With auto-commit enabled, the message queue can also contain committed messages - do not remove!
-        if (!autoCommitEnabled) {
-            Set<TopicPartition> gonePartitions = new HashSet<>(previousAssignment);
-            gonePartitions.removeAll(partitions);
-            logger.info("topic partitions that are not assigned anymore: " + gonePartitions);
-            if (!gonePartitions.isEmpty()) {
-                logger.info("removing consumer records from gone partitions from message queue");
-                getMessageQueue().removeIf(queuedRecord -> belongsToPartition (queuedRecord, gonePartitions));
-                // remove the topic partition also from the offset manager
-                synchronized (offsetManager) {
-                    for (TopicPartition tp: gonePartitions) {
-                        offsetManager.remove(tp.topic(), tp.partition());
-                    }
-                }
-            }
-        }
+        offsetManager.clear();
         try {
             checkSpaceInMessageQueueAndPauseFetching (true);
         } catch (IllegalStateException | InterruptedException e) {
@@ -307,7 +307,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      */
     @Override
     public void postSubmit (ConsumerRecord<?, ?> submittedRecord) {
-        if (autoCommitEnabled) return;
         // collect submitted offsets per topic partition for periodic commit.
         try {
             synchronized (offsetManager) {
@@ -333,7 +332,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
                 for (TopicPartition tp: offsetManager.getMappedTopicPartitions()) {
                     offsets.put (tp, offsetManager.getOffset(tp.topic(), tp.partition()));
                 }
-                offsetManager.clear();
             }
             try {
                 nSubmittedRecords = 0l;

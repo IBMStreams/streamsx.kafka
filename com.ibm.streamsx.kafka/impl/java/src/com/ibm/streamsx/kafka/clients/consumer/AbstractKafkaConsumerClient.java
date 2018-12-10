@@ -374,9 +374,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread has been interrupted while committing synchronously
      * @throws RuntimeException  All other kinds of unrecoverable exceptions
      */
-    private void commitOffsets (CommitInfo offsets) throws RuntimeException {
+    protected void commitOffsets (CommitInfo offsets) throws RuntimeException {
         final Map<TopicPartition, OffsetAndMetadata> offsetMap = offsets.getMap();
-        if (logger.isInfoEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug ("Going to commit offsets: " + offsets);
             if (offsetMap.isEmpty()) {
                 logger.debug ("no offsets to commit ...");

@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.7.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.7.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -473,7 +473,7 @@
 </td>
 
 <td class="entry" colspan="1" valign="top" headers="d3873e517 ">
-<p class="p">The latest lag of the specific partition. A value of <tt class="ph tt">-1</tt> indicates that the metric is not applicable to the operator.
+<p class="p">The latest lag of the partition
 </p>
 
 </td>
@@ -567,25 +567,16 @@
 <div class="section"><h2 class="title sectiontitle">Committing received Kafka messages
 </h2>
 
-<p class="p">Committing offsets is always controlled by the Streams operator. All auto-commit related settings via consumer properties are ignored by the operator.
-</p>
-
 <p class="p"><strong class="ph b">a) The operator is not part of a consistent region</strong>
 </p>
 
-<p class="p">The consumer operator commits the offsets of those Kafka messages, which have been submitted as tuples. There are two reasons to commit offsets:
-</p>
-
-<p class="p"><strong class="ph b">1. The partitions within a consumer group are rebalanced.</strong> Before new partitions are assigned, the offsets of the currently assigned partitions are committed. When the partitions are re-assigned, the operators start fetching from these committed offsets. The periodic commit controlled by the <strong class="ph b">commitCount</strong> parameter is reset after rebalance.
-</p>
-
-<p class="p"><strong class="ph b">2. Offsets are committed periodically.</strong> The frequency in terms of number of tuples can be specified with the <strong class="ph b">commitCount</strong> parameter. This parameter has a default value of 2000.
+<p class="p">The consumer operator commits the offsets of those Kafka messages that have been submitted as tuples. The frequency in terms of number of tuples can be specified with the <strong class="ph b">commitCount</strong> parameter. This parameter has a default value of 500. Offsets are committed asynchronously.
 </p>
 
 <p class="p"><strong class="ph b">b) The operator is part of a consistent region</strong>
 </p>
 
-<p class="p">Offsets are always committed when the consistent region drains, i.e. when the region becomes a consistent state. On drain, the consumer operator commits the offsets of those Kafka messages that have been submitted as tuples. When the operator is in a consistent region, the parameter <strong class="ph b">commitCount</strong> is ignored because the commit frequency is given by the trigger period of the consistent region. In a consistent region, offsets are committed synchronously, i.e. the offsets are committed when the drain processing of the operator finishes. Commit failures result in consistent region reset.
+<p class="p">Offsets are always committed when the consistent region drains, i.e. when the region becomes a consistent state. On drain, the consumer operator commits the offsets of those Kafka messages that have been submitted as tuples. When the operator is in a consistent region, all auto-commit related settings via consumer properties are ignored by the operator. The parameter <strong class="ph b">commitCount</strong> is also ignored because the commit frequency is given by the trigger period of the consistent region. In a consistent region, offsets are committed synchronously, i.e. the offsets are committed when the drain processing of the operator finishes. Commit failures result in consistent region reset.
 </p>
 
 </div>
@@ -640,13 +631,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d3873e832">
+<th class="entry" colspan="1" valign="top" id="d3873e812">
 <p class="p">metric name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d3873e838">
+<th class="entry" colspan="1" valign="top" id="d3873e818">
 <p class="p">description
 </p>
 
@@ -658,13 +649,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d3873e832 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e812 ">
 <p class="p">isGroupManagementActive
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d3873e838 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e818 ">
 <p class="p"><tt class="ph tt">1</tt> indicates that group management is active, <tt class="ph tt">0</tt> indicates that group management is inactive.
 </p>
 
@@ -673,13 +664,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d3873e832 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e812 ">
 <p class="p">nPartitionRebalances
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d3873e838 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e818 ">
 <p class="p">Number of partition assignment rebalances for each consumer operator. <strong class="ph b">The metric is only visible when group management is active.</strong>
 </p>
 
@@ -741,13 +732,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d3873e972">
+<th class="entry" colspan="1" valign="top" id="d3873e952">
 <p class="p">metric name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d3873e978">
+<th class="entry" colspan="1" valign="top" id="d3873e958">
 <p class="p">description
 </p>
 
@@ -759,13 +750,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d3873e972 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e952 ">
 <p class="p">drainTimeMillis
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d3873e978 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e958 ">
 <p class="p">drain duration of the last drain in milliseconds
 </p>
 
@@ -774,13 +765,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d3873e972 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e952 ">
 <p class="p">drainTimeMillisMax
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d3873e978 ">
+<td class="entry" colspan="1" valign="top" headers="d3873e958 ">
 <p class="p">maximum drain duration in milliseconds
 </p>
 

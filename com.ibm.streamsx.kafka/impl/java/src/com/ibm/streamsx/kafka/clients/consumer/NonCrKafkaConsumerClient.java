@@ -3,7 +3,6 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,34 +10,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.consumer.RoundRobinAssignor;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
-import com.ibm.streams.operator.state.ConsistentRegionContext;
-import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
-import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
- * Kafka consumer client to be used when not in a consistent region.
+ * Kafka consumer client to be used when not in a consistent region and group management is off.
  */
-public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient implements ConsumerRebalanceListener {
+public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
-    private static final Logger logger = Logger.getLogger(NonCrKafkaConsumerClient.class);
+    private static final Logger trace = Logger.getLogger(NonCrKafkaConsumerClient.class);
 
-    private long commitCount = 500l; 
-    private long nSubmittedRecords = 0l;
-    private OffsetManager offsetManager = null;
 
     /**
      * Constructs a new NonCrKafkaConsumerClient.
@@ -52,56 +38,10 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      * @throws KafkaConfigurationException
      */
     private <K, V> NonCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties, int nTopics) throws KafkaConfigurationException {
+            KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
-
-        ConsistentRegionContext crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
-        if (crContext != null) {
-            throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' is used in a consistent region. This consumer client implementation (" 
-                    + this.getClass() + ") does not support CR.");
-        }
-
-        // Test for enable.auto.commit -- should always be set to false by a base class.
-        if (!kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG) || kafkaProperties.getProperty (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).equalsIgnoreCase ("true")) {
-            throw new KafkaConfigurationException ("enable.auto.commit is unset (defaults to true) or has the value true. It must be false.");
-        }
-        offsetManager = new OffsetManager ();
-        // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
-        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
-            String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
-            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            logger.info (MessageFormat.format ("Multiple topics specified. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
-        }
     }
 
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#startConsumer()
-     */
-    @Override
-    public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
-        super.startConsumer();
-        // offsetManager is null when auto-commit is enabled
-        if (offsetManager != null) {
-            offsetManager.setOffsetConsumer(getConsumer());
-        }
-    }
-
-    /**
-     * @param commitCount the commitCount to set
-     */
-    public void setCommitCount(long commitCount) {
-        this.commitCount = commitCount;
-    }
-
-    /**
-     * see {@link AbstractKafkaConsumerClient#validate()}
-     */
-    @Override
-    protected void validate() throws Exception {
-        if (commitCount <= 0) {
-            throw new KafkaConfigurationException (Messages.getString ("INVALID_PARAMETER_VALUE_GT", new Integer(0)));
-        }
-    }
 
     /**
      * Subscribes to topics or assigns with topic partitions.
@@ -115,28 +55,23 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      */
     @Override
     public void subscribeToTopics (Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
-        logger.debug("subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
+        trace.debug("subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
 
         if(topics != null && !topics.isEmpty()) {
-            if (!isGroupIdGenerated() && (partitions == null || partitions.isEmpty()) && startPosition == StartPosition.Default) {
-                subscribe (topics, this);
+            Set<TopicPartition> partsToAssign;
+            if (partitions == null || partitions.isEmpty()) {
+                // no partition information provided
+                partsToAssign = getAllTopicPartitionsForTopic(topics);
             }
             else {
-                Set<TopicPartition> partsToAssign;
-                if (partitions == null || partitions.isEmpty()) {
-                    // no partition information provided
-                    partsToAssign = getAllTopicPartitionsForTopic(topics);
-                }
-                else {
-                    partsToAssign = new HashSet<TopicPartition>();
-                    topics.forEach(topic -> {
-                        partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
-                    });
-                }    
-                assign (partsToAssign);
-                seekToPosition (partsToAssign, startPosition);
-            }
+                partsToAssign = new HashSet<TopicPartition>();
+                topics.forEach(topic -> {
+                    partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
+                });
+            }    
+            assign (partsToAssign);
+            seekToPosition (partsToAssign, startPosition);
         }
     }
 
@@ -152,7 +87,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Collection<String> topics, Collection<Integer> partitions, long timestamp) throws Exception {
-        logger.debug("subscribeToTopicsWithTimestamp: topic = " + topics + ", partitions = " + partitions + ", timestamp = " + timestamp);
+        trace.debug("subscribeToTopicsWithTimestamp: topic = " + topics + ", partitions = " + partitions + ", timestamp = " + timestamp);
         Map<TopicPartition, Long /* timestamp */> topicPartitionTimestampMap = new HashMap<TopicPartition, Long>();
         if(partitions == null || partitions.isEmpty()) {
             Set<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic(topics);
@@ -162,7 +97,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
                 partitions.forEach(partition -> topicPartitionTimestampMap.put(new TopicPartition(topic, partition), timestamp));
             });
         }
-        logger.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
+        trace.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
         assign (topicPartitionTimestampMap.keySet());
         seekToTimestamp (topicPartitionTimestampMap);
     }
@@ -192,64 +127,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
     }
 
 
-    /**
-     * Callback method of the ConsumerRebalanceListener
-     * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsRevoked(java.util.Collection)
-     */
-    @Override
-    public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
-        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
-        logger.info("onPartitionsRevoked: old partition assignment = " + partitions);
-        // remove the content of the queue. It contains uncommitted messages.
-        // They will fetched again after rebalance.
-        getMessageQueue().clear();
-        try {
-            awaitMessageQueueProcessed();
-            // the post-condition is, that all messages from the queue have submitted as 
-            // tuples and its offsets +1 are stored in OffsetManager.
-            final boolean commitSync = true;
-            final boolean commitPartitionWise = false;
-            CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
-            synchronized (offsetManager) {
-                Set <TopicPartition> partitionsInOffsetManager = offsetManager.getMappedTopicPartitions();
-                for (TopicPartition tp: partitions) {
-                    if (partitionsInOffsetManager.contains (tp)) {
-                        offsets.put (tp, offsetManager.getOffset (tp.topic(), tp.partition()));
-                    }
-                }
-            }
-            if (!offsets.isEmpty()) {
-                commitOffsets (offsets);
-            }
-            // reset the counter for periodic commit
-            this.nSubmittedRecords = 0l;
-        }
-        catch (InterruptedException | RuntimeException e) {
-            // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
-        }
-        finally {
-            offsetManager.clear();
-        }
-    }
-
-    /**
-     * Callback method of the ConsumerRebalanceListener
-     * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsAssigned(java.util.Collection)
-     */
-    @Override
-    public void onPartitionsAssigned (Collection<TopicPartition> partitions) {
-        logger.info("onPartitionsAssigned: new partition assignment = " + partitions);
-        getAssignedPartitions().clear();
-        getAssignedPartitions().addAll(partitions);
-        nAssignedPartitions.setValue(partitions.size());
-        offsetManager.clear();
-        try {
-            checkSpaceInMessageQueueAndPauseFetching (true);
-        } catch (IllegalStateException | InterruptedException e) {
-            // IllegalStateException cannot happen
-            // On Interruption, do nothing
-        }
-    }
 
 
     /**
@@ -263,7 +140,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
 
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
-
+            OffsetManager offsetManager = getOffsetManager();
             switch (update.getAction()) {
             case ADD:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
@@ -278,16 +155,21 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     currentTopicPartitionOffsets.remove(tp);
                 });
+                // TODO: commit offsets of the removed partition(s)
+                // For now, the problem is not so urgent as a 'subscription' with Default start position is not yet possible.
+                // Whe we need to commit offsets here, the flow would be:
+                // 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
+                // 2. wait that the queue gets processed - awaitMessageQueueProcessed();
+                // 3. commit the offsets of the removed topic partitions
+                // 4. remove the unassigned topic partitions from the offsetManager
+                // 5. update the partition assignment in the consumer
                 // remove messages of removed topic partitions from the message queue
                 getMessageQueue().removeIf (record -> belongsToPartition (record, update.getTopicPartitionOffsetMap().keySet()));
-                if (offsetManager != null) {
-                    // when auto-commit is enabled, there is no offset manager
-                    // remove removed partitions from offset manager. We can't commit offsets for those partitions we are not assigned any more.
-                    synchronized (offsetManager) {
-                        update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
-                            offsetManager.remove (tp.topic(), tp.partition());
-                        });
-                    }
+                // remove removed partitions from offset manager. We can't commit offsets for those partitions we are not assigned any more.
+                synchronized (offsetManager) {
+                    update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+                        offsetManager.remove (tp.topic(), tp.partition());
+                    });
                 }
                 // we can end up here with an empty map after removal of assignments.
                 assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
@@ -296,82 +178,11 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
                 throw new Exception ("processUpdateAssignmentEvent(): unimplemented action: " + update.getAction());
             }
         } catch (Exception e) {
-            logger.error(e.getLocalizedMessage(), e);
+            trace.error(e.getLocalizedMessage(), e);
             throw new RuntimeException (e);
         }
     }
 
-    /**
-     * This implementation counts submitted tuples and commits the offsets when {@link #commitCount} has reached and auto-commit is disabled. 
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#postSubmit(org.apache.kafka.clients.consumer.ConsumerRecord)
-     */
-    @Override
-    public void postSubmit (ConsumerRecord<?, ?> submittedRecord) {
-        // collect submitted offsets per topic partition for periodic commit.
-        try {
-            synchronized (offsetManager) {
-                offsetManager.savePosition(submittedRecord.topic(), submittedRecord.partition(), submittedRecord.offset() +1l, /*autoCreateTopci=*/true);
-            }
-        } catch (Exception e) {
-            // is not caught when autoCreateTopic is 'true'
-            logger.error(e.getLocalizedMessage());
-            e.printStackTrace();
-            throw new RuntimeException (e);
-        }
-        if (++nSubmittedRecords  >= commitCount) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("commitCount (" + commitCount + ") reached. Preparing to commit offsets ...");
-            }
-            // commit asynchronous, partition by partition.
-            // asynchronous commit implies that the operator is not restarted when commit fails.
-            final boolean commitSync = false;
-            final boolean commitPartitionWise = true;
-            CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
-
-            synchronized (offsetManager) {
-                for (TopicPartition tp: offsetManager.getMappedTopicPartitions()) {
-                    offsets.put (tp, offsetManager.getOffset(tp.topic(), tp.partition()));
-                }
-            }
-            try {
-                nSubmittedRecords = 0l;
-                if (!offsets.isEmpty()) {
-                    // sendCommitEvent terminates the poll loop, throws InterruptedException:
-                    sendCommitEvent (offsets);
-                    // when committing offsets for one partition fails, the reason can be that we are not 
-                    // assigned to the partition any more when building a consumer group.
-                    // Then a different (or the same) consumer starts reading the records again creating duplicates within the application.
-                    // This is normal Kafka methodology.
-                    sendStartPollingEvent();
-                }
-            } catch (InterruptedException e) {
-                // is not thrown when asynchronously committed; can be silently ignored.
-                // Only when we decide to change to synchronous commit, we can end up here.
-                // Then it is ok, NOT to start polling again. 
-            }
-        }
-    }
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long)
-     */
-    @Override
-    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
-        if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
-        ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
-        int numRecords = records == null? 0: records.count();
-        if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
-        if (numRecords > 0) {
-            if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
-            records.forEach(cr -> {
-                if (logger.isTraceEnabled()) {
-                    logger.trace (cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
-                }
-                getMessageQueue().add(cr);
-            });
-        }
-        return numRecords;
-    }
 
 
 
@@ -388,7 +199,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
         private KafkaOperatorProperties kafkaProperties;
         private long pollTimeout;
         private long commitCount;
-        private int numTopics = 0;
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -420,13 +230,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient i
             return this;
         }
 
-        public final Builder setNumTopics (int n) {
-            this.numTopics = n;
-            return this;
-        }
-
         public ConsumerClient build() throws Exception {
-            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
+            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties);
             client.setPollTimeout (pollTimeout);
             client.setCommitCount (commitCount);
             return client;

@@ -42,6 +42,7 @@ import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaStaticAssignConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
+import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
 import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate;
 import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdateAction;
@@ -399,7 +400,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             checker.setInvalidContext(Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
         }
     }
-    
+
     // check that startPosition: Offset|Time is specified together with startOffset|startTime parameter
     @ContextCheck(compile = false, runtime = true)
     public static void checkStartPositionAdditionalParameters (OperatorContextChecker checker) {
@@ -419,7 +420,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
     }
-    
+
     @ContextCheck(compile = false, runtime = true)
     public static void checkParams(OperatorContextChecker checker) {
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingOutputs().get(0).getStreamSchema();
@@ -566,15 +567,28 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
         this.isGroupManagementActive.setValue (groupManagementEnabled? 1: 0);
         if (crContext == null) {
-            NonCrKafkaConsumerClient.Builder builder = new NonCrKafkaConsumerClient.Builder();
-            builder.setOperatorContext(context)
-            .setKafkaProperties(kafkaProperties)
-            .setKeyClass(keyClass)
-            .setValueClass(valueClass)
-            .setNumTopics (this.topics == null? 0: this.topics.size())
-            .setPollTimeout(this.consumerPollTimeout)
-            .setCommitCount(commitCount);
-            consumer = builder.build();
+            if (groupManagementEnabled) {
+                NonCrKafkaConsumerGroupClient.Builder builder = new NonCrKafkaConsumerGroupClient.Builder();
+                builder.setOperatorContext(context)
+                .setKafkaProperties(kafkaProperties)
+                .setKeyClass(keyClass)
+                .setValueClass(valueClass)
+                .setNumTopics (this.topics == null? 0: this.topics.size())
+                .setPollTimeout(this.consumerPollTimeout)
+                .setCommitCount(commitCount);
+                consumer = builder.build();
+
+            }
+            else {
+                NonCrKafkaConsumerClient.Builder builder = new NonCrKafkaConsumerClient.Builder();
+                builder.setOperatorContext(context)
+                .setKafkaProperties(kafkaProperties)
+                .setKeyClass(keyClass)
+                .setValueClass(valueClass)
+                .setPollTimeout(this.consumerPollTimeout)
+                .setCommitCount(commitCount);
+                consumer = builder.build();
+            }
         } 
         else {
             if (groupManagementEnabled) {

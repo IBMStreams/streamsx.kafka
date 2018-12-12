@@ -73,7 +73,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private BlockingQueue<Event> eventQueue;
     private BlockingQueue<ConsumerRecord<?, ?>> messageQueue;
     private List <ConsumerRecord<?, ?>> drainBuffer;
-    private boolean groupIdGenerated = false;
+    private final String groupId;
+    private final boolean groupIdGenerated;
     private long pollTimeout = DEFAULT_CONSUMER_POLL_TIMEOUT_MS;
     private int maxPollRecords;
     private long maxPollIntervalMs;
@@ -126,12 +127,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         }
 
         // create a random group ID for the consumer if one is not specified
-        if (!kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-        	ProcessingElement pe = operatorContext.getPE();
-        	String groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
-        			+ pe.getJobId() + operatorContext.getName().hashCode();
-            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-            groupIdGenerated = true;
+        if (kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
+            this.groupIdGenerated = false;
+            this.groupId = kafkaProperties.getProperty (ConsumerConfig.GROUP_ID_CONFIG);
+        }
+        else {
+            ProcessingElement pe = operatorContext.getPE();
+            this.groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
+                    + pe.getJobId() + operatorContext.getName().hashCode();
+            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, this.groupId);
+            this.groupIdGenerated = true;
         }
         // always disable auto commit 
         if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
@@ -143,7 +148,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false'");
         }
         this.kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-        
+
         // add our metric reporter
         this.kafkaProperties.put (ConsumerConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "10000");
         if (kafkaProperties.containsKey (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG)) {
@@ -154,7 +159,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         else {
             this.kafkaProperties.put (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, ConsumerMetricsReporter.class.getCanonicalName());
         }
-        
+
         this.timeouts = new ConsumerTimeouts (operatorContext, this.kafkaProperties);
         timeouts.adjust (this.kafkaProperties);
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);
@@ -167,6 +172,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric("nAssignedPartitions");
+    }
+
+
+    /**
+     * Returns the Kafka consumer group identifier, i.e. the value of the consumer config 'group.id'.
+     * @return the group Id
+     * @see #isGroupIdGenerated()
+     */
+    public String getGroupId() {
+        return groupId;
     }
 
 
@@ -266,12 +281,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         consumerInitLatch.await();
         if (this.metricsFetcher == null) {
             this.metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
-                
+
                 @Override
                 public Map<MetricName, ? extends org.apache.kafka.common.Metric> getMetrics() {
                     return consumer.metrics();
                 }
-                
+
                 @Override
                 public String createCustomMetricName (MetricName metricName) throws KafkaMetricException {
                     return ConsumerMetricsReporter.createOperatorMetricName (metricName);

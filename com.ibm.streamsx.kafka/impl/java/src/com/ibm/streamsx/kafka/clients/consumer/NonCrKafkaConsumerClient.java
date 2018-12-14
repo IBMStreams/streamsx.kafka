@@ -48,7 +48,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
         if (getInitialStartPosition() != StartPosition.Default 
                 && ENABLE_FEATURE_RESTART_WITHOUT_SEEK
-                && !getOperatorContext().getPE().isStandalone()
                 && getJcpContext() == null) {
             // TODO: can we find out whether an operator is restartable? If yes, we throwed the exception only when 
             // the operator's PE is restartable.

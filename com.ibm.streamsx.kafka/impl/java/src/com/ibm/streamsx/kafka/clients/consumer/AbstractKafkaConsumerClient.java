@@ -428,7 +428,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         else {
             if (offsets.isCommitSynchronous()) {
                 try {
-                    // can succeed partially
                     consumer.commitSync (offsetMap);
                     postOffsetCommit (offsetMap);
                 }
@@ -1039,6 +1038,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
      */
     protected void seekToPosition(Collection<TopicPartition> topicPartitions, StartPosition startPosition) {
+        logger.info (MessageFormat.format ("seekToPosition() - {0}  -->  {1}", topicPartitions, startPosition));
         switch (startPosition) {
         case Beginning:
             consumer.seekToBeginning(topicPartitions);
@@ -1060,7 +1060,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
      */
     protected void seekToPosition (TopicPartition tp, StartPosition startPosition) {
-
+        logger.info (MessageFormat.format ("seekToPosition() - {0}  -->  {1}", tp, startPosition));
         switch (startPosition) {
         case Beginning:
             consumer.seekToBeginning (Collections.nCopies (1, tp));
@@ -1082,6 +1082,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param topicPartitionTimestampMap mapping from topic partition to timestamp in milliseconds since epoch
      */
     protected void seekToTimestamp (Map<TopicPartition, Long> topicPartitionTimestampMap) {
+        logger.info (MessageFormat.format ("seekToTimestamp() - {0}", topicPartitionTimestampMap));
         Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes(topicPartitionTimestampMap);
         logger.debug("offsetsForTimes=" + offsetsForTimes);
         for (TopicPartition tp: topicPartitionTimestampMap.keySet()) {
@@ -1102,10 +1103,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param timestamp the timestamp in milliseconds since epoch
      */
     protected void seekToTimestamp (TopicPartition tp, long timestamp) {
+        logger.info (MessageFormat.format ("seekToTimestamp() - {0}  --> {1}", tp, timestamp));
         Map <TopicPartition, Long> topicPartitionTimestampMap = new HashMap<>(1);
         topicPartitionTimestampMap.put (tp, new Long(timestamp));
         Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes (topicPartitionTimestampMap);
-        logger.debug ("offsetsForTimes=" + offsetsForTimes);
+        logger.debug ("offsetsForTimes = " + offsetsForTimes);
         OffsetAndTimestamp ot = offsetsForTimes.get(tp);
         if (ot != null) {
             logger.info ("Seeking consumer for tp = " + tp + " to offsetAndTimestamp=" + ot);
@@ -1123,6 +1125,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Otherwise, seek to the specified offset
      */
     private void seekToOffset(Map<TopicPartition, Long> topicPartitionOffsetMap) {
+        logger.info (MessageFormat.format ("seekToOffset() - {0}", topicPartitionOffsetMap));
         topicPartitionOffsetMap.forEach((tp, offset) -> {
             if(offset == -1l) {
                 getConsumer().seekToEnd(Arrays.asList(tp));

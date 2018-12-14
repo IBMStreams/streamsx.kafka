@@ -559,11 +559,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.groupIdSpecified = gid != null && !gid.isEmpty();
         logger.debug ("group-ID specified: " + this.groupIdSpecified);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
-        boolean groupManagementEnabled;
-        if (crContext == null)
-            groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty()) && startPosition == StartPosition.Default;
-        else 
-            groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
+        boolean groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
         this.isGroupManagementActive.setValue (groupManagementEnabled? 1: 0);
         if (crContext == null) {
             if (groupManagementEnabled) {

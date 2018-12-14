@@ -45,7 +45,10 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
     private final CheckpointContext chkptContext;
     
     /**
-     * Maps TopicPartition to Boolean CV via accessor. The boolean indicates if offsets for the partition have already been committed
+     * Maps TopicPartition to Boolean CV via accessor.
+     * The boolean indicates if offsets for the partition have ever been committed or not.
+     * The control variables are created with initial values of 'false' and can toggle only
+     * once to 'true' and keep this value.
      */
     private Map<TopicPartition, ControlVariableAccessor<java.lang.Boolean>> committedMap;
 
@@ -125,14 +128,15 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         }
 
         final boolean result = cv.sync().getValue();
-        trace.info (MessageFormat.format ("{0} already committed: {1}", tp, result));
+        trace.info (MessageFormat.format ("partition {0} previously committed: {1}", tp, result));
         return result;
     }
 
     /**
-     * Flags a topic partition as committed for the client's consumer group.
+     * Marks a topic partition as committed for the client's consumer group.
      * This flag is stored in a job scoped control variable for the consumer group and partition.
-     * @param tp the topic partition to be flagged
+     * When the topic partition is already marked, this call does not update the control variable once more.
+     * @param tp the topic partition to be marked
      * @return the previous value
      * @throws InterruptedException the call has been interrupted synchronizing the value from the JCP with the accessor
      * @throws IOException the value could not be updated in the JCP
@@ -154,7 +158,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
 //        trace.info (MessageFormat.format ("{0} previously committed: {1}", tp, previous));
         if (!previous) {
             cv.setValue (true);
-            trace.info (MessageFormat.format ("{0} flagged as committed", tp));
+            trace.info (MessageFormat.format ("partition {0} marked as committed", tp));
         }
         return previous;
     }
@@ -166,7 +170,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      * @see #getGroupId()
      */
     private String createControlVariableName (TopicPartition tp) {
-        return getGroupId() + tp.toString();
+        return getGroupId() + tp.topic() + tp.partition();
     }
 
     /**
@@ -301,7 +305,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
 
 
     /**
-     * Flags the topic partition as initially committed in a JCP control variable for partition and group.id.
+     * Marks all topic partition as committed in a JCP control variable for partition and group.id.
      * 
      * @param offsets a map that maps partitions to offsets 
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#postOffsetCommit(java.util.Map)

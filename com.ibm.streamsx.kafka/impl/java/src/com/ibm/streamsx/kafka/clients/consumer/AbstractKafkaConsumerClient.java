@@ -408,6 +408,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 if (offsets.isCommitSynchronous()) {
                     try {
                         consumer.commitSync(map);
+                        postOffsetCommit (map);
                     }
                     catch (CommitFailedException e) {
                         // the commit failed and cannot be retried. This can only occur if you are using 
@@ -417,8 +418,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         // expose the exception to the runtime. When committing synchronous, 
                         // we usually want the offsets really have committed or restart operator, for example when in a CR
                         throw new RuntimeException (e.getMessage(), e);
-                        // TODO: instead of Exception + operator restart, simply initiate reset of consistent region?
-                        // Hmm .. during drain? Will this work?
                     }
                 }
                 else {
@@ -431,6 +430,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 try {
                     // can succeed partially
                     consumer.commitSync (offsetMap);
+                    postOffsetCommit (offsetMap);
                 }
                 catch (CommitFailedException e) {
                     //if the commit failed and cannot be retried. This can only occur if you are using 
@@ -450,8 +450,21 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
+     * This method is a hook which is called <b>after <i>successful</i> commit</b> of offsets.
+     * When offsets are committed synchronous, the hook is called within the thread that committed the offsets,
+     * which is the thread that invokes also the calls of 'consumer.poll'.
+     * When offsets are committed asynchronous, the method is invoked by the commit callback.
+     * 
+     * Concrete classes must provide an implementation for this method.
+     * 
+     * @param offsets The mapping from topic partition to offsets (and meta data)
+     */
+    protected abstract void postOffsetCommit (Map<TopicPartition, OffsetAndMetadata> offsets);
+
+    /**
      * Implements the shutdown sequence.
-     * This sequence includes 
+     * This sequence includes
+     * * remove all pending messages from the message queue
      * * closing the consumer
      * * terminating the event thread by setting the end condition
      * 
@@ -459,6 +472,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void shutdown() {
         logger.debug("Shutdown sequence started..."); //$NON-NLS-1$
+        getMessageQueue().clear();
         consumer.close(CONSUMER_CLOSE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         processing.set(false);
     }
@@ -888,6 +902,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     /**
      * Assigns the consumer to the given set of topic partitions manually. No group management.
+     * This assignment will replace the previous assignment.
      * @param topicPartitions The topic partitions. null or an empty set is equivalent to
      *                        unsubscribe from everything previously subscribed or assigned.
      */
@@ -903,6 +918,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     /**
      * Subscribes the consumer to the given topics. Subscription enables dynamic group assignment.
+     * This subscription unassigns all partitions and replaces a previous subscription.
      * @param topics The topics to subscribe. An empty list or null is treated as unsubscribe from all.
      * @param rebalanceListener an optional ConsumerRebalanceListener
      */
@@ -937,7 +953,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
+    public final void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
         Event event = new Event(EventType.SHUTDOWN, true);
         sendEvent (event);
         event.await (timeout, timeUnit);
@@ -1020,7 +1036,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     /**
      * Seeks to the given position. This method evaluates lazily on next poll() or position() call.
      * @param topicPartitions The partitions to seek. If no partitions are given, all assigned partitions are seeked.
-     * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`.
+     * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
      */
     protected void seekToPosition(Collection<TopicPartition> topicPartitions, StartPosition startPosition) {
         switch (startPosition) {
@@ -1029,6 +1045,28 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             break;
         case End:
             consumer.seekToEnd(topicPartitions);
+            break;
+        case Default:
+            logger.debug("seekToPosition: ignoring position " + startPosition);
+            break;
+        default:
+            throw new IllegalArgumentException("seekToPosition: illegal position: " + startPosition);
+        }
+    }
+
+    /**
+     * Seeks a single topic partition to the given position. This method evaluates lazily on next poll() or position() call.
+     * @param tp The partition to seek.
+     * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
+     */
+    protected void seekToPosition (TopicPartition tp, StartPosition startPosition) {
+
+        switch (startPosition) {
+        case Beginning:
+            consumer.seekToBeginning (Collections.nCopies (1, tp));
+            break;
+        case End:
+            consumer.seekToEnd (Collections.nCopies (1, tp));
             break;
         case Default:
             logger.debug("seekToPosition: ignoring position " + startPosition);
@@ -1058,6 +1096,27 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
+     * Seek the consumer for a single topic partitions to the nearest offset for a timestamp.
+     * If there is no such offset, the consumer will move to the offset as determined by the 'auto.offset.reset' config
+     * @param tp the topic partition
+     * @param timestamp the timestamp in milliseconds since epoch
+     */
+    protected void seekToTimestamp (TopicPartition tp, long timestamp) {
+        Map <TopicPartition, Long> topicPartitionTimestampMap = new HashMap<>(1);
+        topicPartitionTimestampMap.put (tp, new Long(timestamp));
+        Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes (topicPartitionTimestampMap);
+        logger.debug ("offsetsForTimes=" + offsetsForTimes);
+        OffsetAndTimestamp ot = offsetsForTimes.get(tp);
+        if (ot != null) {
+            logger.info ("Seeking consumer for tp = " + tp + " to offsetAndTimestamp=" + ot);
+            consumer.seek(tp, ot.offset());
+        } else {
+            // nothing...consumer will move to the offset as determined by the 'auto.offset.reset' config
+        }
+    }
+
+
+    /**
      * Seeks to the given offsets for the given topic partitions. This offset is the offset that will is consume next.
      * If offset equals -1, seek to the end of the topic
      * If offset equals -2, seek to the beginning of the topic
@@ -1070,7 +1129,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             } else if(offset == -2) {
                 getConsumer().seekToBeginning(Arrays.asList(tp));
             } else {
-                getConsumer().seek(tp, offset);  
+                getConsumer().seek(tp, offset);
             }
         });
     }
@@ -1083,15 +1142,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void assignToPartitionsWithOffsets (Map<TopicPartition, Long> topicPartitionOffsetMap) throws Exception {
         logger.debug("assignToTopicsWithOffsets: topicPartitionOffsetMap=" + topicPartitionOffsetMap);
-        if(topicPartitionOffsetMap != null) {
-            assign (topicPartitionOffsetMap.keySet());
-            if (!topicPartitionOffsetMap.isEmpty()) {
-                // seek to position
-                seekToOffset (topicPartitionOffsetMap);
-            }
+        if (topicPartitionOffsetMap == null || topicPartitionOffsetMap.isEmpty()) {
+            assign (Collections.emptySet());
         }
         else {
-            assign (Collections.emptySet());
+            assign (topicPartitionOffsetMap.keySet());
+            seekToOffset (topicPartitionOffsetMap);
         }
     }
 
@@ -1107,6 +1163,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             if (logger.isInfoEnabled()) {
                 logger.debug ("onComplete(): Offsets successfully committed async: " + offsets);
             }
+            postOffsetCommit (offsets);
         }
         else {
             logger.warn(Messages.getString("OFFSET_COMMIT_FAILED", exception.getLocalizedMessage()));

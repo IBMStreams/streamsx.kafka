@@ -224,6 +224,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         private KafkaOperatorProperties kafkaProperties;
         private long pollTimeout;
         private long commitCount;
+        private StartPosition initialStartPosition;
         private int numTopics = 0;
 
         public final Builder setOperatorContext(OperatorContext c) {
@@ -260,11 +261,17 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             this.numTopics = n;
             return this;
         }
+        
+        public final Builder setInitialStartPosition (StartPosition p) {
+            this.initialStartPosition = p;
+            return this;
+        }
 
         public ConsumerClient build() throws Exception {
             NonCrKafkaConsumerGroupClient client = new NonCrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
             client.setPollTimeout (pollTimeout);
             client.setCommitCount (commitCount);
+            client.setInitialStartPosition (initialStartPosition);
             return client;
         }
     }

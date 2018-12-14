@@ -494,7 +494,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
         checkTriggerCountValue (checker);
-        //                checkCrPartitionAssignmentMode (checker);
     }
 
     private static void checkUserSpecifiedAttributeNameExists(OperatorContextChecker checker, String paramNameToCheck) {
@@ -575,9 +574,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setValueClass(valueClass)
                 .setNumTopics (this.topics == null? 0: this.topics.size())
                 .setPollTimeout(this.consumerPollTimeout)
+                .setInitialStartPosition (this.startPosition)
                 .setCommitCount(commitCount);
                 consumer = builder.build();
-
             }
             else {
                 NonCrKafkaConsumerClient.Builder builder = new NonCrKafkaConsumerClient.Builder();
@@ -586,6 +585,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setKeyClass(keyClass)
                 .setValueClass(valueClass)
                 .setPollTimeout(this.consumerPollTimeout)
+                .setInitialStartPosition (this.startPosition)
                 .setCommitCount(commitCount);
                 consumer = builder.build();
             }
@@ -882,11 +882,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
      *             Operator failure, will cause the enclosing PE to terminate.
      */
     public synchronized void shutdown() throws Exception {
+        final OperatorContext context = getOperatorContext();
+        logger.info ("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
+                + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
         shutdown.set(true);
         consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-        OperatorContext context = getOperatorContext();
-        logger.trace("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
-                + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
 
         // Must call super.shutdown()
         super.shutdown();

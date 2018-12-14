@@ -4,15 +4,24 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
 
+import java.io.IOException;
+import java.text.MessageFormat;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -31,8 +40,15 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
     private long commitCount = 2000l; 
     private long nSubmittedRecords = 0l;
     private OffsetManager offsetManager = null;
-
+    /** Start position where each subscribed topic is consumed from */
+    private StartPosition initialStartPosition = StartPosition.Default;
+    private final CheckpointContext chkptContext;
     
+    /**
+     * Maps TopicPartition to Boolean CV via accessor. The boolean indicates if offsets for the partition have already been committed
+     */
+    private Map<TopicPartition, ControlVariableAccessor<java.lang.Boolean>> committedMap;
+
     /**
      * @param operatorContext
      * @param keyClass
@@ -44,6 +60,8 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
             Class<V> valueClass, KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
         ConsistentRegionContext crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
+        chkptContext = operatorContext.getOptionalContext (CheckpointContext.class);
+        
         if (crContext != null) {
             throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' is used in a consistent region. This consumer client implementation (" 
                     + this.getClass() + ") does not support CR.");
@@ -54,6 +72,101 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
             throw new KafkaConfigurationException ("enable.auto.commit is unset (defaults to true) or has the value true. It must be false.");
         }
         offsetManager = new OffsetManager();
+        committedMap = Collections.synchronizedMap (new HashMap<>());
+    }
+
+    /**
+     * Returns the checkpoint context if there is one
+     * @return the checkpoint context or null if 'config checkpoint' is not configured.
+     * @see #isCheckpointEnabled()
+     */
+    protected final CheckpointContext getChkptContext() {
+        return chkptContext;
+    }
+    
+    /**
+     * Returns true, when checkpointing is enabled, false otherwise.
+     */
+    protected final boolean isCheckpointEnabled() {
+        if (chkptContext == null) return false;
+        return chkptContext.isEnabled();
+    }
+
+    /**
+     * @return the initialStartPosition
+     */
+    public final StartPosition getInitialStartPosition() {
+        return initialStartPosition;
+    }
+
+    /**
+     * @param p the initial start position to set
+     */
+    protected void setInitialStartPosition (StartPosition p) {
+        this.initialStartPosition = p;
+    }
+
+    /**
+     * Checks if an offset for the given topic partition has already been committed for the client's consumer group within the job.
+     * The function accesses a job scoped control variable to check this information.
+     * The control variable is created with initial value of 'false' if it does not yet exist.
+     * @param tp the topic partition
+     * @return the value of the control variable
+     * @throws InterruptedException the call has been interrupted synchronizing the value from the JCP with the accessor
+     * @see #setCommittedForPartitionTrue(TopicPartition)
+     */
+    protected boolean isCommittedForPartition (TopicPartition tp) throws InterruptedException {
+        ControlVariableAccessor<Boolean> cv = this.committedMap.get (tp);
+        if (cv == null) {
+            final String cvName = createControlVariableName (tp);
+            trace.info ("creating control variable: " + cvName);
+            cv = getJcpContext().createBooleanControlVariable (cvName, true, false);
+            this.committedMap.put (tp, cv);
+        }
+
+        final boolean result = cv.sync().getValue();
+        trace.info (MessageFormat.format ("{0} already committed: {1}", tp, result));
+        return result;
+    }
+
+    /**
+     * Flags a topic partition as committed for the client's consumer group.
+     * This flag is stored in a job scoped control variable for the consumer group and partition.
+     * @param tp the topic partition to be flagged
+     * @return the previous value
+     * @throws InterruptedException the call has been interrupted synchronizing the value from the JCP with the accessor
+     * @throws IOException the value could not be updated in the JCP
+     * @see #isCommittedForPartition(TopicPartition)
+     */
+    protected boolean setCommittedForPartitionTrue (TopicPartition tp) throws InterruptedException, IOException {
+        ControlVariableAccessor<Boolean> cv = this.committedMap.get (tp);
+        boolean previous = false;
+        if (cv == null) {
+            final String cvName = createControlVariableName (tp);
+            trace.info ("creating control variable: " + cvName);
+            cv = getJcpContext().createBooleanControlVariable (cvName, true, false);
+            cv.sync();
+            this.committedMap.put (tp, cv);
+        }
+        // here we do not need to sync() before we get the value. The boolean CVs go always from false to true.
+        // When we see the wrong value, we set true once more.
+        previous = cv.getValue();
+//        trace.info (MessageFormat.format ("{0} previously committed: {1}", tp, previous));
+        if (!previous) {
+            cv.setValue (true);
+            trace.info (MessageFormat.format ("{0} flagged as committed", tp));
+        }
+        return previous;
+    }
+
+    /**
+     * Creates a name for a control variable which is unique for the consumer client's group-ID and the given topic partition.
+     * @param tp the topic partition
+     * @return the concatenation of 'getGroupId()' and the tp.toString()
+     * @see #getGroupId()
+     */
+    private String createControlVariableName (TopicPartition tp) {
+        return getGroupId() + tp.toString();
     }
 
     /**
@@ -101,8 +214,8 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
     public void setCommitCount(long commitCount) {
         this.commitCount = commitCount;
     }
-    
-    
+
+
     /**
      * see {@link AbstractKafkaConsumerClient#validate()}
      */
@@ -112,7 +225,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
             throw new KafkaConfigurationException (Messages.getString ("INVALID_PARAMETER_VALUE_GT", new Integer(0)));
         }
     }
-    
+
     /**
      * This implementation counts submitted tuples and commits the offsets when {@link #commitCount} has reached and auto-commit is disabled. 
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#postSubmit(org.apache.kafka.clients.consumer.ConsumerRecord)
@@ -163,8 +276,8 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
             }
         }
     }
-    
-    
+
+
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long)
      */
@@ -185,8 +298,31 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         }
         return numRecords;
     }
-    
-    
+
+
+    /**
+     * Flags the topic partition as initially committed in a JCP control variable for partition and group.id.
+     * 
+     * @param offsets a map that maps partitions to offsets 
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#postOffsetCommit(java.util.Map)
+     */
+    @Override
+    protected void postOffsetCommit (Map<TopicPartition, OffsetAndMetadata> offsets) {
+        if (initialStartPosition == StartPosition.Default) return;
+        for (TopicPartition tp: offsets.keySet()) {
+            try {
+                setCommittedForPartitionTrue (tp);
+            }
+            catch (InterruptedException e) {
+                trace.info ("interrupted while updating control variable for " + tp);
+            }
+            catch (IOException e) {
+                trace.error (e);
+                e.printStackTrace();
+            }
+        }
+    }
+
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onDrain()
      */

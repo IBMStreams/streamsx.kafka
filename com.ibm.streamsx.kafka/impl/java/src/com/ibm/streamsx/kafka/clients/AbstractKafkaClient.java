@@ -18,6 +18,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -34,9 +35,10 @@ public abstract class AbstractKafkaClient {
     protected static final long METRICS_REPORT_INTERVAL = 2_000;
 
     private final String clientId;
-    private boolean clientIdGenerated = false;
+    private final boolean clientIdGenerated;
     private final OperatorContext operatorContext;
-    
+    private final ControlPlaneContext jcpContext;
+
     
     /**
      * Constructs a new AbstractKafkaClient using Kafka properties
@@ -47,6 +49,7 @@ public abstract class AbstractKafkaClient {
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
         this.operatorContext = operatorContext;
+        this.jcpContext = operatorContext.getOptionalContext (ControlPlaneContext.class);
         // Create a unique client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
         // This is important, otherwise running multiple consumers from the same
         // application will result in a KafkaException when registering the client
@@ -77,10 +80,20 @@ public abstract class AbstractKafkaClient {
      * returns the operator context.
      * @return the operator context
      */
-    public OperatorContext getOperatorContext() {
+    public final OperatorContext getOperatorContext() {
         return operatorContext;
     }
 
+    /**
+     * Returns the ControlPlaneContext if there is one.<br>
+     * 
+     * <b>Note:</b> There is always a ControlPlaneContext - whether there is a JobControlPlane operator in the application graph or not.
+     *       Future implementations of IBM Streams may change this. Therefore it is a good practice to check the returned value for null.
+     * @return the Control Plane Context
+     */
+    public final ControlPlaneContext getJcpContext() {
+        return jcpContext;
+    }
 
     /**
      * @return the clientId (client.id) of the Kafka client

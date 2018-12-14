@@ -61,12 +61,10 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
 
 
     /**
-     * Subscribes to topics or assigns with topic partitions.
-     * Subscription happens when a) partitions is null or empty AND startPosition is StartPosition.Default.
-     * In all other cases the consumer gets assigned. When partitions are assigned, the consumer is seeked
-     * to the given start position (begin or end of the topic partitions).
-     * @param topics  the topics
-     * @param partitions partitions. The partitions. can be null or empty. Then the metadata of the topics is read to get all partitions of each topic.
+     * Subscribes to topics.
+     * 
+     * @param topics     the topics
+     * @param partitions The partitions. Must be null or empty. Partitions are assigned by Kafka.
      * @param startPosition Must be StartPosition.Default, StartPosition.Beginning, or StartPosition.End.
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.Collection, java.util.Collection, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
      */
@@ -88,11 +86,11 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
     }
 
     /**
-     * assigns to topic partitions and seeks to the nearest offset given by a timestamp.
-     *
-     * @param topics         the topics
-     * @param partitions     partition numbers. Every given topic must have the given partition numbers.
-     * @param timestamp      the timestamp where to start reading in milliseconds since Epoch.
+     * Subscribes to topics.
+     * 
+     * @param topics     the topics
+     * @param partitions The partitions. Must be null or empty. Partitions are assigned by Kafka.
+     * @param timestamp  The timestamp where to start reading in milliseconds since Epoch.
      * @throws Exception 
      * 
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.Collection, java.util.Collection, long)
@@ -116,8 +114,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
 
 
     /**
-     * Assigns to topic partitions and seeks to the given offsets.
-     * A single topic can be specified. The collections for partitions and offsets must have equal size.
+     * Not supported in this implementation. Throws an exception when invoked.
      * 
      * @param topic the topic
      * @param partitions the partitions of the topic
@@ -127,7 +124,6 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public void subscribeToTopicsWithOffsets (String topic, List<Integer> partitions, List<Long> startOffsets) throws Exception {
-        trace.debug ("subscribeToTopicsWithOffsets: topic = " + topic + ", partitions = " + partitions + ", startOffsets = " + startOffsets);
         throw new KafkaConfigurationException ("Subscription (assignment of partitions) with offsets is not supported by this client: " + getThisClassName());
     }
 

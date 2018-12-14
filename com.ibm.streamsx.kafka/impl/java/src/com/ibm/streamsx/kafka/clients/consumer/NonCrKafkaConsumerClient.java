@@ -52,60 +52,61 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             // TODO: can we find out whether an operator is restartable? If yes, we throwed the exception only when 
             // the operator's PE is restartable.
             // This implementation does not need a JCP when the operator cannot be restarted.
-            // When the operator is not restartable, we need not to use the control variables.
+            // When the operator is not restartable, we need not to use the control variables - they are only for correct restart
             throw new KafkaOperatorException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", getInitialStartPosition()));
         }
     }
 
 
     /**
-     * Subscribes to topics or assigns with topic partitions.
-     * Subscription happens when a) partitions is null or empty AND startPosition is StartPosition.Default.
-     * In all other cases the consumer gets assigned. When partitions are assigned, the consumer is seeked
-     * to the given start position (begin or end of the topic partitions).
-     * @param topics  the topics
-     * @param partitions partitions. The partitions. can be null or empty. Then the metadata of the topics is read to get all partitions of each topic.
-     * @param startPosition Must be StartPosition.Default, StartPosition.Beginning, or StartPosition.End.
+     * Assigns given or all topic partitions.
+     * The partitions can be null or empty. Then the metadata of the topics is read to get all partitions of each topic.
+     * After partitions are assigned, the consumer is seeked to the given start position, (i.e. the fetch offset is overridden).
+     *
+     * @param topics         the topics
+     * @param partitions     partition numbers. When not null or empty, every given topic must have the given partition numbers.
+     * @param startPosition  Must be StartPosition.Default, StartPosition.Beginning, or StartPosition.End.
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.Collection, java.util.Collection, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
      */
     @Override
     public void subscribeToTopics (Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
         trace.debug("subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
+        if (topics == null || topics.isEmpty()) return;
 
-        if(topics != null && !topics.isEmpty()) {
-            Set<TopicPartition> partsToAssign;
-            if (partitions == null || partitions.isEmpty()) {
-                // no partition information provided
-                partsToAssign = getAllTopicPartitionsForTopic(topics);
-            }
-            else {
-                partsToAssign = new HashSet<TopicPartition>();
-                topics.forEach(topic -> {
-                    partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
-                });
-            }    
-            assign (partsToAssign);
-            if (getInitialStartPosition() != StartPosition.Default) {
-                if (ENABLE_FEATURE_RESTART_WITHOUT_SEEK) {
-                    for (TopicPartition tp: partsToAssign) {
-                        if (!isCommittedForPartition (tp)) {
-                            seekToPosition (tp, startPosition);
-                        }
+        Set<TopicPartition> partsToAssign;
+        if (partitions == null || partitions.isEmpty()) {
+            // no partition information provided
+            partsToAssign = getAllTopicPartitionsForTopic(topics);
+        }
+        else {
+            partsToAssign = new HashSet<TopicPartition>();
+            topics.forEach(topic -> {
+                partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
+            });
+        }    
+        assign (partsToAssign);
+        if (getInitialStartPosition() != StartPosition.Default) {
+            if (ENABLE_FEATURE_RESTART_WITHOUT_SEEK) {
+                for (TopicPartition tp: partsToAssign) {
+                    if (!isCommittedForPartition (tp)) {
+                        seekToPosition (tp, startPosition);
                     }
                 }
-                else {
-                    seekToPosition (partsToAssign, startPosition);
-                }
+            }
+            else {
+                seekToPosition (partsToAssign, startPosition);
             }
         }
     }
 
     /**
-     * assigns to topic partitions and seeks to the nearest offset given by a timestamp.
+     * Assigns topic partitions and seeks to the nearest offset given by a timestamp.
+     * The partitions can be null or empty. Then the metadata of the topics is read to get all partitions of each topic.
+     * After partitions are assigned, the consumer is seeked to the offset nearest to the given timestamp.
      *
      * @param topics         the topics
-     * @param partitions     partition numbers. Every given topic must have the given partition numbers.
+     * @param partitions     partition numbers. When not null or empty, every given topic must have the given partition numbers.
      * @param timestamp      the timestamp where to start reading in milliseconds since Epoch.
      * @throws Exception 
      * 
@@ -114,13 +115,14 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     @Override
     public void subscribeToTopicsWithTimestamp (Collection<String> topics, Collection<Integer> partitions, long timestamp) throws Exception {
         trace.debug("subscribeToTopicsWithTimestamp: topic = " + topics + ", partitions = " + partitions + ", timestamp = " + timestamp);
-        Map<TopicPartition, Long /* timestamp */> topicPartitionTimestampMap = new HashMap<TopicPartition, Long>();
-        if(partitions == null || partitions.isEmpty()) {
-            Set<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic(topics);
-            topicPartitions.forEach(tp -> topicPartitionTimestampMap.put(tp, timestamp));
+        if (topics == null || topics.isEmpty()) return;
+        Map<TopicPartition, Long /* timestamp */> topicPartitionTimestampMap = new HashMap<>();
+        if (partitions == null || partitions.isEmpty()) {
+            Set<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic (topics);
+            topicPartitions.forEach(tp -> topicPartitionTimestampMap.put (tp, timestamp));
         } else {
-            topics.forEach(topic -> {
-                partitions.forEach(partition -> topicPartitionTimestampMap.put(new TopicPartition(topic, partition), timestamp));
+            topics.forEach (topic -> {
+                partitions.forEach (partition -> topicPartitionTimestampMap.put (new TopicPartition(topic, partition), timestamp));
             });
         }
         trace.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
@@ -141,7 +143,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
     /**
      * Assigns to topic partitions and seeks to the given offsets.
-     * A single topic can be specified. The collections for partitions and offsets must have equal size.
+     * Only a single topic can be specified. The collections for partitions and offsets must have equal size.
      * 
      * @param topic the topic
      * @param partitions the partitions of the topic
@@ -153,6 +155,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     public void subscribeToTopicsWithOffsets (String topic, List<Integer> partitions, List<Long> startOffsets) throws Exception {
         if(partitions.size() != startOffsets.size())
             throw new IllegalArgumentException("The number of partitions and the number of offsets must be equal");
+
+        if (partitions == null || partitions.isEmpty()) return;
 
         Map<TopicPartition, Long> topicPartitionOffsetMap = new HashMap<TopicPartition, Long>();
         int i = 0;

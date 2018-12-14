@@ -305,7 +305,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
 
 
     /**
-     * Marks all topic partition as committed in a JCP control variable for partition and group.id.
+     * Marks all topic partition from the parameter map (keys) as committed in a JCP control variable for partition and group.id.
      * 
      * @param offsets a map that maps partitions to offsets 
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#postOffsetCommit(java.util.Map)

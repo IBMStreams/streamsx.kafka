@@ -370,6 +370,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
     }
 
+    @ContextCheck (compile = true)
+    public static void warnStartPositionParamRequiresJCP (OperatorContextChecker checker) {
+        OperatorContext opCtx = checker.getOperatorContext();
+        Set<String> paramNames = opCtx.getParameterNames();
+        List<StreamingInput<Tuple>> inputPorts = opCtx.getStreamingInputs();
+
+        if (opCtx.getOptionalContext (ConsistentRegionContext.class) == null
+                && paramNames.contains (START_POSITION_PARAM)
+                && inputPorts.size() == 0) {
+            System.err.println (Messages.getString ("WARN_ENSURE_JCP_ADDED_STARTPOS_NOT_DEFAULT"));
+        }
+    }
 
     @ContextCheck(compile = true)
     public static void checkInputPort(OperatorContextChecker checker) {

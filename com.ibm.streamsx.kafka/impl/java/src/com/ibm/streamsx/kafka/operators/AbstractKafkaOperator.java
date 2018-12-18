@@ -22,12 +22,9 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.AbstractOperator;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.StreamingData;
-import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.Type.MetaType;
-import com.ibm.streams.operator.compile.OperatorContextChecker;
 import com.ibm.streams.operator.model.Libraries;
 import com.ibm.streams.operator.model.Parameter;
-import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.state.StateHandler;
 import com.ibm.streams.operator.types.Blob;
@@ -99,15 +96,6 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
                     + "`P-J<job-ID>-<operator name>` for a producer operator.")
     public void setClientId(String clientId) {
         this.clientId = clientId;
-    }
-
-    @ContextCheck (compile = true)
-    public static void checkCheckpointConfig (OperatorContextChecker checker) {
-        OperatorContext operatorContext = checker.getOperatorContext();
-        CheckpointContext ckptContext = operatorContext.getOptionalContext(CheckpointContext.class);
-        if (ckptContext != null) {
-            checker.setInvalidContext (Messages.getString("CHECKPOINT_CONFIG_NOT_SUPPORTED", operatorContext.getKind()), new Object[0]);
-        }
     }
 
 

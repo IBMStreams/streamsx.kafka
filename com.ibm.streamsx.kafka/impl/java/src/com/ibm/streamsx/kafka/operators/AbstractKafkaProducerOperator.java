@@ -21,12 +21,13 @@ import com.ibm.streams.operator.compile.OperatorContextChecker;
 import com.ibm.streams.operator.model.DefaultAttribute;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
-import com.ibm.streamsx.kafka.clients.producer.TransactionalKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.TransactionalKafkaProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -200,6 +201,15 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     			}
     		}
     	}
+    }
+    
+    @ContextCheck (compile = true)
+    public static void checkCheckpointConfig (OperatorContextChecker checker) {
+        OperatorContext operatorContext = checker.getOperatorContext();
+        CheckpointContext ckptContext = operatorContext.getOptionalContext(CheckpointContext.class);
+        if (ckptContext != null) {
+            checker.setInvalidContext (Messages.getString("CHECKPOINT_CONFIG_NOT_SUPPORTED", operatorContext.getKind()), new Object[0]);
+        }
     }
     
     @ContextCheck(runtime = true, compile = false)

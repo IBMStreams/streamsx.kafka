@@ -38,7 +38,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected static final String DEFAULT_TOPIC_ATTR_NAME = "topic"; //$NON-NLS-1$
     protected static final String DEFAULT_PARTITION_ATTR_NAME = "partition"; //$NON-NLS-1$
     protected static final String DEFAULT_TIMESTAMP_ATTR_NAME = "messageTimestamp"; //$NON-NLS-1$
-    
+
     protected static final String MESSAGEATTR_PARAM_NAME = "messageAttribute"; //$NON-NLS-1$
     protected static final String KEYATTR_PARAM_NAME = "keyAttribute"; //$NON-NLS-1$
     protected static final String TOPIC_PARAM_NAME = "topic"; //$NON-NLS-1$
@@ -46,7 +46,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected static final String PARTITIONATTR_PARAM_NAME = "partitionAttribute"; //$NON-NLS-1$
     protected static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
     protected static final String CONSISTENT_REGION_POLICY_PARAM_NAME = "consistentRegionPolicy";
-    
+
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
     /* Parameters */
@@ -65,35 +65,35 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     private boolean guaranteeOrdering = false;
-    
+
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
-    		description="Specifies the policy to use when in a consistent region.\\n"
-    		        + "\\n"
-    		        + "When `NonTransactional` "
-    				+ "is specified, the operator guarantees that every tuple is written to the "
-    				+ "topic(s) at least once. When the consistent region resets, duplicates will most "
-    				+ "likely appear in the output topic(s). For consumers of the output topics, "
-    				+ "messages appears as they are produced.\\n"
-    				+ "\\n"
-    				+ " When `Transactional` is specified, the operator will write "
-    				+ "tuples to the topic(s) within the context of a transaction. Transactions are commited "
-    				+ "when the operator checkpoints. This implies that downstream Kafka consumers may not see the messages "
-    				+ "until operator checkpoints.\\n"
-    				+ "Transactional delivery minimizes (though not eliminates) duplicate messages for consumers of "
-    				+ "the output topics when they are configured with the consumer property `isolation.level=read_committed`. "
-    				+ "Consumers that read with the default isolation level `read_uncommitted` see all messages as "
-    				+ "they are produced. For these consumers, there is no difference between transactional and "
-    				+ "non-transactional message delivery.\\n"
-    				+ "\\n"
-    				+ "For backward compatibility, the parameter value `AtLeastOnce` can also be specified, but is "
-    				+ "deprecated and can be removed in a future version. `AtLeastOnce` is equivalent to `NonTransactional`.\\n"
-    				+ "\\n"
-    				+ "This parameter is ignored if the operator is not part of a consistent region. "
-    				+ "The default value is `NonTransactional`. **NOTE**: Kafka brokers older than version v0.11 "
-    				+ "do not support transactions.")
+            description="Specifies the policy to use when in a consistent region.\\n"
+                    + "\\n"
+                    + "When `NonTransactional` "
+                    + "is specified, the operator guarantees that every tuple is written to the "
+                    + "topic(s) at least once. When the consistent region resets, duplicates will most "
+                    + "likely appear in the output topic(s). For consumers of the output topics, "
+                    + "messages appears as they are produced.\\n"
+                    + "\\n"
+                    + " When `Transactional` is specified, the operator will write "
+                    + "tuples to the topic(s) within the context of a transaction. Transactions are commited "
+                    + "when the operator checkpoints. This implies that downstream Kafka consumers may not see the messages "
+                    + "until operator checkpoints.\\n"
+                    + "Transactional delivery minimizes (though not eliminates) duplicate messages for consumers of "
+                    + "the output topics when they are configured with the consumer property `isolation.level=read_committed`. "
+                    + "Consumers that read with the default isolation level `read_uncommitted` see all messages as "
+                    + "they are produced. For these consumers, there is no difference between transactional and "
+                    + "non-transactional message delivery.\\n"
+                    + "\\n"
+                    + "For backward compatibility, the parameter value `AtLeastOnce` can also be specified, but is "
+                    + "deprecated and can be removed in a future version. `AtLeastOnce` is equivalent to `NonTransactional`.\\n"
+                    + "\\n"
+                    + "This parameter is ignored if the operator is not part of a consistent region. "
+                    + "The default value is `NonTransactional`. **NOTE**: Kafka brokers older than version v0.11 "
+                    + "do not support transactions.")
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
-		this.consistentRegionPolicy = consistentRegionPolicy;
-	}
+        this.consistentRegionPolicy = consistentRegionPolicy;
+    }
 
     @Parameter(optional = true, name = GUARANTEE_ORDERING_PARAM_NAME,
             description = "If set to true, the operator guarantees that the order of records within "
@@ -111,68 +111,68 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
 
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
-    		description="Specifies the input attribute that contains "
-    				+ "the Kafka key value. If not specified, the operator "
-    				+ "will look for an input attribute named *key*.")
+            description="Specifies the input attribute that contains "
+                    + "the Kafka key value. If not specified, the operator "
+                    + "will look for an input attribute named *key*.")
     public void setKeyAttr(TupleAttribute<Tuple, ?> keyAttr) {
-		this.keyAttr = keyAttr;
-	}
+        this.keyAttr = keyAttr;
+    }
 
     @Parameter(optional = true, name=TIMESTAMPATTR_PARAM_NAME,
-    		description="Specifies the attribute on the input port that "
-    				+ "contains the timestamp for the message. If not specified, the "
-    				+ "operator will look for an input attribute named *messageTimestamp*. "
-    				+ "If this parameter is not specified and there is no input "
-    				+ "attribute named *messageTimestamp*, the operator will use the timestamp "
-    				+ "provided by Kafka (broker config `log.message.timestamp.type=\\\\[CreateTime|LogAppendTime\\\\]`).")
+            description="Specifies the attribute on the input port that "
+                    + "contains the timestamp for the message. If not specified, the "
+                    + "operator will look for an input attribute named *messageTimestamp*. "
+                    + "If this parameter is not specified and there is no input "
+                    + "attribute named *messageTimestamp*, the operator will use the timestamp "
+                    + "provided by Kafka (broker config `log.message.timestamp.type=\\\\[CreateTime|LogAppendTime\\\\]`).")
     public void setTimestampAttr(TupleAttribute<Tuple, Long> timestampAttr) {
-		this.timestampAttr = timestampAttr;
-	}
-    
+        this.timestampAttr = timestampAttr;
+    }
+
     @DefaultAttribute(DEFAULT_MESSAGE_ATTR_NAME)
     @Parameter(optional = true, name=MESSAGEATTR_PARAM_NAME, 
-    		description="Specifies the attribute on the input port that "
-    				+ "contains the message payload. If not specified, the "
-    				+ "operator will look for an input attribute named *message*. "
-    				+ "If this parameter is not specified and there is no input "
-    				+ "attribute named *message*, the operator will throw an "
-    				+ "exception and terminate.")
+    description="Specifies the attribute on the input port that "
+            + "contains the message payload. If not specified, the "
+            + "operator will look for an input attribute named *message*. "
+            + "If this parameter is not specified and there is no input "
+            + "attribute named *message*, the operator will throw an "
+            + "exception and terminate.")
     public void setMessageAttr(TupleAttribute<Tuple, ?> messageAttr) {
-		this.messageAttr = messageAttr;
-	}
+        this.messageAttr = messageAttr;
+    }
 
     @Parameter(optional = true, name=TOPIC_PARAM_NAME,
-    		description="Specifies the topic(s) that the producer should send "
-    				+ "messages to. The value of this parameter will take precedence "
-    				+ "over the **" + TOPICATTR_PARAM_NAME + "** parameter. This parameter will also "
-    				+ "take precedence if the input tuple schema contains an attribute "
-    				+ "named *topic*.")
+            description="Specifies the topic(s) that the producer should send "
+                    + "messages to. The value of this parameter will take precedence "
+                    + "over the **" + TOPICATTR_PARAM_NAME + "** parameter. This parameter will also "
+                    + "take precedence if the input tuple schema contains an attribute "
+                    + "named *topic*.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
 
     @Parameter(optional = true, name=TOPICATTR_PARAM_NAME,
-    		description="Specifies the input attribute that contains the name of "
-    				+ "the topic that the message should be written to. If this "
-    				+ "parameter is not specified, the operator will "
-    				+ "look for an input attribute named *topic*. This parameter "
-    				+ "value is overridden if the **topic** parameter is specified.")
+            description="Specifies the input attribute that contains the name of "
+                    + "the topic that the message should be written to. If this "
+                    + "parameter is not specified, the operator will "
+                    + "look for an input attribute named *topic*. This parameter "
+                    + "value is overridden if the **topic** parameter is specified.")
     public void setTopicAttr(TupleAttribute<Tuple, String> topicAttr) {
-		this.topicAttr = topicAttr;
-	}
+        this.topicAttr = topicAttr;
+    }
 
     @Parameter(optional = true, name=PARTITIONATTR_PARAM_NAME,
-    		description="Specifies the input attribute that contains the partition "
-    				+ "number that the message should be written to. If this parameter "
-    				+ "is not specified, the operator will look for an input attribute "
-    				+ "named **partition**. If the user does not indicate which partition "
-    				+ "the message should be written to, then Kafka's default partitioning "
-    				+ "strategy will be used instead (partition based on the specified "
-    				+ "partitioner or in a round-robin fashion).")
+            description="Specifies the input attribute that contains the partition "
+                    + "number that the message should be written to. If this parameter "
+                    + "is not specified, the operator will look for an input attribute "
+                    + "named **partition**. If the user does not indicate which partition "
+                    + "the message should be written to, then Kafka's default partitioning "
+                    + "strategy will be used instead (partition based on the specified "
+                    + "partitioner or in a round-robin fashion).")
     public void setPartitionAttr(TupleAttribute<Tuple, Integer> partitionAttr) {
-    	this.partitionAttr = partitionAttr;
+        this.partitionAttr = partitionAttr;
     }
-    
+
     /*
      * Retrieving the value of a TupleAttribute parameter via OperatorContext.getParameterValues()
      * returns a string in the form "InputPortName.AttributeName". However, this ends up being the
@@ -182,9 +182,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
      * referring to.  
      */
     private static String parseFQAttributeName(String attrString) {
-    	return attrString.split("_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+        return attrString.split("_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
     }
-    
+
     /*
      * If the `partitionAttribute` is not defined, then the operator will look
      * for an input attribute called "partition". Here, we need to check that this
@@ -192,17 +192,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
      */
     @ContextCheck(compile = true)
     public static void checkPartitionAttributeType(OperatorContextChecker checker) {
-    	if(!checker.getOperatorContext().getParameterNames().contains(PARTITIONATTR_PARAM_NAME)) {
-    		StreamSchema schema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
-    		Attribute partition = schema.getAttribute("partition"); //$NON-NLS-1$
-    		if(partition != null) {
-    			if(!checker.checkAttributeType(partition, MetaType.INT32)) {
-    				checker.setInvalidContext(Messages.getString("PARTITION_ATTRIBUTE_NOT_INT32"), new Object[0]); //$NON-NLS-1$
-    			}
-    		}
-    	}
+        if(!checker.getOperatorContext().getParameterNames().contains(PARTITIONATTR_PARAM_NAME)) {
+            StreamSchema schema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
+            Attribute partition = schema.getAttribute("partition"); //$NON-NLS-1$
+            if(partition != null) {
+                if(!checker.checkAttributeType(partition, MetaType.INT32)) {
+                    checker.setInvalidContext(Messages.getString("PARTITION_ATTRIBUTE_NOT_INT32"), new Object[0]); //$NON-NLS-1$
+                }
+            }
+        }
     }
-    
+
     @ContextCheck (compile = true)
     public static void checkCheckpointConfig (OperatorContextChecker checker) {
         OperatorContext operatorContext = checker.getOperatorContext();
@@ -211,7 +211,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             checker.setInvalidContext (Messages.getString("CHECKPOINT_CONFIG_NOT_SUPPORTED", operatorContext.getKind()), new Object[0]);
         }
     }
-    
+
     @ContextCheck(runtime = true, compile = false)
     public static void checkAttributes(OperatorContextChecker checker) {
         StreamSchema streamSchema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
@@ -224,18 +224,18 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         Attribute msgAttr;
         List<String> messageAttrParamValues = checker.getOperatorContext().getParameterValues(MESSAGEATTR_PARAM_NAME);
         if(messageAttrParamValues != null && !messageAttrParamValues.isEmpty()) {
-        	msgAttr = streamSchema.getAttribute(parseFQAttributeName(messageAttrParamValues.get(0)));
+            msgAttr = streamSchema.getAttribute(parseFQAttributeName(messageAttrParamValues.get(0)));
         } else {
-        	// the 'messageAttr' parameter is not specified, so check if input schema contains an attribute named "message"
-        	msgAttr = streamSchema.getAttribute(DEFAULT_MESSAGE_ATTR_NAME);
+            // the 'messageAttr' parameter is not specified, so check if input schema contains an attribute named "message"
+            msgAttr = streamSchema.getAttribute(DEFAULT_MESSAGE_ATTR_NAME);
         }
-        
+
         if(msgAttr != null) {
             // validate the message attribute type
             checker.checkAttributeType(msgAttr, SUPPORTED_ATTR_TYPES);
         } else {
-        	// the operator does not specify a message attribute, so set an invalid context
-        	checker.setInvalidContext(Messages.getString("MESSAGE_ATTRIBUTE_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
+            // the operator does not specify a message attribute, so set an invalid context
+            checker.setInvalidContext(Messages.getString("MESSAGE_ATTRIBUTE_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
         }
 
         /*
@@ -246,48 +246,48 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
          */
         List<String> keyParamValues = checker.getOperatorContext().getParameterValues(KEYATTR_PARAM_NAME);
         Attribute keyAttr = (keyParamValues != null && !keyParamValues.isEmpty()) ? 
-        		streamSchema.getAttribute(parseFQAttributeName(keyParamValues.get(0))) :
-        			streamSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
+                streamSchema.getAttribute(parseFQAttributeName(keyParamValues.get(0))) :
+                    streamSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
 
-        // validate the key attribute type
-        if (keyAttr != null)
-            checker.checkAttributeType(keyAttr, SUPPORTED_ATTR_TYPES);
-        
+                // validate the key attribute type
+                if (keyAttr != null)
+                    checker.checkAttributeType(keyAttr, SUPPORTED_ATTR_TYPES);
 
-        /*
-         * For topics, one of the following must be true: 
-         *  * the 'topic' parameter is specified that lists topics to write to
-         *  * the 'topicAttr' parameter is specified that points to an input attribute containing the topic to write to
-         *  * neither of the above parameters are specified but the input schema contains an attribute named "topic"
-         *  
-         * An invalid context is set if none of the above conditions are true
-         */
-        if(!checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM_NAME)) { 
-        	// 'topic' param not specified, check for 'topicAttr' param
-        	if(!checker.getOperatorContext().getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
-        		// 'topicAttr' param also not specified, check for input attribute named "topic"
-        		Attribute topicAttribute = streamSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
-        		if(topicAttribute == null) {
-        			// "topic" input attribute does not exist...set invalid context
-        			checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
-        		}
-        	}
-        }
+
+                /*
+                 * For topics, one of the following must be true: 
+                 *  * the 'topic' parameter is specified that lists topics to write to
+                 *  * the 'topicAttr' parameter is specified that points to an input attribute containing the topic to write to
+                 *  * neither of the above parameters are specified but the input schema contains an attribute named "topic"
+                 *  
+                 * An invalid context is set if none of the above conditions are true
+                 */
+                if(!checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM_NAME)) { 
+                    // 'topic' param not specified, check for 'topicAttr' param
+                    if(!checker.getOperatorContext().getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
+                        // 'topicAttr' param also not specified, check for input attribute named "topic"
+                        Attribute topicAttribute = streamSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
+                        if(topicAttribute == null) {
+                            // "topic" input attribute does not exist...set invalid context
+                            checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
+                        }
+                    }
+                }
     }
 
     @ContextCheck(compile = true)
-	public static void checkConsistentRegion(OperatorContextChecker checker) {
+    public static void checkConsistentRegion(OperatorContextChecker checker) {
 
-    	// check that the operator is not the start of the consistent region
-		OperatorContext opContext = checker.getOperatorContext();
-		ConsistentRegionContext crContext = opContext.getOptionalContext(ConsistentRegionContext.class);
-		if (crContext != null) {
-			if (crContext.isStartOfRegion()) {
-				checker.setInvalidContext(Messages.getString("OPERATOR_NOT_START_OF_CONSISTENT_REGION", opContext.getKind()), new Object[0]); ////$NON-NLS-1$ 
-			}
-		}
-	}
-    
+        // check that the operator is not the start of the consistent region
+        OperatorContext opContext = checker.getOperatorContext();
+        ConsistentRegionContext crContext = opContext.getOptionalContext(ConsistentRegionContext.class);
+        if (crContext != null) {
+            if (crContext.isStartOfRegion()) {
+                checker.setInvalidContext(Messages.getString("OPERATOR_NOT_START_OF_CONSISTENT_REGION", opContext.getKind()), new Object[0]); ////$NON-NLS-1$ 
+            }
+        }
+    }
+
     /**
      * Initialize this operator. Called once before any tuples are processed.
      * 
@@ -307,42 +307,42 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // check for key attribute and get type
         Attribute keyAttribute = null;
         if(keyAttr != null && keyAttr.getAttribute() != null) {
-        	keyAttribute = keyAttr.getAttribute();
-    	} else {
-    		keyAttribute = inputSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
-    	}
+            keyAttribute = keyAttr.getAttribute();
+        } else {
+            keyAttribute = inputSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
+        }
 
         if(keyAttribute != null) {
-        	keyType = keyAttribute.getType().getObjectType();
-        	keyAttributeName = keyAttribute.getName();
+            keyType = keyAttribute.getType().getObjectType();
+            keyAttributeName = keyAttribute.getName();
         }
-        
+
         // check for partition attribute
         Attribute partitionAttribute = null;
         if(partitionAttr != null && partitionAttr.getAttribute() != null) {
-        	partitionAttribute = partitionAttr.getAttribute();
+            partitionAttribute = partitionAttr.getAttribute();
         } else {
-        	partitionAttribute = inputSchema.getAttribute(DEFAULT_PARTITION_ATTR_NAME);
+            partitionAttribute = inputSchema.getAttribute(DEFAULT_PARTITION_ATTR_NAME);
         }
         partitionAttributeName = partitionAttribute != null ? partitionAttribute.getName() : null;
-        
+
         // check for timestamp attribute
         Attribute timestampAttribute = null;
         if(timestampAttr != null && timestampAttr.getAttribute() != null) {
-        	timestampAttribute = timestampAttr.getAttribute();
+            timestampAttribute = timestampAttr.getAttribute();
         } else {
-        	timestampAttribute = inputSchema.getAttribute(DEFAULT_TIMESTAMP_ATTR_NAME);
+            timestampAttribute = inputSchema.getAttribute(DEFAULT_TIMESTAMP_ATTR_NAME);
         }
         timestampAttributeName = timestampAttribute != null ? timestampAttribute.getName() : null;
-        
+
         // get message type
         messageType = messageAttr.getAttribute().getType().getObjectType();
-        
+
         crContext = context.getOptionalContext(ConsistentRegionContext.class);
         if (crContext != null) {
             isResetting = new AtomicBoolean(context.getPE().getRelaunchCount() > 0);
         }
-        
+
         initProducer();
         final boolean registerAsInput = false;
         registerForDataGovernance(context, topics, registerAsInput);
@@ -354,22 +354,22 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
         if(crContext == null) {
-        	logger.info ("Creating KafkaProducerClient...");
+            logger.info ("Creating KafkaProducerClient...");
             producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
         } else {
-        	switch(consistentRegionPolicy) {
-        	case AtLeastOnce:
-        	case NonTransactional:
-            	logger.info("Creating AtLeastOnceKafkaProducerClient...");
-        		producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
-        		break;
-        	case Transactional:
-        		logger.info("Creating TransactionalKafkaProducerClient...");
-        		producer = new TransactionalKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props, /*lazyTransactionBegin*/true);
-        		break;
-        	default:
-        		throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
-        	}
+            switch(consistentRegionPolicy) {
+            case AtLeastOnce:
+            case NonTransactional:
+                logger.info("Creating AtLeastOnceKafkaProducerClient...");
+                producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+                break;
+            case Transactional:
+                logger.info("Creating TransactionalKafkaProducerClient...");
+                producer = new TransactionalKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props, /*lazyTransactionBegin*/true);
+                break;
+            default:
+                throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
+            }
         }
     }
 
@@ -401,28 +401,28 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         Object value = toJavaPrimitveObject(messageType, messageAttr.getValue(tuple));
         Integer partition = (partitionAttributeName != null) ? tuple.getInt(partitionAttributeName) : null;
         Long timestamp = (timestampAttributeName) != null ? tuple.getLong(timestampAttributeName) : null;
-        
+
         // send message to all topics
         for (String topic : topicList)
             producer.processTuple(new ProducerRecord(topic, partition, timestamp, key, value));
     }
-    
+
     private List<String> getTopics(Tuple tuple) {
-    	List<String> topicList;
-    	
-    	if(this.topics != null && !this.topics.isEmpty()) {
-    		topicList = this.topics;
-    	} else if(topicAttr != null) {
-    		topicList = Arrays.asList(topicAttr.getValue(tuple));
-    	} else {
-    		// the context checker guarantees that this will be here
-    		// if the above 2 conditions are false
-    		topicList = Arrays.asList(tuple.getString(DEFAULT_TOPIC_ATTR_NAME));
-    	}
-    	
-    	return topicList;
+        List<String> topicList;
+
+        if(this.topics != null && !this.topics.isEmpty()) {
+            topicList = this.topics;
+        } else if(topicAttr != null) {
+            topicList = Arrays.asList(topicAttr.getValue(tuple));
+        } else {
+            // the context checker guarantees that this will be here
+            // if the above 2 conditions are false
+            topicList = Arrays.asList(tuple.getString(DEFAULT_TOPIC_ATTR_NAME));
+        }
+
+        return topicList;
     }
-    
+
     /**
      * Shutdown this operator, which will interrupt the thread executing the
      * <code>produceTuples()</code> method.

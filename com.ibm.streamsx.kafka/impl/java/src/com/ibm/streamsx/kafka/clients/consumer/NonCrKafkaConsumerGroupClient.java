@@ -17,6 +17,7 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
+import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
@@ -29,6 +30,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerClient implements ConsumerRebalanceListener {
 
     private static final Logger trace = Logger.getLogger(NonCrKafkaConsumerGroupClient.class);
+    private static final long JCP_CONNECT_TIMEOUT_MILLIS = 20000;
     private long initialStartTimestamp = 0l;
 
     /**
@@ -57,7 +59,20 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         }
     }
 
-
+    /**
+     * Tests for a connection establishment with the JCP operator and throws an exception if it cannot be connected. 
+     * @param connectTimeoutMillis The connect timeout in milliseconds
+     * @param startPos the initial startposition, used for the exception message only
+     * @throws MissingJobControlPlaneException The connection cannot be created
+     */
+    private void testForJobControlPlaneOrThrow (long connectTimeoutMillis, StartPosition startPos) throws MissingJobControlPlaneException {
+        if (!testJobControlConnection (connectTimeoutMillis)) {
+            trace.error (MessageFormat.format ("Could not connect to the JobControlPlane "
+                    + "within {0} milliseconds. Make sure that the operator graph contains "
+                    + "a JobControlPlane operator to support group management with startPosition {1}.", connectTimeoutMillis, startPos));
+            throw new MissingJobControlPlaneException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", startPos));
+        }
+    }
 
 
     /**
@@ -73,6 +88,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         trace.info (MessageFormat.format ("subscribeToTopics: topics = {0}, partitions = {1}, startPosition = {2}",
                 topics, partitions, startPosition));
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
+        assert getInitialStartPosition() == startPosition;
         if (partitions != null && !partitions.isEmpty()) {
             trace.error("When the " + getThisClassName() + " consumer client is used, no partitions must be specified. partitions: " + partitions);
             throw new KafkaConfigurationException ("Partitions for assignment must not be specified. Found: " + partitions);
@@ -83,6 +99,9 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         }
         subscribe (topics, this);
         // we seek in onPartitionsAssigned()
+        if (startPosition != StartPosition.Default) {
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
+        }
     }
 
     /**
@@ -110,6 +129,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         this.initialStartTimestamp = timestamp;
         subscribe (topics, this);
         // we seek in onPartitionsAssigned()
+        testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
     }
 
 
@@ -159,7 +179,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                 commitOffsets (offsets);
             }
             // reset the counter for periodic commit
-            setnSubmittedRecords (0l);
+            resetCommitPeriod (System.currentTimeMillis());
         }
         catch (InterruptedException | RuntimeException e) {
             // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
@@ -250,6 +270,8 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         private long commitCount;
         private StartPosition initialStartPosition;
         private int numTopics = 0;
+        private CommitMode commitMode;
+        private long commitPeriodMillis;
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -281,6 +303,16 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             return this;
         }
 
+        public final Builder setCommitMode (CommitMode m) {
+            this.commitMode = m;
+            return this;
+        }
+
+        public final Builder setCommitPeriod (double p) {
+            this.commitPeriodMillis = (long) (p * 1000.0);
+            return this;
+        }
+
         public final Builder setNumTopics (int n) {
             this.numTopics = n;
             return this;
@@ -294,7 +326,9 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         public ConsumerClient build() throws Exception {
             NonCrKafkaConsumerGroupClient client = new NonCrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
             client.setPollTimeout (pollTimeout);
+            client.setCommitMode (commitMode);
             client.setCommitCount (commitCount);
+            client.setCommitPeriodMillis (commitPeriodMillis); 
             client.setInitialStartPosition (initialStartPosition);
             return client;
         }

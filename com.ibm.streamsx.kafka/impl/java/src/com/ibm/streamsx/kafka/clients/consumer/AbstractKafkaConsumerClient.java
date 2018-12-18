@@ -517,6 +517,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected abstract int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException;
 
+    /**
+     * A hook that is called before records are de-queued from the message queue for tuple submission.
+     * This method is also called when there would be nothing in the queue.
+     * Derived classes must implement this method.
+     */
+    protected abstract void preDeQueueForSubmit();
 
     /**
      * Gets the next consumer record that has been received. If there are no records, the method waits the specified timeout.
@@ -544,6 +550,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         // if filling the queue is NOT stopped, we can, of cause,
         // fetch a record now from the queue, even when we have seen an empty queue, shortly before... 
 
+        preDeQueueForSubmit();
         // messageQueue.poll throws InterruptedException
         record = messageQueue.poll (timeout, timeUnit);
         if (record == null) {

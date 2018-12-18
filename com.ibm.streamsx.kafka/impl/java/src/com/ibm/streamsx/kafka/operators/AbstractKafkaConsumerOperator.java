@@ -34,10 +34,13 @@ import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streams.operator.state.CheckpointContext;
+import com.ibm.streams.operator.state.CheckpointContext.Kind;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
+import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaStaticAssignConsumerClient;
@@ -75,9 +78,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
     public static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
     public static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
+    public static final String COMMIT_PERIOD_PARAM = "commitPeriod"; //$NON-NLS-1$
     public static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
 
-    private static final int DEFAULT_COMMIT_COUNT = 2000;
+    private static final float DEFAULT_COMMIT_PERIOD = 10.0f;
 
     private Thread processThread;
     private ConsumerClient consumer;
@@ -96,7 +100,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private List<Long> startOffsets;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
-    private int commitCount = DEFAULT_COMMIT_COUNT;
+    private int commitCount = 0;
+    private double commitPeriod = DEFAULT_COMMIT_PERIOD;
+    private CommitMode commitMode = CommitMode.Time;
     private String groupId = null;
     private boolean groupIdSpecified = false;
     private Long startTime = -1l;
@@ -231,10 +237,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "config `auto.offset.reset`, which defaults to `latest`. Consumer offsets are retained for the "
                     + "time specified by the broker config `offsets.retention.minutes`, which defaults to 1440 (24 hours). "
                     + "When this time expires, the Consumer won't be able to resume after last committed offset, and the "
-                    + "value of consumer property `auto.offset.reset` applies (default `latest`). "
-                    + "**Note:** If you do not specify a group ID in Kafka consumer properties or via **groupId** parameter, "
-                    + "the operator uses a generated group ID, which makes the operator start consuming at the last position "
-                    + "or what is specified in the `auto.offset.reset` consumer property."
+                    + "value of consumer property `auto.offset.reset` applies (default `latest`)."
                     + "\\n"
                     + "* `Time`: The consumer starts consuming messages with at a given timestamp. More precisely, "
                     + "when a time is specified, the consumer starts at the earliest offset whose timestamp is greater "
@@ -325,10 +328,29 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.triggerCount = triggerCount;
     }
 
+    @Parameter(optional = true, name = COMMIT_PERIOD_PARAM, description = 
+            "This parameter specifies the period of time in seconds, after which the offsets of submitted tuples are committed. "
+                    + "This parameter is optional "
+                    + "and has a default value of " + DEFAULT_COMMIT_PERIOD + ". Its minimum value is "
+                    + "`0.1`, smaller values are pinned to 0.1 seconds. This parameter cannot be used when the **"
+                    + COMMIT_COUNT_PARAM + "** parameter is used.\\n"
+                    + "\\n" 
+                    + "This parameter is only used when the "
+                    + "operator is not part of a consistent region. When the operator participates in a "
+                    + "consistent region, offsets are always committed when the region drains.")
+    public void setCommitPeriod (double period) {
+        if (period < 0.1) {
+            logger.warn ("The commitPeriod has been pinned to 0.1");
+            this.commitPeriod = 0.1;
+        }
+        else this.commitPeriod = period;
+    }
+
     @Parameter(optional = true, name = COMMIT_COUNT_PARAM, description = 
             "This parameter specifies the number of tuples that will be submitted to "
-                    + "the output port before committing their offsets. This parameter is optional "
-                    + "and has a default value of " + DEFAULT_COMMIT_COUNT + ". "
+                    + "the output port before committing their offsets. Valid values are greater than zero. "
+                    + "This parameter is optional and conflicts with the **" + COMMIT_PERIOD_PARAM + "** parameter.\\n"
+                    + "\\n"
                     + "This parameter is only used when the "
                     + "operator is not part of a consistent region. When the operator participates in a "
                     + "consistent region, offsets are always committed when the region drains.")
@@ -356,6 +378,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (parameterNames.contains(COMMIT_COUNT_PARAM)) {
                 System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_COUNT_PARAM));
             }
+            if (parameterNames.contains(COMMIT_PERIOD_PARAM)) {
+                System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_PERIOD_PARAM));
+            }
             if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
                 if (!parameterNames.contains(TRIGGER_COUNT_PARAM)) {
                     checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
@@ -367,10 +392,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (parameterNames.contains(TRIGGER_COUNT_PARAM)) {
                 System.err.println (Messages.getString ("PARAM_IGNORED_NOT_IN_CONSITENT_REGION", TRIGGER_COUNT_PARAM));
             }
+            if (parameterNames.contains(COMMIT_COUNT_PARAM) && parameterNames.contains(COMMIT_PERIOD_PARAM)) {
+                checker.setInvalidContext (Messages.getString ("PARAMETERS_EXCLUDE_EACH_OTHER", COMMIT_COUNT_PARAM, COMMIT_PERIOD_PARAM), new Object[0]); //$NON-NLS-1$
+            }
         }
     }
 
-    @ContextCheck (compile = true)
+    //    @ContextCheck (compile = true)
     public static void warnStartPositionParamRequiresJCP (OperatorContextChecker checker) {
         OperatorContext opCtx = checker.getOperatorContext();
         Set<String> paramNames = opCtx.getParameterNames();
@@ -379,7 +407,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if (opCtx.getOptionalContext (ConsistentRegionContext.class) == null
                 && paramNames.contains (START_POSITION_PARAM)
                 && inputPorts.size() == 0) {
-            System.err.println (Messages.getString ("WARN_ENSURE_JCP_ADDED_STARTPOS_NOT_DEFAULT"));
+            System.err.println (Messages.getString ("WARN_ENSURE_JCP_ADDED_STARTPOS_NOT_DEFAULT", opCtx.getKind()));
         }
     }
 
@@ -556,14 +584,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         hasOutputPartition = outputSchema.getAttribute(outputPartitionAttrName) != null;
         hasOutputOffset = outputSchema.getAttribute(outputOffsetAttrName) != null;
 
-
         Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
                 : String.class; // default to String.class for key type
         Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
 
         // set the group ID property if the groupId parameter is specified
-        if(groupId != null && !groupId.isEmpty()) {
+        if (groupId != null && !groupId.isEmpty()) {
             kafkaProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         }
         final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
@@ -572,6 +599,33 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.debug ("group-ID specified: " + this.groupIdSpecified);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         boolean groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
+        if (this.groupIdSpecified && !groupManagementEnabled) {
+            if (hasInputPorts) {
+                logger.warn (MessageFormat.format ("You have specified the group.id ''{0}''. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group as you might expect because you have configured an input port.",
+                        gid, context.getName()));
+            }
+            if (this.partitions != null && !this.partitions.isEmpty()) {
+                logger.warn (MessageFormat.format ("You have specified the group.id ''{0}''. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group as you might expect because you have specified partitions to consume.",
+                        gid, context.getName()));
+            }
+        }
+        if (crContext != null) {
+            commitMode = CommitMode.ConsistentRegionDrain;
+        }
+        else {
+            CheckpointContext chkptContext = context.getOptionalContext (CheckpointContext.class);
+            final boolean periodicCheckPointEnabled = chkptContext != null && chkptContext.isEnabled() && chkptContext.getKind() == Kind.PERIODIC;
+            final Set <String> parameterNames = context.getParameterNames();
+            // TODO: checkpointing not yet supported
+            if (periodicCheckPointEnabled) {
+                commitMode = CommitMode.Checkpoint;
+            }
+            else {
+                commitMode = parameterNames.contains (COMMIT_COUNT_PARAM)? CommitMode.TupleCount: CommitMode.Time;
+            }
+        }
         this.isGroupManagementActive.setValue (groupManagementEnabled? 1: 0);
         if (crContext == null) {
             if (groupManagementEnabled) {
@@ -583,6 +637,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setNumTopics (this.topics == null? 0: this.topics.size())
                 .setPollTimeout(this.consumerPollTimeout)
                 .setInitialStartPosition (this.startPosition)
+                .setCommitMode (commitMode)
+                .setCommitPeriod (commitPeriod)
                 .setCommitCount(commitCount);
                 consumer = builder.build();
             }
@@ -594,6 +650,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setValueClass(valueClass)
                 .setPollTimeout(this.consumerPollTimeout)
                 .setInitialStartPosition (this.startPosition)
+                .setCommitMode (commitMode)
+                .setCommitPeriod (commitPeriod)
                 .setCommitCount(commitCount);
                 consumer = builder.build();
             }
@@ -720,7 +778,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
             try {
                 // Any exceptions except InterruptedException thrown here are propagated to the caller
-                ConsumerRecord<?, ?> record = consumer.getNextRecord (1000, TimeUnit.MILLISECONDS);
+                // Make timeout for 'getNextRecord' not too high as it influences the granularity of time based offset commit
+                ConsumerRecord<?, ?> record = consumer.getNextRecord (100, TimeUnit.MILLISECONDS);
                 if (record != null) {
                     submitRecord(record);
                     consumer.postSubmit(record);

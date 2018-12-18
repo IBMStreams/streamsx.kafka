@@ -10,14 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
-import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
@@ -27,11 +25,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
     private static final Logger trace = Logger.getLogger(NonCrKafkaConsumerClient.class);
-    /**
-     * When set to true, The client seeks a partition (overrides the initial fetch offset) only when
-     * no offsets have been committed for a topic partition and group (group = single Streams operator).
-     */
-    public static boolean ENABLE_FEATURE_RESTART_WITHOUT_SEEK = true;
+    private static final long JCP_CONNECT_TIMEOUT_MILLIS = 15000;
+
 
     /**
      * Constructs a new NonCrKafkaConsumerClient.
@@ -46,15 +41,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     private <K, V> NonCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws KafkaOperatorException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
-        if (getInitialStartPosition() != StartPosition.Default 
-                && ENABLE_FEATURE_RESTART_WITHOUT_SEEK
-                && getJcpContext() == null) {
-            // TODO: can we find out whether an operator is restartable? If yes, we throwed the exception only when 
-            // the operator's PE is restartable.
-            // This implementation does not need a JCP when the operator cannot be restarted.
-            // When the operator is not restartable, we need not to use the control variables - they are only for correct restart
-            throw new KafkaOperatorException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", getInitialStartPosition()));
-        }
     }
 
 
@@ -84,21 +70,28 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             topics.forEach(topic -> {
                 partitions.forEach(partition -> partsToAssign.add(new TopicPartition(topic, partition)));
             });
-        }    
+        }
         assign (partsToAssign);
         if (getInitialStartPosition() != StartPosition.Default) {
-            if (ENABLE_FEATURE_RESTART_WITHOUT_SEEK) {
+
+            if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
+                trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startPosition " + startPosition
+                        + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+            }
+            if (getOperatorContext().getPE().getRelaunchCount() == 0 || !canUseJobControlPlane()) {
+                seekToPosition (partsToAssign, startPosition);
+            }
+            else {
+                // relaunch count > 0 && JCP detected, seek when partition not yet committed
                 for (TopicPartition tp: partsToAssign) {
                     if (!isCommittedForPartition (tp)) {
                         seekToPosition (tp, startPosition);
                     }
                 }
             }
-            else {
-                seekToPosition (partsToAssign, startPosition);
-            }
         }
     }
+
 
     /**
      * Assigns topic partitions and seeks to the nearest offset given by a timestamp.
@@ -127,16 +120,22 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         }
         trace.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
         final Set<TopicPartition> topicPartitions = topicPartitionTimestampMap.keySet();
+
         assign (topicPartitions);
-        if (ENABLE_FEATURE_RESTART_WITHOUT_SEEK) {
+        if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
+            trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startTime " + timestamp
+                    + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+        }
+        if (getOperatorContext().getPE().getRelaunchCount() == 0 || !canUseJobControlPlane()) {
+            seekToTimestamp (topicPartitionTimestampMap);
+        }
+        else {
+            // relaunch count > 0 && JCP detected, seek when partition not yet committed
             for (TopicPartition tp: topicPartitions) {
                 if (!isCommittedForPartition (tp)) {
                     seekToTimestamp (tp, timestamp);
                 }
             }
-        }
-        else {
-            seekToTimestamp (topicPartitionTimestampMap);
         }
     }
 
@@ -163,16 +162,22 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         for (int partitionNo: partitions) {
             topicPartitionOffsetMap.put (new TopicPartition (topic, partitionNo), startOffsets.get(i++));
         }
-        if (ENABLE_FEATURE_RESTART_WITHOUT_SEEK) {
+
+        if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
+            trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the partitions will be seeked to the startOffsets. "
+                    + "To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+        }
+        if (getOperatorContext().getPE().getRelaunchCount() == 0 || !canUseJobControlPlane()) {
+            assignToPartitionsWithOffsets (topicPartitionOffsetMap);
+        }
+        else {
+            // relaunch count > 0 && JCP detected, seek when partition not yet committed
             assign (topicPartitionOffsetMap.keySet());
             for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
                 if (!isCommittedForPartition (tp)) {
                     getConsumer().seek (tp, topicPartitionOffsetMap.get (tp).longValue());
                 }
             }
-        }
-        else {
-            assignToPartitionsWithOffsets (topicPartitionOffsetMap);
         }
     }
 
@@ -235,19 +240,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
 
 
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractNonCrKafkaConsumerClient#postOffsetCommit(java.util.Map)
-     */
-    @Override
-    protected void postOffsetCommit (Map<TopicPartition, OffsetAndMetadata> offsets) {
-        if (ENABLE_FEATURE_RESTART_WITHOUT_SEEK) {
-            super.postOffsetCommit (offsets);
-        }
-    }
-
-
-
-
 
 
     /**
@@ -262,6 +254,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         private long pollTimeout;
         private long commitCount;
         private StartPosition initialStartPosition;
+        private CommitMode commitMode;
+        private long commitPeriodMillis;
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -293,6 +287,16 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             return this;
         }
 
+        public final Builder setCommitMode (CommitMode m) {
+            this.commitMode = m;
+            return this;
+        }
+
+        public final Builder setCommitPeriod (double p) {
+            this.commitPeriodMillis = (long) (p * 1000.0);
+            return this;
+        }
+
         public final Builder setInitialStartPosition (StartPosition p) {
             this.initialStartPosition = p;
             return this;
@@ -301,7 +305,9 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         public ConsumerClient build() throws Exception {
             NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties);
             client.setPollTimeout (pollTimeout);
+            client.setCommitMode (commitMode);
             client.setCommitCount (commitCount);
+            client.setCommitPeriodMillis (commitPeriodMillis); 
             client.setInitialStartPosition (initialStartPosition);
             return client;
         }

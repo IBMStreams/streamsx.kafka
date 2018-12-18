@@ -91,6 +91,10 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
             + "\\n"
             + KafkaSplDoc.CHECKPOINTING_CONFIG
             + "\\n"
+            + "See [https://github.com/IBMStreams/streamsx.kafka/issues/138|issue 138] for the Kafka toolkit.\\n"
+            + "\\n"
+            + KafkaSplDoc.CONSUMER_RESTART_BEHAVIOUR
+            + "\\n"
             + KafkaSplDoc.CONSUMER_CONSISTENT_REGION_SUPPORT
             + "\\n"
             + "# Error Handling\\n"

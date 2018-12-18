@@ -77,9 +77,9 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
     public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
         super.startConsumer();
     }
-    
-    
- 
+
+
+
     /**
      * This is an empty default implementation.
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#postOffsetCommit(java.util.Map)
@@ -101,8 +101,8 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
         event.await();
         sendStartPollingEvent();
     }
-    
-    
+
+
     /**
      * The consumer can prepare any data from the checkpoint. This method invocation should be followed by by
      * {@link #sendResetEvent(Checkpoint)} if not interrupted. This method is run by a runtime thread at 
@@ -112,8 +112,15 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
      * @throws InterruptedException The thread has been interrupted.
      */
     protected abstract void resetPrepareData (final Checkpoint checkpoint) throws InterruptedException;
-    
-    
+
+    /**
+     * Empty implementation
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#preDeQueueForSubmit()
+     */
+    @Override
+    protected void preDeQueueForSubmit() {
+    }
+
     /**
      * Initiates resetting the client to a prior state by sending an event to the event queue
      * and initiates start of polling.

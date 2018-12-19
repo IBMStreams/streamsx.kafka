@@ -3,6 +3,9 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,7 +17,10 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streams.operator.state.CheckpointContext.Kind;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
+import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -78,11 +84,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startPosition " + startPosition
                         + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
             }
-            if (getOperatorContext().getPE().getRelaunchCount() == 0 || !canUseJobControlPlane()) {
+            // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
+            if (!canUseJobControlPlane()) {
                 seekToPosition (partsToAssign, startPosition);
             }
             else {
-                // relaunch count > 0 && JCP detected, seek when partition not yet committed
+                // JCP detected, seek when partition not yet committed
                 for (TopicPartition tp: partsToAssign) {
                     if (!isCommittedForPartition (tp)) {
                         seekToPosition (tp, startPosition);
@@ -126,11 +133,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startTime " + timestamp
                     + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
         }
-        if (getOperatorContext().getPE().getRelaunchCount() == 0 || !canUseJobControlPlane()) {
+        // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
+        if (!canUseJobControlPlane()) {
             seekToTimestamp (topicPartitionTimestampMap);
         }
         else {
-            // relaunch count > 0 && JCP detected, seek when partition not yet committed
+            // JCP detected, seek when partition not yet committed
             for (TopicPartition tp: topicPartitions) {
                 if (!isCommittedForPartition (tp)) {
                     seekToTimestamp (tp, timestamp);
@@ -167,11 +175,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the partitions will be seeked to the startOffsets. "
                     + "To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
         }
-        if (getOperatorContext().getPE().getRelaunchCount() == 0 || !canUseJobControlPlane()) {
+        // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
+        if (!canUseJobControlPlane()) {
             assignToPartitionsWithOffsets (topicPartitionOffsetMap);
         }
         else {
-            // relaunch count > 0 && JCP detected, seek when partition not yet committed
+            // JCP detected, seek when partition not yet committed
             assign (topicPartitionOffsetMap.keySet());
             for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
                 if (!isCommittedForPartition (tp)) {
@@ -185,6 +194,48 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
 
     /**
+     * Restores the state from a checkpoint when there is a control port.
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractNonCrKafkaConsumerClient#processResetEvent(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    protected void processResetEvent (Checkpoint checkpoint) {
+        if (getOperatorContext().getNumberOfStreamingInputs() == 0) {
+            trace.debug ("processResetEvent() - ignored");
+            return;
+        }
+        final long chkptSeqId = checkpoint.getSequenceId();
+        trace.debug ("processResetEvent() - entering. seq = " + chkptSeqId);
+        try {
+            final ObjectInputStream inputStream = checkpoint.getInputStream();
+            final Set <TopicPartition> partitions = (Set <TopicPartition>) inputStream.readObject();
+            trace.debug ("topic partitions from checkpoint = " + partitions);
+            // only assign, fetch offset is last committed offset.
+            assign (partitions);
+        } catch (IllegalStateException | ClassNotFoundException | IOException e) {
+            trace.error ("reset failed: " + e.getLocalizedMessage());
+            throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
+        }
+    }
+
+
+    /**
+     * Creates a checkpoint.
+     * Should be called only when there is a control port and checkpointing is periodic.
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractNonCrKafkaConsumerClient#processCheckpointEvent(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    protected void processCheckpointEvent (Checkpoint checkpoint) {
+        try {
+            checkpoint.getOutputStream().writeObject (getAssignedPartitions());
+            trace.debug ("checkpoint created: " + getAssignedPartitions());
+        } catch (IOException e) {
+            throw new RuntimeException (e.getLocalizedMessage(), e);
+        }
+    }
+
+
+    /**
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
      */
     @Override
@@ -195,7 +246,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
-            OffsetManager offsetManager = getOffsetManager();
             switch (update.getAction()) {
             case ADD:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
@@ -204,7 +254,15 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                     currentTopicPartitionOffsets.put(tp, offset);
                 });
                 assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
-                // No need to update offset manager here, like adding topics, etc. Missing topics are auto-created
+                // No need to update offset manager here, like adding topics, etc.
+                // Missing topics in the offset manager are auto-created
+                CommitInfo commits = new CommitInfo (true, false);
+                // Immediately commit the fetch offsets of _only_the_added_ topic partitions
+                update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+                    // do not put 'offset' into the commits; 'offset' can be -1 or -2 for 'end' or 'begin'
+                    commits.put(tp, getConsumer().position (tp));
+                });
+                commitOffsets (commits);
                 break;
             case REMOVE:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
@@ -212,15 +270,18 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 });
                 // TODO: commit offsets of the removed partition(s)
                 // For now, the problem is not so urgent as a 'subscription' with Default start position is not yet possible.
-                // Whe we need to commit offsets here, the flow would be:
+                // We we need to commit offsets here, the flow would be:
                 // 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
                 // 2. wait that the queue gets processed - awaitMessageQueueProcessed();
                 // 3. commit the offsets of the removed topic partitions
-                // 4. remove the unassigned topic partitions from the offsetManager
+                // 4. remove the unassigned topic partitions from the offsetManager (or simply clear?)
                 // 5. update the partition assignment in the consumer
                 // remove messages of removed topic partitions from the message queue
                 getMessageQueue().removeIf (record -> belongsToPartition (record, update.getTopicPartitionOffsetMap().keySet()));
+                awaitMessageQueueProcessed();
+                // now the offset manager can be cleaned without the chance that the removed partition(s) re-appear after tuple submission
                 // remove removed partitions from offset manager. We can't commit offsets for those partitions we are not assigned any more.
+                OffsetManager offsetManager = getOffsetManager();
                 synchronized (offsetManager) {
                     update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                         offsetManager.remove (tp.topic(), tp.partition());
@@ -232,12 +293,62 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             default:
                 throw new Exception ("processUpdateAssignmentEvent(): unimplemented action: " + update.getAction());
             }
+            if (isCheckpointEnabled() && getChkptContext().getKind() == Kind.OPERATOR_DRIVEN) {
+                trace.info ("initiating checkpointing with current partition assignment");
+                // createCheckpoint() throws IOException
+                boolean result = getChkptContext().createCheckpoint();
+                trace.info ("createCheckpoint() result: " + result);
+            }
         } catch (Exception e) {
             trace.error(e.getLocalizedMessage(), e);
             throw new RuntimeException (e);
         }
     }
 
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpoint(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
+        if (getOperatorContext().getNumberOfStreamingInputs() == 0 || !isCheckpointEnabled()) {
+            trace.debug ("onCheckpoint() - ignored");
+            return;
+        }
+        trace.debug ("onCheckpoint() - entering. seq = " + checkpoint.getSequenceId());
+        if (getChkptContext().getKind() == Kind.OPERATOR_DRIVEN) {
+            try {
+                // do not send an event here. In case of operator driven checkpoint it will never be processed (deadlock)
+                checkpoint.getOutputStream().writeObject (getAssignedPartitions());
+                trace.debug ("checkpoint created: " + getAssignedPartitions());
+            } catch (IOException e) {
+                throw new RuntimeException (e.getLocalizedMessage(), e);
+            }
+        }
+        else {
+            // periodic checkpoint - create the checkpoint by the event thread
+            sendStopPollingEvent();
+            Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.CHECKPOINT, checkpoint, true);
+            sendEvent (event);
+            event.await();
+            sendStartPollingEvent();
+        }
+    }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onReset(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void onReset (Checkpoint checkpoint) throws InterruptedException {
+        if (getOperatorContext().getNumberOfStreamingInputs() == 0 || !isCheckpointEnabled()) {
+            trace.debug ("onReset() - ignored");
+            return;
+        }
+        trace.debug ("onReset() - entering. seq = " + checkpoint.getSequenceId());
+        Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
+        sendEvent (event);
+        event.await();
+        sendStartPollingEvent();
+    }
 
 
 

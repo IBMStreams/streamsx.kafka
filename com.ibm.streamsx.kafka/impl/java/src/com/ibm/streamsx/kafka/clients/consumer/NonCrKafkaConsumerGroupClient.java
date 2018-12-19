@@ -15,6 +15,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
@@ -251,7 +252,37 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         trace.error("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
     }
 
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpoint(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
+    }
 
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onReset(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void onReset(Checkpoint checkpoint) throws InterruptedException {
+    }
+
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processResetEvent(Checkpoint)
+     */
+    @Override
+    protected void processResetEvent (Checkpoint checkpoint) {
+    }
+
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processCheckpointEvent(Checkpoint)
+     */
+    @Override
+    protected void processCheckpointEvent (Checkpoint checkpoint) {
+    }
 
 
 

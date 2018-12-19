@@ -13,5 +13,5 @@ public enum CommitMode {
     Time,
     
     ConsistentRegionDrain,
-    Checkpoint
+//    Checkpoint
 }

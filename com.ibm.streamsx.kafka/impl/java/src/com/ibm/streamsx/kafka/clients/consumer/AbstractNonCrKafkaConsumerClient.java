@@ -27,7 +27,6 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.Controllable;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
-import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
@@ -416,21 +415,6 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
     }
 
 
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processResetEvent(Checkpoint)
-     */
-    @Override
-    protected void processResetEvent(Checkpoint checkpoint) {
-        trace.error ("'config checkpoint' is not supported by the " + getOperatorContext().getKind() + " operator.");
-    }
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processCheckpointEvent(Checkpoint)
-     */
-    @Override
-    protected void processCheckpointEvent (Checkpoint data) {
-        throw new RuntimeException ("onReset(): consistent region and 'config checkpoint' is not supported by this consumer client: " + getThisClassName());
-    }
 
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpointRetire(long)
@@ -440,21 +424,6 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         throw new RuntimeException ("onCheckpointRetire(): consistent region is not supported by this consumer client: " + getThisClassName());
     }
 
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpoint(com.ibm.streams.operator.state.Checkpoint)
-     */
-    @Override
-    public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
-        throw new RuntimeException ("consistent region and 'config checkpoint' is not supported by this consumer client: " + getThisClassName());
-    }
-
-    /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onReset(com.ibm.streams.operator.state.Checkpoint)
-     */
-    @Override
-    public void onReset(Checkpoint checkpoint) throws InterruptedException {
-        throw new RuntimeException ("onReset(): consistent region and 'config checkpoint' is not supported by this consumer client: " + getThisClassName());
-    }
 
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onResetToInitialState()
@@ -504,7 +473,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      * @see com.ibm.streams.operator.control.Controllable#event(javax.management.MBeanServerConnection, com.ibm.streams.operator.OperatorContext, com.ibm.streams.operator.control.Controllable.EventType)
      */
     @Override
-    public void event (MBeanServerConnection jcp, OperatorContext context, EventType eventType) {
+    public void event (MBeanServerConnection jcp, OperatorContext context, com.ibm.streams.operator.control.Controllable.EventType eventType) {
     }
 
     /**

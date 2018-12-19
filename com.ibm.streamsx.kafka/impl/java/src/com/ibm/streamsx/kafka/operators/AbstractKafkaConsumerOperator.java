@@ -34,8 +34,6 @@ import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
-import com.ibm.streams.operator.state.CheckpointContext;
-import com.ibm.streams.operator.state.CheckpointContext.Kind;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
@@ -615,16 +613,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             commitMode = CommitMode.ConsistentRegionDrain;
         }
         else {
-            CheckpointContext chkptContext = context.getOptionalContext (CheckpointContext.class);
-            final boolean periodicCheckPointEnabled = chkptContext != null && chkptContext.isEnabled() && chkptContext.getKind() == Kind.PERIODIC;
             final Set <String> parameterNames = context.getParameterNames();
-            // TODO: checkpointing not yet supported
-            if (periodicCheckPointEnabled) {
-                commitMode = CommitMode.Checkpoint;
-            }
-            else {
-                commitMode = parameterNames.contains (COMMIT_COUNT_PARAM)? CommitMode.TupleCount: CommitMode.Time;
-            }
+            commitMode = parameterNames.contains (COMMIT_COUNT_PARAM)? CommitMode.TupleCount: CommitMode.Time;
         }
         this.isGroupManagementActive.setValue (groupManagementEnabled? 1: 0);
         if (crContext == null) {

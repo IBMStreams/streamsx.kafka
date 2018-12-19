@@ -400,9 +400,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (offsetMap.isEmpty()) {
             return;
         }
+        // we can only commit assigned partitions
+        Set <TopicPartition> currentAssignment = getConsumer().assignment();
         if (offsets.isCommitPartitionWise()) {
             Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>(1);
             for (TopicPartition tp: offsetMap.keySet()) {
+                // do not commit for partitions we are not assigned
+                if (!currentAssignment.contains(tp)) continue;
                 map.clear();
                 map.put(tp, offsetMap.get(tp));
                 if (offsets.isCommitSynchronous()) {
@@ -426,10 +430,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             }
         }
         else {
+            Map <TopicPartition, OffsetAndMetadata> map = new HashMap<>();
+            offsetMap.forEach ((tp, offsMeta) -> {
+                if (currentAssignment.contains (tp)) {
+                    map.put (tp, offsMeta);
+                }
+            });
+            if (map.isEmpty()) {
+                logger.debug ("no offsets to commit ... (partitions not assigned)");
+                return;
+            }
             if (offsets.isCommitSynchronous()) {
                 try {
-                    consumer.commitSync (offsetMap);
-                    postOffsetCommit (offsetMap);
+                    consumer.commitSync (map);
+                    postOffsetCommit (map);
                 }
                 catch (CommitFailedException e) {
                     //if the commit failed and cannot be retried. This can only occur if you are using 
@@ -442,7 +456,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 }
             }
             else {
-                consumer.commitAsync (offsetMap, this);
+                consumer.commitAsync (map, this);
             }
         }
     }

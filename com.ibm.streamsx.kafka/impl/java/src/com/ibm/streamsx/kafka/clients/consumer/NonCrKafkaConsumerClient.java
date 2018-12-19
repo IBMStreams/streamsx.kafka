@@ -347,7 +347,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();
-        sendStartPollingEvent();
+        // do not start polling; reset happens before allPortsReady() (?), which starts polling
     }
 
 

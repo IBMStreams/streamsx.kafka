@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -105,6 +106,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private Long startTime = -1l;
 
     private long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
+    private CountDownLatch resettingLatch;
     private boolean hasOutputTopic;
     private boolean hasOutputKey;
     private boolean hasOutputOffset;
@@ -696,6 +698,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 }
             }	
         }
+
+        if (crContext != null && context.getPE().getRelaunchCount() > 0) {
+            resettingLatch = new CountDownLatch(1);
+        }
+
         processThread = getOperatorContext().getThreadFactory().newThread(new Runnable() {
 
             @Override
@@ -727,16 +734,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     private void produceTuples() throws Exception {
 
-        if (crContext != null) {
-            logger.debug("Operator is in the middle of resetting. No tuples will be submitted until reset completes."); //$NON-NLS-1$
+        if (crContext != null && resettingLatch != null) {
+            logger.debug ("Defer tuple submission until reset finishes. Waiting ..."); //$NON-NLS-1$
             try {
-                // wait with start polling until we can submit tuples, for example wait for end of reset
-                crContext.acquirePermit();
+                resettingLatch.await();
             } catch (InterruptedException e) {
                 // shutdown occurred in the middle of CR reset, finish gracefully
                 return;
             }
-            crContext.releasePermit();
         }
 
         if(consumer.isSubscribedOrAssigned()) {
@@ -996,6 +1001,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             return;
         }
         finally {
+            // latch will be null if the reset was caused
+            // by another operator
+            if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
             logger.debug (MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
@@ -1009,6 +1017,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final long before = System.currentTimeMillis();
         consumer.sendStopPollingEvent();
         consumer.onResetToInitialState();
+
+        // latch will be null if the reset was caused
+        // by another operator
+        if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;
         logger.debug (MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));

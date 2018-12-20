@@ -7,10 +7,21 @@ package com.ibm.streamsx.kafka.operators;
  * This class contains String constant with SPL Documentation.
  */
 public class KafkaSplDoc {
-    public static final String CHECKPOINTING_CONFIG = ""
+    public static final String CONSUMER_CHECKPOINTING_CONFIG = ""
             + "# Checkpointing\\n"
             + "\\n"
-            + "The operator does not support a `config checkpoint` clause. A compiler error will occur when checkpointing is configured.\\n"
+            + "The operator can be configured for operator driven and periodic checkpointing. Checkpointing "
+            + "is in effect when the operator is configured with an input port. When the operator has no input "
+            + "port, checkpointing can be configured, but is silently ignored. The operator "
+            + "checkpoints the current partition assignment, which is modified via control tuples received "
+            + "by the input port. The current fetch positions are not saved.\\n"
+            + "\\n"
+            + "On reset, the partition assignment is restored from the checkpoint. The fetch offsets will "
+            + "be the last committed offsets.\\n"
+            + "\\n"
+            + "With `config checkpoint: operatorDriven;` the operator creates a checkpoint when the partition "
+            + "assignment changes, i.e. after each input tuple has been processed.\\n"
+            + "\\n"
             ;
 
     public static final String CONSUMER_WHERE_TO_FIND_PROPERTIES = ""
@@ -225,11 +236,11 @@ public class KafkaSplDoc {
             + "\\n"
             + "When the operator is configured with an input port, the partition assignments "
             + "created with the control stream are lost. It is therefore recommended to fuse the "
-            + "consumer operator with the source of the control stream to replay the control stream "
-            + "after restart."
+            + "consumer operator with the source of the control stream to replay the control tuples "
+            + "after restart or to use a `config checkpoint` clause, preferably `operatorDriven` "
+            + "to restore the partition assignment and continue fetching records beginning with the "
+            + "last committed offsets."
             + "\\n";
-    // TODO: when checkpointing (Non-CR) is implemented
-
 
     public static final String CONSUMER_KAFKA_GROUP_MANAGEMENT = ""
             + "# Kafka's Group Management\\n"
@@ -277,6 +288,13 @@ public class KafkaSplDoc {
             + "| nPartitionRebalances | Number of partition assignment rebalances for "
             + "each consumer operator. **The metric is only visible when group management is active.** |\\n"
             + "---\\n"
+            + "\\n"
+            ;
+
+    public static final String PRODUCER_CHECKPOINTING_CONFIG = ""
+            + "# Checkpointing\\n"
+            + "\\n"
+            + "A `config checkpoint` clause has no effect for the operator.\\n"
             + "\\n"
             ;
 

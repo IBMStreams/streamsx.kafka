@@ -76,6 +76,7 @@ composite KafkaConsumerInputPortSample
             KafkaConsumerOp = KafkaConsumer(TopicPartitionUpdateStream) {
             param
                 propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+            config checkpoint: operatorDriven;
         }
 
         () as PrintOp = Custom(MessageOutStream as inputStream) {

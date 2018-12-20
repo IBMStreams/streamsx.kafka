@@ -203,14 +203,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
     }
 
-    @ContextCheck (compile = true)
-    public static void checkCheckpointConfig (OperatorContextChecker checker) {
-        OperatorContext operatorContext = checker.getOperatorContext();
-        CheckpointContext ckptContext = operatorContext.getOptionalContext(CheckpointContext.class);
-        if (ckptContext != null) {
-            checker.setInvalidContext (Messages.getString("CHECKPOINT_CONFIG_NOT_SUPPORTED", operatorContext.getKind()), new Object[0]);
-        }
-    }
 
     @ContextCheck(runtime = true, compile = false)
     public static void checkAttributes(OperatorContextChecker checker) {
@@ -245,34 +237,31 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
          * set an invalid context) 
          */
         List<String> keyParamValues = checker.getOperatorContext().getParameterValues(KEYATTR_PARAM_NAME);
-        Attribute keyAttr = (keyParamValues != null && !keyParamValues.isEmpty()) ? 
-                streamSchema.getAttribute(parseFQAttributeName(keyParamValues.get(0))) :
-                    streamSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
+        Attribute keyAttr = (keyParamValues != null && !keyParamValues.isEmpty())? streamSchema.getAttribute(parseFQAttributeName(keyParamValues.get(0))): streamSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
 
-                // validate the key attribute type
-                if (keyAttr != null)
-                    checker.checkAttributeType(keyAttr, SUPPORTED_ATTR_TYPES);
+        // validate the key attribute type
+        if (keyAttr != null)
+            checker.checkAttributeType(keyAttr, SUPPORTED_ATTR_TYPES);
 
-
-                /*
-                 * For topics, one of the following must be true: 
-                 *  * the 'topic' parameter is specified that lists topics to write to
-                 *  * the 'topicAttr' parameter is specified that points to an input attribute containing the topic to write to
-                 *  * neither of the above parameters are specified but the input schema contains an attribute named "topic"
-                 *  
-                 * An invalid context is set if none of the above conditions are true
-                 */
-                if(!checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM_NAME)) { 
-                    // 'topic' param not specified, check for 'topicAttr' param
-                    if(!checker.getOperatorContext().getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
-                        // 'topicAttr' param also not specified, check for input attribute named "topic"
-                        Attribute topicAttribute = streamSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
-                        if(topicAttribute == null) {
-                            // "topic" input attribute does not exist...set invalid context
-                            checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
-                        }
-                    }
+        /*
+         * For topics, one of the following must be true: 
+         *  * the 'topic' parameter is specified that lists topics to write to
+         *  * the 'topicAttr' parameter is specified that points to an input attribute containing the topic to write to
+         *  * neither of the above parameters are specified but the input schema contains an attribute named "topic"
+         *  
+         * An invalid context is set if none of the above conditions are true
+         */
+        if(!checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM_NAME)) { 
+            // 'topic' param not specified, check for 'topicAttr' param
+            if(!checker.getOperatorContext().getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
+                // 'topicAttr' param also not specified, check for input attribute named "topic"
+                Attribute topicAttribute = streamSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
+                if(topicAttribute == null) {
+                    // "topic" input attribute does not exist...set invalid context
+                    checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
                 }
+            }
+        }
     }
 
     @ContextCheck(compile = true)
@@ -456,12 +445,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
+        if (crContext == null) return;  // ignore 'config checkpoint'
         logger.debug(">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         producer.checkpoint(checkpoint);
     }
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
+        if (crContext == null) return;  // ignore 'config checkpoint'
         logger.debug (">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         logger.debug("Initiating reset..."); //$NON-NLS-1$
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
@@ -474,6 +465,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     @Override
     public void resetToInitialState() throws Exception {
+        if (crContext == null) return;  // ignore 'config checkpoint'
         logger.debug (">>> RESET TO INIT..."); //$NON-NLS-1$
 
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);

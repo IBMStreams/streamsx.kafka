@@ -25,6 +25,7 @@ import com.ibm.streams.operator.StreamingData;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.model.Libraries;
 import com.ibm.streams.operator.model.Parameter;
+import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.state.StateHandler;
 import com.ibm.streams.operator.types.Blob;
@@ -54,6 +55,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     protected Class<?> messageType;
     protected Class<?> keyType;
     protected ConsistentRegionContext crContext;
+    protected CheckpointContext chkptContext;
 
     private KafkaOperatorProperties kafkaProperties;
 
@@ -103,6 +105,8 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     public synchronized void initialize(OperatorContext context) throws Exception {
         super.initialize(context);
 
+        crContext = context.getOptionalContext (ConsistentRegionContext.class);
+        chkptContext = context.getOptionalContext (CheckpointContext.class);
         // load the Kafka properties
         kafkaProperties = new KafkaOperatorProperties();
         loadProperties();

@@ -28,6 +28,7 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.Controllable;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.CheckpointContext;
+import com.ibm.streams.operator.state.CheckpointContext.Kind;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -107,6 +108,19 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         return chkptContext.isEnabled();
     }
 
+    /**
+     * Returns checkpoint kind. This method works around a bug in the Streams runtime.
+     * It evaluates checkpoint interval, which is < 0 when operator driven.
+     * // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
+     * 
+     * @return null if checkpointing is not enabled or CheckpointContext.Kind dependent on period.
+     */
+    protected final CheckpointContext.Kind getCheckpointKind() {
+        if (!isCheckpointEnabled()) return null;
+        double period = chkptContext.getCheckpointingInterval();
+        return period > 0.0? Kind.PERIODIC: Kind.OPERATOR_DRIVEN;
+    }
+    
     /**
      * @return the initialStartPosition
      */

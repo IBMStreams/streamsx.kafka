@@ -570,7 +570,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public synchronized void initialize(OperatorContext context) throws Exception {
         // Must call super.initialize(context) to correctly setup an operator.
         super.initialize(context);
-        logger.trace("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+        logger.info ("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
                 + context.getPE().getJobId());
         shutdown = new AtomicBoolean(false);
         gson = new Gson();
@@ -725,7 +725,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public synchronized void allPortsReady() throws Exception {
         OperatorContext context = getOperatorContext();
-        logger.trace("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info ("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
         // start the thread that produces the tuples out of the message queue. The thread runs the produceTuples() method.
         if(processThread != null)
@@ -926,6 +926,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             logger.error(e.getMessage(), e);
         } finally {
             if (!interrupted && consumer.isSubscribedOrAssigned()) {
+                logger.info ("sendStartPollingEvent ...");
                 consumer.sendStartPollingEvent();
             }
         }
@@ -987,9 +988,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        final int attempt = crContext.getResetAttempt();
+        final int attempt = crContext == null? -1: crContext.getResetAttempt();
         final long sequenceId = checkpoint.getSequenceId();
-        logger.debug (MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
+        logger.debug (MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
         final long before = System.currentTimeMillis();
         try {
             consumer.sendStopPollingEvent();

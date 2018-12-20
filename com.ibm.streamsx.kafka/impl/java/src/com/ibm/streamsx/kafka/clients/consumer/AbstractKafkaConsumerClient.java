@@ -321,12 +321,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             if (event == null) {
                 continue;
             }
-
             logger.debug (MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
             switch (event.getEventType()) {
             case START_POLLING:
-                StartPollingEventParameters p = (StartPollingEventParameters) event.getData();
-                runPollLoop (p.getPollTimeoutMs(), p.getThrottlePauseMs());
+                if (isSubscribedOrAssigned()) {
+                    StartPollingEventParameters p = (StartPollingEventParameters) event.getData();
+                    runPollLoop (p.getPollTimeoutMs(), p.getThrottlePauseMs());
+                }
                 break;
             case STOP_POLLING:
                 event.countDownLatch();  // indicates that polling has stopped
@@ -385,6 +386,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     /**
      * Commits the offsets given in the map of the CommitInfo instance with the given controls set within the object.
+     * This method must only be invoked by the thread that runs the poll loop.
+     * 
      * @param offsets the offsets per topic partition and control information. The offsets must be the last processed offsets +1.
      * @throws InterruptedException The thread has been interrupted while committing synchronously
      * @throws RuntimeException  All other kinds of unrecoverable exceptions
@@ -486,6 +489,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected void shutdown() {
         logger.debug("Shutdown sequence started..."); //$NON-NLS-1$
         getMessageQueue().clear();
+        drainBuffer.clear();
         consumer.close(CONSUMER_CLOSE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         processing.set(false);
     }
@@ -497,15 +501,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected abstract void processResetToInitEvent();
 
     /**
-     * Resets the client to a previous state when used in consistent region.
-     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
+     * Resets the client to a previous state when used in consistent region or checkpointing is configured.
+     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region
+     * or checkpointing is not supported.
      * @param checkpoint the checkpoint that contains the previous state
      */
     protected abstract void processResetEvent(Checkpoint checkpoint);
 
     /**
-     * Creates a checkpoint of the current state when used in consistent region.
-     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
+     * Creates a checkpoint of the current state when used in consistent region or when checkpointing is configured.
+     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region
+     * or checkpointing is not supported.
      * @param checkpoint A reference of a checkpoint object where the user provides the state to be saved.
      */
     protected abstract void processCheckpointEvent(Checkpoint checkpoint);

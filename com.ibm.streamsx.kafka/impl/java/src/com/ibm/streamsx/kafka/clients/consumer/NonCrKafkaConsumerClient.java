@@ -209,7 +209,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         try {
             final ObjectInputStream inputStream = checkpoint.getInputStream();
             final Set <TopicPartition> partitions = (Set <TopicPartition>) inputStream.readObject();
-            trace.debug ("topic partitions from checkpoint = " + partitions);
+            trace.info ("topic partitions from checkpoint = " + partitions);
             // only assign, fetch offset is last committed offset.
             assign (partitions);
         } catch (IllegalStateException | ClassNotFoundException | IOException e) {
@@ -228,7 +228,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     protected void processCheckpointEvent (Checkpoint checkpoint) {
         try {
             checkpoint.getOutputStream().writeObject (getAssignedPartitions());
-            trace.debug ("checkpoint created: " + getAssignedPartitions());
+            // for periodic checkpointing, trace only with DEBUG
+            trace.debug ("topic partitions written into checkpoint: " + getAssignedPartitions());
         } catch (IOException e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
@@ -254,6 +255,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                     currentTopicPartitionOffsets.put(tp, offset);
                 });
                 assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
+                trace.info ("assigned partitions after ADD: " + currentTopicPartitionOffsets);
                 // No need to update offset manager here, like adding topics, etc.
                 // Missing topics in the offset manager are auto-created
                 CommitInfo commits = new CommitInfo (true, false);
@@ -263,6 +265,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                     commits.put(tp, getConsumer().position (tp));
                 });
                 commitOffsets (commits);
+                trace.info ("committed offsets of the added topic partitions: " + commits);
                 break;
             case REMOVE:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
@@ -270,12 +273,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 });
                 // TODO: commit offsets of the removed partition(s)
                 // For now, the problem is not so urgent as a 'subscription' with Default start position is not yet possible.
-                // We we need to commit offsets here, the flow would be:
-                // 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
-                // 2. wait that the queue gets processed - awaitMessageQueueProcessed();
-                // 3. commit the offsets of the removed topic partitions
-                // 4. remove the unassigned topic partitions from the offsetManager (or simply clear?)
-                // 5. update the partition assignment in the consumer
+                // When we need to commit offsets here, the flow would be:
+                // x 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
+                // x 2. wait that the queue gets processed - awaitMessageQueueProcessed();
+                //   3. commit the offsets of the removed topic partitions
+                // x 4. remove the unassigned topic partitions from the offsetManager (or simply clear?)
+                // x 5. update the partition assignment in the consumer
                 // remove messages of removed topic partitions from the message queue
                 getMessageQueue().removeIf (record -> belongsToPartition (record, update.getTopicPartitionOffsetMap().keySet()));
                 awaitMessageQueueProcessed();
@@ -289,11 +292,13 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 }
                 // we can end up here with an empty map after removal of assignments.
                 assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
+                trace.info ("assigned partitions after REMOVE: " + currentTopicPartitionOffsets);
                 break;
             default:
                 throw new Exception ("processUpdateAssignmentEvent(): unimplemented action: " + update.getAction());
             }
-            if (isCheckpointEnabled() && getChkptContext().getKind() == Kind.OPERATOR_DRIVEN) {
+            // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
+            if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
                 trace.info ("initiating checkpointing with current partition assignment");
                 // createCheckpoint() throws IOException
                 boolean result = getChkptContext().createCheckpoint();
@@ -315,11 +320,11 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             return;
         }
         trace.debug ("onCheckpoint() - entering. seq = " + checkpoint.getSequenceId());
-        if (getChkptContext().getKind() == Kind.OPERATOR_DRIVEN) {
+        if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
             try {
                 // do not send an event here. In case of operator driven checkpoint it will never be processed (deadlock)
                 checkpoint.getOutputStream().writeObject (getAssignedPartitions());
-                trace.debug ("checkpoint created: " + getAssignedPartitions());
+                trace.info ("topic partitions written into checkpoint: " + getAssignedPartitions());
             } catch (IOException e) {
                 throw new RuntimeException (e.getLocalizedMessage(), e);
             }
@@ -327,10 +332,10 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         else {
             // periodic checkpoint - create the checkpoint by the event thread
             sendStopPollingEvent();
-            Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.CHECKPOINT, checkpoint, true);
+            Event event = new Event (Event.EventType.CHECKPOINT, checkpoint, true);
             sendEvent (event);
             event.await();
-            sendStartPollingEvent();
+            if (isSubscribedOrAssigned()) sendStartPollingEvent();
         }
     }
 
@@ -343,11 +348,11 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             trace.debug ("onReset() - ignored");
             return;
         }
-        trace.debug ("onReset() - entering. seq = " + checkpoint.getSequenceId());
-        Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
+        trace.info ("onReset() - entering. seq = " + checkpoint.getSequenceId());
+        Event event = new Event (Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();
-        // do not start polling; reset happens before allPortsReady() (?), which starts polling
+        // do not start polling; reset happens before allPortsReady(), which starts polling
     }
 
 

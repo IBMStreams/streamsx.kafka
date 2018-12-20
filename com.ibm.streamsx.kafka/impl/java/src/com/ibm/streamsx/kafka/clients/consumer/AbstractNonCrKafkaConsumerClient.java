@@ -487,7 +487,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      * @see com.ibm.streams.operator.control.Controllable#event(javax.management.MBeanServerConnection, com.ibm.streams.operator.OperatorContext, com.ibm.streams.operator.control.Controllable.EventType)
      */
     @Override
-    public void event (MBeanServerConnection jcp, OperatorContext context, com.ibm.streams.operator.control.Controllable.EventType eventType) {
+    public void event (MBeanServerConnection jcp, OperatorContext context, Controllable.EventType eventType) {
     }
 
     /**

@@ -42,6 +42,8 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaMetricException;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
@@ -620,6 +622,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         // arrives in the event queue
         fetchPaused = consumer.paused().size() > 0;
         logger.debug ("previously paused partitions: " + consumer.paused());
+        int nConsecutiveRuntimeExc = 0;
         while (eventQueue.isEmpty()) {
             boolean doPoll = true;
             // can wait for 100 ms; throws InterruptedException:
@@ -646,6 +649,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     }
                     lastPollTimestamp = System.currentTimeMillis();
                     /*int nRecordsEnqueued = */pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
+                    nConsecutiveRuntimeExc = 0;
                     nPendingMessages.setValue (messageQueue.size());
                     if (throttleSleepMillis > 0l) {
                         Thread.sleep (throttleSleepMillis);
@@ -657,6 +661,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // (may be possible to handle this in future Kafka releases
                     // https://issues.apache.org/jira/browse/KAFKA-4740)
                     throw e;
+                } catch (RuntimeException e) {
+                    // catches also 'java.io.IOException: Broken pipe' when SSL is used
+                    logger.warn ("RuntimeException caugt: " + e, e);
+                    if (++nConsecutiveRuntimeExc >= 50) {
+                        throw new KafkaOperatorRuntimeException ("Consecutive number of exceptions too high (50).", e);
+                    }
+                    logger.info ("Going to sleep for 100 ms before next poll ...");
+                    Thread.sleep (100l);
                 }
             }
         }

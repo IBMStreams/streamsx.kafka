@@ -84,8 +84,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
          */
         @Override
         public void afterCustomMetricsUpdated() {
-            if (logger.isInfoEnabled()) {
-                logger.info (MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotal= {7}",
+            if (logger.isTraceEnabled()) {
+                logger.trace (MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotal= {7}",
                         recordQueueTimeMax,
                         recordQueueTimeAvg,
                         outgoingByteRate,

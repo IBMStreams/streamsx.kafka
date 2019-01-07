@@ -1261,7 +1261,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @param pollTimeout the timeout in milliseconds to wait for availability of consumer records.
      * @param isThrottled true, when polling is throttled, false otherwise
      * @return the number of enqueued consumer records.
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long, boolean)
      */
     @Override
     protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {

@@ -18,6 +18,10 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 This is an overview of changes for major and minor version upgrades. For details see the Releases in public Github.
 
+++ What's new in version 1.7.2
+
+* Bug fix: Reduce trace level for metric dump to `trace`.
+
 ++ What's new in version 1.7.1
 
 * operator metrics which got invalid for an operator are flagged with a value of -1, for example the metric for the partition related consumer lag after de-assignment of a partition from a consumer operator
@@ -37,7 +41,7 @@ This is an overview of changes for major and minor version upgrades. For details
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>1.7.1</info:version>
+   <info:version>1.7.2</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

@@ -42,6 +42,8 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaMetricException;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
@@ -663,8 +665,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // catches also 'java.io.IOException: Broken pipe' when SSL is used
                     logger.warn ("RuntimeException caugt: " + e, e);
                     if (++nConsecutiveRuntimeExc >= 50) {
-                        logger.error ("Consecutive number of exceptions too high (50). Re-throwing.");
-                        throw e;
+                        throw new KafkaOperatorRuntimeException ("Consecutive number of exceptions too high (50).", e);
                     }
                     logger.info ("Going to sleep for 100 ms before next poll ...");
                     Thread.sleep (100l);

@@ -120,7 +120,7 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
      */
     @Override
     public void metricRemoval (KafkaMetric metric) {
-        trace.info ("metricRemoval(): " + metric.metricName());
+        trace.debug ("metricRemoval(): " + metric.metricName());
         synchronized (this) {
             if (getFilter().apply (metric)) {
                 final MetricName metricName = metric.metricName();

@@ -92,8 +92,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         RESET_COMPLETE,
     }
 
-    /** Kafka group ID */
-    private String groupId = null;
     /** The topics we are subscribed */
     private Collection <String> subscribedTopics;
     /** Partitions that can be theoretically assigned; sum of all partitions of all subscribed topics.
@@ -147,7 +145,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
         super (operatorContext, keyClass, valueClass, kafkaProperties);
 
-        this.groupId = kafkaProperties.getProperty (ConsumerConfig.GROUP_ID_CONFIG);
         this.crGroupCoordinatorMXBeanName = createMBeanObjectName().getCanonicalName();
         this.initialOffsets = new OffsetManager();
         this.assignedPartitionsOffsetManager = new OffsetManager();
@@ -212,7 +209,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 try {
                     // Constructor signature: (String groupId, Integer consistentRegionIndex)
                     jcp.createMBean (CrConsumerGroupCoordinator.class.getName(), groupMbeanName, 
-                            new Object[]{this.groupId, new Integer(crContext.getIndex())},
+                            new Object[]{getGroupId(), new Integer(crContext.getIndex())},
                             new String[] {"java.lang.String", "java.lang.Integer"});
                     logger.debug ("MBean registered: " + crGroupCoordinatorMXBeanName);
                 }
@@ -248,7 +245,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     private ObjectName createMBeanObjectName() {
         Hashtable <String, String> props = new Hashtable<>();
         props.put ("type", "consumergroup");
-        final int hash = this.groupId.hashCode();
+        final int hash = getGroupId().hashCode();
         props.put ("groupIdHash", (hash < 0? "N": "P") + Math.abs (hash));
 
         try {
@@ -888,7 +885,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         int groupCrIndex = crGroupCoordinatorMxBean.getConsistentRegionIndex();
         logger.debug("CR index from MBean = " + groupCrIndex + "; this opertor's CR index = " + myCrIndex);
         if (groupCrIndex != myCrIndex) {
-            final String msg = Messages.getString("CONSUMER_GROUP_IN_MULTIPLE_CONSISTENT_REGIONS", getOperatorContext().getKind(), this.groupId);
+            final String msg = Messages.getString("CONSUMER_GROUP_IN_MULTIPLE_CONSISTENT_REGIONS", getOperatorContext().getKind(), getGroupId());
             logger.error (msg);
             throw new KafkaConfigurationException (msg);
         }

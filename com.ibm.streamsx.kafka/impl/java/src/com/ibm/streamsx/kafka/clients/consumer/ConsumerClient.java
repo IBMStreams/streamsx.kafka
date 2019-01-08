@@ -117,7 +117,6 @@ public interface ConsumerClient {
 
     /**
      * Initiates resetting the client to a prior state.
-     * The client can prepare any data for the reset by implementing {@link #resetPrepareData(Checkpoint)}. 
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @param checkpoint the checkpoint that contains the state.
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.

@@ -3,10 +3,13 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.util.Map;
+
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
-import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
@@ -25,7 +28,6 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
     private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
 
     private final ConsistentRegionContext crContext;
-    private final ControlPlaneContext jcpContext;
 
     /**
      * Constructs a new AbstractCrKafkaConsumerClient and adjusts the Kafka properties for use in a consistent region.
@@ -38,8 +40,7 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
     public <K, V> AbstractCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass, KafkaOperatorProperties kafkaProperties) throws KafkaConfigurationException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
         this.crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
-        this.jcpContext = operatorContext.getOptionalContext (ControlPlaneContext.class);
-        if (crContext == null || jcpContext == null) {
+        if (crContext == null || getJcpContext() == null) {
             throw new KafkaConfigurationException ("The operator '" + operatorContext.getName() + "' must be used in a consistent region. This consumer client implementation (" 
                     + getThisClassName() + ") requires a Consistent Region context and a Control Plane context.");
         }
@@ -61,15 +62,8 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
     /**
      * @return the Consistent Region Context
      */
-    public ConsistentRegionContext getCrContext() {
+    public final ConsistentRegionContext getCrContext() {
         return crContext;
-    }
-
-    /**
-     * @return the Control Plane Context
-     */
-    public ControlPlaneContext getJcpContext() {
-        return jcpContext;
     }
 
 
@@ -83,8 +77,17 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
     public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
         super.startConsumer();
     }
-    
- 
+
+
+
+    /**
+     * This is an empty default implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#postOffsetCommit(java.util.Map)
+     */
+    @Override
+    protected void postOffsetCommit (Map<TopicPartition, OffsetAndMetadata> offsets) {
+    }
+
     /**
      * Initiates checkpointing of the consumer client by sending an event to the event queue and initiates start of polling.
      * Implementations ensure that checkpointing the client has completed when this method returns. 
@@ -98,8 +101,8 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
         event.await();
         sendStartPollingEvent();
     }
-    
-    
+
+
     /**
      * The consumer can prepare any data from the checkpoint. This method invocation should be followed by by
      * {@link #sendResetEvent(Checkpoint)} if not interrupted. This method is run by a runtime thread at 
@@ -109,8 +112,15 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
      * @throws InterruptedException The thread has been interrupted.
      */
     protected abstract void resetPrepareData (final Checkpoint checkpoint) throws InterruptedException;
-    
-    
+
+    /**
+     * Empty implementation
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#preDeQueueForSubmit()
+     */
+    @Override
+    protected void preDeQueueForSubmit() {
+    }
+
     /**
      * Initiates resetting the client to a prior state by sending an event to the event queue
      * and initiates start of polling.

@@ -54,7 +54,7 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
             + "\\n"
             + KafkaSplDoc.PRODUCER_EXPOSED_KAFKA_METRICS
             + "\\n"
-            + KafkaSplDoc.CHECKPOINTING_CONFIG
+            + KafkaSplDoc.PRODUCER_CHECKPOINTING_CONFIG
             + "\\n"
             + KafkaSplDoc.PRODUCER_CONSISTENT_REGION_SUPPORT
             + "\\n"

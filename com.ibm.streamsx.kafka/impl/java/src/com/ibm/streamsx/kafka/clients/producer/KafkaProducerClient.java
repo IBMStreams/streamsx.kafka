@@ -210,10 +210,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         + "generally know of any failures).");
             }
         }
-        // compression.type
-        if (!kafkaProperties.containsKey (ProducerConfig.COMPRESSION_TYPE_CONFIG)) {
-            this.kafkaProperties.put (ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
-        }
         // linger.ms
         if (!kafkaProperties.containsKey (ProducerConfig.LINGER_MS_CONFIG)) {
             this.kafkaProperties.put (ProducerConfig.LINGER_MS_CONFIG, "100");

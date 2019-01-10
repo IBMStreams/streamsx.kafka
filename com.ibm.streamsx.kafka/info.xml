@@ -44,6 +44,10 @@ To manually assign partitions as in previous toolkit versions, do not specify a 
 
 * The operators can now be configured with a `config checkpoint` clause. The KafkaProducer operator now simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions.
 
+++ What's new in version 1.7.3
+
+* Bug fix: No default compression for the producer anymore (producer config `compression.type` is Kafka's default).
+
 ++ What's new in version 1.7.2
 
 * Bug fix: Reduce trace level for metric dump to `trace`.

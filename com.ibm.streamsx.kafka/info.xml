@@ -18,6 +18,10 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 This is an overview of changes for major and minor version upgrades. For details see the Releases in public Github.
 
+++ What's new in version 1.7.3
+
+* Bug fix: No default compression for the producer anymore (producer config `compression.type` is Kafka's default).
+
 ++ What's new in version 1.7.2
 
 * Bug fix: Reduce trace level for metric dump to `trace`.
@@ -41,7 +45,7 @@ This is an overview of changes for major and minor version upgrades. For details
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>1.7.2</info:version>
+   <info:version>1.7.3</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

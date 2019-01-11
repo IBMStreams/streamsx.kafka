@@ -42,7 +42,6 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaMetricException;
-import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
@@ -404,8 +403,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         // expose the exception to the runtime. When committing synchronous, 
                         // we usually want the offsets really have committed or restart operator, for example when in a CR
                         throw new RuntimeException (e.getMessage(), e);
-                        // TODO: instead of Exception + operator restart, simply initiate reset of consistent region?
-                        // Hmm .. during drain? Will this work?
                     }
                 }
                 else {
@@ -661,9 +658,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // (may be possible to handle this in future Kafka releases
                     // https://issues.apache.org/jira/browse/KAFKA-4740)
                     throw e;
-                } catch (RuntimeException e) {
+                } catch (Exception e) {
                     // catches also 'java.io.IOException: Broken pipe' when SSL is used
-                    logger.warn ("RuntimeException caugt: " + e, e);
+                    logger.warn ("Exception caugt: " + e, e);
                     if (++nConsecutiveRuntimeExc >= 50) {
                         throw new KafkaOperatorRuntimeException ("Consecutive number of exceptions too high (50).", e);
                     }

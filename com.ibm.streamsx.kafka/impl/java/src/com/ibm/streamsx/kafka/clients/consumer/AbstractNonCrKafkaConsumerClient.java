@@ -30,6 +30,7 @@ import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.CheckpointContext.Kind;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
+import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
@@ -120,7 +121,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         double period = chkptContext.getCheckpointingInterval();
         return period > 0.0? Kind.PERIODIC: Kind.OPERATOR_DRIVEN;
     }
-    
+
     /**
      * @return the initialStartPosition
      */
@@ -458,14 +459,17 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      * @see #canUseJobControlPlane()
      */
     protected boolean testJobControlConnection (long connectTimeoutMillis) {
-        if (jcpConnected.get()) return true;
-        jmxConnectLatch = new CountDownLatch (1);
-        getJcpContext().connect (this);
-        try {
-            jmxConnectLatch.await (connectTimeoutMillis, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+        if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION || Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
+            if (jcpConnected.get()) return true;
+            jmxConnectLatch = new CountDownLatch (1);
+            getJcpContext().connect (this);
+            try {
+                jmxConnectLatch.await (connectTimeoutMillis, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+            }
         }
         return jcpConnected.get();
+
     }
 
     /**

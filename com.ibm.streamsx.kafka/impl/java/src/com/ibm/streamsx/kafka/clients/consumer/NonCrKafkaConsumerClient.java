@@ -19,8 +19,10 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.CheckpointContext.Kind;
+import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -80,21 +82,23 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         assign (partsToAssign);
         if (getInitialStartPosition() != StartPosition.Default) {
 
-            if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
-                trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startPosition " + startPosition
-                        + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+            if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
+                if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
+                    trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startPosition " + startPosition
+                            + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+                }
             }
             // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
-            if (!canUseJobControlPlane()) {
-                seekToPosition (partsToAssign, startPosition);
-            }
-            else {
+            if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART && canUseJobControlPlane()) {
                 // JCP detected, seek when partition not yet committed
                 for (TopicPartition tp: partsToAssign) {
                     if (!isCommittedForPartition (tp)) {
                         seekToPosition (tp, startPosition);
                     }
                 }
+            }
+            else {
+                seekToPosition (partsToAssign, startPosition);
             }
         }
     }
@@ -129,21 +133,23 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         final Set<TopicPartition> topicPartitions = topicPartitionTimestampMap.keySet();
 
         assign (topicPartitions);
-        if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
-            trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startTime " + timestamp
-                    + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
+            if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
+                trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startTime " + timestamp
+                        + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+            }
         }
         // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
-        if (!canUseJobControlPlane()) {
-            seekToTimestamp (topicPartitionTimestampMap);
-        }
-        else {
-            // JCP detected, seek when partition not yet committed
+        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART && canUseJobControlPlane()) {
+            // JCP detected, seek only when partition not yet committed
             for (TopicPartition tp: topicPartitions) {
                 if (!isCommittedForPartition (tp)) {
                     seekToTimestamp (tp, timestamp);
                 }
             }
+        }
+        else {
+            seekToTimestamp (topicPartitionTimestampMap);
         }
     }
 
@@ -170,23 +176,24 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         for (int partitionNo: partitions) {
             topicPartitionOffsetMap.put (new TopicPartition (topic, partitionNo), startOffsets.get(i++));
         }
-
-        if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
-            trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the partitions will be seeked to the startOffsets. "
-                    + "To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
+            if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
+                trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the partitions will be seeked to the startOffsets. "
+                        + "To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
+            }
         }
         // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
-        if (!canUseJobControlPlane()) {
-            assignToPartitionsWithOffsets (topicPartitionOffsetMap);
-        }
-        else {
-            // JCP detected, seek when partition not yet committed
+        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART && canUseJobControlPlane()) {
+            // JCP detected, seek only when partition not yet committed
             assign (topicPartitionOffsetMap.keySet());
             for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
                 if (!isCommittedForPartition (tp)) {
                     getConsumer().seek (tp, topicPartitionOffsetMap.get (tp).longValue());
                 }
             }
+        }
+        else {
+            assignToPartitionsWithOffsets (topicPartitionOffsetMap);
         }
     }
 
@@ -306,7 +313,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             }
         } catch (Exception e) {
             trace.error(e.getLocalizedMessage(), e);
-            throw new RuntimeException (e);
+            throw new KafkaOperatorRuntimeException (e.getMessage(), e);
         }
     }
 

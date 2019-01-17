@@ -18,31 +18,15 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 This is an overview of changes for major and minor version upgrades. For details see the Releases in public Github.
 
-++ What's new in version 2.0.0
-
-+++ Incompatible changes, which may break existing applications
-
-When not in a consistent region, and the optional input port is not configured, the behavior of the **KafkaConsumer** operator changes in the following way:
-
-When the **startPosition** has one of the values `Beginning`, `End`, or `Time`, a group identifier is configured, and the **partition** parameter is not used, the operator now automatically enables Kafka group management instead of manually assign all partitions of the configured topics. In this case the operator requires a `JobControlPlane` operator in the application graph to function correctly.
-
-To manually assign partitions as in previous toolkit versions, do not specify a consumer group identifier. Remove it from a property file, application configuration, and omit the **groupId** parameter.
+++ What's new in version 1.8.0
 
 +++ New features
 
-* KafkaConsumer: The **startPosition** parameter now supports the values `Beginning`, `End`, and `Time` when the operator is part of a consumer group and does not participate in a consistent region. To support consumer groups with these **startPosition** values, the application must contain a `JobControlPlane` operator. The conditions for a consumer operator to be part of a consumer group are now identical for participating in a consistent region and not:
-
-  1. A group identifier must be specified
-  2. The operator must not have a control input port
-  3. The **partitions** parameter must not be used
-
-* KafkaConsumer: When the operator is not part of a consistent region, it can be re-launched without resetting the initial fetch offset to what the **startPosition** parameter is. To achieve this, the application must include a `JobControlPlane` operator. Then, the **startPosition** parameter would be effictive only at job submission time, but not when the PE is re-launched and offsets are already committed for partitions. Without a `JobControlPlane` operator, the initial fetch position will always be what the **startPosition** parameter is - also when the PE is re-launched.
-
 * KafkaConsumer: Offsets can be committed after a *time period*, not only when a tuple count is reached. The new **commitPeriod** operator parameter lets you specify a time period in seconds for committing offsets of submitted tuples. 
 
-* KafkaConsumer: The time policy for offset commit is now the default policy when not in consistent region. The time policy avoids too high commit request rates, which can occur with count based policy and high tuple rates. The default commit interval is 10 seconds.
+* KafkaConsumer: The time policy for offset commit is now the default policy when not in consistent region. The time policy avoids too high commit request rates, which can occur with count based policy and high tuple rates. The default commit interval is 5 seconds.
 
-* The operators can now be configured with a `config checkpoint` clause. The KafkaProducer operator now simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions.
+* The operators can now be configured with a `config checkpoint` clause. The KafkaProducer operator simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions.
 
 ++ What's new in version 1.7.3
 

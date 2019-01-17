@@ -32,6 +32,7 @@ import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.DataGovernanceUtil;
 import com.ibm.streamsx.kafka.IGovernanceConstants;
+import com.ibm.streamsx.kafka.ToolkitInfoReader;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -91,7 +92,13 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
             description="Specifies the client ID that should be used "
                     + "when connecting to the Kafka cluster. The value "
                     + "specified by this parameter will override the `client.id` "
-                    + "Kafka property if specified. If this parameter is not "
+                    + "Kafka property if specified.\\n"
+                    + "\\n"
+                    + "Each operator must have a unique client ID. When operators "
+                    + "are replicated by a parallel region, the channel-ID is automatically appended "
+                    + "to the clientId to make the client-ID distinct for the parallel channels.\\n"
+                    + "\\n"
+                    + "If this parameter is not "
                     + "specified and the `client.id` Kafka property is not "
                     + "specified, the operator will create an ID with the pattern "
                     + "`C-J<job-ID>-<operator name>` for a consumer operator, and "
@@ -104,7 +111,13 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
         super.initialize(context);
-
+        try {
+            ToolkitInfoReader tkr = new ToolkitInfoReader (context);
+            logger.info ("Toolkit information: name = " + tkr.getToolkitName() + ", version = " + tkr.getToolkitVersion());
+        }
+        catch (Exception e) {
+            logger.warn ("Could not determine toolkit name and version: " + e);
+        }
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         chkptContext = context.getOptionalContext (CheckpointContext.class);
         // load the Kafka properties

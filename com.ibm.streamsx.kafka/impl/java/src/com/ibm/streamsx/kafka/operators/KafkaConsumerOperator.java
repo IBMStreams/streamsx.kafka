@@ -3,6 +3,7 @@ package com.ibm.streamsx.kafka.operators;
 
 import com.ibm.streams.operator.model.Icons;
 import com.ibm.streams.operator.model.InputPortSet;
+import com.ibm.streams.operator.model.InputPortSet.WindowPunctuationInputMode;
 import com.ibm.streams.operator.model.InputPorts;
 import com.ibm.streams.operator.model.OutputPortSet;
 import com.ibm.streams.operator.model.OutputPortSet.WindowPunctuationOutputMode;
@@ -16,8 +17,8 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             + "consuming messages once a tuple is received on this port. Each tuple received on this port will cause the operator to "
             + "seek to the offsets for the specified topic-partitions. This works as follows: "
             + "\\n"
-            + " * To seek to the beginning of a topic-partition, set the value of the offset to `-1.`\\n"
-            + " * To seek to the end of a topic-partition, set the value of the offset attribute to `-2.`\\n"
+            + " * To seek to the beginning of a topic-partition, set the value of the offset to `-2.`\\n"
+            + " * To seek to the end of a topic-partition, set the value of the offset attribute to `-1.`\\n"
             + " * Any other value will cause the operator to seek to that offset value. If that value does not exist, then the operator will use the "
             + "`auto.offset.reset` policy to determine where to begin reading messages from.\\n"
             + "\\n"
@@ -45,10 +46,10 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             + " * `rstring removeTopicPartitionMessage(rstring topic, int32 partition);` \\n" 
             + "\\n"  
             + " * `rstring removeTopicPartitionMessage(list<tuple<rstring topic, int32 partition>> topicPartitionsToRemove);`", 
-            cardinality = 1, optional = true)})
+            cardinality = 1, optional = true, controlPort = true)})
 @OutputPorts({
     @OutputPortSet(description = "This port produces tuples based on records read from the Kafka topic(s). A tuple will be output for "
-            + "each record read from the Kafka topic(s).", cardinality = 1, optional = false, windowPunctuationOutputMode = WindowPunctuationOutputMode.Generating) })
+            + "each record read from the Kafka topic(s).", cardinality = 1, optional = false, windowPunctuationOutputMode = WindowPunctuationOutputMode.Generating)})
 @Icons(location16 = "icons/KafkaConsumer_16.gif", location32 = "icons/KafkaConsumer_32.gif")
 public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
 

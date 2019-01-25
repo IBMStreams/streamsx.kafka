@@ -1369,9 +1369,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @throws Exception
      */
     private void createJcpCvFromInitialOffsets() throws Exception {
-        logger.debug ("createJcpCvFromInitialOffsets(). initialOffsets = " + initialOffsets); 
-        initialOffsetsCV = getJcpContext().createStringControlVariable (OffsetManager.class.getName() + ".initial",
-                false, serializeObject (initialOffsets));
+        logger.debug ("createJcpCvFromInitialOffsets(). initialOffsets = " + initialOffsets);
+        initialOffsetsCV = getJcpContext().createStringControlVariable ("initial.offsets." + getGroupId(),
+                true, serializeObject (initialOffsets));
         OffsetManager mgr = getInitialOffsetsFromJcpCv();
         logger.debug ("Retrieved value for initialOffsetsCV = " + mgr); 
     }

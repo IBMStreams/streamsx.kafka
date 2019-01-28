@@ -14,6 +14,7 @@ import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
 import com.ibm.streamsx.kafka.i18n.Messages;
 
 public class TopicPartitionUpdate {
+    private final static Gson gson = new Gson();
 
     private final TopicPartitionUpdateAction action;
     private final Map<TopicPartition, Long /* offset */> topicPartitionOffsetMap;
@@ -42,7 +43,6 @@ public class TopicPartitionUpdate {
      * @return a TopicPartitionUpdate object
      * @throws TopicPartitionUpdateParseException parsing JSON failed
      */
-    private final static Gson gson = new Gson();
     public static TopicPartitionUpdate fromJSON (String json) throws TopicPartitionUpdateParseException {
         JsonObject jsonObj = null;
         try {

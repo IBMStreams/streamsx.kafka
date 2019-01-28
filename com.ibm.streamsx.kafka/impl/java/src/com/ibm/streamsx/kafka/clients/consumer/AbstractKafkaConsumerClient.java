@@ -1157,20 +1157,24 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
-     * Seeks to the given offsets for the given topic partitions. This offset is the offset that will is consume next.
+     * Seeks to the given offsets for the given topic partitions. The offset is the new fetch position.
      * If offset equals -1, seek to the end of the topic
      * If offset equals -2, seek to the beginning of the topic
+     * If offset equals -3, no seek is performed at all for the topic partition being the key of the map.
      * Otherwise, seek to the specified offset
      */
-    private void seekToOffset(Map<TopicPartition, Long> topicPartitionOffsetMap) {
+    private void seekToOffset (Map<TopicPartition, Long> topicPartitionOffsetMap) {
         logger.info (MessageFormat.format ("seekToOffset() - {0}", topicPartitionOffsetMap));
         topicPartitionOffsetMap.forEach((tp, offset) -> {
-            if(offset == -1l) {
-                getConsumer().seekToEnd(Arrays.asList(tp));
-            } else if(offset == -2) {
-                getConsumer().seekToBeginning(Arrays.asList(tp));
+            final long offs = offset.longValue();
+            if (offs == OffsetConstants.SEEK_END) {
+                getConsumer().seekToEnd (Arrays.asList(tp));
+            } else if (offs == OffsetConstants.SEEK_BEGINNING) {
+                getConsumer().seekToBeginning (Arrays.asList(tp));
+            } else if (offs == OffsetConstants.NO_SEEK) {
+                ;
             } else {
-                getConsumer().seek(tp, offset);
+                getConsumer().seek (tp, offs);
             }
         });
     }

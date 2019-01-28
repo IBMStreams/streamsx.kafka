@@ -2,10 +2,7 @@ package com.ibm.streamsx.kafka.operators;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -13,13 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
@@ -39,6 +31,7 @@ import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
+import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
 import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaConsumerGroupClient;
@@ -47,7 +40,6 @@ import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
 import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate;
-import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdateAction;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -85,7 +77,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private Thread processThread;
     private ConsumerClient consumer;
     private AtomicBoolean shutdown;
-    private Gson gson;
 
     /* Parameters */
     private String outputKeyAttrName = DEFAULT_OUTPUT_KEY_ATTR_NAME;
@@ -578,7 +569,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.info ("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
                 + context.getPE().getJobId());
         shutdown = new AtomicBoolean(false);
-        gson = new Gson();
 
         StreamSchema outputSchema = context.getStreamingOutputs().get(0).getStreamSchema();
         hasOutputKey = outputSchema.getAttribute(outputKeyAttrName) != null;
@@ -891,54 +881,16 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
         boolean interrupted = false;
         try {
-            String jsonString = tuple.getString(0);
-            JsonObject jsonObj = gson.fromJson(jsonString, JsonObject.class);
-
-            TopicPartitionUpdateAction action = null;
-            if(jsonObj.has("action")) { //$NON-NLS-1$
-                action = TopicPartitionUpdateAction.valueOf(jsonObj.get("action").getAsString().toUpperCase()); //$NON-NLS-1$
-            } else {
-                logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "action", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                return;
-            }
-
-            Map<TopicPartition, Long> topicPartitionOffsetMap = null;
-            if(jsonObj.has("topicPartitionOffsets")) { //$NON-NLS-1$
-                topicPartitionOffsetMap = new HashMap<TopicPartition, Long>();
-                JsonArray arr = jsonObj.get("topicPartitionOffsets").getAsJsonArray(); //$NON-NLS-1$
-                Iterator<JsonElement> it = arr.iterator();
-                while(it.hasNext()) {
-                    JsonObject tpo = it.next().getAsJsonObject();
-                    if(!tpo.has("topic")) { //$NON-NLS-1$
-                        logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "topic", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                        return;
-                    }
-
-                    if(!tpo.has("partition")) { //$NON-NLS-1$
-                        logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "partition", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                        return;
-                    }
-
-
-                    if(action == TopicPartitionUpdateAction.ADD && !tpo.has("offset")) { //$NON-NLS-1$
-                        logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "offset", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                        return;
-                    }
-
-                    String topic = tpo.get("topic").getAsString(); //$NON-NLS-1$
-                    int partition = tpo.get("partition").getAsInt(); //$NON-NLS-1$
-                    long offset = tpo.has("offset") ? tpo.get("offset").getAsLong() : 0l; //$NON-NLS-1$ //$NON-NLS-2$
-
-                    topicPartitionOffsetMap.put(new TopicPartition(topic, partition), offset);
-                }
-            }
-
-            //        	consumer.sendStopPollingEvent();
-            consumer.onTopicAssignmentUpdate (new TopicPartitionUpdate(action, topicPartitionOffsetMap));
+            TopicPartitionUpdate updt = TopicPartitionUpdate.fromJSON (tuple.getString(0));
+            consumer.onTopicAssignmentUpdate (updt);
+        } catch (TopicPartitionUpdateParseException e) {
+            logger.error("Could not process control tuple. Parsing JSON '" + e.getJson() + "' failed.");
+            logger.error (e.getMessage(), e);
         } catch (InterruptedException e) {
             // interrupted during shutdown
             interrupted = true;
         } catch (Exception e) {
+            logger.error("Could not process control tuple: '" + tuple + "'");
             logger.error(e.getMessage(), e);
         } finally {
             if (!interrupted && consumer.isSubscribedOrAssigned()) {

@@ -3,7 +3,6 @@ package com.ibm.streamsx.kafka.operators;
 
 import com.ibm.streams.operator.model.Icons;
 import com.ibm.streams.operator.model.InputPortSet;
-import com.ibm.streams.operator.model.InputPortSet.WindowPunctuationInputMode;
 import com.ibm.streams.operator.model.InputPorts;
 import com.ibm.streams.operator.model.OutputPortSet;
 import com.ibm.streams.operator.model.OutputPortSet.WindowPunctuationOutputMode;
@@ -19,6 +18,7 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             + "\\n"
             + " * To seek to the beginning of a topic-partition, set the value of the offset to `-2.`\\n"
             + " * To seek to the end of a topic-partition, set the value of the offset attribute to `-1.`\\n"
+            + " * To start fetching from the default position, omit the offset attribute or set the value of the offset to `-3`\\n"
             + " * Any other value will cause the operator to seek to that offset value. If that value does not exist, then the operator will use the "
             + "`auto.offset.reset` policy to determine where to begin reading messages from.\\n"
             + "\\n"

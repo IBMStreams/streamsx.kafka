@@ -37,15 +37,16 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             + "      ]\\n" 	
             + "    }\\n"
             + "\\n"
-            + "The following convenience functions are available to aid in creating the messages: \\n"
+            + "The following types and convenience functions are available to aid in creating the messages: \\n"
             + "\\n"
-            + " * `rstring addTopicPartitionMessage(rstring topic, int32 partition, int64 offset);` \\n" 
-            + "\\n"
-            + " * `rstring addTopicPartitionMessage(list<tuple<rstring topic, int32 partition, int64 offset>> topicPartitionsToAdd);` \\n" 
-            + "\\n"
-            + " * `rstring removeTopicPartitionMessage(rstring topic, int32 partition);` \\n" 
-            + "\\n"  
-            + " * `rstring removeTopicPartitionMessage(list<tuple<rstring topic, int32 partition>> topicPartitionsToRemove);`", 
+            + "* `type Control.TopicPartition = rstring topic, int32 partition;`\\n"
+            + "* `type Control.TopicPartitionOffset = rstring topic, int32 partition, int64 offset;`\\n"
+            + "* `rstring addTopicPartitionMessage (rstring topic, int32 partition, int64 offset);`\\n" 
+            + "* `rstring addTopicPartitionMessage (rstring topic, int32 partition);`\\n" 
+            + "* `rstring addTopicPartitionMessage (list<Control.TopicPartitionOffset> topicPartitionsToAdd);`\\n" 
+            + "* `rstring addTopicPartitionMessage (list<Control.TopicPartition> topicPartitionsToAdd);`\\n" 
+            + "* `rstring removeTopicPartitionMessage (rstring topic, int32 partition);`\\n" 
+            + "* `rstring removeTopicPartitionMessage (list<Control.TopicPartition> topicPartitionsToRemove);`\\n", 
             cardinality = 1, optional = true, controlPort = true)})
 @OutputPorts({
     @OutputPortSet(description = "This port produces tuples based on records read from the Kafka topic(s). A tuple will be output for "

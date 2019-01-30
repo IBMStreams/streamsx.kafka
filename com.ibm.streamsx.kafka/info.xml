@@ -22,6 +22,8 @@ This is an overview of changes for major and minor version upgrades. For details
 
 +++ New features
 
+* The control port of the KafkaConsumer allows assignment with default fetch position. New SPL functions to generate the JSON string for the control port have been added.
+
 * KafkaConsumer: Offsets can be committed after a *time period*, not only when a tuple count is reached. The new **commitPeriod** operator parameter lets you specify a time period in seconds for committing offsets of submitted tuples. 
 
 * KafkaConsumer: The time policy for offset commit is now the default policy when not in consistent region. The time policy avoids too high commit request rates, which can occur with count based policy and high tuple rates. The default commit interval is 5 seconds.

@@ -275,15 +275,9 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 trace.info ("committed offsets of the added topic partitions: " + commits);
                 break;
             case REMOVE:
-                update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
-                    currentTopicPartitionOffsets.remove(tp);
-                });
-                // TODO: commit offsets of the removed partition(s)
-                // For now, the problem is not so urgent as a 'subscription' with Default start position is not yet possible.
-                // When we need to commit offsets here, the flow would be:
                 // x 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
                 // x 2. wait that the queue gets processed - awaitMessageQueueProcessed();
-                //   3. commit the offsets of the removed topic partitions
+                // x 3. commit the offsets of the removed topic partitions
                 // x 4. remove the unassigned topic partitions from the offsetManager (or simply clear?)
                 // x 5. update the partition assignment in the consumer
                 // remove messages of removed topic partitions from the message queue
@@ -291,11 +285,28 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 awaitMessageQueueProcessed();
                 // now the offset manager can be cleaned without the chance that the removed partition(s) re-appear after tuple submission
                 // remove removed partitions from offset manager. We can't commit offsets for those partitions we are not assigned any more.
+                // the post-condition is, that all messages from the queue have submitted as 
+                // tuples and its offsets +1 are stored in OffsetManager.
+                
+                final boolean commitSync = true;
+                final boolean commitPartitionWise = false;
+                CommitInfo commitOffsets = new CommitInfo (commitSync, commitPartitionWise);
                 OffsetManager offsetManager = getOffsetManager();
+                
                 synchronized (offsetManager) {
-                    update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+                    update.getTopicPartitionOffsetMap().forEach ((tp, offsetIrrelevant) -> {
+                        // make sure that we commit only partitions that are assigned 
+                        if (currentTopicPartitionOffsets.containsKey (tp)) {
+                            long offset = offsetManager.getOffset (tp.topic(), tp.partition());
+                            // offset is -1 if there is no mapping from topic partition to offset
+                            if (offset >= 0) commitOffsets.put (tp, offset);
+                            currentTopicPartitionOffsets.remove (tp);
+                        }
                         offsetManager.remove (tp.topic(), tp.partition());
                     });
+                }
+                if (!commitOffsets.isEmpty()) {
+                    commitOffsets (commitOffsets);
                 }
                 // we can end up here with an empty map after removal of assignments.
                 assignToPartitionsWithOffsets (currentTopicPartitionOffsets);

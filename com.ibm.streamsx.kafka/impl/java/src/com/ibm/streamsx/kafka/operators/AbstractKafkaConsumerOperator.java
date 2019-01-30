@@ -599,18 +599,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
         if (this.groupIdSpecified && !groupManagementEnabled) {
             if (hasInputPorts) {
-                logger.warn (MessageFormat.format ("You have specified the group.id ''{0}''. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group as you might expect because you have configured an input port.",
+                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group because the operator is configured with an input port.",
                         gid, context.getName()));
             }
             if (this.partitions != null && !this.partitions.isEmpty()) {
-                logger.warn (MessageFormat.format ("You have specified the group.id ''{0}''. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group as you might expect because you have specified partitions to consume.",
+                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group because partitions to consume are specified.",
                         gid, context.getName()));
             }
             if (startPosition != StartPosition.Default && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION && crContext == null) {
-                logger.warn (MessageFormat.format ("You have specified the group.id ''{0}''. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group as you might expect because you have specified startPosition != Default.",
+                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group because a startPosition != Default is configured.",
                         gid, context.getName()));
             }
         }
@@ -850,7 +850,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
         if(hasOutputTimetamp) {
             tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
-        }            
+        }
         out.submit(tuple);
     }
 

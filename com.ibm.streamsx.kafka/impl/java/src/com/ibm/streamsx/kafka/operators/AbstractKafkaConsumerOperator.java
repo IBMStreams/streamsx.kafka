@@ -17,6 +17,7 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
+import com.ibm.streams.operator.StreamingData.Punctuation;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
@@ -99,6 +100,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     private long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
+    private CountDownLatch processThreadEndedLatch;
     private boolean hasOutputTopic;
     private boolean hasOutputKey;
     private boolean hasOutputOffset;
@@ -592,7 +594,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.debug ("group-ID specified: " + this.groupIdSpecified);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         boolean groupManagementEnabled;
-    
+
         if (crContext == null && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION)
             groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty()) && startPosition == StartPosition.Default;
         else 
@@ -713,6 +715,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             @Override
             public void run() {
                 try {
+                    processThreadEndedLatch = new CountDownLatch (1);
                     // initiates start polling if assigned or subscribed by sending an event
                     produceTuples();
                 } catch (Exception e) {
@@ -720,6 +723,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     // Propagate all exceptions to the runtime to make the PE fail and possibly restart.
                     // Otherwise this thread terminates leaving the PE in a healthy state without being healthy.
                     throw new RuntimeException (e.getLocalizedMessage(), e);
+                } finally {
+                    processThreadEndedLatch.countDown();
+                    logger.info ("process thread (tid = " +  Thread.currentThread().getId() + ") ended.");
                 }
             }
         });
@@ -876,8 +882,26 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             throw new Exception(Messages.getString("UNSUPPORTED_TYPE_EXCEPTION", (attrValue.getClass().getTypeName()), attrName)); //$NON-NLS-1$
     }
 
+    /**
+     * @see com.ibm.streams.operator.AbstractOperator#processPunctuation(com.ibm.streams.operator.StreamingInput, com.ibm.streams.operator.StreamingData.Punctuation)
+     */
     @Override
-    public void process(StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
+    public void processPunctuation (StreamingInput<Tuple> stream, Punctuation mark) throws Exception {
+        if (mark == Punctuation.FINAL_MARKER) {
+            logger.fatal ("Final Marker received at input port. Tuple submission is stopped. Stop fetching records.");
+            // make the processThread - the thread that submits tuples and initiates offset commit - terminate
+            shutdown.set (true);
+            if (processThreadEndedLatch != null) {
+                processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+                processThreadEndedLatch = null;
+            }
+            consumer.sendStopPollingEvent();
+            consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+        }
+    }
+
+    @Override
+    public void process (StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
 
         boolean interrupted = false;
         try {
@@ -911,9 +935,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final OperatorContext context = getOperatorContext();
         logger.info ("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
-        shutdown.set(true);
-        consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-
+        shutdown.set (true);
+        if (processThreadEndedLatch != null) {
+            processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+            processThreadEndedLatch = null;
+        }
+        if (consumer.isProcessing()) {
+            consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+        }
+        logger.info ("Operator " + context.getName() + ": shutdown done");
         // Must call super.shutdown()
         super.shutdown();
     }
@@ -922,7 +952,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void drain() throws Exception {
         logger.debug (">>> DRAIN"); //$NON-NLS-1$
         long before = System.currentTimeMillis();
-        consumer.onDrain();
+        if (consumer.isProcessing()) {
+            consumer.onDrain();
+        }
         // When a checkpoint is to be created, the operator must stop sending tuples by pulling messages out of the messageQueue.
         // This is achieved via acquiring a permit. In the background, more messages are pushed into the queue by a receive thread
         // incrementing the read offset.
@@ -945,13 +977,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void retireCheckpoint (long id) throws Exception {
         logger.debug(">>> RETIRE CHECKPOINT (ckpt id=" + id + ")");
-        consumer.onCheckpointRetire (id);
+        if (consumer.isProcessing()) {
+            consumer.onCheckpointRetire (id);
+        }
     }
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.debug (">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
-        consumer.onCheckpoint (checkpoint);
+        if (consumer.isProcessing()) {
+            consumer.onCheckpoint (checkpoint);
+        }
     }
 
     @Override
@@ -961,8 +997,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.debug (MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
         final long before = System.currentTimeMillis();
         try {
-            consumer.sendStopPollingEvent();
-            consumer.onReset (checkpoint);
+            if (consumer.isProcessing()) {
+                consumer.sendStopPollingEvent();
+                consumer.onReset (checkpoint);
+            }
         }
         catch (InterruptedException e) {
             logger.debug ("RESET interrupted)");
@@ -970,7 +1008,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
         finally {
             // latch will be null if the reset was caused
-            // by another operator
+            // by another PE, i.e. when relaunch count == 0 in initialize(context)
             if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
@@ -983,11 +1021,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final int attempt = crContext.getResetAttempt();
         logger.debug (MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
-        consumer.sendStopPollingEvent();
-        consumer.onResetToInitialState();
-
+        if (consumer.isProcessing()) {
+            consumer.sendStopPollingEvent();
+            consumer.onResetToInitialState();
+        }
         // latch will be null if the reset was caused
-        // by another operator
+        // by another PE, i.e. when relaunch count == 0 in initialize(context)
         if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;

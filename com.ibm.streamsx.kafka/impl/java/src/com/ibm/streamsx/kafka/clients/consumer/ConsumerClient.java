@@ -22,10 +22,12 @@ public interface ConsumerClient {
      * @return the client-ID
      */
     public String getClientId();
-    
+
     /**
      * creates the Kafka consumer and starts the consumer and event thread.
      * This method ensures that the event thread is running when it returns.
+     * {@link #isProcessing()} will return true after this method returns.
+     * 
      * @throws InterruptedException The thread has been interrupted waiting for the consumer thread to start
      * @throws KafkaClientInitializationException initialization of the Kafka consumer failed
      */
@@ -94,13 +96,13 @@ public interface ConsumerClient {
      * @throws InterruptedException The thread waiting for finished condition has been interruped.
      */
     void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException;
-    
+
     /**
      * Action to be performed on consistent region drain.
      * @throws Exception
      */
     void onDrain() throws Exception;
-    
+
     /**
      * Action to be performed when a checkpoint is retired.
      * @param id The checkpoint sequence ID
@@ -132,12 +134,20 @@ public interface ConsumerClient {
 
     /**
      * Initiates a shutdown of the consumer client.
-     * Implementations ensure that shutting down the client has completed when this method returns. 
+     * Implementations ensure that shutting down the client has completed when this method returns.
+     * {@link #isProcessing()} will return false after this method call.
+     * 
      * @param timeout    the timeout to wait for shutdown completion
      * @param timeUnit   the unit of time for the timeout
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException;
+
+    /**
+     * Returns true when the consumer client is started and can process events.
+     * @return
+     */
+    boolean isProcessing();
 
     /**
      * Gets the next consumer record that has been received. If there are no records, the method waits the specified timeout.

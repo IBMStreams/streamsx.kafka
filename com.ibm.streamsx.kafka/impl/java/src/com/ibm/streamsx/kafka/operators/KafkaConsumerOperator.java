@@ -11,7 +11,8 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
 
 @PrimitiveOperator(name = "KafkaConsumer", namespace = "com.ibm.streamsx.kafka", description=KafkaConsumerOperator.DESC)
 @InputPorts({
-    @InputPortSet(description = "This port is used to specify the topic-partition offsets that the consumer should begin reading messages from. When this "
+    @InputPortSet (description = ""
+            + "This port is used to specify the topic-partition offsets that the consumer should begin reading messages from. When this "
             + "port is specified, the operator will ignore the `topic`, `partition` and `startPosition` parameters. The operator will only begin "
             + "consuming messages once a tuple is received on this port. Each tuple received on this port will cause the operator to "
             + "seek to the offsets for the specified topic-partitions. This works as follows: "
@@ -29,9 +30,9 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             + "      \\\"action\\\" : \\\"ADD\\\" or \\\"REMOVE\\\",\\n" 
             + "      \\\"topicPartitionOffsets\\\" : [\\n" 
             + "        {\\n"
-            + "          \\\"topic\\\" : \\\"topic-name\\\",\\n"
-            + "          \\\"partition\\\" : <partition_number>,\\n" 
-            + "          \\\"offset\\\" : <offset_number>\\n" 
+            + "          \\\"topic\\\" : \\\"topic-name\\\"\\n"
+            + "          ,\\\"partition\\\" : <partition_number>\\n" 
+            + "          ,\\\"offset\\\" : <offset_number>             <--- the offset attribute is optional \\n" 
             + "        },\\n" 
             + "        ...\\n" 
             + "      ]\\n" 	
@@ -46,7 +47,11 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             + "* `rstring addTopicPartitionMessage (list<Control.TopicPartitionOffset> topicPartitionsToAdd);`\\n" 
             + "* `rstring addTopicPartitionMessage (list<Control.TopicPartition> topicPartitionsToAdd);`\\n" 
             + "* `rstring removeTopicPartitionMessage (rstring topic, int32 partition);`\\n" 
-            + "* `rstring removeTopicPartitionMessage (list<Control.TopicPartition> topicPartitionsToRemove);`\\n", 
+            + "* `rstring removeTopicPartitionMessage (list<Control.TopicPartition> topicPartitionsToRemove);`\\n"
+            + "\\n"
+            + "**Important Note:** This input port must not receive a final punctuation. Final markers are automatically "
+            + "forwarded causing downstream operators close their input ports. When this input port receives a final marker, "
+            + "it will stop fetching Kafka messages and stop submitting tuples.", 
             cardinality = 1, optional = true, controlPort = true)})
 @OutputPorts({
     @OutputPortSet(description = "This port produces tuples based on records read from the Kafka topic(s). A tuple will be output for "

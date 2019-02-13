@@ -274,6 +274,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     logger.debug ("Event thread interrupted. Terminating thread.");
                     return;
                 }
+                finally {
+                    processing.set (false);
+                    logger.info ("event thread (tid = " +  Thread.currentThread().getId() + ") ended.");
+                }
             }
         });
         eventThread.setDaemon(false);
@@ -297,6 +301,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (initializationException != null)
             throw new KafkaClientInitializationException (initializationException.getLocalizedMessage(), initializationException);
     }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#isProcessing()
+     */
+    @Override
+    public boolean isProcessing() {
+        return processing.get();
+    }
+
 
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#isAssignedToTopics()
@@ -492,7 +505,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         getMessageQueue().clear();
         drainBuffer.clear();
         consumer.close(CONSUMER_CLOSE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        processing.set(false);
+        processing.set (false);
     }
 
     /**

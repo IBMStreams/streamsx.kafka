@@ -20,7 +20,7 @@ This is an overview of changes for major and minor version upgrades. For details
 
 ++ What's new in version 1.8.0
 
-+++ New features
+* The KafkaConsumer can subscribe dynamically to multiple topics by specifying a regular expression for the new **pattern** parameter. Assignment of partitions happens for matching topics at the time of periodic check. When someone creates a new topic with a name that matches, a rebalance will happen almost immediately and the consumers will start consuming from the new topic.
 
 * The control port of the KafkaConsumer allows assignment with default fetch position. New SPL functions to generate the JSON string for the control port have been added.
 

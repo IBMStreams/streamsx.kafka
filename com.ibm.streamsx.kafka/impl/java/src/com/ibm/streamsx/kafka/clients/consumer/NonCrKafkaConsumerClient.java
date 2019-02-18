@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
@@ -49,6 +50,26 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     private <K, V> NonCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws KafkaOperatorException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.regex.Pattern, long)
+     */
+    @Override
+    public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
+        throw new KafkaOperatorException ("subscribe with pattern not supported by " + getThisClassName());
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.regex.Pattern, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
+     */
+    @Override
+    public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
+        throw new KafkaOperatorException ("subscribe with pattern not supported by " + getThisClassName());
     }
 
 

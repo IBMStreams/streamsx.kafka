@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 import java.util.Set;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -23,6 +24,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -94,6 +96,26 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                 false, serializeObject(offsetManager));
         OffsetManager mgr = getDeserializedOffsetManagerCV();
         logger.debug("Retrieved value for offsetManagerCV = " + mgr); 
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.regex.Pattern, long)
+     */
+    @Override
+    public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
+        throw new KafkaOperatorException ("subscribe with pattern not supported by " + getThisClassName());
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.regex.Pattern, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
+     */
+    @Override
+    public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
+        throw new KafkaOperatorException ("subscribe with pattern not supported by " + getThisClassName());
     }
 
 

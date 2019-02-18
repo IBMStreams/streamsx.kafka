@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -59,6 +60,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.MergeKey;
@@ -141,7 +143,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @throws KafkaConfigurationException 
      */
     private <K, V> CrKafkaConsumerGroupClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties, int nTopics) throws KafkaConfigurationException {
+            KafkaOperatorProperties kafkaProperties, boolean singleTopic) throws KafkaConfigurationException {
 
         super (operatorContext, keyClass, valueClass, kafkaProperties);
 
@@ -150,11 +152,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         this.assignedPartitionsOffsetManager = new OffsetManager();
         this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
         ConsistentRegionContext crContext = getCrContext();
-        // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
-        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
+        // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed
+        if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {
             String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
             kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            logger.info (MessageFormat.format ("Multiple topics specified. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+            logger.info (MessageFormat.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
         }
         logger.info (MessageFormat.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
@@ -320,6 +322,26 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
         state = newState;
         logger.info ("consumer started");
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.regex.Pattern, long)
+     */
+    @Override
+    public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
+        throw new KafkaOperatorException ("TODO: subscribe with pattern not yet implemented " + getThisClassName());
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.regex.Pattern, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
+     */
+    @Override
+    public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
+        throw new KafkaOperatorException ("TODO: subscribe with pattern not yet implemented " + getThisClassName());
     }
 
 
@@ -989,7 +1011,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         logger.info (MessageFormat.format("processResetEvent() [{0}] - entering", state));
         clearDrainBuffer();
         getMessageQueue().clear();
-        
+
         // When no one of the KafkaConsumer in this group has been restarted before the region reset,
         // partition assignment will most likely not change and no onPartitionsRevoked()/onPartitionsAssigned will be fired on our
         // ConsumerRebalanceListener. That's why we must seek here to the partitions we think we are assigned to (can also be no partition).
@@ -1398,7 +1420,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         private long triggerCount;
         private StartPosition initialStartPosition;
         private long initialStartTimestamp;
-        private int numTopics = 0;
+        private boolean singleTopic = false;   // safest default
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -1430,8 +1452,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             return this;
         }
 
-        public final Builder setNumTopics (int n) {
-            this.numTopics = n;
+        public final Builder setSingleTopic (boolean s) {
+            this.singleTopic = s;
             return this;
         }
 
@@ -1458,7 +1480,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
          * @throws Exception
          */
         public ConsumerClient build() throws Exception {
-            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
+            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, singleTopic);
             client.setPollTimeout (this.pollTimeout);
             client.setTriggerCount (this.triggerCount);
             client.setInitialStartPosition (this.initialStartPosition);

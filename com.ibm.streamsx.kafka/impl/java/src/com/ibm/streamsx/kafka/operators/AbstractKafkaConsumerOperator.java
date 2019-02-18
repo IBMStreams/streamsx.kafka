@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -32,6 +33,7 @@ import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
+import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
 import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
@@ -65,6 +67,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM = "outputOffsetAttributeName"; //$NON-NLS-1$
     public static final String OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM = "outputPartitionAttributeName"; //$NON-NLS-1$
     public static final String TOPIC_PARAM = "topic"; //$NON-NLS-1$
+    public static final String PATTERN_PARAM = "pattern"; //$NON-NLS-1$
     public static final String PARTITION_PARAM = "partition"; //$NON-NLS-1$
     public static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
     public static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
@@ -87,6 +90,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private String outputOffsetAttrName = DEFAULT_OUTPUT_OFFSET_ATTR_NAME;
     private String outputPartitionAttrName = DEFAULT_OUTPUT_PARTITION_ATTR_NAME;
     private List<String> topics;
+    private Pattern pattern;
     private List<Integer> partitions;
     private List<Long> startOffsets;
     private StartPosition startPosition = DEFAULT_START_POSITION;
@@ -141,6 +145,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of topic partitions assigned to the consumer.")
     public void setnAssignedPartitions(Metric nAssignedPartitions) {
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
+
+    @CustomMetric (kind = Metric.Kind.GAUGE, name = "nConsumedTopics", description = "Number of topics consumed by this consumer.")
+    public void setnConsumedTopics (Metric nPendingMessages) {
+        // Note: The number of topics consumed by a whole consumer group can be higher.
+        // When not in a consistent region, we have no inter-operator communication to find out the number
+        // of topics consumed by the whole group.
+        // When we are in consistent region, we can count the number of topics that match a pattern subscription
+        // via the Group-MXBean.
+
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }
 
@@ -288,6 +303,31 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.topics = topics;
     }
 
+    @Parameter (optional = true, name = PATTERN_PARAM,
+            description="Specifies a regular expression to subscribe dynamically all matching topics. "
+                    + "The pattern matching will be done periodically against topic existing at the time of check.\\n"
+                    + "\\n"
+                    + "**Some basic examples:**\\n"
+                    + "* `pattern: \\\"myTopic\\\";` subscribes only to topic `myTopic` when it is present.\\n"
+                    + "* `pattern: \\\"myTopic.\\\\*\\\";` subscribes to `myTopic` and all topics that begin with `myTopic`\\n"
+                    + "* `pattern: \\\".\\\\*Topic\\\";` subscribes to `Topic` and all topics that end at `Topic`\\n"
+                    + "\\n"
+                    + "This parameter is incompatible with the **topic** and the **partition** parameter. "
+                    + "Dynamic subscription with a pattern implies group management. The parameter is therefore "
+                    + "incompatible with all *operator configurations that disable group management*:\\n"
+                    + "\\n"
+                    + "* no group identifier configured (neither via **groupId** parameter nor as `group.id` consumer configuration)\\n"
+                    + "* presence of an input control port\\n"
+                    + "* usage of the **partition** parameter\\n"
+                    + "* usage of **startPosition** parameter with a different value than `Default` (only when not in consistent region)\\n"
+                    + "\\n"
+                    + "The regular expression syntax follows the Perl 5 regular expressions with some differences. "
+                    + "For details see [https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html|Regular Expressions in Java 8].")
+    public void setPattern (String regex) {
+        // throws java.util.regex.PatternSyntaxException
+        this.pattern = Pattern.compile (regex);
+    }
+
     @Parameter(optional = true, name=OUTPUT_KEY_ATTRIBUTE_NAME_PARAM,
             description="Specifies the output attribute name that should contain "
                     + "the key. If not specified, the operator will attempt to "
@@ -407,6 +447,24 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
     }
 
+    @ContextCheck (compile = true)
+    public static void checkPatternParamCompatibility (OperatorContextChecker checker) {
+        // when input port is configured, topic, pattern, partition, and startPosition are ignored
+        // Do the checks only when no input port is configured
+        OperatorContext opCtx = checker.getOperatorContext();
+        if (opCtx.getNumberOfStreamingInputs() == 0) {
+            Set<String> paramNames = opCtx.getParameterNames();
+            if (paramNames.contains (PATTERN_PARAM)) {
+                if (paramNames.contains (PARTITION_PARAM)) {
+                    checker.setInvalidContext (Messages.getString ("PARAMETERS_EXCLUDE_EACH_OTHER", PATTERN_PARAM, PARTITION_PARAM), new Object[0]); //$NON-NLS-1$
+                }
+                if (paramNames.contains (TOPIC_PARAM)) {
+                    checker.setInvalidContext (Messages.getString ("PARAMETERS_EXCLUDE_EACH_OTHER", PATTERN_PARAM, TOPIC_PARAM), new Object[0]); //$NON-NLS-1$
+                }
+            }
+        }
+    }
+
     @ContextCheck(compile = true)
     public static void checkInputPort(OperatorContextChecker checker) {
         List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
@@ -415,10 +473,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             /*
              * optional input port is present, thus need to ignore the following parameters:
              *  * topic
+             *  * pattern
              *  * partition
              *  * startPosition
              */
             if(paramNames.contains(TOPIC_PARAM) 
+                    || paramNames.contains(PATTERN_PARAM)
                     || paramNames.contains(PARTITION_PARAM) 
                     || paramNames.contains(START_POSITION_PARAM)) {
                 System.err.println(Messages.getString("PARAMS_IGNORED_WITH_INPUT_PORT")); //$NON-NLS-1$
@@ -430,10 +490,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @ContextCheck(compile = true)
-    public static void checkForTopicOrInputPort(OperatorContextChecker checker) {
-        List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
-        if(inputPorts.size() == 0 && !checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM)) {
-            checker.setInvalidContext(Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
+    public static void checkForTopicPatternOrInputPort(OperatorContextChecker checker) {
+        OperatorContext opCtx = checker.getOperatorContext();
+        if (opCtx.getNumberOfStreamingInputs() == 0) {
+            Set <String> parameterNames = opCtx.getParameterNames();
+            // must have one of topic or pattern parameter
+            if (!(parameterNames.contains (TOPIC_PARAM) || parameterNames.contains (PATTERN_PARAM))) {
+                checker.setInvalidContext (Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
+            }
         }
     }
 
@@ -586,7 +650,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
         // set the group ID property if the groupId parameter is specified
         if (groupId != null && !groupId.isEmpty()) {
-            kafkaProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+            kafkaProperties.setProperty (ConsumerConfig.GROUP_ID_CONFIG, groupId);
         }
         final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
         final String gid = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
@@ -612,9 +676,19 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
             if (startPosition != StartPosition.Default && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION && crContext == null) {
                 logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group because a startPosition != Default is configured.",
+                        + "will NOT participate in a consumer group because startPosition != Default is configured.",
                         gid, context.getName()));
             }
+        }
+        // when group management is disabled and no input port is configured, we must not subscribe with pattern
+        // When we are here it is already guaranteed that we have one of the 'topic' or 'pattern' parameter
+        final boolean p = this.pattern != null;
+        final boolean t = this.topics != null;
+        assert ((p && !t) || (t && !p));
+        if (!groupManagementEnabled && !hasInputPorts && p) {
+            final String msg = Messages.getString ("PATTERN_SUBSCRIPTION_REQUIRES_GROUP_MGT", PATTERN_PARAM, context.getName(), context.getKind());
+            logger.error (msg);
+            throw new KafkaConfigurationException (msg);
         }
         if (crContext != null) {
             commitMode = CommitMode.ConsistentRegionDrain;
@@ -631,7 +705,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setKafkaProperties(kafkaProperties)
                 .setKeyClass(keyClass)
                 .setValueClass(valueClass)
-                .setNumTopics (this.topics == null? 0: this.topics.size())
+                .setSingleTopic (this.topics != null && this.topics.size() == 1)
                 .setPollTimeout(this.consumerPollTimeout)
                 .setInitialStartPosition (this.startPosition)
                 .setCommitMode (commitMode)
@@ -661,7 +735,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setKeyClass (keyClass)
                 .setValueClass (valueClass)
                 .setPollTimeout (this.consumerPollTimeout)
-                .setNumTopics (this.topics == null? 0: this.topics.size())
+                .setSingleTopic (this.topics != null && this.topics.size() == 1)
                 .setTriggerCount (this.triggerCount)
                 .setInitialStartPosition (this.startPosition)
                 .setInitialStartTimestamp (this.startTime);
@@ -690,20 +764,36 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             throw e;
         }
 
-        // input port not used, so topic must be defined
+        // input port not used, so topic or pattern must be defined
         if (!hasInputPorts) {
-            if (topics != null) {
+            if (t) {  // topics != null
                 final boolean registerAsInput = true;
                 registerForDataGovernance(context, topics, registerAsInput);
-
-                if(startPosition == StartPosition.Time) {
-                    consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);
-                } else if(startPosition == StartPosition.Offset) {
-                    consumer.subscribeToTopicsWithOffsets(topics.get(0), partitions, startOffsets);
-                } else {
-                    consumer.subscribeToTopics(topics, partitions, startPosition);
+                switch (startPosition) {
+                case Time:
+                    consumer.subscribeToTopicsWithTimestamp (topics, partitions, startTime);
+                    break;
+                case Offset:
+                    consumer.subscribeToTopicsWithOffsets (topics.get(0), partitions, startOffsets);
+                    break;
+                default:
+                    consumer.subscribeToTopics (topics, partitions, startPosition);
                 }
-            }	
+            }
+            else {
+                switch (startPosition) {
+                case Time:
+                    consumer.subscribeToTopicsWithTimestamp (pattern, startTime);
+                    break;
+                case Beginning:
+                case End:
+                case Default:
+                    consumer.subscribeToTopics (pattern, startPosition);
+                    break;
+                default:
+                    throw new KafkaClientInitializationException ("Illegal 'startPosition' value for subscription with pattern: " + startPosition);
+                }
+            }
         }
 
         if (crContext != null && context.getPE().getRelaunchCount() > 0) {

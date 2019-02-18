@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.CommitFailedException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -83,6 +84,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     private AtomicBoolean processing;
     private Set<TopicPartition> assignedPartitions = new HashSet<>();
+    private Set<String> consumedTopics = new HashSet<>();
     private SubscriptionMode subscriptionMode = SubscriptionMode.NONE;
 
     private Exception initializationException;
@@ -91,6 +93,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nPendingMessages;
     private final Metric nLowMemoryPause;
     private final Metric nQueueFullPause;
+    private final Metric nConsumedTopics;
     protected final Metric nAssignedPartitions;
 
     // Lock/condition for when we pause processing due to
@@ -169,12 +172,26 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         processing = new AtomicBoolean (false);
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (getMessageQueueSizeMultiplier() * getMaxPollRecords());
         drainBuffer = new ArrayList<ConsumerRecord<?, ?>> (messageQueue.remainingCapacity());
-        this.nPendingMessages = operatorContext.getMetrics().getCustomMetric("nPendingMessages");
-        this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
-        this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
-        this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric("nAssignedPartitions");
+        this.nPendingMessages = operatorContext.getMetrics().getCustomMetric ("nPendingMessages");
+        this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric ("nLowMemoryPause");
+        this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric ("nQueueFullPause");
+        this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric ("nAssignedPartitions");
+        this.nConsumedTopics = operatorContext.getMetrics().getCustomMetric ("nConsumedTopics");
     }
 
+    /**
+     * Replaces the consumed topics by the topics from the collection of topic partitions and maintains the custom metric "nConsumedTopics"
+     * @param topicPartitions A collection of topic partitions. Multiple occurrences of the same topic will be counted as one single topic.
+     */
+    protected void setConsumedTopics (Collection<TopicPartition> topicPartitions) {
+        synchronized (this.consumedTopics) {
+            this.consumedTopics.clear();
+            if (topicPartitions != null) {
+                topicPartitions.forEach (tp -> this.consumedTopics.add (tp.topic()));
+            }
+            this.nConsumedTopics.setValue (this.consumedTopics.size());
+        }
+    }
 
     /**
      * Returns the Kafka consumer group identifier, i.e. the value of the consumer config 'group.id'.
@@ -961,7 +978,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (topicPartitions == null) topicPartitions = Collections.emptySet();
         consumer.assign(topicPartitions);
         this.assignedPartitions = new HashSet<TopicPartition> (topicPartitions);
-        // update metric:
+        // update metrics:
+        setConsumedTopics (topicPartitions);
         nAssignedPartitions.setValue (this.assignedPartitions.size());
         this.subscriptionMode = topicPartitions.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.ASSIGNED;
     }
@@ -972,12 +990,34 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param topics The topics to subscribe. An empty list or null is treated as unsubscribe from all.
      * @param rebalanceListener an optional ConsumerRebalanceListener
      */
-    protected void subscribe(Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
+    protected void subscribe (Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
         logger.info("Subscribing. topics = " + topics); //$NON-NLS-1$
         if (topics == null) topics = Collections.emptyList();
         consumer.subscribe (topics, rebalanceListener);
-        getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+        try {
+            getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+        } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
         this.subscriptionMode = topics.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.SUBSCRIBED;
+    }
+
+    /**
+     * Subscribes the consumer to the given pattern. Subscription enables dynamic group assignment.
+     * This subscription unassigns all partitions and replaces a previous subscription.
+     * @param pattern A pattern that matches the topics being consumed. If it is null, the all subscriptions are removed.
+     * @param rebalanceListener an optional ConsumerRebalanceListener
+     */
+    protected void subscribe (Pattern pattern, ConsumerRebalanceListener rebalanceListener) {
+        logger.info("Subscribing. pattern = " + (pattern == null? "null": pattern.pattern())); //$NON-NLS-1$
+        if (pattern == null) {
+            consumer.unsubscribe();
+        }
+        else {
+            consumer.subscribe (pattern, rebalanceListener);
+            try {
+                getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+            } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
+        }
+        this.subscriptionMode = SubscriptionMode.SUBSCRIBED;
     }
 
     /**

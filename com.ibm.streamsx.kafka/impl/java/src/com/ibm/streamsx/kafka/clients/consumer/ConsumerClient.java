@@ -3,6 +3,7 @@ package com.ibm.streamsx.kafka.clients.consumer;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -66,6 +67,30 @@ public interface ConsumerClient {
      */
     void subscribeToTopicsWithOffsets(final String topic, final List<Integer> partitions, final List<Long> startOffsets)
             throws Exception;
+
+    /**
+     * Dynamically subscribes to topics given by a pattern( regular expression)
+     * and set the initial fetch offset to the given timestamp.
+     * This function implies Kafka group managenent.
+     * 
+     * @param pattern    A compiled pattern that matches the topics to be subscribed.
+     * @param timestamp  the timestamp where to start fetching in milliseconds since Epoch.
+     * 
+     * @throws Exception
+     */
+    public void subscribeToTopicsWithTimestamp (final Pattern pattern, final long timestamp) throws Exception;
+
+    /**
+     * Dynamically subscribes to topics given by a pattern( regular expression)
+     * and set the initial fetch offset to the given startPosition.
+     * This function implies Kafka group managenent.
+     * 
+     * @param pattern       A compiled pattern that matches the topics to be subscribed.
+     * @param startPosition start position. Must be one of {@link StartPosition#Default}, {@link StartPosition#Beginning}, {@link StartPosition#End}.
+     * 
+     * @throws Exception
+     */
+    public void subscribeToTopics (final Pattern pattern, final StartPosition startPosition) throws Exception;
 
     /**
      * Tests whether the consumer is assigned to topic partitions or subscribed to topics.

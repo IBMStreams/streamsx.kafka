@@ -637,6 +637,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
 
+    /**
+     * Removes all records from the drain buffer. This call is synchronized via the monitor of the drain buffer.
+     */
     protected void clearDrainBuffer() {
         synchronized (drainBuffer) {
             drainBuffer.clear();

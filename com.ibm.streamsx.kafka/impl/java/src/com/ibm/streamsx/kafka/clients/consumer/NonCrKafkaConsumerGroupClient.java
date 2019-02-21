@@ -23,7 +23,6 @@ import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
-import com.ibm.streamsx.kafka.clients.consumer.CrKafkaConsumerGroupClient.Builder;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 

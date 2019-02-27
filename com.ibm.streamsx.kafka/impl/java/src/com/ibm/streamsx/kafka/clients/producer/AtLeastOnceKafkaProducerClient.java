@@ -22,7 +22,7 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
     public <K, V> AtLeastOnceKafkaProducerClient(OperatorContext operatorContext, Class<?> keyType,
             Class<?> messageType, boolean guaranteeOrdering, KafkaOperatorProperties props) throws Exception {
         super(operatorContext, keyType, messageType, guaranteeOrdering, props);
-        logger.debug("AtLeastOnceKafkaProducerClient starting...");
+        logger.info (getThisClassName() + " starting...");
         
         this.futuresList = Collections.synchronizedList(new ArrayList<Future<RecordMetadata>>());
     }
@@ -50,13 +50,13 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
     
     @Override
     public void drain() throws Exception {
-        if (logger.isDebugEnabled()) logger.debug("AtLeastOnceKafkaProducerClient -- DRAIN"); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, getThisClassName() + " -- DRAIN"); //$NON-NLS-1$
         flush();
     }
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
-        if (logger.isDebugEnabled()) logger.debug("AtLeastOnceKafkaProducerClient -- CHECKPOINT id=" + checkpoint.getSequenceId()); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, getThisClassName() + " -- CHECKPOINT id=" + checkpoint.getSequenceId()); //$NON-NLS-1$
     }
     
     /**
@@ -64,19 +64,19 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
      */
     @Override
     public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
-        if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- trying to cancel requests");
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, getThisClassName() + " -- trying to cancel requests");
         int nCancelled = 0;
         for (Future<RecordMetadata> future : futuresList) {
             if (!future.isDone() && future.cancel (mayInterruptIfRunning)) ++nCancelled;
         }
-        if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- number of cancelled send requests: " + nCancelled); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, getThisClassName() + " -- number of cancelled send requests: " + nCancelled); //$NON-NLS-1$
         futuresList.clear();
     }
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        if (logger.isDebugEnabled()) {
-            logger.debug("AtLeastOnceKafkaProducerClient -- RESET id=" + checkpoint.getSequenceId()); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL)) {
+            logger.log (DEBUG_LEVEL, getThisClassName() + " -- RESET id=" + checkpoint.getSequenceId()); //$NON-NLS-1$
         }
         setSendException (null);
     }

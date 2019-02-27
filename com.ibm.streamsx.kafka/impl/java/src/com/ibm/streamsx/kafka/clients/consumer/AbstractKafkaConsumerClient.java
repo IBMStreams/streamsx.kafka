@@ -352,7 +352,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             if (event == null) {
                 continue;
             }
-            logger.debug (MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
             switch (event.getEventType()) {
             case START_POLLING:
                 if (isSubscribedOrAssigned()) {
@@ -425,8 +425,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void commitOffsets (CommitInfo offsets) throws RuntimeException {
         final Map<TopicPartition, OffsetAndMetadata> offsetMap = offsets.getMap();
-        if (logger.isDebugEnabled()) {
-            logger.debug ("Going to commit offsets: " + offsets);
+        if (logger.isEnabledFor (DEBUG_LEVEL)) {
+            logger.log (DEBUG_LEVEL, "Going to commit offsets: " + offsets);
             if (offsetMap.isEmpty()) {
                 logger.debug ("no offsets to commit ...");
             }
@@ -471,7 +471,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 }
             });
             if (map.isEmpty()) {
-                logger.debug ("no offsets to commit ... (partitions not assigned)");
+                logger.log (DEBUG_LEVEL, "no offsets to commit ... (partitions not assigned)");
                 return;
             }
             if (offsets.isCommitSynchronous()) {
@@ -682,11 +682,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void runPollLoop (long pollTimeout, long throttleSleepMillis) throws InterruptedException {
         if (throttleSleepMillis > 0l) {
-            logger.debug (MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
                     throttleSleepMillis, getMaxPollRecords()));
         }
         else {
-            logger.debug (MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
         }
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
@@ -702,13 +702,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 messageQueue.addAll (drainBuffer);
                 final int qSize = messageQueue.size();
                 drainBuffer.clear();
-                logger.debug (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
+                logger.log (DEBUG_LEVEL, MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
             }
         }
         // continue polling for messages until a new event
         // arrives in the event queue
         fetchPaused = consumer.paused().size() > 0;
-        logger.debug ("previously paused partitions: " + consumer.paused());
+        logger.log (DEBUG_LEVEL, "previously paused partitions: " + consumer.paused());
         int nConsecutiveRuntimeExc = 0;
         while (eventQueue.isEmpty()) {
             boolean doPoll = true;
@@ -780,7 +780,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (!isSpaceInMsgQueueWait()) {
             if (!fetchPaused) {
                 consumer.pause (assignedPartitions);
-                if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - no space in message queue, fetching paused");
+                if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "runPollLoop() - no space in message queue, fetching paused");
                 fetchPaused = true;
             }
         }
@@ -790,7 +790,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 try {
                     // when not paused, 'resumed' is a no-op
                     consumer.resume (assignedPartitions);
-                    if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - fetching resumed");
+                    if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "runPollLoop() - fetching resumed");
                     fetchPaused = false;
                 }
                 catch (IllegalStateException e) {
@@ -824,11 +824,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             }
         }
         if (!space) {
-            if (logger.isDebugEnabled()) {
+            if (logger.isEnabledFor (DEBUG_LEVEL)) {
                 if (lowMemory) {
-                    logger.debug (MessageFormat.format ("low memory detected: messages queued ({0}).", mqSize));
+                    logger.log (DEBUG_LEVEL, MessageFormat.format ("low memory detected: messages queued ({0}).", mqSize));
                 } else {
-                    logger.debug (MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}).",
+                    logger.log (DEBUG_LEVEL, MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}).",
                             remainingCapacity, maxPollRecords));
                 }
             }
@@ -1046,7 +1046,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public final void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
+    public void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
         Event event = new Event(EventType.SHUTDOWN, true);
         sendEvent (event);
         event.await (timeout, timeUnit);
@@ -1261,8 +1261,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void onComplete (Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
         if (exception == null) {
-            if (logger.isInfoEnabled()) {
-                logger.debug ("onComplete(): Offsets successfully committed async: " + offsets);
+            if (logger.isEnabledFor (DEBUG_LEVEL)) {
+                logger.log (DEBUG_LEVEL, "onComplete(): Offsets successfully committed async: " + offsets);
             }
             postOffsetCommit (offsets);
         }

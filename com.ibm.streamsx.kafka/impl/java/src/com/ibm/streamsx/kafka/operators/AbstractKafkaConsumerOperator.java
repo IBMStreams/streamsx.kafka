@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.Attribute;
@@ -34,6 +35,7 @@ import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
 import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
@@ -49,6 +51,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerOperator.class);
+    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
+    
     private static final long DEFAULT_CONSUMER_TIMEOUT = 100l;
     private static final long SHUTDOWN_TIMEOUT = 5l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
@@ -631,7 +635,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
         // Must call super.initialize(context) to correctly setup an operator.
-        super.initialize(context);
+        super.initialize (context);
         logger.info ("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
                 + context.getPE().getJobId());
         shutdown = new AtomicBoolean(false);
@@ -655,7 +659,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
         final String gid = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
         this.groupIdSpecified = gid != null && !gid.isEmpty();
-        logger.debug ("group-ID specified: " + this.groupIdSpecified);
+        logger.log (DEBUG_LEVEL, "group-ID specified: " + this.groupIdSpecified);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         boolean groupManagementEnabled;
 
@@ -837,7 +841,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private void produceTuples() throws Exception {
 
         if (crContext != null && resettingLatch != null) {
-            logger.debug ("Defer tuple submission until reset finishes. Waiting ..."); //$NON-NLS-1$
+            logger.log (DEBUG_LEVEL, "Defer tuple submission until reset finishes. Waiting ..."); //$NON-NLS-1$
             try {
                 resettingLatch.await();
             } catch (InterruptedException e) {
@@ -1040,7 +1044,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void drain() throws Exception {
-        logger.debug (">>> DRAIN"); //$NON-NLS-1$
+        logger.log (DEBUG_LEVEL, ">>> DRAIN"); //$NON-NLS-1$
         long before = System.currentTimeMillis();
         if (consumer.isProcessing()) {
             consumer.onDrain();
@@ -1058,7 +1062,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             getOperatorContext().getMetrics().getCustomMetric(ConsumerClient.DRAIN_TIME_MILLIS_MAX_METRIC_NAME).setValue(duration);
             maxDrainMillis = duration;
         }
-        logger.debug (">>> DRAIN took " + duration + " ms");
+        logger.log (DEBUG_LEVEL, ">>> DRAIN took " + duration + " ms");
     }
 
     /**
@@ -1074,7 +1078,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
-        logger.debug (">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        logger.log (DEBUG_LEVEL, ">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         if (consumer.isProcessing()) {
             consumer.onCheckpoint (checkpoint);
         }
@@ -1084,16 +1088,16 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void reset(Checkpoint checkpoint) throws Exception {
         final int attempt = crContext == null? -1: crContext.getResetAttempt();
         final long sequenceId = checkpoint.getSequenceId();
-        logger.debug (MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
         final long before = System.currentTimeMillis();
         try {
             if (consumer.isProcessing()) {
-                consumer.sendStopPollingEvent();
+                // it is up to the consumer client implementation to stop polling.
                 consumer.onReset (checkpoint);
             }
         }
         catch (InterruptedException e) {
-            logger.debug ("RESET interrupted)");
+            logger.log (DEBUG_LEVEL, "RESET interrupted)");
             return;
         }
         finally {
@@ -1102,17 +1106,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
-            logger.debug (MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
+            logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
         }
     }
 
     @Override
     public void resetToInitialState() throws Exception {
         final int attempt = crContext.getResetAttempt();
-        logger.debug (MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
         if (consumer.isProcessing()) {
-            consumer.sendStopPollingEvent();
+            // it is up to the consumer client implementation to stop polling.
             consumer.onResetToInitialState();
         }
         // latch will be null if the reset was caused
@@ -1120,6 +1124,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;
-        logger.debug (MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
     }
 }

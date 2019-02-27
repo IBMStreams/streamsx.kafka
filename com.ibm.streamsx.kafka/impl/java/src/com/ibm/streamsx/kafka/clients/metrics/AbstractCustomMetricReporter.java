@@ -10,6 +10,7 @@ import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
@@ -17,6 +18,7 @@ import com.ibm.streams.operator.PERuntime;
 import com.ibm.streams.operator.metrics.OperatorMetrics;
 //import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streamsx.kafka.KafkaMetricException;
+import com.ibm.streamsx.kafka.SystemProperties;
 
 /**
  * This class exposes Kafka metrics as Operator Custom metrics.
@@ -28,6 +30,7 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
     /** value for a metric that is not applicable (any more) */
     private static final long METRIC_NOT_APPLICABLE = -1l;
     private static final Logger trace = Logger.getLogger (AbstractCustomMetricReporter.class);
+    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelMetricsOverride();
     private OperatorContext operatorCtx = PERuntime.getCurrentContext();
 
     public AbstractCustomMetricReporter() {
@@ -57,7 +60,7 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
                 tryCreateCustomMetric (m);
             }
             else {
-                trace.debug ("Kafka metric NOT exposed as operator metric: " + m.metricName());
+                trace.log (DEBUG_LEVEL, "Kafka metric NOT exposed as operator metric: " + m.metricName());
             }
         }
     }
@@ -73,7 +76,7 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
                 tryCreateCustomMetric (metric);
             }
             else {
-                trace.debug ("Kafka metric NOT exposed as custom metric: " + metric.metricName());
+                trace.log (DEBUG_LEVEL, "Kafka metric NOT exposed as custom metric: " + metric.metricName());
             }
         }
     }
@@ -120,7 +123,7 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
      */
     @Override
     public void metricRemoval (KafkaMetric metric) {
-        trace.debug ("metricRemoval(): " + metric.metricName());
+        trace.log (DEBUG_LEVEL, "metricRemoval(): " + metric.metricName());
         synchronized (this) {
             if (getFilter().apply (metric)) {
                 final MetricName metricName = metric.metricName();
@@ -135,7 +138,7 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
                 }
             }
             else {
-                trace.debug ("Kafka metric NOT exposed as custom metric: " + metric.metricName());
+                trace.log (DEBUG_LEVEL, "Kafka metric NOT exposed as custom metric: " + metric.metricName());
             }
         }
     }

@@ -105,14 +105,23 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
 
     /**
      * The consumer can prepare any data from the checkpoint. This method invocation should be followed by by
-     * {@link #sendResetEvent(Checkpoint)} if not interrupted. This method is run by a runtime thread at 
+     * sending a reset event if not interrupted. This method is run by a runtime thread at 
      * reset of the consistent region.
-     * This is the empty default implementation. Subclasses may want to have their own implementation.
+     * Subclasses must have their own implementation.
      * @param checkpoint the checkpoint that contains the state.
      * @throws InterruptedException The thread has been interrupted.
      */
-    protected abstract void resetPrepareData (final Checkpoint checkpoint) throws InterruptedException;
+    protected abstract void resetPrepareDataAfterStopPolling (final Checkpoint checkpoint) throws InterruptedException;
 
+    /**
+     * The consumer can prepare any data from the checkpoint. This method invocation is called before polling is stopped. This method is run by a runtime thread at 
+     * reset of the consistent region.
+     * Subclasses must have their own implementation.
+     * @param checkpoint the checkpoint that contains the state.
+     * @throws InterruptedException The thread has been interrupted.
+     */
+    protected abstract void resetPrepareDataBeforeStopPolling (final Checkpoint checkpoint) throws InterruptedException;
+    
     /**
      * Empty implementation
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#preDeQueueForSubmit()
@@ -130,7 +139,9 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
      */
     @Override
     public void onReset (final Checkpoint checkpoint) throws InterruptedException {
-        resetPrepareData (checkpoint);
+        resetPrepareDataBeforeStopPolling (checkpoint);
+        sendStopPollingEvent();
+        resetPrepareDataAfterStopPolling (checkpoint);
         Event event = new Event (EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();
@@ -145,6 +156,7 @@ public abstract class AbstractCrKafkaConsumerClient extends AbstractKafkaConsume
      */
     @Override
     public void onResetToInitialState() throws InterruptedException {
+        sendStopPollingEvent();
         Event event = new Event(EventType.RESET_TO_INIT, true);
         sendEvent (event);
         event.await();

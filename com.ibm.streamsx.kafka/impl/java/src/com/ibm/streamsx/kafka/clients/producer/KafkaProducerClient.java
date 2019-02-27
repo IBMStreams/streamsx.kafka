@@ -84,8 +84,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
          */
         @Override
         public void afterCustomMetricsUpdated() {
-            if (logger.isTraceEnabled()) {
-                logger.trace (MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotal= {7}",
+            if (logger.isEnabledFor (DEBUG_LEVEL_METRICS)) {
+                logger.log (DEBUG_LEVEL_METRICS, MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotal= {7}",
                         recordQueueTimeMax,
                         recordQueueTimeAvg,
                         outgoingByteRate,
@@ -275,8 +275,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                     bufferUseThreshold = TARGET_MAX_QUEUE_TIME_MS * outGoingByteRate / 1000;
                     if (bufferUseThreshold > maxBufSizeThresh)
                         bufferUseThreshold = maxBufSizeThresh;
-                    if (logger.isDebugEnabled()) {
-                        logger.debug (MessageFormat.format ("producer flush threshold initialized with {0}", bufferUseThreshold));
+                    if (logger.isEnabledFor (DEBUG_LEVEL)) {
+                        logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold initialized with {0}", bufferUseThreshold));
                     }
                 }
                 long bufferUsed = bufferSize - metricsFetcher.getCurrentValue (bufferAvailMName.get());
@@ -286,8 +286,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                     long after = System.currentTimeMillis();
                     final double weightHistory = 0.5;   // must be between 0 and 1 for exponential smoothing
                     expSmoothedFlushDurationMs = weightHistory * expSmoothedFlushDurationMs + (1.0 - weightHistory) * (after - before);
-                    if (logger.isDebugEnabled()) {
-                        logger.debug (MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, after - before, expSmoothedFlushDurationMs));
+                    if (logger.isEnabledFor (DEBUG_LEVEL)) {
+                        logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, after - before, expSmoothedFlushDurationMs));
                     }
                     nRecords = 0;
                     // time spent for flush() is approximately the maximum queue time for the last appended record.
@@ -302,8 +302,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         bufferUseThreshold = maxBufSizeThresh;
                     else if (bufferUseThreshold < 1024)
                         bufferUseThreshold = 1024;
-                    if (logger.isDebugEnabled()) {
-                        logger.debug (MessageFormat.format ("producer flush threshold adjusted from {0} to {1}", oldThreshold, bufferUseThreshold));
+                    if (logger.isEnabledFor (DEBUG_LEVEL)) {
+                        logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold adjusted from {0} to {1}", oldThreshold, bufferUseThreshold));
                     }
                 }
             }

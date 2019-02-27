@@ -34,7 +34,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     public <K, V> TransactionalKafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             boolean guaranteeOrdering, KafkaOperatorProperties kafkaProperties, boolean lazyTransactionBegin) throws Exception {
         super(operatorContext, keyClass, valueClass, guaranteeOrdering, kafkaProperties);
-        logger.debug("ExaxtlyOnceKafkaProducerClient starting...");
+        logger.info (getThisClassName() + " starting...");
         this.lazyTransactionBegin = lazyTransactionBegin;
         // If this variable has not been set before, then set it to the current end offset.
         // Otherwise, this variable will be overridden with the value is retrieved
@@ -56,7 +56,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         ControlPlaneContext jcpContext = operatorContext.getOptionalContext(ControlPlaneContext.class);
         ControlVariableAccessor<String> transactionalIdCV = jcpContext.createStringControlVariable("transactional_id", false, getRandomId("tid-"));
         transactionalId = transactionalIdCV.sync().getValue();
-        logger.debug("Transactional ID = " + transactionalId);
+        logger.debug ("Transactional ID = " + transactionalId);
 
         // adjust transaction timeout transaction.timeout.ms
         ConsistentRegionContext crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
@@ -135,18 +135,18 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     private void initTransactions() {
         // Initialize the transactions. Previously uncommitted 
         // transactions will be aborted. 
-        logger.debug("Initializating transactions...");
+        logger.debug ("Initializating transactions...");
         producer.initTransactions();
-        logger.debug("Transaction initialization finished.");
+        logger.debug ("Transaction initialization finished.");
     }
 
     private void beginTransaction() {
-        if (logger.isDebugEnabled()) logger.debug("Starting new transaction");
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "Starting new transaction");
         producer.beginTransaction();
     }
 
     private void abortTransaction() {
-        if (logger.isDebugEnabled()) logger.debug("Aborting transaction");
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "Aborting transaction");
         producer.abortTransaction();
     }
 
@@ -198,22 +198,22 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
     @Override
     public void drain() throws Exception {
-        if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- DRAIN");
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "TransactionalKafkaProducerClient -- DRAIN");
         flush();
     }
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         final long currentSequenceId = checkpoint.getSequenceId();
-        if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- CHECKPOINT id=" + currentSequenceId);
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "TransactionalKafkaProducerClient -- CHECKPOINT id=" + currentSequenceId);
 
         // check 'transactionInProgress' for true and set atomically to false
         if (transactionInProgress.compareAndSet (true, false)) {
-            logger.debug ("Committing transaction...");
+            logger.log (DEBUG_LEVEL, "Committing transaction...");
             producer.commitTransaction();
         }
         else {
-            logger.debug ("No transaction in progress. Nothing to commit.");
+            logger.log (DEBUG_LEVEL, "No transaction in progress. Nothing to commit.");
         }
         assert (transactionInProgress.get() == false);
         if (!lazyTransactionBegin) {
@@ -226,18 +226,18 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
      */
     @Override
     public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
-        if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- trying to cancel requests");
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "TransactionalKafkaProducerClient -- trying to cancel requests");
         int nCancelled = 0;
         for (Future<RecordMetadata> future : futuresList) {
             if (!future.isDone() && future.cancel (mayInterruptIfRunning)) ++nCancelled;
         }
-        if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- number of cancelled send requests: " + nCancelled); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "TransactionalKafkaProducerClient -- number of cancelled send requests: " + nCancelled); //$NON-NLS-1$
         futuresList.clear();
     }
 
     @Override
     public void reset (Checkpoint checkpoint) throws Exception {
-        if (logger.isDebugEnabled()) logger.debug("TransactionalKafkaProducerClient -- RESET id=" + checkpoint.getSequenceId());
+        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "TransactionalKafkaProducerClient -- RESET id=" + checkpoint.getSequenceId());
 
         // check 'transactionInProgress' for true and set atomically to false
         if (transactionInProgress.compareAndSet (true, false)) {

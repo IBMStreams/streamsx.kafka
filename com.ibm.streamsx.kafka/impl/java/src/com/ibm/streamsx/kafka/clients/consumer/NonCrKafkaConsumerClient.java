@@ -233,7 +233,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             return;
         }
         final long chkptSeqId = checkpoint.getSequenceId();
-        trace.debug ("processResetEvent() - entering. seq = " + chkptSeqId);
+        trace.log (DEBUG_LEVEL, "processResetEvent() - entering. seq = " + chkptSeqId);
         try {
             final ObjectInputStream inputStream = checkpoint.getInputStream();
             final Set <TopicPartition> partitions = (Set <TopicPartition>) inputStream.readObject();
@@ -257,7 +257,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         try {
             checkpoint.getOutputStream().writeObject (getAssignedPartitions());
             // for periodic checkpointing, trace only with DEBUG
-            trace.debug ("topic partitions written into checkpoint: " + getAssignedPartitions());
+            trace.log (DEBUG_LEVEL, "topic partitions written into checkpoint: " + getAssignedPartitions());
         } catch (IOException e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
@@ -358,7 +358,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             trace.debug ("onCheckpoint() - ignored");
             return;
         }
-        trace.debug ("onCheckpoint() - entering. seq = " + checkpoint.getSequenceId());
+        trace.log (DEBUG_LEVEL, "onCheckpoint() - entering. seq = " + checkpoint.getSequenceId());
         if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
             try {
                 // do not send an event here. In case of operator driven checkpoint it will never be processed (deadlock)
@@ -383,11 +383,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
      */
     @Override
     public void onReset (Checkpoint checkpoint) throws InterruptedException {
+        trace.info ("onReset() - entering. seq = " + checkpoint.getSequenceId());
         if (getOperatorContext().getNumberOfStreamingInputs() == 0 || !isCheckpointEnabled()) {
             trace.debug ("onReset() - ignored");
             return;
         }
-        trace.info ("onReset() - entering. seq = " + checkpoint.getSequenceId());
+        sendStopPollingEvent();
         Event event = new Event (Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();

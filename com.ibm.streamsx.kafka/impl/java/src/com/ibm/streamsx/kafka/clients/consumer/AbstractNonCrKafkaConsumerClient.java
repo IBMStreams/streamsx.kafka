@@ -303,13 +303,13 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
             now = System.currentTimeMillis();
             doCommit = now >= nextCommitTime;
             if (doCommit && trace.isDebugEnabled()) {
-                trace.debug ("commitPeriod (" + commitPeriodMillis + " ms) has passed. Preparing to commit offsets ...");
+                trace.log (DEBUG_LEVEL, "commitPeriod (" + commitPeriodMillis + " ms) has passed. Preparing to commit offsets ...");
             }
             break;
         case TupleCount:
             doCommit = nSubmittedRecords  >= commitCount;
             if (doCommit && trace.isDebugEnabled()) {
-                trace.debug ("commitCount (" + commitCount + ") reached. Preparing to commit offsets ...");
+                trace.log (DEBUG_LEVEL, "commitCount (" + commitCount + ") reached. Preparing to commit offsets ...");
             }
             break;
         default:

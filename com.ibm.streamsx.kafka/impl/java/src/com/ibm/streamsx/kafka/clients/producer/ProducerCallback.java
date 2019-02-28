@@ -18,7 +18,7 @@ public class ProducerCallback implements Callback {
         if (exception != null) {
             logger.error(exception.getLocalizedMessage(), exception);
 //            exception.printStackTrace();
+            client.setSendException(exception);
         }
-        client.setSendException(exception);
     }
 }

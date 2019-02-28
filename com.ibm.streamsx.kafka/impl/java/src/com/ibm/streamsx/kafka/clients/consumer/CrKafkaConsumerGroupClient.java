@@ -769,7 +769,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // collection and map for seeking to inital startposition
         Collection <TopicPartition> tp1 = new ArrayList<>(1);
         Map <TopicPartition, Long> tpTimestampMap1 = new HashMap<>();
-        Set<TopicPartition> seekFailedPartitions = new HashSet<>();
+        Set<TopicPartition> seekFailedPartitions = new HashSet<> (partitions);
         List<TopicPartition> sortedPartitions = new LinkedList<> (partitions);
         Collections.sort (sortedPartitions, new Comparator<TopicPartition>() {
             @Override
@@ -780,8 +780,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
         for (TopicPartition tp: sortedPartitions) {
             try {
-                // in 'subscribe', the 'seekOffsetMap' has been filled with initial offsets dependent
-                // on the startPosition parameter or has been restored from checkpoints via MXBean
                 if (offsetMap.containsKey (tp)) {
                     final long seekToOffset = offsetMap.get (tp);
                     trace.info (MessageFormat.format ("seekPartitions() seeking {0} to offset {1}", tp, seekToOffset));
@@ -815,17 +813,20 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     long initialFetchOffset = getConsumer().position (tp);
                     initialOffsets.saveOffset (tp, initialFetchOffset, false);
                 }
+                seekFailedPartitions.remove (tp);
             }
             catch (IllegalArgumentException topicPartitionNotAssigned) {
                 // when this happens the ConsumerRebalanceListener will be called later
                 trace.warn (MessageFormat.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
-                seekFailedPartitions.add (tp);
             } catch (InterruptedException e) {
-                trace.log (DEBUG_LEVEL, "interrupted creating a saving offset to JCP control variable");
+                trace.log (DEBUG_LEVEL, "interrupted creating or saving offset to JCP control variable");
+                // leave for-loop
+                break;
             } catch (IOException e) {
                 throw new KafkaOperatorRuntimeException (e.getMessage());
             }
-        }
+        }   // for
+        trace.log (DEBUG_LEVEL, "partitions failed to seek: " + seekFailedPartitions);
         return seekFailedPartitions;
     }
 
@@ -906,6 +907,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             Collection<TopicPartition> failedSeeks = seekPartitions (getAssignedPartitions(), this.seekOffsetMap);
             failedSeeks.forEach (tp -> assignedPartitionsOffsetManager.remove (tp.topic(), tp.partition()));
             assignedPartitionsOffsetManager.savePositionFromCluster();
+            // reset tuple counter for operator driven CR
             nSubmittedRecords = 0l;
             ClientState newState = ClientState.RESET_COMPLETE;
             trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
@@ -970,6 +972,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Collection<TopicPartition> failedSeeks = seekPartitions (getAssignedPartitions(), this.seekOffsetMap);
         failedSeeks.forEach (tp -> assignedPartitionsOffsetManager.remove (tp.topic(), tp.partition()));
         assignedPartitionsOffsetManager.savePositionFromCluster();
+        // reset tuple counter for operator driven CR
         nSubmittedRecords = 0l;
         ClientState newState = ClientState.RESET_COMPLETE;
         trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));

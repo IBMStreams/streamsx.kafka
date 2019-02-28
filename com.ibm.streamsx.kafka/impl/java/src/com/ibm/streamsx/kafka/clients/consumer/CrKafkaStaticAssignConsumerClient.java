@@ -236,10 +236,10 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
         final ConsistentRegionContext crContext = getCrContext();
         if (crContext.isTriggerOperator() && ++nSubmittedRecords >= triggerCount) {
             logger.log (DEBUG_LEVEL, "Making region consistent..."); //$NON-NLS-1$
-            // makeConsistent blocks until all operators in the CR have drained and checkpointed
+            // makeConsistent blocks until all operators in the CR have drained and checkpointed - or reset in case of failure
             boolean isSuccess = crContext.makeConsistent();
             nSubmittedRecords = 0l;
-            logger.log (DEBUG_LEVEL, "Completed call to makeConsistent: isSuccess=" + isSuccess); //$NON-NLS-1$
+            logger.log (DEBUG_LEVEL, "Completed call to makeConsistent: isSuccess = " + isSuccess); //$NON-NLS-1$
         }
     }
 
@@ -329,7 +329,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     public void onDrain() throws Exception {
         logger.log (DEBUG_LEVEL, "onDrain() - entering");
         try {
-            // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
+            // stop filling the message queue with more messages, this method returns after polling has stopped - not fire and forget
             sendStopPollingEvent();
             // when CR is operator driven, do not wait for queue to be emptied.
             // This would never happen because the tuple submitter thread is blocked in makeConsistent() in postSubmit(...)
@@ -379,6 +379,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             // remove records from queue
             clearDrainBuffer();
             getMessageQueue().clear();
+            this.nSubmittedRecords = 0;
 
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
@@ -460,6 +461,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             offsetManager.putOffsets (ofsm);
             logger.log (DEBUG_LEVEL, "offsetManager after applying checkpoint = " + offsetManager); //$NON-NLS-1$
             refreshFromCluster();
+            this.nSubmittedRecords = 0;
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }

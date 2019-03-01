@@ -30,9 +30,9 @@ import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.CheckpointContext;
 import com.ibm.streams.operator.state.CheckpointContext.Kind;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
-import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.operators.AbstractKafkaConsumerOperator;
@@ -46,6 +46,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implements Controllable {
 
     private static final Logger trace = Logger.getLogger(AbstractNonCrKafkaConsumerClient.class);
+    protected static final long JCP_CONNECT_TIMEOUT_MILLIS = 15000;
+
     private CommitMode commitMode;
     private long commitPeriodMillis = 10000;
     private long commitCount = 2000l; 
@@ -458,22 +460,36 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      * @return true, if the client can be connected, false when a timeout occurred.
      * @see #canUseJobControlPlane()
      */
-    protected boolean testJobControlConnection (long connectTimeoutMillis) {
-        if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION || Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-            if (jcpConnected.get()) return true;
-            jmxConnectLatch = new CountDownLatch (1);
-            getJcpContext().connect (this);
-            try {
-                jmxConnectLatch.await (connectTimeoutMillis, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-            }
+    private boolean tryConnectJobControlPlane (long connectTimeoutMillis) {
+        if (jcpConnected.get()) return true;
+        jmxConnectLatch = new CountDownLatch (1);
+        getJcpContext().connect (this);
+        try {
+            jmxConnectLatch.await (connectTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
         }
         return jcpConnected.get();
-
     }
 
+
     /**
-     * Checks if a JobControlPlane can be used after {@link #testJobControlConnection(long)} has been invoked.
+     * Tests for a connection establishment with the JCP operator and throws an exception if it cannot be connected. 
+     * @param connectTimeoutMillis The connect timeout in milliseconds
+     * @param startPos the initial start position, used for the exception message only
+     * @throws MissingJobControlPlaneException The connection cannot be created
+     */
+    protected void testForJobControlPlaneOrThrow (long connectTimeoutMillis, StartPosition startPos) throws MissingJobControlPlaneException {
+        if (!tryConnectJobControlPlane (connectTimeoutMillis)) {
+            trace.error (MessageFormat.format ("Could not connect to the JobControlPlane "
+                    + "within {0} milliseconds. Make sure that the operator graph contains "
+                    + "a JobControlPlane operator to support startPosition {1}.", connectTimeoutMillis, startPos));
+            throw new MissingJobControlPlaneException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", startPos));
+        }
+    }
+
+
+    /**
+     * Checks if a JobControlPlane can be used after {@link #tryConnectJobControlPlane(long)} has been invoked.
      * @return 
      */
     protected boolean canUseJobControlPlane() {

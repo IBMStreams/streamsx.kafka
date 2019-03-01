@@ -16,7 +16,7 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 + What's new and what has changed
 
-This is an overview of changes for major and minor version upgrades. For details see the Releases in public Github.
+This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
 
 ++ What's new in version 1.8.0
 
@@ -28,11 +28,11 @@ This is an overview of changes for major and minor version upgrades. For details
 
 * KafkaConsumer: The time policy for offset commit is now the default policy when not in consistent region. The time policy avoids too high commit request rates, which can occur with count based policy and high tuple rates. The default commit interval is 5 seconds.
 
-* The operators can now be configured with a `config checkpoint` clause. The KafkaProducer operator simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions.
+* The operators can now be configured with a `config checkpoint` clause when used in an autonomous region. The KafkaProducer operator simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions and resumes fetching at last committed offset.
 
 ++ What's new in version 1.7.3
 
-* Bug fix: No default compression for the producer anymore (producer config `compression.type` is Kafka's default).
+* Bug fix: No default compression for the producer anymore (producer config `compression.type` is Kafka's default). Reverted a change made in version 1.6.0.
 
 ++ What's new in version 1.7.2
 

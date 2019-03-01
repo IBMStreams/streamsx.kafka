@@ -8,7 +8,7 @@ package com.ibm.streamsx.kafka.operators;
  */
 public class KafkaSplDoc {
     public static final String CONSUMER_CHECKPOINTING_CONFIG = ""
-            + "# Checkpointing\\n"
+            + "# Checkpointing behavior in an autonomous region\\n"
             + "\\n"
             + "The operator can be configured for operator driven and periodic checkpointing. Checkpointing "
             + "is in effect when the operator is configured with an input port. When the operator has no input "
@@ -196,12 +196,12 @@ public class KafkaSplDoc {
             + "over malformed messages. The used extensions do not modify the actual deserialization "
             + "function of the given base deserializers from the above table.\\n"
             + "\\n"
-            + "Users can override this behaviour and specify which deserializer to use by setting the "
+            + "Users can override this behavior and specify which deserializer to use by setting the "
             + "`key.deserializer` and `value.deserializer` properties. \\n"
             ;
 
     public static final String CONSUMER_RESTART_BEHAVIOUR = ""
-            + "# Operator restart behaviour\\n"
+            + "# Operator restart behavior\\n"
             + "\\n"
             + "**When in a consistent region**\\n"
             + "\\n"
@@ -220,17 +220,17 @@ public class KafkaSplDoc {
             + "\\n"
             + "*b) The consumer operator is configured with a control input port*\\n"
             + "\\n"
-            + "When the operator is configured with an input port, the partition assignments "
-            + "created with the control stream are lost. It is therefore recommended to fuse the "
+            + "When the operator is configured with an input port, the partition assignments, "
+            + "which have been created via the control stream, are lost. It is therefore recommended to fuse the "
             + "consumer operator with the source of the control stream to replay the control tuples "
-            + "after restart or to use a `config checkpoint` clause, preferably `operatorDriven` "
+            + "after restart or to use a `config checkpoint` clause, preferably `operatorDriven`, "
             + "to restore the partition assignment and continue fetching records beginning with the "
             + "last committed offsets."
             + "\\n";
 
 
     // uncomment when Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART is true
-    //            + "# Operator restart behaviour\\n"
+    //            + "# Operator restart behavior\\n"
     //            + "\\n"
     //            + "**When in a consistent region**\\n"
     //            + "\\n"
@@ -250,7 +250,7 @@ public class KafkaSplDoc {
     //            + "by **startPosition** when none of the operators within the group previously "
     //            + "committed offsets for this partition. When offsets have been committed, the fetch "
     //            + "offset for a partition at operator start will be its last committed offset. This "
-    //            + "behaviour enables you to change the width of a parallel region with consumers being "
+    //            + "behavior enables you to change the width of a parallel region with consumers being "
     //            + "a consumer group. The `JobControlPlane` operator is not required when the "
     //            + "**startPosition** parameter is not used or has the value `Default`.\\n"
     //            + "\\n"
@@ -261,7 +261,7 @@ public class KafkaSplDoc {
     //            + "*optional*. When a `JobControlPlane` can be connected, the consumer operator stores "
     //            + "those partitions in it for which it has already committed offsets. These partitions "
     //            + "will not be seeked to **startPosition** after re-launch of a PE. When no JobControlPlane "
-    //            + "can be connected, all partitions will be seeked to what **startPosition** is (legacy behaviour).\\n"
+    //            + "can be connected, all partitions will be seeked to what **startPosition** is (legacy behavior).\\n"
     //            + "\\n"
     //            + "*b) The consumer operator is configured with a control input port*\\n"
     //            + "\\n"
@@ -346,9 +346,9 @@ public class KafkaSplDoc {
             ;
 
     public static final String PRODUCER_CHECKPOINTING_CONFIG = ""
-            + "# Checkpointing\\n"
+            + "# Checkpointing behavior in an autonomous region\\n"
             + "\\n"
-            + "A `config checkpoint` clause has no effect for the operator.\\n"
+            + "A `config checkpoint` clause has no effect to the operator.\\n"
             + "\\n"
             ;
 
@@ -370,7 +370,7 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| value.serializer | See **Automatic Serialization** section below |\\n"
             + "|---|\\n"
-            + "| acks | adjusted to `all` when this property is provided and **consistentRegionPolicy** parameter is `Transactional` |\\n"
+            + "| acks | Controls the durability of records that are sent. Adjusted to `all` when in consistent region, and **consistentRegionPolicy** parameter is `Transactional`, otherwise `acks` is unchanged. The value `0` (fire and forget) is not recommended. |\\n"
             + "|---|\\n"
             + "| retries | `10`. When `0` is provided as **retries** and **consistentRegionPolicy** parameter is `Transactional` **retries** is adjusted to `1`. |\\n"
             + "|---|\\n"

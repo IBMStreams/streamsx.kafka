@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.7.3</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Functions.spl</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.8.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Functions.spl</p>
 
 </div>
 
@@ -37,13 +37,19 @@
 
       <dd class="dd">
 <ul class="sl simple">
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:tuple:.:rstringtopic.int32partition.int64offset:.::.:">createMessageAddTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition, int64 offset&gt;&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32">createMessageAddTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the default position.
 </li>
 
 <li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32.int64">createMessageAddTopicPartition(rstring, int32, int64)</a></strong>: Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the specified offset.
 </li>
 
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:tuple:.:rstringtopic.int32partition:.::.:">createMessageRemoveTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition&gt;&gt;)</a></strong>: Creates the JSON message to remove multiple topic-partitions from the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:">createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to remove multiple topic-partitions from the operator.
 </li>
 
 <li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.rstring.int32">createMessageRemoveTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to remove a single topic-partition from the operator.
@@ -62,7 +68,7 @@
   
 </div>
 
-<div class="section" id="spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:tuple:.:rstringtopic.int32partition:.::.:"><h2 class="title sectiontitle splpart">rstring createMessageRemoveTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition&gt;&gt; topicPartitionsToRemove)</h2>
+<div class="section" id="spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:"><h2 class="title sectiontitle splpart">rstring createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt; topicPartitionsToRemove)</h2>
   
 </div>
 <div class="section">
@@ -91,12 +97,12 @@ A JSON string to be submitted to the KafkaConsumer input port</li>
 
 </div>
 
-<div class="section" id="spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:tuple:.:rstringtopic.int32partition.int64offset:.::.:"><h2 class="title sectiontitle splpart">rstring createMessageAddTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition, int64 offset&gt;&gt; topicPartitionsToAdd)</h2>
+<div class="section" id="spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:"><h2 class="title sectiontitle splpart">rstring createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt; topicPartitionsToAdd)</h2>
   
 </div>
 <div class="section">
 
-<p class="p">Creates the JSON message to add multiple topic-partitions to the operator. The operator will begin consuming from the topic-partitions at the specified offset,
+<p class="p">Creates the JSON message to add multiple topic-partitions to the operator. The operator will begin consuming from the topic-partitions at their specified offset.
 </p>
 
 <div class="p">
@@ -104,6 +110,8 @@ A JSON string to be submitted to the KafkaConsumer input port</li>
 <li class="li"> To begin consuming from the <strong class="ph b">end</strong> of a topic-partition, set the offset value to <tt class="ph tt">-1</tt></li>
 
 <li class="li"> To begin consuming from the <strong class="ph b">beginning</strong> of a topic-partition, set the offset value to <tt class="ph tt">-2</tt></li>
+
+<li class="li"> To begin consuming from the <strong class="ph b">default</strong> position, set the offset value to <tt class="ph tt">-3</tt></li>
 
 </ul>
 
@@ -116,6 +124,35 @@ A JSON string to be submitted to the KafkaConsumer input port</li>
  <ul class="sl simple">
    <li class="sli">
 <strong class="ph b">topicPartitionsToAdd</strong>: A list of topic-partitions to subscribe to along with the corresponding offset number to begin consuming from. 
+   </li>
+
+ </ul>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Returns</h2>
+
+<ul class="sl simple"><li class="sli">
+A JSON string to be submitted to the KafkaConsumer input port</li>
+</ul>
+
+</div>
+
+<div class="section" id="spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:"><h2 class="title sectiontitle splpart">rstring createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt; topicPartitionsToAdd)</h2>
+  
+</div>
+<div class="section">
+
+<p class="p">Creates the JSON message to add multiple topic-partitions to the operator. The operator will begin consuming all partitions from the default positions.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Parameters</h2>
+
+ <ul class="sl simple">
+   <li class="sli">
+<strong class="ph b">topicPartitionsToAdd</strong>: A list of topic-partitions to assign. 
    </li>
 
  </ul>
@@ -177,6 +214,8 @@ A JSON string to be submitted to the KafkaConsumer input port</li>
 
 <li class="li"> To begin consuming from the <strong class="ph b">beginning</strong> of a topic-partition, set the offset value to <tt class="ph tt">-2</tt></li>
 
+<li class="li"> To begin consuming from the <strong class="ph b">default</strong> position, set the offset value to <tt class="ph tt">-3</tt></li>
+
 </ul>
 
 </div>
@@ -196,6 +235,39 @@ A JSON string to be submitted to the KafkaConsumer input port</li>
 
    <li class="sli">
 <strong class="ph b">offset</strong>: The offset of the topic-partition to begin consuming from 
+   </li>
+
+ </ul>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Returns</h2>
+
+<ul class="sl simple"><li class="sli">
+A JSON string to be submitted to the KafkaConsumer input port</li>
+</ul>
+
+</div>
+
+<div class="section" id="spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32"><h2 class="title sectiontitle splpart">rstring createMessageAddTopicPartition(rstring topic, int32 partition)</h2>
+  
+</div>
+<div class="section">
+
+<p class="p">Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the default position.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Parameters</h2>
+
+ <ul class="sl simple">
+   <li class="sli">
+<strong class="ph b">topic</strong>: The topic to subscribe to
+   </li>
+
+   <li class="sli">
+<strong class="ph b">partition</strong>: The partition number to assign to 
    </li>
 
  </ul>

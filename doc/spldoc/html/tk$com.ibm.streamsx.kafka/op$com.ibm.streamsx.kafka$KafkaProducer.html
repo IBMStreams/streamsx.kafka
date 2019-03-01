@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.7.3</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.8.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
 
 </div>
 
@@ -61,13 +61,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d11294e98">
+<th class="entry" colspan="1" valign="top" id="d12369e98">
 <p class="p">Property name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d11294e104">
+<th class="entry" colspan="1" valign="top" id="d12369e104">
 <p class="p">Default Value
 </p>
 
@@ -79,13 +79,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">client.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p">Generated ID in the form: <tt class="ph tt">C-J&lt;JobId&gt;-&lt;operator name&gt;</tt>
 </p>
 
@@ -94,13 +94,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">key.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -109,13 +109,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">value.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -124,14 +124,14 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">acks
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
-<p class="p">adjusted to <tt class="ph tt">all</tt> when this property is provided and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
+<p class="p">Controls the durability of records that are sent. Adjusted to <tt class="ph tt">all</tt> when in consistent region, and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>, otherwise <tt class="ph tt">acks</tt> is unchanged. The value <tt class="ph tt">0</tt> (fire and forget) is not recommended.
 </p>
 
 </td>
@@ -139,13 +139,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">retries
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p"><tt class="ph tt">10</tt>. When <tt class="ph tt">0</tt> is provided as <strong class="ph b">retries</strong> and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt> <strong class="ph b">retries</strong> is adjusted to <tt class="ph tt">1</tt>.
 </p>
 
@@ -154,13 +154,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">linger.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p"><tt class="ph tt">100</tt>
 </p>
 
@@ -169,13 +169,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">batch.size
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p"><tt class="ph tt">32768</tt>
 </p>
 
@@ -184,13 +184,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">max.in.flight.requests.per.connection
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p"><tt class="ph tt">1</tt> when <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, limited to <tt class="ph tt">5</tt> when provided and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>, or <tt class="ph tt">10</tt> in all other cases.
 </p>
 
@@ -199,13 +199,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">enable.idempotence
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p"><tt class="ph tt">true</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
@@ -214,13 +214,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">transactional.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p">Randomly generated ID in the form: <tt class="ph tt">tid-&lt;random_string&gt;</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
@@ -229,13 +229,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">transaction.timeout.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p">adjusted to a minimum of <tt class="ph tt">drain timeout + 120000 milliseconds</tt>, but not greater than <tt class="ph tt">900000</tt>. Adjusted only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
@@ -244,13 +244,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">metric.reporters
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p">added to provided reporters: <tt class="ph tt">com.ibm.streamsx.kafka.clients.producer.ProducerMetricsReporter</tt>
 </p>
 
@@ -259,13 +259,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e98 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e98 ">
 <p class="p">metrics.sample.window.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e104 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e104 ">
 <p class="p">adjusted to <tt class="ph tt">10000</tt>
 </p>
 
@@ -306,13 +306,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d11294e459">
+<th class="entry" colspan="1" valign="top" id="d12369e465">
 <p class="p">Serializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d11294e465">
+<th class="entry" colspan="1" valign="top" id="d12369e471">
 <p class="p">SPL Types
 </p>
 
@@ -324,13 +324,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e459 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e465 ">
 <p class="p">org.apache.kafka.common.serialization.StringSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e465 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e471 ">
 <p class="p">rstring
 </p>
 
@@ -339,13 +339,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e459 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e465 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e465 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e471 ">
 <p class="p">int32, uint32
 </p>
 
@@ -354,13 +354,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e459 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e465 ">
 <p class="p">org.apache.kafka.common.serialization.LongSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e465 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e471 ">
 <p class="p">int64, uint64
 </p>
 
@@ -369,13 +369,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e459 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e465 ">
 <p class="p">org.apache.kafka.common.serialization.FloatSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e465 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e471 ">
 <p class="p">float32
 </p>
 
@@ -384,13 +384,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e459 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e465 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e465 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e471 ">
 <p class="p">float64
 </p>
 
@@ -399,13 +399,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e459 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e465 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e465 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e471 ">
 <p class="p">blob
 </p>
 
@@ -432,13 +432,13 @@
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d11294e590">
+<th class="entry" colspan="1" valign="top" id="d12369e596">
 <p class="p">Custom Metric
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d11294e596">
+<th class="entry" colspan="1" valign="top" id="d12369e602">
 <p class="p">Description
 </p>
 
@@ -450,13 +450,13 @@
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">connection-count
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The current number of active connections.
 </p>
 
@@ -465,13 +465,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">compression-rate-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average compression rate of record batches (as percentage, 100 means no compression).
 </p>
 
@@ -480,13 +480,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p"><em class="ph i">topic</em>:compression-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average compression rate of record batches for a topic (as percentage, 100 means no compression).
 </p>
 
@@ -495,13 +495,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">record-queue-time-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average time in ms record batches spent in the send buffer.
 </p>
 
@@ -510,13 +510,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">record-queue-time-max
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The maximum time in ms record batches spent in the send buffer.
 </p>
 
@@ -525,13 +525,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">record-send-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average number of records sent per second.
 </p>
 
@@ -540,13 +540,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">record-retry-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The total number of retried record sends
 </p>
 
@@ -555,13 +555,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p"><em class="ph i">topic</em>:record-send-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The total number of records sent for a topic.
 </p>
 
@@ -570,13 +570,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p"><em class="ph i">topic</em>:record-retry-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The total number of retried record sends for a topic
 </p>
 
@@ -585,13 +585,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p"><em class="ph i">topic</em>:record-error-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The total number of record sends that resulted in errors for a topic
 </p>
 
@@ -600,13 +600,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">records-per-request-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average number of records per request.
 </p>
 
@@ -615,13 +615,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">requests-in-flight
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The current number of in-flight requests awaiting a response.
 </p>
 
@@ -630,13 +630,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">request-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The number of requests sent per second
 </p>
 
@@ -645,13 +645,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">request-size-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average size of requests sent.
 </p>
 
@@ -660,13 +660,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">request-latency-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average request latency in ms
 </p>
 
@@ -675,13 +675,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">request-latency-max
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The maximum request latency in ms
 </p>
 
@@ -690,13 +690,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">batch-size-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The average number of bytes sent per partition per-request.
 </p>
 
@@ -705,13 +705,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">outgoing-byte-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The number of outgoing bytes sent to all servers per second
 </p>
 
@@ -720,13 +720,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">bufferpool-wait-time-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The total time an appender waits for space allocation.
 </p>
 
@@ -735,13 +735,13 @@
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d11294e590 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e596 ">
 <p class="p">buffer-available-bytes
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d11294e596 ">
+<td class="entry" colspan="1" valign="top" headers="d12369e602 ">
 <p class="p">The total amount of buffer memory that is not being used (either unallocated or in the free list).
 </p>
 
@@ -758,10 +758,10 @@
 
 </div>
 
-<div class="section"><h2 class="title sectiontitle">Checkpointing
+<div class="section"><h2 class="title sectiontitle">Checkpointing behavior in an autonomous region
 </h2>
 
-<p class="p">The operator does not support a <tt class="ph tt">config checkpoint</tt> clause. A compiler error will occur when checkpointing is configured.
+<p class="p">A <tt class="ph tt">config checkpoint</tt> clause has no effect to the operator.
 </p>
 
 </div>
@@ -946,7 +946,13 @@ This operator supports 12 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__clientId"><!-- --></a><tt class="ph tt">clientId</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the client ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">client.id</tt> Kafka property if specified. If this parameter is not specified and the <tt class="ph tt">client.id</tt> Kafka property is not specified, the operator will create an ID with the pattern <tt class="ph tt">C-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a consumer operator, and <tt class="ph tt">P-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a producer operator.
+<p class="p">Specifies the client ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">client.id</tt> Kafka property if specified.
+</p>
+
+<p class="p">Each operator must have a unique client ID. When operators are replicated by a parallel region, the channel-ID is automatically appended to the clientId to make the client-ID distinct for the parallel channels.
+</p>
+
+<p class="p">If this parameter is not specified and the <tt class="ph tt">client.id</tt> Kafka property is not specified, the operator will create an ID with the pattern <tt class="ph tt">C-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a consumer operator, and <tt class="ph tt">P-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a producer operator.
 </p>
 <dl class="dl">
 

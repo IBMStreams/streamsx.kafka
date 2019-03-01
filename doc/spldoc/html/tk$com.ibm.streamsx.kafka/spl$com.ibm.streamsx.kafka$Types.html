@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.7.3</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Types.spl</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.8.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Types.spl</p>
 
 </div>
 
@@ -37,6 +37,12 @@
 
       <dd class="dd">
 <ul class="sl simple">
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartition">Control.TopicPartition</a></strong>: Tuple type for a topic partition to be added or removed 
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartitionOffset">Control.TopicPartitionOffset</a></strong>: Tuple type for a topic partition with offset to be added 
+</li>
+
 <li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.BlobMessage">MessageType.BlobMessage</a></strong>: This type represents a message with <tt class="ph tt">message</tt> attribute of type <tt class="ph tt">blob</tt> and <tt class="ph tt">key</tt> attribute with SPL type <tt class="ph tt">rstring</tt>.
 </li>
 
@@ -200,6 +206,88 @@ stream &lt;MessageType.StringMessage&gt; ReceivedMessages = KafkaConsumer() {
          <dd class="dd">
 <p class="p">This type represents a topic and a partition number. It can be used to store meta data of received messages and to specify the topic and partition number of messages to be published (produced). 
 </p>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+<div class="section" id="spldoc_compilationunit__composite_operator__Control"><h2 class="title sectiontitle splpart">composite Control</h2>
+  
+</div>
+
+<div class="section">
+
+<p class="p">Defines types for the JSON generator functions for the control port. 
+</p>
+
+</div>
+
+<div class="section">
+</div>
+
+<div class="section">
+</div>
+
+<div class="section">
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Static Types</h2>
+  
+</div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__Control.TopicPartition">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">Control.TopicPartition = rstring topic, int32 partition;</dt>
+
+         <dd class="dd">
+<p class="p">Tuple type for a topic partition to be added or removed
+</p>
+
+<p class="p">Example Use:
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+mutable list &lt;Control.TopicPartition&gt; partitionsToAdd = [];
+appendM (partitionsToAdd, {topic = 'topic1', partition = 0});
+appendM (partitionsToAdd, {topic = 'topic1', partition = 1});
+submit ({controlMsg = createMessageAddTopicPartition (partitionsToAdd)}, ControlMessages);
+</pre>
+
+
+</div>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__Control.TopicPartitionOffset">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">Control.TopicPartitionOffset = rstring topic, int32 partition, int64 offset;</dt>
+
+         <dd class="dd">
+<p class="p">Tuple type for a topic partition with offset to be added
+</p>
+
+<p class="p">Example Use:
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+mutable list &lt;Control.TopicPartitionOffset&gt; partitionsWithOffsetsToAdd = [];
+appendM (partitionsWithOffsetsToAdd, {topic = 'topic1', partition = 0, offset = -2l});
+appendM (partitionsWithOffsetsToAdd, {topic = 'topic1', partition = 1, offset = 345678l});
+submit ({controlMsg = createMessageAddTopicPartition (partitionsWithOffsetsToAdd)}, ControlMessages);
+</pre>
+
+
+</div>
 </dd>
 
        

@@ -30,9 +30,21 @@
   
 <dl class="dl">
 
-  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:tuple:.:rstringtopic.int32partition.int64offset:.::.:">createMessageAddTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition, int64 offset&gt;&gt;)</a></dt>
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt;)</a></dt>
 
   <dd class="dd">Creates the JSON message to add multiple topic-partitions to the operator.</dd>
+
+
+
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt;)</a></dt>
+
+  <dd class="dd">Creates the JSON message to add multiple topic-partitions to the operator.</dd>
+
+
+
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32">createMessageAddTopicPartition(rstring, int32)</a></dt>
+
+  <dd class="dd">Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the default position.</dd>
 
 
 
@@ -42,7 +54,7 @@
 
 
 
-  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:tuple:.:rstringtopic.int32partition:.::.:">createMessageRemoveTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition&gt;&gt;)</a></dt>
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:">createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt;)</a></dt>
 
   <dd class="dd">Creates the JSON message to remove multiple topic-partitions from the operator.</dd>
 

@@ -7,22 +7,22 @@
 <meta name="copyright" content="(C) Copyright 2005"/>
 <meta name="DC.rights.owner" content="(C) Copyright 2005"/>
 <meta name="DC.Type" content="reference"/>
-<meta name="DC.Title" content="Toolkit com.ibm.streamsx.kafka 1.7.3"/>
+<meta name="DC.Title" content="Toolkit com.ibm.streamsx.kafka 1.8.0"/>
 <meta name="DC.Format" content="XHTML"/>
 <meta name="DC.Identifier" content="spldoc_toolkit"/>
 <link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
 <link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
-<title>Toolkit com.ibm.streamsx.kafka 1.7.3</title>
+<title>Toolkit com.ibm.streamsx.kafka 1.8.0</title>
 </head>
 <body id="spldoc_toolkit">
 
 
-<h1 class="title topictitle1 spltoolkitname">Toolkit <tt class="ph tt">com.ibm.streamsx.kafka 1.7.3</tt></h1>
+<h1 class="title topictitle1 spltoolkitname">Toolkit <tt class="ph tt">com.ibm.streamsx.kafka 1.8.0</tt></h1>
 
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; com.ibm.streamsx.kafka 1.7.3</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; com.ibm.streamsx.kafka 1.8.0</p>
 
 </div>
 
@@ -63,7 +63,7 @@
   
   <dt class="dt dlterm">Version</dt>
 
-  <dd class="dd">1.7.3</dd>
+  <dd class="dd">1.8.0</dd>
 
   
   
@@ -131,11 +131,15 @@ This SPL namespace contains all functions and operators that are required to int
 
         <dd class="dd">
 <ul class="sl simple">
-<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:tuple:.:rstringtopic.int32partition.int64offset:.::.:">createMessageAddTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition, int64 offset&gt;&gt;)</a></li>
+<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt;)</a></li>
+
+<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt;)</a></li>
+
+<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32">createMessageAddTopicPartition(rstring, int32)</a></li>
 
 <li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32.int64">createMessageAddTopicPartition(rstring, int32, int64)</a></li>
 
-<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:tuple:.:rstringtopic.int32partition:.::.:">createMessageRemoveTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition&gt;&gt;)</a></li>
+<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:">createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt;)</a></li>
 
 <li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.rstring.int32">createMessageRemoveTopicPartition(rstring, int32)</a></li>
 
@@ -151,6 +155,10 @@ This SPL namespace contains all functions and operators that are required to int
 
         <dd class="dd">
 <ul class="sl simple">
+<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartition">Control.TopicPartition</a></li>
+
+<li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartitionOffset">Control.TopicPartitionOffset</a></li>
+
 <li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.BlobMessage">MessageType.BlobMessage</a></li>
 
 <li class="sli"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.ConsumerMessageMetadata">MessageType.ConsumerMessageMetadata</a></li>

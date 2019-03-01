@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.7.3</a> &gt; com.ibm.streamsx.kafka</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.8.0</a> &gt; com.ibm.streamsx.kafka</p>
 
 </div>
 
@@ -61,13 +61,19 @@
 <div class="section"><h2 class="title sectiontitle splhead-1">Functions</h2>
   
 <ul class="sl simple">
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:tuple:.:rstringtopic.int32partition.int64offset:.::.:">createMessageAddTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition, int64 offset&gt;&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32">createMessageAddTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the default position.
 </li>
 
 <li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32.int64">createMessageAddTopicPartition(rstring, int32, int64)</a></strong>: Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the specified offset.
 </li>
 
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:tuple:.:rstringtopic.int32partition:.::.:">createMessageRemoveTopicPartition(list&lt;tuple&lt;rstring topic, int32 partition&gt;&gt;)</a></strong>: Creates the JSON message to remove multiple topic-partitions from the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:">createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to remove multiple topic-partitions from the operator.
 </li>
 
 <li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.rstring.int32">createMessageRemoveTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to remove a single topic-partition from the operator.
@@ -80,6 +86,12 @@
 <div class="section"><h2 class="title sectiontitle splhead-1">Types</h2>
   
 <ul class="sl simple">
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartition">Control.TopicPartition</a></strong>: Tuple type for a topic partition to be added or removed 
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartitionOffset">Control.TopicPartitionOffset</a></strong>: Tuple type for a topic partition with offset to be added 
+</li>
+
 <li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.BlobMessage">MessageType.BlobMessage</a></strong>: This type represents a message with <tt class="ph tt">message</tt> attribute of type <tt class="ph tt">blob</tt> and <tt class="ph tt">key</tt> attribute with SPL type <tt class="ph tt">rstring</tt>.
 </li>
 

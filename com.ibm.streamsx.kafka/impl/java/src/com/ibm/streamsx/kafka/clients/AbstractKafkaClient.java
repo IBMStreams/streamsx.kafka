@@ -15,12 +15,15 @@ import org.apache.kafka.common.serialization.FloatSerializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 import com.ibm.streamsx.kafka.serialization.DoubleDeserializerExt;
 import com.ibm.streamsx.kafka.serialization.FloatDeserializerExt;
@@ -32,12 +35,15 @@ public abstract class AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaClient.class);
     protected static final long METRICS_REPORT_INTERVAL = 2_000;
+    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
+    protected static final Level DEBUG_LEVEL_METRICS = SystemProperties.getDebugLevelMetricsOverride();
 
     private final String clientId;
-    private boolean clientIdGenerated = false;
+    private final boolean clientIdGenerated;
     private final OperatorContext operatorContext;
-    
-    
+    private final ControlPlaneContext jcpContext;
+
+
     /**
      * Constructs a new AbstractKafkaClient using Kafka properties
      * @param operatorContext the operator context
@@ -47,6 +53,8 @@ public abstract class AbstractKafkaClient {
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
         this.operatorContext = operatorContext;
+        logger.info ("instantiating client: " + getThisClassName());
+        this.jcpContext = operatorContext.getOptionalContext (ControlPlaneContext.class);
         // Create a unique client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
         // This is important, otherwise running multiple consumers from the same
         // application will result in a KafkaException when registering the client
@@ -77,10 +85,20 @@ public abstract class AbstractKafkaClient {
      * returns the operator context.
      * @return the operator context
      */
-    public OperatorContext getOperatorContext() {
+    public final OperatorContext getOperatorContext() {
         return operatorContext;
     }
 
+    /**
+     * Returns the ControlPlaneContext if there is one.<br>
+     * 
+     * <b>Note:</b> There is always a ControlPlaneContext - whether there is a JobControlPlane operator in the application graph or not.
+     *       Future implementations of IBM Streams may change this. Therefore it is a good practice to check the returned value for null.
+     * @return the Control Plane Context
+     */
+    public final ControlPlaneContext getJcpContext() {
+        return jcpContext;
+    }
 
     /**
      * @return the clientId (client.id) of the Kafka client

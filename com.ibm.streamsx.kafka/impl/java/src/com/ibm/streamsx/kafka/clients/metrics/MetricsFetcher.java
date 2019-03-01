@@ -100,7 +100,7 @@ public class MetricsFetcher implements Runnable {
         synchronized (lock) {
             metrics = provider.getMetrics();
             if (trace.isTraceEnabled()) {
-                trace.trace ("# Kafka producer metrics fetched: " + metrics.size());
+                trace.trace ("# Kafka metrics fetched: " + metrics.size());
             }
         }
         if (this.updateFinishedListener != null) {

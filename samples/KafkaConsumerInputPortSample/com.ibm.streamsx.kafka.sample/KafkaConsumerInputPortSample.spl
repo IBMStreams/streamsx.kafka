@@ -66,7 +66,7 @@ composite KafkaConsumerInputPortSample
 
                     // now nothing is consumed anymore.
                     while(! isShutdown()) {
-                    // do nothing!
+                        block (10000.0);
                     }
                 }
         }
@@ -76,6 +76,7 @@ composite KafkaConsumerInputPortSample
             KafkaConsumerOp = KafkaConsumer(TopicPartitionUpdateStream) {
             param
                 propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+            config checkpoint: operatorDriven;
         }
 
         () as PrintOp = Custom(MessageOutStream as inputStream) {

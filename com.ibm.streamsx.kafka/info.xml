@@ -16,11 +16,23 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 + What's new and what has changed
 
-This is an overview of changes for major and minor version upgrades. For details see the Releases in public Github.
+This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
+
+++ What's new in version 1.8.0
+
+* The KafkaConsumer can subscribe dynamically to multiple topics by specifying a regular expression for the new **pattern** parameter. Assignment of partitions happens for matching topics at the time of periodic check. When someone creates a new topic with a name that matches, a rebalance will happen almost immediately and the consumers will start consuming from the new topic.
+
+* The control port of the KafkaConsumer allows assignment with default fetch position. New SPL functions to generate the JSON string for the control port have been added.
+
+* KafkaConsumer: Offsets can be committed after a *time period*, not only when a tuple count is reached. The new **commitPeriod** operator parameter lets you specify a time period in seconds for committing offsets of submitted tuples. 
+
+* KafkaConsumer: The time policy for offset commit is now the default policy when not in consistent region. The time policy avoids too high commit request rates, which can occur with count based policy and high tuple rates. The default commit interval is 5 seconds.
+
+* The operators can now be configured with a `config checkpoint` clause when used in an autonomous region. The KafkaProducer operator simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions and resumes fetching at last committed offset.
 
 ++ What's new in version 1.7.3
 
-* Bug fix: No default compression for the producer anymore (producer config `compression.type` is Kafka's default).
+* Bug fix: No default compression for the producer anymore (producer config `compression.type` is Kafka's default). Reverted a change made in version 1.6.0.
 
 ++ What's new in version 1.7.2
 
@@ -29,23 +41,29 @@ This is an overview of changes for major and minor version upgrades. For details
 ++ What's new in version 1.7.1
 
 * operator metrics which got invalid for an operator are flagged with a value of -1, for example the metric for the partition related consumer lag after de-assignment of a partition from a consumer operator
+
 * when not in a consistent region, offsets are committed when partitions are rebalanced within a consumer group. After re-assignment, messages are fetched beginning with the previously committed offsets. The periodic commit controlled by the **commitCount** parameter is reset after rebalance.
  
 ++ What's new in version 1.7.0
 
 * The default value for the **commitCount** parameter has changed from 500 to 2000.
+
 * SPL types for standard messages have been added to the toolkit
 
 ++ What's new in version 1.6.0
 
 * The KafkaProducer exposes many performance metrics of the producer client as operator metrics
+
 * The most important producer configs have default values, which result in higher reliability and throughput. These are `retries`, `compression.type`, `linger.ms`, `batch.size`, and `max.in.flight.requests.per.connection`.
+
 * New operator parameter **guaranteeOrdering** for the KafkaProducer, which guarantees that the sequence in a topic partition is the same as the order of tuples in case of retries.
+
 * Queue control for the KafkaProducer operator to stabilize the maximum queue time and to avoid timeouts sending records
+
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>1.7.3</info:version>
+   <info:version>1.8.0</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

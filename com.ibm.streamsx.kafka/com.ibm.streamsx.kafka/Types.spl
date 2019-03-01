@@ -63,3 +63,34 @@ public composite MessageType {
          */
         static TopicPartition = rstring topic, int32 partition;
 }
+
+
+/**
+ * Defines types for the JSON generator functions for the control port.
+ */
+public composite Control {
+    type
+        /**
+         * Tuple type for a topic partition to be added or removed
+         * 
+         * Example Use:
+         * 
+         *     mutable list <Control.TopicPartition> partitionsToAdd = [];
+         *     appendM (partitionsToAdd, {topic = 'topic1', partition = 0});
+         *     appendM (partitionsToAdd, {topic = 'topic1', partition = 1});
+         *     submit ({controlMsg = createMessageAddTopicPartition (partitionsToAdd)}, ControlMessages);
+         */
+        static TopicPartition = rstring topic, int32 partition;
+
+        /**
+         * Tuple type for a topic partition with offset to be added
+         * 
+         * Example Use:
+         * 
+         *     mutable list <Control.TopicPartitionOffset> partitionsWithOffsetsToAdd = [];
+         *     appendM (partitionsWithOffsetsToAdd, {topic = 'topic1', partition = 0, offset = -2l});
+         *     appendM (partitionsWithOffsetsToAdd, {topic = 'topic1', partition = 1, offset = 345678l});
+         *     submit ({controlMsg = createMessageAddTopicPartition (partitionsWithOffsetsToAdd)}, ControlMessages);
+         */
+        static TopicPartitionOffset = rstring topic, int32 partition, int64 offset;
+}

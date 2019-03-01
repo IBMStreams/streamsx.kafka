@@ -314,13 +314,13 @@ public class OffsetManager implements Serializable {
 
     /**
      * Returns the offset for a given topic and partition number.
-     * The topic must have been added before with {@link #addTopic(String, List)}. Otherwise a NullPointerException is thrown.
      * @param topic     the topic 
      * @param partition the partition number
-     * @return The offset or -1 if there is no mapping from partition number to topic.
+     * @return The offset or -1 if there is no mapping from topic and partition number to an offset.
      */
     public long getOffset(String topic, int partition) {
         TopicManager topicManager = managerMap.get(topic);
+        if (topicManager == null) return -1l;
         Long offset = topicManager.containsPartition(partition) ? topicManager.getOffset(partition) : -1l;
         return offset;
     }

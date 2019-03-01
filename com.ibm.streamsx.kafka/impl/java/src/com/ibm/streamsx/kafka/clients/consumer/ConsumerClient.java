@@ -3,6 +3,7 @@ package com.ibm.streamsx.kafka.clients.consumer;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -22,10 +23,12 @@ public interface ConsumerClient {
      * @return the client-ID
      */
     public String getClientId();
-    
+
     /**
      * creates the Kafka consumer and starts the consumer and event thread.
      * This method ensures that the event thread is running when it returns.
+     * {@link #isProcessing()} will return true after this method returns.
+     * 
      * @throws InterruptedException The thread has been interrupted waiting for the consumer thread to start
      * @throws KafkaClientInitializationException initialization of the Kafka consumer failed
      */
@@ -66,6 +69,30 @@ public interface ConsumerClient {
             throws Exception;
 
     /**
+     * Dynamically subscribes to topics given by a pattern( regular expression)
+     * and set the initial fetch offset to the given timestamp.
+     * This function implies Kafka group managenent.
+     * 
+     * @param pattern    A compiled pattern that matches the topics to be subscribed.
+     * @param timestamp  the timestamp where to start fetching in milliseconds since Epoch.
+     * 
+     * @throws Exception
+     */
+    public void subscribeToTopicsWithTimestamp (final Pattern pattern, final long timestamp) throws Exception;
+
+    /**
+     * Dynamically subscribes to topics given by a pattern( regular expression)
+     * and set the initial fetch offset to the given startPosition.
+     * This function implies Kafka group managenent.
+     * 
+     * @param pattern       A compiled pattern that matches the topics to be subscribed.
+     * @param startPosition start position. Must be one of {@link StartPosition#Default}, {@link StartPosition#Beginning}, {@link StartPosition#End}.
+     * 
+     * @throws Exception
+     */
+    public void subscribeToTopics (final Pattern pattern, final StartPosition startPosition) throws Exception;
+
+    /**
      * Tests whether the consumer is assigned to topic partitions or subscribed to topics.
      * Note: A consumer that subscribed to topics can have no assignment to partitions when the
      * group coordinator decides so. This method will also return `true` in this case.
@@ -94,13 +121,13 @@ public interface ConsumerClient {
      * @throws InterruptedException The thread waiting for finished condition has been interruped.
      */
     void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException;
-    
+
     /**
      * Action to be performed on consistent region drain.
      * @throws Exception
      */
     void onDrain() throws Exception;
-    
+
     /**
      * Action to be performed when a checkpoint is retired.
      * @param id The checkpoint sequence ID
@@ -117,7 +144,6 @@ public interface ConsumerClient {
 
     /**
      * Initiates resetting the client to a prior state.
-     * The client can prepare any data for the reset by implementing {@link #resetPrepareData(Checkpoint)}. 
      * Implementations ensure that resetting the client has completed when this method returns. 
      * @param checkpoint the checkpoint that contains the state.
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
@@ -133,12 +159,20 @@ public interface ConsumerClient {
 
     /**
      * Initiates a shutdown of the consumer client.
-     * Implementations ensure that shutting down the client has completed when this method returns. 
+     * Implementations ensure that shutting down the client has completed when this method returns.
+     * {@link #isProcessing()} will return false after this method call.
+     * 
      * @param timeout    the timeout to wait for shutdown completion
      * @param timeUnit   the unit of time for the timeout
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException;
+
+    /**
+     * Returns true when the consumer client is started and can process events.
+     * @return
+     */
+    boolean isProcessing();
 
     /**
      * Gets the next consumer record that has been received. If there are no records, the method waits the specified timeout.

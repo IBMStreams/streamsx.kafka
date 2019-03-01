@@ -5,10 +5,9 @@ package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.text.MessageFormat;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -17,8 +16,14 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
+import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
@@ -29,7 +34,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerClient implements ConsumerRebalanceListener {
 
     private static final Logger trace = Logger.getLogger(NonCrKafkaConsumerGroupClient.class);
-
+    private static final long JCP_CONNECT_TIMEOUT_MILLIS = 20000;
+    private long initialStartTimestamp = 0l;
 
     /**
      * Creates a new NonCrKafkaConsumerGroupClient instance
@@ -40,31 +46,80 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      * @param commitCount the tuple count after which offsets are committed. This parameter is ignored when auto-commit is explicitly enabled.
      * @param kafkaProperties Kafka properties
      * @param nTopics the number of subscribed topics
-     * 
-     * @throws KafkaConfigurationException
+     * @throws KafkaOperatorException 
      */
     private <K, V> NonCrKafkaConsumerGroupClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties, int nTopics) throws KafkaConfigurationException {
+            KafkaOperatorProperties kafkaProperties, boolean singleTopic) throws KafkaOperatorException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
 
-        // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
-        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
+        // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed
+        if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {
             String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
             kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            trace.info (MessageFormat.format ("Multiple topics specified. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+            trace.info (MessageFormat.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
         }
-     }
+        if (getInitialStartPosition() != StartPosition.Default && getJcpContext() == null) {
+            throw new KafkaOperatorException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", getInitialStartPosition()));
+        }
+    }
 
-    
+    /**
+     * Tests for a connection establishment with the JCP operator and throws an exception if it cannot be connected. 
+     * @param connectTimeoutMillis The connect timeout in milliseconds
+     * @param startPos the initial startposition, used for the exception message only
+     * @throws MissingJobControlPlaneException The connection cannot be created
+     */
+    private void testForJobControlPlaneOrThrow (long connectTimeoutMillis, StartPosition startPos) throws MissingJobControlPlaneException {
+        if (!testJobControlConnection (connectTimeoutMillis)) {
+            trace.error (MessageFormat.format ("Could not connect to the JobControlPlane "
+                    + "within {0} milliseconds. Make sure that the operator graph contains "
+                    + "a JobControlPlane operator to support group management with startPosition {1}.", connectTimeoutMillis, startPos));
+            throw new MissingJobControlPlaneException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", startPos));
+        }
+    }
 
 
     /**
-     * Subscribes to topics or assigns with topic partitions.
-     * Subscription happens when a) partitions is null or empty AND startPosition is StartPosition.Default.
-     * In all other cases the consumer gets assigned. When partitions are assigned, the consumer is seeked
-     * to the given start position (begin or end of the topic partitions).
-     * @param topics  the topics
-     * @param partitions partitions. The partitions. can be null or empty. Then the metadata of the topics is read to get all partitions of each topic.
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.regex.Pattern, long)
+     */
+    @Override
+    public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
+        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp: pattern = {0}, timestamp = {1}",
+        pattern == null? "null": pattern.pattern(), timestamp));
+        assert getInitialStartPosition() == StartPosition.Time;
+        this.initialStartTimestamp = timestamp;
+        subscribe (pattern, this);
+        // we seek in onPartitionsAssigned()
+        if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
+        }
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.regex.Pattern, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
+     */
+    @Override
+    public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
+        trace.info (MessageFormat.format ("subscribeToTopics: pattern = {0}, startPosition = {1}",
+                pattern == null? "null": pattern.pattern(), startPosition));
+        assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
+        assert getInitialStartPosition() == startPosition;
+        subscribe (pattern, this);
+        // we seek in onPartitionsAssigned()
+        if (startPosition != StartPosition.Default && Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
+        }
+    }
+
+
+    /**
+     * Subscribes to topics.
+     * 
+     * @param topics     the topics
+     * @param partitions The partitions. Must be null or empty. Partitions are assigned by Kafka.
      * @param startPosition Must be StartPosition.Default, StartPosition.Beginning, or StartPosition.End.
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.Collection, java.util.Collection, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
      */
@@ -73,6 +128,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         trace.info (MessageFormat.format ("subscribeToTopics: topics = {0}, partitions = {1}, startPosition = {2}",
                 topics, partitions, startPosition));
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
+        assert getInitialStartPosition() == startPosition;
         if (partitions != null && !partitions.isEmpty()) {
             trace.error("When the " + getThisClassName() + " consumer client is used, no partitions must be specified. partitions: " + partitions);
             throw new KafkaConfigurationException ("Partitions for assignment must not be specified. Found: " + partitions);
@@ -81,44 +137,46 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             trace.error ("When the " + getThisClassName() + " consumer client is used, topics must be specified. topics: " + topics);
             throw new KafkaConfigurationException ("topics must not be null or empty. topics = " + topics);
         }
-        // the operator instantiates this client only, when startPosition is Default.
-        // Other startPositions (Begin, End) must be implemented.
-        assert startPosition == StartPosition.Default;
         subscribe (topics, this);
+        // we seek in onPartitionsAssigned()
+        if (startPosition != StartPosition.Default && Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
+        }
     }
 
     /**
-     * assigns to topic partitions and seeks to the nearest offset given by a timestamp.
-     *
-     * @param topics         the topics
-     * @param partitions     partition numbers. Every given topic must have the given partition numbers.
-     * @param timestamp      the timestamp where to start reading in milliseconds since Epoch.
+     * Subscribes to topics.
+     * 
+     * @param topics     the topics
+     * @param partitions The partitions. Must be null or empty. Partitions are assigned by Kafka.
+     * @param timestamp  The timestamp where to start reading in milliseconds since Epoch.
      * @throws Exception 
      * 
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.Collection, java.util.Collection, long)
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Collection<String> topics, Collection<Integer> partitions, long timestamp) throws Exception {
-        // Never called. Group management with startPosition == StartPosition.Time must be implemented
         trace.info ("subscribeToTopicsWithTimestamp: topic = " + topics + ", partitions = " + partitions + ", timestamp = " + timestamp);
-        Map<TopicPartition, Long /* timestamp */> topicPartitionTimestampMap = new HashMap<TopicPartition, Long>();
-        if(partitions == null || partitions.isEmpty()) {
-            Set<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic(topics);
-            topicPartitions.forEach(tp -> topicPartitionTimestampMap.put(tp, timestamp));
-        } else {
-            topics.forEach(topic -> {
-                partitions.forEach(partition -> topicPartitionTimestampMap.put(new TopicPartition(topic, partition), timestamp));
-            });
+        assert getInitialStartPosition() == StartPosition.Time;
+        if (partitions != null && !partitions.isEmpty()) {
+            trace.error("When the " + getThisClassName() + " consumer client is used, no partitions must be specified. partitions: " + partitions);
+            throw new KafkaConfigurationException ("Partitions for assignment must not be specified. Found: " + partitions);
         }
-        trace.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
-        assign (topicPartitionTimestampMap.keySet());
-        seekToTimestamp (topicPartitionTimestampMap);
+        if (topics == null || topics.isEmpty()) {
+            trace.error ("When the " + getThisClassName() + " consumer client is used, topics must be specified. topics: " + topics);
+            throw new KafkaConfigurationException ("topics must not be null or empty. topics = " + topics);
+        }
+        this.initialStartTimestamp = timestamp;
+        subscribe (topics, this);
+        // we seek in onPartitionsAssigned()
+        if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
+        }
     }
 
 
     /**
-     * Assigns to topic partitions and seeks to the given offsets.
-     * A single topic can be specified. The collections for partitions and offsets must have equal size.
+     * Not supported in this implementation. Throws an exception when invoked.
      * 
      * @param topic the topic
      * @param partitions the partitions of the topic
@@ -128,7 +186,6 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public void subscribeToTopicsWithOffsets (String topic, List<Integer> partitions, List<Long> startOffsets) throws Exception {
-        trace.debug ("subscribeToTopicsWithOffsets: topic = " + topic + ", partitions = " + partitions + ", startOffsets = " + startOffsets);
         throw new KafkaConfigurationException ("Subscription (assignment of partitions) with offsets is not supported by this client: " + getThisClassName());
     }
 
@@ -145,6 +202,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         // They will fetched again after rebalance.
         getMessageQueue().clear();
         OffsetManager offsetManager = getOffsetManager();
+        setConsumedTopics (null);
         try {
             awaitMessageQueueProcessed();
             // the post-condition is, that all messages from the queue have submitted as 
@@ -164,7 +222,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                 commitOffsets (offsets);
             }
             // reset the counter for periodic commit
-            setnSubmittedRecords (0l);
+            resetCommitPeriod (System.currentTimeMillis());
         }
         catch (InterruptedException | RuntimeException e) {
             // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
@@ -186,11 +244,49 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         nAssignedPartitions.setValue(partitions.size());
         OffsetManager offsetManager = getOffsetManager();
         offsetManager.clear();
+        setConsumedTopics (partitions);
+        // override the fetch offset according to initialStartPosition for 
+        // those partitions, which are never committed within the group
+        final StartPosition startPos = getInitialStartPosition();
         try {
-            checkSpaceInMessageQueueAndPauseFetching (true);
-        } catch (IllegalStateException | InterruptedException e) {
-            // IllegalStateException cannot happen
-            // On Interruption, do nothing
+            for (TopicPartition tp: partitions) {
+                switch (startPos) {
+                case Default:
+                    break;
+                case Beginning:
+                case End:
+                    if (!Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+                        // here we must never end when the feature is not enabled
+                        throw new KafkaOperatorRuntimeException ("Illegal startposition for this consumer client implementation: " + startPos);
+                    }
+                    if (!isCommittedForPartition (tp)) {
+                        seekToPosition (tp, startPos);
+                    }
+                    break;
+                case Time:
+                    if (!Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+                        // here we must never end when the feature is not enabled
+                        throw new KafkaOperatorRuntimeException ("Illegal startposition for this consumer client implementation: " + startPos);
+                    }
+                    if (!isCommittedForPartition (tp)) {
+                        seekToTimestamp (tp, this.initialStartTimestamp);
+                    }
+                    break;
+                default:
+                    // unsupported start position, like 'Offset',  is already treated by initialization checks
+                    final String msg = MessageFormat.format("onPartitionsAssigned(): {0} does not support startPosition {1}.", getThisClassName(), getInitialStartPosition());
+                    trace.error (msg);
+                    throw new RuntimeException (msg);
+                }
+            }
+            try {
+                checkSpaceInMessageQueueAndPauseFetching (true);
+            } catch (IllegalStateException/* | InterruptedException*/ e) {
+                // IllegalStateException cannot happen
+                // On Interruption, do nothing
+            }
+        } catch (InterruptedException e) {
+            trace.debug ("onPartitionsAssigned(): thread interrupted");
         }
     }
 
@@ -204,10 +300,40 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     protected void processUpdateAssignmentEvent (TopicPartitionUpdate update) {
-        trace.warn("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
+        trace.error("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
     }
 
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpoint(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
+    }
 
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onReset(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void onReset(Checkpoint checkpoint) throws InterruptedException {
+    }
+
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processResetEvent(Checkpoint)
+     */
+    @Override
+    protected void processResetEvent (Checkpoint checkpoint) {
+    }
+
+    /**
+     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processCheckpointEvent(Checkpoint)
+     */
+    @Override
+    protected void processCheckpointEvent (Checkpoint checkpoint) {
+    }
 
 
 
@@ -224,7 +350,10 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         private KafkaOperatorProperties kafkaProperties;
         private long pollTimeout;
         private long commitCount;
-        private int numTopics = 0;
+        private StartPosition initialStartPosition;
+        private boolean singleTopic = false;   // safest default
+        private CommitMode commitMode;
+        private long commitPeriodMillis;
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -256,15 +385,33 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             return this;
         }
 
-        public final Builder setNumTopics (int n) {
-            this.numTopics = n;
+        public final Builder setCommitMode (CommitMode m) {
+            this.commitMode = m;
+            return this;
+        }
+
+        public final Builder setCommitPeriod (double p) {
+            this.commitPeriodMillis = (long) (p * 1000.0);
+            return this;
+        }
+
+        public final Builder setSingleTopic (boolean s) {
+            this.singleTopic = s;
+            return this;
+        }
+
+        public final Builder setInitialStartPosition (StartPosition p) {
+            this.initialStartPosition = p;
             return this;
         }
 
         public ConsumerClient build() throws Exception {
-            NonCrKafkaConsumerGroupClient client = new NonCrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
+            NonCrKafkaConsumerGroupClient client = new NonCrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, singleTopic);
             client.setPollTimeout (pollTimeout);
+            client.setCommitMode (commitMode);
             client.setCommitCount (commitCount);
+            client.setCommitPeriodMillis (commitPeriodMillis); 
+            client.setInitialStartPosition (initialStartPosition);
             return client;
         }
     }

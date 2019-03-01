@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 import java.util.Set;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -23,6 +24,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -89,11 +91,31 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * @throws Exception
      */
     private void createJcpCvFromOffsetManagerl() throws Exception {
-        logger.debug("createJcpCvFromOffsetManagerl(). offsetManager = " + offsetManager); 
+        logger.log (DEBUG_LEVEL, "createJcpCvFromOffsetManagerl(). offsetManager = " + offsetManager); 
         offsetManagerCV = getJcpContext().createStringControlVariable(OffsetManager.class.getName(),
                 false, serializeObject(offsetManager));
         OffsetManager mgr = getDeserializedOffsetManagerCV();
-        logger.debug("Retrieved value for offsetManagerCV = " + mgr); 
+        logger.log (DEBUG_LEVEL, "Retrieved value for offsetManagerCV = " + mgr); 
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.regex.Pattern, long)
+     */
+    @Override
+    public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
+        throw new KafkaOperatorException ("subscribe with pattern not supported by " + getThisClassName());
+    }
+
+
+    /**
+     * Subscription with pattern not supported by this client implementation.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.regex.Pattern, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
+     */
+    @Override
+    public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
+        throw new KafkaOperatorException ("subscribe with pattern not supported by " + getThisClassName());
     }
 
 
@@ -106,7 +128,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      */
     @Override
     public void subscribeToTopics(Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
-        logger.debug("subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
+        logger.log (DEBUG_LEVEL, "subscribeToTopics: topics=" + topics + ", partitions=" + partitions + ", startPosition=" + startPosition);
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
 
         if(topics != null && !topics.isEmpty()) {
@@ -144,7 +166,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Collection<String> topics, Collection<Integer> partitions, long timestamp) throws Exception {
-        logger.debug("subscribeToTopicsWithTimestamp: topic = " + topics + ", partitions = " + partitions + ", timestamp = " + timestamp);
+        logger.log (DEBUG_LEVEL, "subscribeToTopicsWithTimestamp: topic = " + topics + ", partitions = " + partitions + ", timestamp = " + timestamp);
         Map<TopicPartition, Long /* timestamp */> topicPartitionTimestampMap = new HashMap<TopicPartition, Long>();
         if(partitions == null || partitions.isEmpty()) {
             Set<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic(topics);
@@ -154,7 +176,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                 partitions.forEach(partition -> topicPartitionTimestampMap.put(new TopicPartition(topic, partition), timestamp));
             });
         }
-        logger.debug("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
+        logger.log (DEBUG_LEVEL, "subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
         Set<TopicPartition> partsToAssign = topicPartitionTimestampMap.keySet();
         assign (partsToAssign);
         seekToTimestamp (topicPartitionTimestampMap);
@@ -213,11 +235,11 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
 
         final ConsistentRegionContext crContext = getCrContext();
         if (crContext.isTriggerOperator() && ++nSubmittedRecords >= triggerCount) {
-            logger.debug("Making region consistent..."); //$NON-NLS-1$
-            // makeConsistent blocks until all operators in the CR have drained and checkpointed
+            logger.log (DEBUG_LEVEL, "Making region consistent..."); //$NON-NLS-1$
+            // makeConsistent blocks until all operators in the CR have drained and checkpointed - or reset in case of failure
             boolean isSuccess = crContext.makeConsistent();
             nSubmittedRecords = 0l;
-            logger.debug("Completed call to makeConsistent: isSuccess=" + isSuccess); //$NON-NLS-1$
+            logger.log (DEBUG_LEVEL, "Completed call to makeConsistent: isSuccess = " + isSuccess); //$NON-NLS-1$
         }
     }
 
@@ -305,18 +327,18 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      */
     @Override
     public void onDrain() throws Exception {
-        logger.debug("onDrain() - entering");
+        logger.log (DEBUG_LEVEL, "onDrain() - entering");
         try {
-            // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
+            // stop filling the message queue with more messages, this method returns after polling has stopped - not fire and forget
             sendStopPollingEvent();
             // when CR is operator driven, do not wait for queue to be emptied.
             // This would never happen because the tuple submitter thread is blocked in makeConsistent() in postSubmit(...)
             if (!getCrContext().isTriggerOperator() && !getMessageQueue().isEmpty()) {
                 // here we are only when we are NOT the CR trigger (for example, periodic CR) and the queue contains consumer records
-                logger.debug("onDrain() waiting for message queue to become empty ...");
+                logger.log (DEBUG_LEVEL, "onDrain() waiting for message queue to become empty ...");
                 long before = System.currentTimeMillis();
                 awaitMessageQueueProcessed();
-                logger.debug("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
+                logger.log (DEBUG_LEVEL, "onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
             }
             final boolean commitSync = true;
             final boolean commitPartitionWise = false;   // commit all partitions in one server request
@@ -333,10 +355,10 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             // drain is followed by checkpoint. 
             // Don't poll for new messages in the meantime. - Don't send a 'start polling event'
         } catch (InterruptedException e) {
-            logger.debug("Interrupted waiting for empty queue or committing offsets");
+            logger.log (DEBUG_LEVEL, "Interrupted waiting for empty queue or committing offsets");
             // NOT to start polling for Kafka messages again, is ok after interruption
         }
-        logger.debug("onDrain() - exiting");
+        logger.log (DEBUG_LEVEL, "onDrain() - exiting");
     }
 
 
@@ -345,11 +367,11 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      */
     @Override
     protected void processResetToInitEvent() {
-        logger.debug("processResetToInitEvent() - entering");
+        logger.log (DEBUG_LEVEL, "processResetToInitEvent() - entering");
         try {
             final OffsetManager ofsm = getDeserializedOffsetManagerCV();
             offsetManager.putOffsets (ofsm);
-            logger.debug("offsetManager after applying initial state = " + offsetManager); //$NON-NLS-1$
+            logger.log (DEBUG_LEVEL, "offsetManager after applying initial state = " + offsetManager); //$NON-NLS-1$
             // refresh from the cluster as we may
             // have written to the topics
             refreshFromCluster();
@@ -357,11 +379,12 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             // remove records from queue
             clearDrainBuffer();
             getMessageQueue().clear();
+            this.nSubmittedRecords = 0;
 
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("processResetToInitEvent() - exiting");
+        logger.log (DEBUG_LEVEL, "processResetToInitEvent() - exiting");
     }
 
     /**
@@ -372,7 +395,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * This is typically achieved via {@link OffsetManager#savePositionFromCluster()}
      */
     private void refreshFromCluster() {
-        logger.debug("Refreshing from cluster..."); //$NON-NLS-1$
+        logger.log (DEBUG_LEVEL, "Refreshing from cluster..."); //$NON-NLS-1$
         List<String> topics = offsetManager.getTopics();
         Map<TopicPartition, Long> startOffsetMap = new HashMap<TopicPartition, Long>();
         for (String topic : topics) {
@@ -393,15 +416,23 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                 }
             });
         }
-        logger.debug("startOffsets=" + startOffsetMap); //$NON-NLS-1$
+        logger.log (DEBUG_LEVEL, "startOffsets=" + startOffsetMap); //$NON-NLS-1$
 
         // assign the consumer to the partitions and seek to the
         // last saved offset
         assign (startOffsetMap.keySet());
         for (Entry<TopicPartition, Long> entry : startOffsetMap.entrySet()) {
-            logger.debug("Consumer seeking: TopicPartition=" + entry.getKey() + ", new_offset=" + entry.getValue()); //$NON-NLS-1$ //$NON-NLS-2$
+            logger.log (DEBUG_LEVEL, "Consumer seeking: TopicPartition=" + entry.getKey() + ", new_offset=" + entry.getValue()); //$NON-NLS-1$ //$NON-NLS-2$
             getConsumer().seek(entry.getKey(), entry.getValue());
         }
+    }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareDataBeforeStopPolling(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    protected void resetPrepareDataBeforeStopPolling (Checkpoint checkpoint) throws InterruptedException {
+        ;
     }
 
     /**
@@ -410,7 +441,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
-    public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
+    public void resetPrepareDataAfterStopPolling (Checkpoint checkpoint) throws InterruptedException {
         clearDrainBuffer();
         getMessageQueue().clear();
     }
@@ -421,19 +452,20 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      */
     @Override
     protected void processResetEvent (Checkpoint checkpoint) {
-        logger.debug("processResetEvent() - entering. seq = " + checkpoint.getSequenceId());
+        logger.log (DEBUG_LEVEL, "processResetEvent() - entering. seq = " + checkpoint.getSequenceId());
         try {
             clearDrainBuffer();
             getMessageQueue().clear();
             final OffsetManager ofsm = (OffsetManager) checkpoint.getInputStream().readObject();
-            logger.debug("offsetManager from checkpoint = " + ofsm); //$NON-NLS-1$
+            logger.log (DEBUG_LEVEL, "offsetManager from checkpoint = " + ofsm); //$NON-NLS-1$
             offsetManager.putOffsets (ofsm);
-            logger.debug("offsetManager after applying checkpoint = " + offsetManager); //$NON-NLS-1$
+            logger.log (DEBUG_LEVEL, "offsetManager after applying checkpoint = " + offsetManager); //$NON-NLS-1$
             refreshFromCluster();
+            this.nSubmittedRecords = 0;
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("processResetEvent() - exiting");
+        logger.log (DEBUG_LEVEL, "processResetEvent() - exiting");
     }
 
 
@@ -444,17 +476,17 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      */
     @Override
     protected void processCheckpointEvent (Checkpoint checkpoint) {
-        logger.debug("processCheckpointEvent() - entering. seq = " + checkpoint.getSequenceId());
+        logger.log (DEBUG_LEVEL, "processCheckpointEvent() - entering. seq = " + checkpoint.getSequenceId());
         try {
             // offsetManager.savePositionFromCluster();
             checkpoint.getOutputStream().writeObject(offsetManager);
-            if (logger.isDebugEnabled()) {
-                logger.debug("offsetManager=" + offsetManager); //$NON-NLS-1$
+            if (logger.isEnabledFor (DEBUG_LEVEL)) {
+                logger.log (DEBUG_LEVEL, "offsetManager=" + offsetManager); //$NON-NLS-1$
             }
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
-        logger.debug("processCheckpointEvent() - exiting");
+        logger.log (DEBUG_LEVEL, "processCheckpointEvent() - exiting");
     }
 
 

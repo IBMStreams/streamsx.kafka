@@ -2,29 +2,24 @@ package com.ibm.streamsx.kafka.operators;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.TopicPartition;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
+import com.ibm.streams.operator.StreamingData.Punctuation;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
@@ -37,7 +32,12 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
+import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
+import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.SystemProperties;
+import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
+import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaStaticAssignConsumerClient;
@@ -45,13 +45,14 @@ import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
 import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate;
-import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdateAction;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerOperator.class);
+    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
+    
     private static final long DEFAULT_CONSUMER_TIMEOUT = 100l;
     private static final long SHUTDOWN_TIMEOUT = 5l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
@@ -70,19 +71,20 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String OUTPUT_OFFSET_ATTRIBUTE_NAME_PARAM = "outputOffsetAttributeName"; //$NON-NLS-1$
     public static final String OUTPUT_PARTITION_ATTRIBUTE_NAME_PARAM = "outputPartitionAttributeName"; //$NON-NLS-1$
     public static final String TOPIC_PARAM = "topic"; //$NON-NLS-1$
+    public static final String PATTERN_PARAM = "pattern"; //$NON-NLS-1$
     public static final String PARTITION_PARAM = "partition"; //$NON-NLS-1$
     public static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
     public static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
     public static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
     public static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
+    public static final String COMMIT_PERIOD_PARAM = "commitPeriod"; //$NON-NLS-1$
     public static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
 
-    private static final int DEFAULT_COMMIT_COUNT = 2000;
+    private static final double DEFAULT_COMMIT_PERIOD = 5.0;
 
     private Thread processThread;
     private ConsumerClient consumer;
     private AtomicBoolean shutdown;
-    private Gson gson;
 
     /* Parameters */
     private String outputKeyAttrName = DEFAULT_OUTPUT_KEY_ATTR_NAME;
@@ -92,17 +94,21 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private String outputOffsetAttrName = DEFAULT_OUTPUT_OFFSET_ATTR_NAME;
     private String outputPartitionAttrName = DEFAULT_OUTPUT_PARTITION_ATTR_NAME;
     private List<String> topics;
+    private Pattern pattern;
     private List<Integer> partitions;
     private List<Long> startOffsets;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
-    private int commitCount = DEFAULT_COMMIT_COUNT;
+    private int commitCount = 0;
+    private double commitPeriod = DEFAULT_COMMIT_PERIOD;
+    private CommitMode commitMode = CommitMode.Time;
     private String groupId = null;
     private boolean groupIdSpecified = false;
     private Long startTime = -1l;
 
     private long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
+    private CountDownLatch processThreadEndedLatch;
     private boolean hasOutputTopic;
     private boolean hasOutputKey;
     private boolean hasOutputOffset;
@@ -143,6 +149,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of topic partitions assigned to the consumer.")
     public void setnAssignedPartitions(Metric nAssignedPartitions) {
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
+
+    @CustomMetric (kind = Metric.Kind.GAUGE, name = "nConsumedTopics", description = "Number of topics consumed by this consumer.")
+    public void setnConsumedTopics (Metric nPendingMessages) {
+        // Note: The number of topics consumed by a whole consumer group can be higher.
+        // When not in a consistent region, we have no inter-operator communication to find out the number
+        // of topics consumed by the whole group.
+        // When we are in consistent region, we can count the number of topics that match a pattern subscription
+        // via the Group-MXBean.
+
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }
 
@@ -211,7 +228,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "specified by this parameter will override the `group.id` "
                     + "Kafka property if specified. If this parameter is not "
                     + "specified and the `group.id` Kafka property is not "
-                    + "specified, the operator will use a random group ID.")
+                    + "specified, the operator will use a generated group ID, "
+                    + "and the group management feature is not active.")
     public void setGroupId (String groupId) {
         this.groupId = groupId;
     }
@@ -231,10 +249,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "config `auto.offset.reset`, which defaults to `latest`. Consumer offsets are retained for the "
                     + "time specified by the broker config `offsets.retention.minutes`, which defaults to 1440 (24 hours). "
                     + "When this time expires, the Consumer won't be able to resume after last committed offset, and the "
-                    + "value of consumer property `auto.offset.reset` applies (default `latest`). "
-                    + "**Note:** If you do not specify a group ID in Kafka consumer properties or via **groupId** parameter, "
-                    + "the operator uses a generated group ID, which makes the operator start consuming at the last position "
-                    + "or what is specified in the `auto.offset.reset` consumer property."
+                    + "value of consumer property `auto.offset.reset` applies (default `latest`)."
                     + "\\n"
                     + "* `Time`: The consumer starts consuming messages with at a given timestamp. More precisely, "
                     + "when a time is specified, the consumer starts at the earliest offset whose timestamp is greater "
@@ -292,6 +307,31 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.topics = topics;
     }
 
+    @Parameter (optional = true, name = PATTERN_PARAM,
+            description="Specifies a regular expression to subscribe dynamically all matching topics. "
+                    + "The pattern matching will be done periodically against topic existing at the time of check.\\n"
+                    + "\\n"
+                    + "**Some basic examples:**\\n"
+                    + "* `pattern: \\\"myTopic\\\";` subscribes only to topic `myTopic` when it is present.\\n"
+                    + "* `pattern: \\\"myTopic.\\\\*\\\";` subscribes to `myTopic` and all topics that begin with `myTopic`\\n"
+                    + "* `pattern: \\\".\\\\*Topic\\\";` subscribes to `Topic` and all topics that end at `Topic`\\n"
+                    + "\\n"
+                    + "This parameter is incompatible with the **topic** and the **partition** parameter. "
+                    + "Dynamic subscription with a pattern implies group management. The parameter is therefore "
+                    + "incompatible with all *operator configurations that disable group management*:\\n"
+                    + "\\n"
+                    + "* no group identifier configured (neither via **groupId** parameter nor as `group.id` consumer configuration)\\n"
+                    + "* presence of an input control port\\n"
+                    + "* usage of the **partition** parameter\\n"
+                    + "* usage of **startPosition** parameter with a different value than `Default` (only when not in consistent region)\\n"
+                    + "\\n"
+                    + "The regular expression syntax follows the Perl 5 regular expressions with some differences. "
+                    + "For details see [https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html|Regular Expressions in Java 8].")
+    public void setPattern (String regex) {
+        // throws java.util.regex.PatternSyntaxException
+        this.pattern = Pattern.compile (regex);
+    }
+
     @Parameter(optional = true, name=OUTPUT_KEY_ATTRIBUTE_NAME_PARAM,
             description="Specifies the output attribute name that should contain "
                     + "the key. If not specified, the operator will attempt to "
@@ -325,10 +365,29 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.triggerCount = triggerCount;
     }
 
+    @Parameter(optional = true, name = COMMIT_PERIOD_PARAM, description = 
+            "This parameter specifies the period of time in seconds, after which the offsets of submitted tuples are committed. "
+                    + "This parameter is optional "
+                    + "and has a default value of " + DEFAULT_COMMIT_PERIOD + ". Its minimum value is "
+                    + "`0.1`, smaller values are pinned to 0.1 seconds. This parameter cannot be used when the **"
+                    + COMMIT_COUNT_PARAM + "** parameter is used.\\n"
+                    + "\\n" 
+                    + "This parameter is only used when the "
+                    + "operator is not part of a consistent region. When the operator participates in a "
+                    + "consistent region, offsets are always committed when the region drains.")
+    public void setCommitPeriod (double period) {
+        if (period < 0.1) {
+            logger.warn ("The commitPeriod has been pinned to 0.1");
+            this.commitPeriod = 0.1;
+        }
+        else this.commitPeriod = period;
+    }
+
     @Parameter(optional = true, name = COMMIT_COUNT_PARAM, description = 
             "This parameter specifies the number of tuples that will be submitted to "
-                    + "the output port before committing their offsets. This parameter is optional "
-                    + "and has a default value of " + DEFAULT_COMMIT_COUNT + ". "
+                    + "the output port before committing their offsets. Valid values are greater than zero. "
+                    + "This parameter is optional and conflicts with the **" + COMMIT_PERIOD_PARAM + "** parameter.\\n"
+                    + "\\n"
                     + "This parameter is only used when the "
                     + "operator is not part of a consistent region. When the operator participates in a "
                     + "consistent region, offsets are always committed when the region drains.")
@@ -356,6 +415,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (parameterNames.contains(COMMIT_COUNT_PARAM)) {
                 System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_COUNT_PARAM));
             }
+            if (parameterNames.contains(COMMIT_PERIOD_PARAM)) {
+                System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_PERIOD_PARAM));
+            }
             if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
                 if (!parameterNames.contains(TRIGGER_COUNT_PARAM)) {
                     checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
@@ -367,9 +429,45 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (parameterNames.contains(TRIGGER_COUNT_PARAM)) {
                 System.err.println (Messages.getString ("PARAM_IGNORED_NOT_IN_CONSITENT_REGION", TRIGGER_COUNT_PARAM));
             }
+            if (parameterNames.contains(COMMIT_COUNT_PARAM) && parameterNames.contains(COMMIT_PERIOD_PARAM)) {
+                checker.setInvalidContext (Messages.getString ("PARAMETERS_EXCLUDE_EACH_OTHER", COMMIT_COUNT_PARAM, COMMIT_PERIOD_PARAM), new Object[0]); //$NON-NLS-1$
+            }
         }
     }
 
+    //    @ContextCheck (compile = true)
+    public static void warnStartPositionParamRequiresJCP (OperatorContextChecker checker) {
+        if (!(Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION || Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART)) {
+            return;
+        }
+        OperatorContext opCtx = checker.getOperatorContext();
+        Set<String> paramNames = opCtx.getParameterNames();
+        List<StreamingInput<Tuple>> inputPorts = opCtx.getStreamingInputs();
+
+        if (opCtx.getOptionalContext (ConsistentRegionContext.class) == null
+                && paramNames.contains (START_POSITION_PARAM)
+                && inputPorts.size() == 0) {
+            System.err.println (Messages.getString ("WARN_ENSURE_JCP_ADDED_STARTPOS_NOT_DEFAULT", opCtx.getKind()));
+        }
+    }
+
+    @ContextCheck (compile = true)
+    public static void checkPatternParamCompatibility (OperatorContextChecker checker) {
+        // when input port is configured, topic, pattern, partition, and startPosition are ignored
+        // Do the checks only when no input port is configured
+        OperatorContext opCtx = checker.getOperatorContext();
+        if (opCtx.getNumberOfStreamingInputs() == 0) {
+            Set<String> paramNames = opCtx.getParameterNames();
+            if (paramNames.contains (PATTERN_PARAM)) {
+                if (paramNames.contains (PARTITION_PARAM)) {
+                    checker.setInvalidContext (Messages.getString ("PARAMETERS_EXCLUDE_EACH_OTHER", PATTERN_PARAM, PARTITION_PARAM), new Object[0]); //$NON-NLS-1$
+                }
+                if (paramNames.contains (TOPIC_PARAM)) {
+                    checker.setInvalidContext (Messages.getString ("PARAMETERS_EXCLUDE_EACH_OTHER", PATTERN_PARAM, TOPIC_PARAM), new Object[0]); //$NON-NLS-1$
+                }
+            }
+        }
+    }
 
     @ContextCheck(compile = true)
     public static void checkInputPort(OperatorContextChecker checker) {
@@ -379,10 +477,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             /*
              * optional input port is present, thus need to ignore the following parameters:
              *  * topic
+             *  * pattern
              *  * partition
              *  * startPosition
              */
             if(paramNames.contains(TOPIC_PARAM) 
+                    || paramNames.contains(PATTERN_PARAM)
                     || paramNames.contains(PARTITION_PARAM) 
                     || paramNames.contains(START_POSITION_PARAM)) {
                 System.err.println(Messages.getString("PARAMS_IGNORED_WITH_INPUT_PORT")); //$NON-NLS-1$
@@ -394,10 +494,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @ContextCheck(compile = true)
-    public static void checkForTopicOrInputPort(OperatorContextChecker checker) {
-        List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
-        if(inputPorts.size() == 0 && !checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM)) {
-            checker.setInvalidContext(Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
+    public static void checkForTopicPatternOrInputPort(OperatorContextChecker checker) {
+        OperatorContext opCtx = checker.getOperatorContext();
+        if (opCtx.getNumberOfStreamingInputs() == 0) {
+            Set <String> parameterNames = opCtx.getParameterNames();
+            // must have one of topic or pattern parameter
+            if (!(parameterNames.contains (TOPIC_PARAM) || parameterNames.contains (PATTERN_PARAM))) {
+                checker.setInvalidContext (Messages.getString("TOPIC_OR_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
+            }
         }
     }
 
@@ -494,7 +598,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
         checkTriggerCountValue (checker);
-        //                checkCrPartitionAssignmentMode (checker);
     }
 
     private static void checkUserSpecifiedAttributeNameExists(OperatorContextChecker checker, String paramNameToCheck) {
@@ -532,11 +635,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
         // Must call super.initialize(context) to correctly setup an operator.
-        super.initialize(context);
-        logger.trace("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+        super.initialize (context);
+        logger.info ("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
                 + context.getPE().getJobId());
         shutdown = new AtomicBoolean(false);
-        gson = new Gson();
 
         StreamSchema outputSchema = context.getStreamingOutputs().get(0).getStreamSchema();
         hasOutputKey = outputSchema.getAttribute(outputKeyAttrName) != null;
@@ -545,26 +647,60 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         hasOutputPartition = outputSchema.getAttribute(outputPartitionAttrName) != null;
         hasOutputOffset = outputSchema.getAttribute(outputOffsetAttrName) != null;
 
-
         Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
                 : String.class; // default to String.class for key type
         Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
         KafkaOperatorProperties kafkaProperties = getKafkaProperties();
 
         // set the group ID property if the groupId parameter is specified
-        if(groupId != null && !groupId.isEmpty()) {
-            kafkaProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        if (groupId != null && !groupId.isEmpty()) {
+            kafkaProperties.setProperty (ConsumerConfig.GROUP_ID_CONFIG, groupId);
         }
         final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
         final String gid = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
         this.groupIdSpecified = gid != null && !gid.isEmpty();
-        logger.debug ("group-ID specified: " + this.groupIdSpecified);
+        logger.log (DEBUG_LEVEL, "group-ID specified: " + this.groupIdSpecified);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         boolean groupManagementEnabled;
-        if (crContext == null)
+
+        if (crContext == null && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION)
             groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty()) && startPosition == StartPosition.Default;
         else 
             groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
+        if (this.groupIdSpecified && !groupManagementEnabled) {
+            if (hasInputPorts) {
+                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group because the operator is configured with an input port.",
+                        gid, context.getName()));
+            }
+            if (this.partitions != null && !this.partitions.isEmpty()) {
+                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group because partitions to consume are specified.",
+                        gid, context.getName()));
+            }
+            if (startPosition != StartPosition.Default && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION && crContext == null) {
+                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                        + "will NOT participate in a consumer group because startPosition != Default is configured.",
+                        gid, context.getName()));
+            }
+        }
+        // when group management is disabled and no input port is configured, we must not subscribe with pattern
+        // When we are here it is already guaranteed that we have one of the 'topic' or 'pattern' parameter
+        final boolean p = this.pattern != null;
+        final boolean t = this.topics != null;
+        assert ((p && !t) || (t && !p));
+        if (!groupManagementEnabled && !hasInputPorts && p) {
+            final String msg = Messages.getString ("PATTERN_SUBSCRIPTION_REQUIRES_GROUP_MGT", PATTERN_PARAM, context.getName(), context.getKind());
+            logger.error (msg);
+            throw new KafkaConfigurationException (msg);
+        }
+        if (crContext != null) {
+            commitMode = CommitMode.ConsistentRegionDrain;
+        }
+        else {
+            final Set <String> parameterNames = context.getParameterNames();
+            commitMode = parameterNames.contains (COMMIT_COUNT_PARAM)? CommitMode.TupleCount: CommitMode.Time;
+        }
         this.isGroupManagementActive.setValue (groupManagementEnabled? 1: 0);
         if (crContext == null) {
             if (groupManagementEnabled) {
@@ -573,11 +709,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setKafkaProperties(kafkaProperties)
                 .setKeyClass(keyClass)
                 .setValueClass(valueClass)
-                .setNumTopics (this.topics == null? 0: this.topics.size())
+                .setSingleTopic (this.topics != null && this.topics.size() == 1)
                 .setPollTimeout(this.consumerPollTimeout)
+                .setInitialStartPosition (this.startPosition)
+                .setCommitMode (commitMode)
+                .setCommitPeriod (commitPeriod)
                 .setCommitCount(commitCount);
                 consumer = builder.build();
-
             }
             else {
                 NonCrKafkaConsumerClient.Builder builder = new NonCrKafkaConsumerClient.Builder();
@@ -586,6 +724,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setKeyClass(keyClass)
                 .setValueClass(valueClass)
                 .setPollTimeout(this.consumerPollTimeout)
+                .setInitialStartPosition (this.startPosition)
+                .setCommitMode (commitMode)
+                .setCommitPeriod (commitPeriod)
                 .setCommitCount(commitCount);
                 consumer = builder.build();
             }
@@ -598,7 +739,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 .setKeyClass (keyClass)
                 .setValueClass (valueClass)
                 .setPollTimeout (this.consumerPollTimeout)
-                .setNumTopics (this.topics == null? 0: this.topics.size())
+                .setSingleTopic (this.topics != null && this.topics.size() == 1)
                 .setTriggerCount (this.triggerCount)
                 .setInitialStartPosition (this.startPosition)
                 .setInitialStartTimestamp (this.startTime);
@@ -627,20 +768,36 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             throw e;
         }
 
-        // input port not used, so topic must be defined
+        // input port not used, so topic or pattern must be defined
         if (!hasInputPorts) {
-            if (topics != null) {
+            if (t) {  // topics != null
                 final boolean registerAsInput = true;
                 registerForDataGovernance(context, topics, registerAsInput);
-
-                if(startPosition == StartPosition.Time) {
-                    consumer.subscribeToTopicsWithTimestamp(topics, partitions, startTime);
-                } else if(startPosition == StartPosition.Offset) {
-                    consumer.subscribeToTopicsWithOffsets(topics.get(0), partitions, startOffsets);
-                } else {
-                    consumer.subscribeToTopics(topics, partitions, startPosition);
+                switch (startPosition) {
+                case Time:
+                    consumer.subscribeToTopicsWithTimestamp (topics, partitions, startTime);
+                    break;
+                case Offset:
+                    consumer.subscribeToTopicsWithOffsets (topics.get(0), partitions, startOffsets);
+                    break;
+                default:
+                    consumer.subscribeToTopics (topics, partitions, startPosition);
                 }
-            }	
+            }
+            else {
+                switch (startPosition) {
+                case Time:
+                    consumer.subscribeToTopicsWithTimestamp (pattern, startTime);
+                    break;
+                case Beginning:
+                case End:
+                case Default:
+                    consumer.subscribeToTopics (pattern, startPosition);
+                    break;
+                default:
+                    throw new KafkaClientInitializationException ("Illegal 'startPosition' value for subscription with pattern: " + startPosition);
+                }
+            }
         }
 
         if (crContext != null && context.getPE().getRelaunchCount() > 0) {
@@ -652,6 +809,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             @Override
             public void run() {
                 try {
+                    processThreadEndedLatch = new CountDownLatch (1);
                     // initiates start polling if assigned or subscribed by sending an event
                     produceTuples();
                 } catch (Exception e) {
@@ -659,6 +817,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     // Propagate all exceptions to the runtime to make the PE fail and possibly restart.
                     // Otherwise this thread terminates leaving the PE in a healthy state without being healthy.
                     throw new RuntimeException (e.getLocalizedMessage(), e);
+                } finally {
+                    processThreadEndedLatch.countDown();
+                    logger.info ("process thread (tid = " +  Thread.currentThread().getId() + ") ended.");
                 }
             }
         });
@@ -669,17 +830,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public synchronized void allPortsReady() throws Exception {
         OperatorContext context = getOperatorContext();
-        logger.trace("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
+        logger.info ("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
         // start the thread that produces the tuples out of the message queue. The thread runs the produceTuples() method.
-        if(processThread != null)
+        if (processThread != null) {
             processThread.start();
+        }
     }
 
     private void produceTuples() throws Exception {
 
         if (crContext != null && resettingLatch != null) {
-            logger.debug("Operator is in the middle of resetting. No tuples will be submitted until reset completes."); //$NON-NLS-1$
+            logger.log (DEBUG_LEVEL, "Defer tuple submission until reset finishes. Waiting ..."); //$NON-NLS-1$
             try {
                 resettingLatch.await();
             } catch (InterruptedException e) {
@@ -712,7 +874,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
             try {
                 // Any exceptions except InterruptedException thrown here are propagated to the caller
-                ConsumerRecord<?, ?> record = consumer.getNextRecord (1000, TimeUnit.MILLISECONDS);
+                // Make timeout for 'getNextRecord' not too high as it influences the granularity of time based offset commit
+                ConsumerRecord<?, ?> record = consumer.getNextRecord (100, TimeUnit.MILLISECONDS);
                 if (record != null) {
                     submitRecord(record);
                     consumer.postSubmit(record);
@@ -787,7 +950,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
         if(hasOutputTimetamp) {
             tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
-        }            
+        }
         out.submit(tuple);
     }
 
@@ -813,62 +976,43 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             throw new Exception(Messages.getString("UNSUPPORTED_TYPE_EXCEPTION", (attrValue.getClass().getTypeName()), attrName)); //$NON-NLS-1$
     }
 
+    /**
+     * @see com.ibm.streams.operator.AbstractOperator#processPunctuation(com.ibm.streams.operator.StreamingInput, com.ibm.streams.operator.StreamingData.Punctuation)
+     */
     @Override
-    public void process(StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
+    public void processPunctuation (StreamingInput<Tuple> stream, Punctuation mark) throws Exception {
+        if (mark == Punctuation.FINAL_MARKER) {
+            logger.fatal ("Final Marker received at input port. Tuple submission is stopped. Stop fetching records.");
+            // make the processThread - the thread that submits tuples and initiates offset commit - terminate
+            shutdown.set (true);
+            if (processThreadEndedLatch != null) {
+                processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+                processThreadEndedLatch = null;
+            }
+            consumer.sendStopPollingEvent();
+            consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+        }
+    }
+
+    @Override
+    public void process (StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
 
         boolean interrupted = false;
         try {
-            String jsonString = tuple.getString(0);
-            JsonObject jsonObj = gson.fromJson(jsonString, JsonObject.class);
-
-            TopicPartitionUpdateAction action = null;
-            if(jsonObj.has("action")) { //$NON-NLS-1$
-                action = TopicPartitionUpdateAction.valueOf(jsonObj.get("action").getAsString().toUpperCase()); //$NON-NLS-1$
-            } else {
-                logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "action", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                return;
-            }
-
-            Map<TopicPartition, Long> topicPartitionOffsetMap = null;
-            if(jsonObj.has("topicPartitionOffsets")) { //$NON-NLS-1$
-                topicPartitionOffsetMap = new HashMap<TopicPartition, Long>();
-                JsonArray arr = jsonObj.get("topicPartitionOffsets").getAsJsonArray(); //$NON-NLS-1$
-                Iterator<JsonElement> it = arr.iterator();
-                while(it.hasNext()) {
-                    JsonObject tpo = it.next().getAsJsonObject();
-                    if(!tpo.has("topic")) { //$NON-NLS-1$
-                        logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "topic", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                        return;
-                    }
-
-                    if(!tpo.has("partition")) { //$NON-NLS-1$
-                        logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "partition", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                        return;
-                    }
-
-
-                    if(action == TopicPartitionUpdateAction.ADD && !tpo.has("offset")) { //$NON-NLS-1$
-                        logger.error(Messages.getString("INVALID_JSON_MISSING_KEY", "offset", jsonString)); //$NON-NLS-1$ //$NON-NLS-2$
-                        return;
-                    }
-
-                    String topic = tpo.get("topic").getAsString(); //$NON-NLS-1$
-                    int partition = tpo.get("partition").getAsInt(); //$NON-NLS-1$
-                    long offset = tpo.has("offset") ? tpo.get("offset").getAsLong() : 0l; //$NON-NLS-1$ //$NON-NLS-2$
-
-                    topicPartitionOffsetMap.put(new TopicPartition(topic, partition), offset);
-                }
-            }
-
-            //        	consumer.sendStopPollingEvent();
-            consumer.onTopicAssignmentUpdate (new TopicPartitionUpdate(action, topicPartitionOffsetMap));
+            TopicPartitionUpdate updt = TopicPartitionUpdate.fromJSON (tuple.getString(0));
+            consumer.onTopicAssignmentUpdate (updt);
+        } catch (TopicPartitionUpdateParseException e) {
+            logger.error("Could not process control tuple. Parsing JSON '" + e.getJson() + "' failed.");
+            logger.error (e.getMessage(), e);
         } catch (InterruptedException e) {
             // interrupted during shutdown
             interrupted = true;
         } catch (Exception e) {
+            logger.error("Could not process control tuple: '" + tuple + "'");
             logger.error(e.getMessage(), e);
         } finally {
             if (!interrupted && consumer.isSubscribedOrAssigned()) {
+                logger.info ("sendStartPollingEvent ...");
                 consumer.sendStartPollingEvent();
             }
         }
@@ -882,21 +1026,29 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
      *             Operator failure, will cause the enclosing PE to terminate.
      */
     public synchronized void shutdown() throws Exception {
-        shutdown.set(true);
-        consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-        OperatorContext context = getOperatorContext();
-        logger.trace("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
+        final OperatorContext context = getOperatorContext();
+        logger.info ("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
-
+        shutdown.set (true);
+        if (processThreadEndedLatch != null) {
+            processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+            processThreadEndedLatch = null;
+        }
+        if (consumer.isProcessing()) {
+            consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+        }
+        logger.info ("Operator " + context.getName() + ": shutdown done");
         // Must call super.shutdown()
         super.shutdown();
     }
 
     @Override
     public void drain() throws Exception {
-        logger.debug (">>> DRAIN"); //$NON-NLS-1$
+        logger.log (DEBUG_LEVEL, ">>> DRAIN"); //$NON-NLS-1$
         long before = System.currentTimeMillis();
-        consumer.onDrain();
+        if (consumer.isProcessing()) {
+            consumer.onDrain();
+        }
         // When a checkpoint is to be created, the operator must stop sending tuples by pulling messages out of the messageQueue.
         // This is achieved via acquiring a permit. In the background, more messages are pushed into the queue by a receive thread
         // incrementing the read offset.
@@ -910,7 +1062,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             getOperatorContext().getMetrics().getCustomMetric(ConsumerClient.DRAIN_TIME_MILLIS_MAX_METRIC_NAME).setValue(duration);
             maxDrainMillis = duration;
         }
-        logger.debug (">>> DRAIN took " + duration + " ms");
+        logger.log (DEBUG_LEVEL, ">>> DRAIN took " + duration + " ms");
     }
 
     /**
@@ -919,52 +1071,59 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void retireCheckpoint (long id) throws Exception {
         logger.debug(">>> RETIRE CHECKPOINT (ckpt id=" + id + ")");
-        consumer.onCheckpointRetire (id);
+        if (consumer.isProcessing()) {
+            consumer.onCheckpointRetire (id);
+        }
     }
 
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
-        logger.debug (">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
-        consumer.onCheckpoint (checkpoint);
+        logger.log (DEBUG_LEVEL, ">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        if (consumer.isProcessing()) {
+            consumer.onCheckpoint (checkpoint);
+        }
     }
 
     @Override
     public void reset(Checkpoint checkpoint) throws Exception {
-        final int attempt = crContext.getResetAttempt();
+        final int attempt = crContext == null? -1: crContext.getResetAttempt();
         final long sequenceId = checkpoint.getSequenceId();
-        logger.debug (MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, attempt));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
         final long before = System.currentTimeMillis();
         try {
-            consumer.sendStopPollingEvent();
-            consumer.onReset (checkpoint);
+            if (consumer.isProcessing()) {
+                // it is up to the consumer client implementation to stop polling.
+                consumer.onReset (checkpoint);
+            }
         }
         catch (InterruptedException e) {
-            logger.debug ("RESET interrupted)");
+            logger.log (DEBUG_LEVEL, "RESET interrupted)");
             return;
         }
         finally {
             // latch will be null if the reset was caused
-            // by another operator
+            // by another PE, i.e. when relaunch count == 0 in initialize(context)
             if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
-            logger.debug (MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
+            logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
         }
     }
 
     @Override
     public void resetToInitialState() throws Exception {
         final int attempt = crContext.getResetAttempt();
-        logger.debug (MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
-        consumer.sendStopPollingEvent();
-        consumer.onResetToInitialState();
-
+        if (consumer.isProcessing()) {
+            // it is up to the consumer client implementation to stop polling.
+            consumer.onResetToInitialState();
+        }
         // latch will be null if the reset was caused
-        // by another operator
+        // by another PE, i.e. when relaunch count == 0 in initialize(context)
         if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;
-        logger.debug (MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
     }
 }

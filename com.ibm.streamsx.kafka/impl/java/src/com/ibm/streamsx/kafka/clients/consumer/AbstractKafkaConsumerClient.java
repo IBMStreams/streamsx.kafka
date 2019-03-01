@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.CommitFailedException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -74,7 +75,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private BlockingQueue<Event> eventQueue;
     private BlockingQueue<ConsumerRecord<?, ?>> messageQueue;
     private List <ConsumerRecord<?, ?>> drainBuffer;
-    private boolean groupIdGenerated = false;
+    private final String groupId;
+    private final boolean groupIdGenerated;
     private long pollTimeout = DEFAULT_CONSUMER_POLL_TIMEOUT_MS;
     private int maxPollRecords;
     private long maxPollIntervalMs;
@@ -82,6 +84,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     private AtomicBoolean processing;
     private Set<TopicPartition> assignedPartitions = new HashSet<>();
+    private Set<String> consumedTopics = new HashSet<>();
     private SubscriptionMode subscriptionMode = SubscriptionMode.NONE;
 
     private Exception initializationException;
@@ -90,6 +93,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nPendingMessages;
     private final Metric nLowMemoryPause;
     private final Metric nQueueFullPause;
+    private final Metric nConsumedTopics;
     protected final Metric nAssignedPartitions;
 
     // Lock/condition for when we pause processing due to
@@ -127,12 +131,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         }
 
         // create a random group ID for the consumer if one is not specified
-        if (!kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-        	ProcessingElement pe = operatorContext.getPE();
-        	String groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
-        			+ pe.getJobId() + operatorContext.getName().hashCode();
-            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-            groupIdGenerated = true;
+        if (kafkaProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
+            this.groupIdGenerated = false;
+            this.groupId = kafkaProperties.getProperty (ConsumerConfig.GROUP_ID_CONFIG);
+        }
+        else {
+            ProcessingElement pe = operatorContext.getPE();
+            this.groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
+                    + pe.getJobId() + operatorContext.getName().hashCode();
+            this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, this.groupId);
+            this.groupIdGenerated = true;
         }
         // always disable auto commit 
         if (kafkaProperties.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
@@ -144,7 +152,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             logger.info("consumer config '" + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG + "' has been set to 'false'");
         }
         this.kafkaProperties.put (ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-        
+
         // add our metric reporter
         this.kafkaProperties.put (ConsumerConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "10000");
         if (kafkaProperties.containsKey (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG)) {
@@ -155,7 +163,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         else {
             this.kafkaProperties.put (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, ConsumerMetricsReporter.class.getCanonicalName());
         }
-        
+
         this.timeouts = new ConsumerTimeouts (operatorContext, this.kafkaProperties);
         timeouts.adjust (this.kafkaProperties);
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);
@@ -164,10 +172,34 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         processing = new AtomicBoolean (false);
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (getMessageQueueSizeMultiplier() * getMaxPollRecords());
         drainBuffer = new ArrayList<ConsumerRecord<?, ?>> (messageQueue.remainingCapacity());
-        this.nPendingMessages = operatorContext.getMetrics().getCustomMetric("nPendingMessages");
-        this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric("nLowMemoryPause");
-        this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric("nQueueFullPause");
-        this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric("nAssignedPartitions");
+        this.nPendingMessages = operatorContext.getMetrics().getCustomMetric ("nPendingMessages");
+        this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric ("nLowMemoryPause");
+        this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric ("nQueueFullPause");
+        this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric ("nAssignedPartitions");
+        this.nConsumedTopics = operatorContext.getMetrics().getCustomMetric ("nConsumedTopics");
+    }
+
+    /**
+     * Replaces the consumed topics by the topics from the collection of topic partitions and maintains the custom metric "nConsumedTopics"
+     * @param topicPartitions A collection of topic partitions. Multiple occurrences of the same topic will be counted as one single topic.
+     */
+    protected void setConsumedTopics (Collection<TopicPartition> topicPartitions) {
+        synchronized (this.consumedTopics) {
+            this.consumedTopics.clear();
+            if (topicPartitions != null) {
+                topicPartitions.forEach (tp -> this.consumedTopics.add (tp.topic()));
+            }
+            this.nConsumedTopics.setValue (this.consumedTopics.size());
+        }
+    }
+
+    /**
+     * Returns the Kafka consumer group identifier, i.e. the value of the consumer config 'group.id'.
+     * @return the group Id
+     * @see #isGroupIdGenerated()
+     */
+    public String getGroupId() {
+        return groupId;
     }
 
 
@@ -259,6 +291,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     logger.debug ("Event thread interrupted. Terminating thread.");
                     return;
                 }
+                finally {
+                    processing.set (false);
+                    logger.info ("event thread (tid = " +  Thread.currentThread().getId() + ") ended.");
+                }
             }
         });
         eventThread.setDaemon(false);
@@ -267,12 +303,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         consumerInitLatch.await();
         if (this.metricsFetcher == null) {
             this.metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
-                
+
                 @Override
                 public Map<MetricName, ? extends org.apache.kafka.common.Metric> getMetrics() {
                     return consumer.metrics();
                 }
-                
+
                 @Override
                 public String createCustomMetricName (MetricName metricName) throws KafkaMetricException {
                     return ConsumerMetricsReporter.createOperatorMetricName (metricName);
@@ -282,6 +318,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (initializationException != null)
             throw new KafkaClientInitializationException (initializationException.getLocalizedMessage(), initializationException);
     }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#isProcessing()
+     */
+    @Override
+    public boolean isProcessing() {
+        return processing.get();
+    }
+
 
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#isAssignedToTopics()
@@ -307,12 +352,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             if (event == null) {
                 continue;
             }
-
-            logger.debug (MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
             switch (event.getEventType()) {
             case START_POLLING:
-                StartPollingEventParameters p = (StartPollingEventParameters) event.getData();
-                runPollLoop (p.getPollTimeoutMs(), p.getThrottlePauseMs());
+                if (isSubscribedOrAssigned()) {
+                    StartPollingEventParameters p = (StartPollingEventParameters) event.getData();
+                    runPollLoop (p.getPollTimeoutMs(), p.getThrottlePauseMs());
+                }
                 break;
             case STOP_POLLING:
                 event.countDownLatch();  // indicates that polling has stopped
@@ -371,14 +417,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     /**
      * Commits the offsets given in the map of the CommitInfo instance with the given controls set within the object.
+     * This method must only be invoked by the thread that runs the poll loop.
+     * 
      * @param offsets the offsets per topic partition and control information. The offsets must be the last processed offsets +1.
      * @throws InterruptedException The thread has been interrupted while committing synchronously
      * @throws RuntimeException  All other kinds of unrecoverable exceptions
      */
     protected void commitOffsets (CommitInfo offsets) throws RuntimeException {
         final Map<TopicPartition, OffsetAndMetadata> offsetMap = offsets.getMap();
-        if (logger.isDebugEnabled()) {
-            logger.debug ("Going to commit offsets: " + offsets);
+        if (logger.isEnabledFor (DEBUG_LEVEL)) {
+            logger.log (DEBUG_LEVEL, "Going to commit offsets: " + offsets);
             if (offsetMap.isEmpty()) {
                 logger.debug ("no offsets to commit ...");
             }
@@ -386,14 +434,19 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (offsetMap.isEmpty()) {
             return;
         }
+        // we can only commit assigned partitions
+        Set <TopicPartition> currentAssignment = getConsumer().assignment();
         if (offsets.isCommitPartitionWise()) {
             Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>(1);
             for (TopicPartition tp: offsetMap.keySet()) {
+                // do not commit for partitions we are not assigned
+                if (!currentAssignment.contains(tp)) continue;
                 map.clear();
                 map.put(tp, offsetMap.get(tp));
                 if (offsets.isCommitSynchronous()) {
                     try {
                         consumer.commitSync(map);
+                        postOffsetCommit (map);
                     }
                     catch (CommitFailedException e) {
                         // the commit failed and cannot be retried. This can only occur if you are using 
@@ -411,10 +464,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             }
         }
         else {
+            Map <TopicPartition, OffsetAndMetadata> map = new HashMap<>();
+            offsetMap.forEach ((tp, offsMeta) -> {
+                if (currentAssignment.contains (tp)) {
+                    map.put (tp, offsMeta);
+                }
+            });
+            if (map.isEmpty()) {
+                logger.log (DEBUG_LEVEL, "no offsets to commit ... (partitions not assigned)");
+                return;
+            }
             if (offsets.isCommitSynchronous()) {
                 try {
-                    // can succeed partially
-                    consumer.commitSync (offsetMap);
+                    consumer.commitSync (map);
+                    postOffsetCommit (map);
                 }
                 catch (CommitFailedException e) {
                     //if the commit failed and cannot be retried. This can only occur if you are using 
@@ -427,15 +490,28 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 }
             }
             else {
-                consumer.commitAsync (offsetMap, this);
+                consumer.commitAsync (map, this);
             }
         }
     }
 
 
     /**
+     * This method is a hook which is called <b>after <i>successful</i> commit</b> of offsets.
+     * When offsets are committed synchronous, the hook is called within the thread that committed the offsets,
+     * which is the thread that invokes also the calls of 'consumer.poll'.
+     * When offsets are committed asynchronous, the method is invoked by the commit callback.
+     * 
+     * Concrete classes must provide an implementation for this method.
+     * 
+     * @param offsets The mapping from topic partition to offsets (and meta data)
+     */
+    protected abstract void postOffsetCommit (Map<TopicPartition, OffsetAndMetadata> offsets);
+
+    /**
      * Implements the shutdown sequence.
-     * This sequence includes 
+     * This sequence includes
+     * * remove all pending messages from the message queue
      * * closing the consumer
      * * terminating the event thread by setting the end condition
      * 
@@ -443,8 +519,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void shutdown() {
         logger.debug("Shutdown sequence started..."); //$NON-NLS-1$
+        getMessageQueue().clear();
+        drainBuffer.clear();
         consumer.close(CONSUMER_CLOSE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        processing.set(false);
+        processing.set (false);
     }
 
     /**
@@ -454,15 +532,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected abstract void processResetToInitEvent();
 
     /**
-     * Resets the client to a previous state when used in consistent region.
-     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
+     * Resets the client to a previous state when used in consistent region or checkpointing is configured.
+     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region
+     * or checkpointing is not supported.
      * @param checkpoint the checkpoint that contains the previous state
      */
     protected abstract void processResetEvent(Checkpoint checkpoint);
 
     /**
-     * Creates a checkpoint of the current state when used in consistent region.
-     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region is not supported.
+     * Creates a checkpoint of the current state when used in consistent region or when checkpointing is configured.
+     * Derived classes must overwrite this method, but can provide an empty implementation if consistent region
+     * or checkpointing is not supported.
      * @param checkpoint A reference of a checkpoint object where the user provides the state to be saved.
      */
     protected abstract void processCheckpointEvent(Checkpoint checkpoint);
@@ -488,6 +568,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected abstract int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException;
 
+    /**
+     * A hook that is called before records are de-queued from the message queue for tuple submission.
+     * This method is also called when there would be nothing in the queue.
+     * Derived classes must implement this method.
+     */
+    protected abstract void preDeQueueForSubmit();
 
     /**
      * Gets the next consumer record that has been received. If there are no records, the method waits the specified timeout.
@@ -515,6 +601,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         // if filling the queue is NOT stopped, we can, of cause,
         // fetch a record now from the queue, even when we have seen an empty queue, shortly before... 
 
+        preDeQueueForSubmit();
         // messageQueue.poll throws InterruptedException
         record = messageQueue.poll (timeout, timeUnit);
         if (record == null) {
@@ -550,6 +637,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
 
+    /**
+     * Removes all records from the drain buffer. This call is synchronized via the monitor of the drain buffer.
+     */
     protected void clearDrainBuffer() {
         synchronized (drainBuffer) {
             drainBuffer.clear();
@@ -592,11 +682,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void runPollLoop (long pollTimeout, long throttleSleepMillis) throws InterruptedException {
         if (throttleSleepMillis > 0l) {
-            logger.debug (MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
                     throttleSleepMillis, getMaxPollRecords()));
         }
         else {
-            logger.debug (MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
         }
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
@@ -612,13 +702,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 messageQueue.addAll (drainBuffer);
                 final int qSize = messageQueue.size();
                 drainBuffer.clear();
-                logger.debug (MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
+                logger.log (DEBUG_LEVEL, MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
             }
         }
         // continue polling for messages until a new event
         // arrives in the event queue
         fetchPaused = consumer.paused().size() > 0;
-        logger.debug ("previously paused partitions: " + consumer.paused());
+        logger.log (DEBUG_LEVEL, "previously paused partitions: " + consumer.paused());
         int nConsecutiveRuntimeExc = 0;
         while (eventQueue.isEmpty()) {
             boolean doPoll = true;
@@ -690,7 +780,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (!isSpaceInMsgQueueWait()) {
             if (!fetchPaused) {
                 consumer.pause (assignedPartitions);
-                if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - no space in message queue, fetching paused");
+                if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "runPollLoop() - no space in message queue, fetching paused");
                 fetchPaused = true;
             }
         }
@@ -700,7 +790,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 try {
                     // when not paused, 'resumed' is a no-op
                     consumer.resume (assignedPartitions);
-                    if (logger.isDebugEnabled()) logger.debug ("runPollLoop() - fetching resumed");
+                    if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "runPollLoop() - fetching resumed");
                     fetchPaused = false;
                 }
                 catch (IllegalStateException e) {
@@ -734,11 +824,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             }
         }
         if (!space) {
-            if (logger.isDebugEnabled()) {
+            if (logger.isEnabledFor (DEBUG_LEVEL)) {
                 if (lowMemory) {
-                    logger.debug (MessageFormat.format ("low memory detected: messages queued ({0}).", mqSize));
+                    logger.log (DEBUG_LEVEL, MessageFormat.format ("low memory detected: messages queued ({0}).", mqSize));
                 } else {
-                    logger.debug (MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}).",
+                    logger.log (DEBUG_LEVEL, MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}).",
                             remainingCapacity, maxPollRecords));
                 }
             }
@@ -882,6 +972,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
     /**
      * Assigns the consumer to the given set of topic partitions manually. No group management.
+     * This assignment will replace the previous assignment.
      * @param topicPartitions The topic partitions. null or an empty set is equivalent to
      *                        unsubscribe from everything previously subscribed or assigned.
      */
@@ -890,22 +981,46 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (topicPartitions == null) topicPartitions = Collections.emptySet();
         consumer.assign(topicPartitions);
         this.assignedPartitions = new HashSet<TopicPartition> (topicPartitions);
-        // update metric:
+        // update metrics:
+        setConsumedTopics (topicPartitions);
         nAssignedPartitions.setValue (this.assignedPartitions.size());
         this.subscriptionMode = topicPartitions.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.ASSIGNED;
     }
 
     /**
      * Subscribes the consumer to the given topics. Subscription enables dynamic group assignment.
+     * This subscription unassigns all partitions and replaces a previous subscription.
      * @param topics The topics to subscribe. An empty list or null is treated as unsubscribe from all.
      * @param rebalanceListener an optional ConsumerRebalanceListener
      */
-    protected void subscribe(Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
+    protected void subscribe (Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
         logger.info("Subscribing. topics = " + topics); //$NON-NLS-1$
         if (topics == null) topics = Collections.emptyList();
         consumer.subscribe (topics, rebalanceListener);
-        getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+        try {
+            getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+        } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
         this.subscriptionMode = topics.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.SUBSCRIBED;
+    }
+
+    /**
+     * Subscribes the consumer to the given pattern. Subscription enables dynamic group assignment.
+     * This subscription unassigns all partitions and replaces a previous subscription.
+     * @param pattern A pattern that matches the topics being consumed. If it is null, the all subscriptions are removed.
+     * @param rebalanceListener an optional ConsumerRebalanceListener
+     */
+    protected void subscribe (Pattern pattern, ConsumerRebalanceListener rebalanceListener) {
+        logger.info("Subscribing. pattern = " + (pattern == null? "null": pattern.pattern())); //$NON-NLS-1$
+        if (pattern == null) {
+            consumer.unsubscribe();
+        }
+        else {
+            consumer.subscribe (pattern, rebalanceListener);
+            try {
+                getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+            } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
+        }
+        this.subscriptionMode = SubscriptionMode.SUBSCRIBED;
     }
 
     /**
@@ -1014,9 +1129,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     /**
      * Seeks to the given position. This method evaluates lazily on next poll() or position() call.
      * @param topicPartitions The partitions to seek. If no partitions are given, all assigned partitions are seeked.
-     * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`.
+     * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
      */
     protected void seekToPosition(Collection<TopicPartition> topicPartitions, StartPosition startPosition) {
+        logger.info (MessageFormat.format ("seekToPosition() - {0}  -->  {1}", topicPartitions, startPosition));
         switch (startPosition) {
         case Beginning:
             consumer.seekToBeginning(topicPartitions);
@@ -1033,11 +1149,34 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
+     * Seeks a single topic partition to the given position. This method evaluates lazily on next poll() or position() call.
+     * @param tp The partition to seek.
+     * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
+     */
+    protected void seekToPosition (TopicPartition tp, StartPosition startPosition) {
+        logger.info (MessageFormat.format ("seekToPosition() - {0}  -->  {1}", tp, startPosition));
+        switch (startPosition) {
+        case Beginning:
+            consumer.seekToBeginning (Collections.nCopies (1, tp));
+            break;
+        case End:
+            consumer.seekToEnd (Collections.nCopies (1, tp));
+            break;
+        case Default:
+            logger.debug("seekToPosition: ignoring position " + startPosition);
+            break;
+        default:
+            throw new IllegalArgumentException("seekToPosition: illegal position: " + startPosition);
+        }
+    }
+
+    /**
      * Seek the consumer for a Set of topic partitions to the nearest offset for a timestamp.
      * If there is no such offset, the consumer will move to the offset as determined by the 'auto.offset.reset' config
      * @param topicPartitionTimestampMap mapping from topic partition to timestamp in milliseconds since epoch
      */
     protected void seekToTimestamp (Map<TopicPartition, Long> topicPartitionTimestampMap) {
+        logger.info (MessageFormat.format ("seekToTimestamp() - {0}", topicPartitionTimestampMap));
         Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes(topicPartitionTimestampMap);
         logger.debug("offsetsForTimes=" + offsetsForTimes);
         for (TopicPartition tp: topicPartitionTimestampMap.keySet()) {
@@ -1052,19 +1191,46 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
-     * Seeks to the given offsets for the given topic partitions. This offset is the offset that will is consume next.
+     * Seek the consumer for a single topic partitions to the nearest offset for a timestamp.
+     * If there is no such offset, the consumer will move to the offset as determined by the 'auto.offset.reset' config
+     * @param tp the topic partition
+     * @param timestamp the timestamp in milliseconds since epoch
+     */
+    protected void seekToTimestamp (TopicPartition tp, long timestamp) {
+        logger.info (MessageFormat.format ("seekToTimestamp() - {0}  --> {1}", tp, timestamp));
+        Map <TopicPartition, Long> topicPartitionTimestampMap = new HashMap<>(1);
+        topicPartitionTimestampMap.put (tp, new Long(timestamp));
+        Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes (topicPartitionTimestampMap);
+        logger.debug ("offsetsForTimes = " + offsetsForTimes);
+        OffsetAndTimestamp ot = offsetsForTimes.get(tp);
+        if (ot != null) {
+            logger.info ("Seeking consumer for tp = " + tp + " to offsetAndTimestamp=" + ot);
+            consumer.seek(tp, ot.offset());
+        } else {
+            // nothing...consumer will move to the offset as determined by the 'auto.offset.reset' config
+        }
+    }
+
+
+    /**
+     * Seeks to the given offsets for the given topic partitions. The offset is the new fetch position.
      * If offset equals -1, seek to the end of the topic
      * If offset equals -2, seek to the beginning of the topic
+     * If offset equals -3, no seek is performed at all for the topic partition being the key of the map.
      * Otherwise, seek to the specified offset
      */
-    private void seekToOffset(Map<TopicPartition, Long> topicPartitionOffsetMap) {
+    private void seekToOffset (Map<TopicPartition, Long> topicPartitionOffsetMap) {
+        logger.info (MessageFormat.format ("seekToOffset() - {0}", topicPartitionOffsetMap));
         topicPartitionOffsetMap.forEach((tp, offset) -> {
-            if(offset == -1l) {
-                getConsumer().seekToEnd(Arrays.asList(tp));
-            } else if(offset == -2) {
-                getConsumer().seekToBeginning(Arrays.asList(tp));
+            final long offs = offset.longValue();
+            if (offs == OffsetConstants.SEEK_END) {
+                getConsumer().seekToEnd (Arrays.asList(tp));
+            } else if (offs == OffsetConstants.SEEK_BEGINNING) {
+                getConsumer().seekToBeginning (Arrays.asList(tp));
+            } else if (offs == OffsetConstants.NO_SEEK) {
+                ;
             } else {
-                getConsumer().seek(tp, offset);  
+                getConsumer().seek (tp, offs);
             }
         });
     }
@@ -1077,15 +1243,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void assignToPartitionsWithOffsets (Map<TopicPartition, Long> topicPartitionOffsetMap) throws Exception {
         logger.debug("assignToTopicsWithOffsets: topicPartitionOffsetMap=" + topicPartitionOffsetMap);
-        if(topicPartitionOffsetMap != null) {
-            assign (topicPartitionOffsetMap.keySet());
-            if (!topicPartitionOffsetMap.isEmpty()) {
-                // seek to position
-                seekToOffset (topicPartitionOffsetMap);
-            }
+        if (topicPartitionOffsetMap == null || topicPartitionOffsetMap.isEmpty()) {
+            assign (Collections.emptySet());
         }
         else {
-            assign (Collections.emptySet());
+            assign (topicPartitionOffsetMap.keySet());
+            seekToOffset (topicPartitionOffsetMap);
         }
     }
 
@@ -1098,9 +1261,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     @Override
     public void onComplete (Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
         if (exception == null) {
-            if (logger.isInfoEnabled()) {
-                logger.debug ("onComplete(): Offsets successfully committed async: " + offsets);
+            if (logger.isEnabledFor (DEBUG_LEVEL)) {
+                logger.log (DEBUG_LEVEL, "onComplete(): Offsets successfully committed async: " + offsets);
             }
+            postOffsetCommit (offsets);
         }
         else {
             logger.warn(Messages.getString("OFFSET_COMMIT_FAILED", exception.getLocalizedMessage()));

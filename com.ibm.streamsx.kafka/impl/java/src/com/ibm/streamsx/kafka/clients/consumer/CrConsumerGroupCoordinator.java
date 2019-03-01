@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.management.Notification;
 import javax.management.NotificationBroadcasterSupport;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 /**
@@ -28,29 +29,47 @@ import org.apache.log4j.Logger;
  * @author IBM Kafka toolkit maintainers
  * @see CrConsumerGroupCoordinatorMXBean
  */
-public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /*AbstractPersistentControlMBean<Map<MergeKey, CheckpointMerge>>*/ implements CrConsumerGroupCoordinatorMXBean {
+public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport implements CrConsumerGroupCoordinatorMXBean {
 
     private final static Logger trace = Logger.getLogger(CrConsumerGroupCoordinator.class);
     private final static boolean INCLUDE_RESET_ATTEMPT_INTO_KEY = false;
+    private static long SEQUENCE_NO_UNINITIALIZED = Long.MIN_VALUE;
     private final String groupId;
     private final int crIndex;
-    private long notifSequenceNo = System.currentTimeMillis();
+    private final Level traceLevel;
     private Map<MergeKey, CheckpointMerge> mergeMap;
     private Set<String> registeredConsumerOperators;
-//    private Gson gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
-
+    //    private Gson gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
+    private long sequenceNumber = SEQUENCE_NO_UNINITIALIZED;
     private AtomicBoolean rebalanceResetPending;
+
+    /**
+     * get the next sequence number for JMX notification
+     * @param initialValue the initial value for sequence numbering
+     * @return a sequence number
+     */
+    private synchronized long nextSequenceNumber (long initialValue) {
+        if (sequenceNumber == SEQUENCE_NO_UNINITIALIZED) sequenceNumber = initialValue;
+        return sequenceNumber++;
+    }
 
     /**
      * constructs a new consumer group MBean
      */
-    public CrConsumerGroupCoordinator (String groupId, Integer consistentRegionIndex) {
+    public CrConsumerGroupCoordinator (String groupId, Integer consistentRegionIndex, String traceLevel) {
         super();
         this.groupId = groupId;
         this.crIndex = consistentRegionIndex.intValue();
-        this.mergeMap = Collections.synchronizedMap (new HashMap<>());
+        this.mergeMap = new HashMap<>();
         this.registeredConsumerOperators = new HashSet<>();
         this.rebalanceResetPending = new AtomicBoolean(false);
+        Level l = Level.DEBUG;
+        try {
+            l = Level.toLevel (traceLevel.toUpperCase());
+        } catch (Exception e) {
+            ;
+        }
+        this.traceLevel = l;
     }
 
     @Override
@@ -63,6 +82,19 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         trace.info (MessageFormat.format("registerConsumerOperator: {0}, nRegistered consumers = {1}", id, sz));
     }
 
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#deregisterConsumerOperator(java.lang.String)
+     */
+    @Override
+    public void deregisterConsumerOperator (String id) {
+        int sz = 0;
+        synchronized (registeredConsumerOperators) {
+            registeredConsumerOperators.remove (id);
+            sz = registeredConsumerOperators.size();
+        }
+        trace.info (MessageFormat.format("deregisterConsumerOperator: {0}, nRegistered consumers = {1}", id, sz));
+    }
+
     @Override
     public int getNumRegisteredConsumers() {
         int sz = 0;
@@ -70,6 +102,16 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             sz = registeredConsumerOperators.size();
         }
         return sz;
+    }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#getRegisteredConsumerOperators()
+     */
+    @Override
+    public Set<String> getRegisteredConsumerOperators() throws IOException {
+        synchronized (registeredConsumerOperators) {
+            return new HashSet<String> (registeredConsumerOperators);
+        }
     }
 
     /**
@@ -94,39 +136,41 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
      * Merges a checkpoint of a single consumer into the group checkpoint, which is the consumer group's view of the checkpointed data.
      * @param chkptSequenceId the checkpoint sequence ID.
      * @param resetAttempt the current number of attempts of resetting the CR
-     * @param allPartitions  the total set of all expected partitions
+     * @param nRequiredDistinctContributions the number of expected distinct contributions for merge completeness
      * @param partialResetOffsetMap the partial set of offsets being partialResetOffsetMap.keySet() typically a subset of allPartitions.
      * @param operatorName The unique name of the operator
      * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#mergeConsumerCheckpoint(long, int, Set, Map)
      */
     @Override
-    public void mergeConsumerCheckpoint (long chkptSequenceId, int resetAttempt,
-            Set<CrConsumerGroupCoordinator.TP> allPartitions, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap, String operatorName) {
+    public void mergeConsumerCheckpoint (long chkptSequenceId, int resetAttempt, int nRequiredDistinctContributions,
+            Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap, String operatorName) {
 
         boolean mergeComplete = false;
         MergeKey mergeKey = new MergeKey (chkptSequenceId, resetAttempt);
         CheckpointMerge merge = null;
-        synchronized (this) {
-            trace.debug (MessageFormat.format("mergeConsumerCheckpoint() - entering: [{0}, {1}] - seqId/resetAttempt = {2}, partialResetOffsetMap = {3}, expectedPartitions = {4}",
-                    operatorName, groupId, mergeKey, partialResetOffsetMap, allPartitions));
+        String mergeJson = "";
+        synchronized (mergeMap) {
+            trace.log (traceLevel, MessageFormat.format("mergeConsumerCheckpoint() - entering: [{0}, {1}] - seqId/resetAttempt = {2}, partialResetOffsetMap = {3}, nExpectedContribs = {4}",
+                    operatorName, groupId, mergeKey, partialResetOffsetMap, nRequiredDistinctContributions));
             merge = mergeMap.get(mergeKey);
             if (merge == null) {
-                merge = new CheckpointMerge (mergeKey);
+                merge = new CheckpointMerge (mergeKey, nRequiredDistinctContributions);
+                merge.setTraceLevel (traceLevel);
                 mergeMap.put (mergeKey, merge);
             }
-            mergeComplete = merge.addContribution (operatorName, allPartitions, partialResetOffsetMap);
+            mergeComplete = merge.addContribution (operatorName, nRequiredDistinctContributions, partialResetOffsetMap);
+            if (mergeComplete)
+                mergeJson = merge.toJson();
         }
         if (mergeComplete) {
-            // the sequence number is the checkpoint sequence ID, the message contains the complete merge as JSON
-//            Notification notif = new Notification (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, this, chkptSequenceId, gson.toJson (merge));
-            Notification notif = new Notification (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, this, chkptSequenceId, merge.toJson());
-            if (trace.isDebugEnabled()) {
+            Notification notif = new Notification (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, this, nextSequenceNumber (chkptSequenceId + 1l), mergeJson);
+            if (trace.isEnabledFor (traceLevel)) {
                 trace.debug(MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - offset merge is complete. Sending merge complete notification for seqId {2}",
                         operatorName, groupId, mergeKey));
             }
             sendNotification (notif);
-            if (trace.isDebugEnabled()) {
-                trace.debug (MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - JMX notification sent: {2}",
+            if (trace.isEnabledFor (traceLevel)) {
+                trace.log (traceLevel, MessageFormat.format("mergeConsumerCheckpoint(): [{0}, {1}] - JMX notification sent: {2}",
                         operatorName, groupId, notif));
             }
         }
@@ -144,22 +188,26 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
      */
     public Map<CrConsumerGroupCoordinator.TP, Long> getConsolidatedOffsetMap (long chkptSequenceId, int resetAttempt, String operatorName) {
         MergeKey mergeKey = new MergeKey (chkptSequenceId, resetAttempt);
-        trace.debug (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - seqId/resetAttempt = {2}",
+        trace.log (traceLevel, MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - seqId/resetAttempt = {2}",
                 operatorName, groupId, mergeKey));
-        CheckpointMerge merge = mergeMap.get (mergeKey);
-        if (merge == null) {
-            trace.warn (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - offset map for seqId {2} not found. Returning an empty Map.",
-                    operatorName, groupId, mergeKey));
-            return (Collections.emptyMap());
+        Map<CrConsumerGroupCoordinator.TP, Long> returnVal;
+        synchronized (mergeMap) {
+
+            CheckpointMerge merge = mergeMap.get (mergeKey);
+            if (merge == null) {
+                trace.warn (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - offset map for seqId {2} not found. Returning an empty Map.",
+                        operatorName, groupId, mergeKey));
+                return (Collections.emptyMap());
+            }
+            assert (merge != null);
+            if (!merge.isComplete()) {
+                trace.warn (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - returning incomplete offset map for seqId {2}.",
+                        operatorName, groupId, mergeKey));
+            }
+            returnVal = new HashMap<> (merge.getConsolidatedOffsetMap());
+            trace.log (traceLevel, MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - return = {2}",
+                    operatorName, groupId, returnVal));
         }
-        assert (merge != null);
-        if (!merge.isComplete()) {
-            trace.warn (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - returning incomplete offset map for seqId {2}.",
-                    operatorName, groupId, mergeKey));
-        }
-        Map<CrConsumerGroupCoordinator.TP, Long> returnVal = merge.getConsolidatedOffsetMap();
-        trace.debug (MessageFormat.format("getConsolidatedOffsetMap(): [{0}, {1}] - return = {2}",
-                operatorName, groupId, returnVal));
         return returnVal;
     }
 
@@ -172,7 +220,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
     @Override
     public void cleanupMergeMap (long chkptSequenceId) throws IOException {
         int removedKeys = 0;
-        synchronized (this) {
+        synchronized (mergeMap) {
             Collection<MergeKey> retiredMergeKeys = new ArrayList<>(10);
             for (MergeKey k: mergeMap.keySet()) {
                 if (k.getSequenceId() <= chkptSequenceId) {   // remove also older (smaller) IDs
@@ -185,17 +233,17 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             }
         }
         if (removedKeys > 0) 
-            trace.debug (MessageFormat.format ("cleanupMergeMap() {0} {1} removed for checkpoint sequence {2}",
+            trace.log (traceLevel, MessageFormat.format ("cleanupMergeMap() {0} {1} removed for checkpoint sequence {2}",
                     removedKeys, (removedKeys == 1? "merge": "merges"), chkptSequenceId));
     }
 
     @Override
     public boolean getAndSetRebalanceResetPending (boolean pending, String operatorName) {
         boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
-        if (trace.isDebugEnabled()) 
-            trace.debug (MessageFormat.format ("getAndSetRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+        if (trace.isEnabledFor (traceLevel)) 
+            trace.log (traceLevel, MessageFormat.format ("getAndSetRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
         if (previousVal != pending) {
-            trace.debug (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
+            trace.log (traceLevel, MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
                     operatorName, groupId, pending));
         }
         return previousVal;
@@ -204,10 +252,10 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
     @Override
     public void setRebalanceResetPending (boolean pending, String operatorName) {
         boolean previousVal = this.rebalanceResetPending.getAndSet (pending);
-        if (trace.isDebugEnabled()) 
-            trace.debug (MessageFormat.format ("setRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
+        if (trace.isEnabledFor (traceLevel)) 
+            trace.log (traceLevel, MessageFormat.format ("setRebalanceResetPending: old state = {0}; new state = {1}", previousVal, pending));
         if (previousVal != pending) {
-            trace.debug (MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
+            trace.log (traceLevel, MessageFormat.format ("[{0}, {1}] rebalance reset pending state toggled to {2}",
                     operatorName, groupId, pending));
         }
     }
@@ -215,28 +263,11 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
     @Override
     public boolean isRebalanceResetPending() {
         boolean val = this.rebalanceResetPending.get();
-        if (trace.isDebugEnabled()) 
-            trace.debug (MessageFormat.format ("getRebalanceResetPending: state = {0}", val));
+        if (trace.isEnabledFor (traceLevel)) 
+            trace.log (traceLevel, MessageFormat.format ("getRebalanceResetPending: state = {0}", val));
         return val;
     }
 
-
-    /**
-     * broadcasts a JMX message of type all registered notification listeners that contains the given data
-     * the partitions given in the partitions parameter.
-     * @param data the data to be broadcasted. This can be a deserialized object, for example.
-     * @param jmxNotificationType the notification type
-     * 
-     * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#broadcastData(java.lang.String, java.lang.String)
-     */
-    @Override
-    public void broadcastData (String data, String jmxNotificationType) {
-        trace.debug ("broadcastData(): data = " + data + ", jmxNotificationType = " + jmxNotificationType);
-        Notification notif = new Notification (jmxNotificationType, this, this.notifSequenceNo++, data);
-        trace.debug("sending JMX notification: " + notif);
-        sendNotification (notif);
-        trace.debug("notification sent: " + notif);
-    }
 
     /**
      * This class represents the key for the consolidation map. It is the combination of a checkpoint sequence ID and the reset attempt number.
@@ -398,7 +429,50 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         }
     }
 
+    public static void main (String[] args) {
+        // test JSON generation
+        com.google.gson.Gson gson = (new com.google.gson.GsonBuilder()).enableComplexMapKeySerialization().create();
+        int nExpectedContribs = 3;
+        CheckpointMerge m = new CheckpointMerge (new MergeKey(2,  1), nExpectedContribs);
+        Map <TP, Long> m1 = new HashMap <>();
+        m1.put (new TP ("top1", 0), 10l);
+        m1.put (new TP ("top1", 1), 11l);
 
+        Map <TP, Long> m2 = new HashMap <>();
+        m2.put (new TP ("top1", 2), 12l);
+        m2.put (new TP ("top2", 0), 20l);
+
+        Map <TP, Long> m3 = new HashMap <>();
+        m3.put (new TP ("top2", 1), 21l);
+
+        m.addContribution ("opName1", nExpectedContribs, m1);
+        m.addContribution ("opName2", nExpectedContribs, m2);
+        m.addContribution ("opName3", nExpectedContribs, m3);
+        String expected = gson.toJson (m);
+        String actual = m.toJson();
+        if (!actual.equals(expected)) {
+            System.out.println ("Different JSONs:");
+            System.out.println ("expected: " + expected);
+        }
+        System.out.println ("actual:   " + actual);
+        System.out.println ("----- reversing expected ----");
+        CheckpointMerge expected_revers = gson.fromJson (expected, CrConsumerGroupCoordinator.CheckpointMerge.class);
+        System.out.println (expected_revers.getKey());
+        System.out.println (expected_revers.getnExpectedContributions());
+        System.out.println (expected_revers.getNumContributions());
+        System.out.println (expected_revers.isComplete());
+        System.out.println (expected_revers.getConsolidatedOffsetMap());
+        System.out.println (expected_revers.getContributedOperatorNames());
+
+        System.out.println ("----- reversing actual ----");
+        CheckpointMerge actual_revers = gson.fromJson (actual, CrConsumerGroupCoordinator.CheckpointMerge.class);
+        System.out.println (actual_revers.getKey());
+        System.out.println (actual_revers.getnExpectedContributions());
+        System.out.println (actual_revers.getNumContributions());
+        System.out.println (actual_revers.isComplete());
+        System.out.println (actual_revers.getConsolidatedOffsetMap());
+        System.out.println (actual_revers.getContributedOperatorNames());
+    }
 
 
     /**
@@ -408,16 +482,27 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
         private static final long serialVersionUID = 1L;
         private Map<CrConsumerGroupCoordinator.TP, Long> consolidatedOffsetMap  = new HashMap<>();
         /** Set of topic partitions for which we expect offsets by several calls of {@link CrConsumerGroupCoordinator#mergeConsumerCheckpoint(long, int, Set, Map, String)}*/
-        private Set<CrConsumerGroupCoordinator.TP> expectedPartitions = new HashSet<>();
+        private Set<String> contributedOperatorNames = new HashSet<>();
+        private int nExpectedContributions = 0;
         private int nContributions = 0;
         private boolean complete = false;
         private final MergeKey key;
+        private transient Level traceLevel = Level.DEBUG;
 
         /**
          * @param key
          */
-        public CheckpointMerge (MergeKey key) {
+        public CheckpointMerge (MergeKey key, int nExpectedContributions) {
             this.key = key;
+            this.nExpectedContributions = nExpectedContributions;
+        }
+
+
+        /**
+         * @param traceLevel the traceLevel to set
+         */
+        public void setTraceLevel (Level traceLevel) {
+            this.traceLevel = traceLevel;
         }
 
         /**
@@ -427,28 +512,30 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             return key;
         }
 
-        public boolean addContribution (String operatorName, Set<CrConsumerGroupCoordinator.TP> allPartitions, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap) {
-            if (!this.expectedPartitions.isEmpty()) {
-                if (!this.expectedPartitions.equals (allPartitions)) {
-                    trace.debug (MessageFormat.format ("addContribution(): [{0}, {1}] - operator checkpoints have different expected partitions: {2} <--> {3}",
-                            operatorName, key, this.expectedPartitions, allPartitions));
+        public boolean addContribution (String operatorName, int nDistinctOperatorNames, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap) {
+            if (this.nExpectedContributions > 0) {
+                if (this.nExpectedContributions != nDistinctOperatorNames) {
+                    trace.log (traceLevel, MessageFormat.format ("addContribution(): [{0}, {1}] - operator checkpoints have different expected number of contributions: {2} <--> {3}",
+                            operatorName, key, this.nExpectedContributions, nDistinctOperatorNames));
                 }
             }
-            this.expectedPartitions.addAll (allPartitions);
-            ++nContributions;
+            if (nDistinctOperatorNames > this.nExpectedContributions) {
+                this.nExpectedContributions = nDistinctOperatorNames;
+            }
+            if (!this.contributedOperatorNames.contains (operatorName)) {
+                this.contributedOperatorNames.add (operatorName);
+                ++nContributions;
+            }
             this.consolidatedOffsetMap.putAll (partialResetOffsetMap);
-            Set<TP> missingPartitions = new HashSet<>(allPartitions);
-            missingPartitions.removeAll (this.consolidatedOffsetMap.keySet());
-            trace.debug (MessageFormat.format ("addContribution(): [{0}, {1}] - consolidated offset map = {2}, expected partitions = {3}",
-                    operatorName, key, consolidatedOffsetMap, expectedPartitions));
-            if (this.consolidatedOffsetMap.keySet().containsAll (this.expectedPartitions)) {
-                trace.debug (MessageFormat.format ("addContribution(): [{0}, {1}] - consolidated offset map treated complete",
-                        operatorName, key));
-                complete = true;
+
+            if (this.nContributions < this.nExpectedContributions) {
+                trace.log (traceLevel, MessageFormat.format ("addContribution(): [{0}, {1}] - still missing {2} offset contribution(s) for partitions",
+                        operatorName, key, (this.nExpectedContributions - nContributions)));
             }
             else {
-                trace.debug (MessageFormat.format ("addContribution(): [{0}, {1}] - still missing offset contribution(s) for partitions: {2}",
-                        operatorName, key, missingPartitions));
+                trace.log (traceLevel, MessageFormat.format ("addContribution(): [{0}, {1}] - consolidated offset map treated complete with {2} contributions",
+                        operatorName, key, nContributions));
+                this.complete = true;
             }
             return complete;
         }
@@ -461,11 +548,19 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             return consolidatedOffsetMap;
         }
 
+
         /**
-         * @return the expectedPartitions
+         * @return the contributedOperatorNames
          */
-        public Set<CrConsumerGroupCoordinator.TP> getExpectedPartitions() {
-            return expectedPartitions;
+        public Set<String> getContributedOperatorNames() {
+            return contributedOperatorNames;
+        }
+
+        /**
+         * @return the nExpectedContributions
+         */
+        public int getnExpectedContributions() {
+            return nExpectedContributions;
         }
 
         /**
@@ -482,6 +577,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             return nContributions;
         }
 
+
         /**
          * @see java.lang.Object#hashCode()
          */
@@ -491,8 +587,10 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             int result = 1;
             result = prime * result + (complete ? 1231 : 1237);
             result = prime * result + ((consolidatedOffsetMap == null) ? 0 : consolidatedOffsetMap.hashCode());
-            result = prime * result + ((expectedPartitions == null) ? 0 : expectedPartitions.hashCode());
+            result = prime * result + ((contributedOperatorNames == null) ? 0 : contributedOperatorNames.hashCode());
+            result = prime * result + ((key == null) ? 0 : key.hashCode());
             result = prime * result + nContributions;
+            result = prime * result + nExpectedContributions;
             return result;
         }
 
@@ -515,12 +613,19 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
                     return false;
             } else if (!consolidatedOffsetMap.equals(other.consolidatedOffsetMap))
                 return false;
-            if (expectedPartitions == null) {
-                if (other.expectedPartitions != null)
+            if (contributedOperatorNames == null) {
+                if (other.contributedOperatorNames != null)
                     return false;
-            } else if (!expectedPartitions.equals(other.expectedPartitions))
+            } else if (!contributedOperatorNames.equals(other.contributedOperatorNames))
+                return false;
+            if (key == null) {
+                if (other.key != null)
+                    return false;
+            } else if (!key.equals(other.key))
                 return false;
             if (nContributions != other.nContributions)
+                return false;
+            if (nExpectedContributions != other.nExpectedContributions)
                 return false;
             return true;
         }
@@ -540,22 +645,23 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport /
             return j;
         }
 
-        private String expectedPartitionsToJson() {
+        private String contributedOperatorNames2Json() {
             String j = "[";
             int i = 0;
-            for (TP tp: expectedPartitions) {
+            for (String s: contributedOperatorNames) {
                 if (i++ > 0) j += ",";
-                j += tp.toJson();
+                j += "\"";
+                j += s;
+                j += "\"";
             }
             j += "]";
             return j;
-
         }
 
         @Deprecated
         public String toJson() {
-            String pattern = "'{'\"consolidatedOffsetMap\":{0},\"expectedPartitions\":{1},\"nContributions\":{2},\"complete\":{3},\"key\":{4}'}'";
-            return MessageFormat.format (pattern, offsetMap2Json(), expectedPartitionsToJson(), nContributions, complete, key.toJson());
+            String pattern = "'{'\"consolidatedOffsetMap\":{0},\"contributedOperatorNames\":{1},\"nExpectedContributions\":{2},\"nContributions\":{3},\"complete\":{4},\"key\":{5}'}'";
+            return MessageFormat.format (pattern, offsetMap2Json(), contributedOperatorNames2Json(), nExpectedContributions, nContributions, complete, key.toJson());
         }
     }
 }

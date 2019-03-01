@@ -5,7 +5,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -17,11 +16,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -37,15 +36,12 @@ import javax.management.NotificationListener;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
 
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.RoundRobinAssignor;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
@@ -53,13 +49,14 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.control.ConsistentRegionMXBean;
 import com.ibm.streams.operator.control.Controllable;
-import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.MergeKey;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.TP;
@@ -72,12 +69,15 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient implements ConsumerRebalanceListener, Controllable, NotificationListener {
 
     private static final long THROTTLED_POLL_SLEEP_MS = 100l;
-    private static final Logger logger = Logger.getLogger(CrKafkaConsumerGroupClient.class);
+    private static final Logger trace = Logger.getLogger(CrKafkaConsumerGroupClient.class);
     private static final String MBEAN_DOMAIN_NAME = "com.ibm.streamsx.kafka";
 
-    // if set to true, the content of the message queue is temporarily drained into a buffer and restored on start of poll
-    // if set to false, the message queue is drained by submitting tuples
+    /**
+     * if set to true, the content of the message queue is temporarily drained into a buffer and restored on start of poll
+     * if set to false, the message queue is drained by submitting tuples
+     */
     private static final boolean DRAIN_TO_BUFFER_ON_CR_DRAIN = true;
+    private static final boolean ENABLE_CHECK_REGISTERED_ON_CHECKPOINT = true;
 
     private static enum ClientState {
         INITIALIZED, EVENT_THREAD_STARTED,
@@ -92,17 +92,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         RESET_COMPLETE,
     }
 
-    /** Kafka group ID */
-    private String groupId = null;
-    /** The topics we are subscribed */
-    private Collection <String> subscribedTopics;
-    /** Partitions that can be theoretically assigned; sum of all partitions of all subscribed topics.
-     * assignablePartitions is updated on every onPartitionsAssigned() and is used for checkpoint consolidation
-     * in the MXBean. The MXBean needs this information to decide that all consumers of the group have contributed
-     * to the group's consolidated checkpoint.
-     * This variable is checkpointed. 
-     */
-    private Set<CrConsumerGroupCoordinator.TP> assignablePartitions = Collections.synchronizedSet (new HashSet<>());
     /** counts the tuples to trigger operator driven CR */
     private long nSubmittedRecords = 0l;
     /** threshold of nSubmittedRecords for operator driven CR */
@@ -118,22 +107,20 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     /** Condition for setting/checking/waiting for the JMX notification */
     private final Condition jmxNotificationCondition = jmxNotificationConditionLock.newCondition();
     /** group's checkpoint merge complete JMX notification */
-    private Map<MergeKey, CrConsumerGroupCoordinator.CheckpointMerge> jmxMergeCompletedNotifMap = new HashMap<>();
+    private Map<CrConsumerGroupCoordinator.MergeKey, CrConsumerGroupCoordinator.CheckpointMerge> jmxMergeCompletedNotifMap = new HashMap<>();
 
     /** canonical name of the MXBean. Note: If you need a javax.management.ObjectName instance, use createMBeanObjectName() */
     private String crGroupCoordinatorMXBeanName = null;
     /** MXBean proxy for coordinating the group's checkpoint */
     private CrConsumerGroupCoordinatorMXBean crGroupCoordinatorMxBean = null;
-    /** stores the initial offsets of all partitions of all topics. Written to CV and used for reset to initial state */
-    private OffsetManager initialOffsets;
-    /** JCP control variable to persist the initialOffsets to JCP */
-    private ControlVariableAccessor<String> initialOffsetsCV;
+    private ConsistentRegionMXBean crMxBean = null;
+    private CVOffsetAccessor initialOffsets;
     /** stores the offsets of the submitted tuples - should contain only assignedPartitions - is checkpointed */
     private OffsetManager assignedPartitionsOffsetManager;
     /** the map that is used to seek the consumer after reset, resetToInitialState or in onPartitionsAssigned.
      * The map must contain mappings for all partitions of all topics because we do not know which partitions we get for consumption.
      */
-    private Map<TopicPartition, Long> seekOffsetMap;
+    private Map<TopicPartition, Long> seekOffsetMap = null;
     /** current state of the consumer client */
     private ClientState state = null;
     private Gson gson;
@@ -143,25 +130,23 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @throws KafkaConfigurationException 
      */
     private <K, V> CrKafkaConsumerGroupClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            KafkaOperatorProperties kafkaProperties, int nTopics) throws KafkaConfigurationException {
+            KafkaOperatorProperties kafkaProperties, boolean singleTopic) throws KafkaConfigurationException {
 
         super (operatorContext, keyClass, valueClass, kafkaProperties);
-
-        this.groupId = kafkaProperties.getProperty (ConsumerConfig.GROUP_ID_CONFIG);
-        this.crGroupCoordinatorMXBeanName = createMBeanObjectName().getCanonicalName();
-        this.initialOffsets = new OffsetManager();
+        this.initialOffsets = new CVOffsetAccessor (getJcpContext(), getGroupId());
+        this.crGroupCoordinatorMXBeanName = createMBeanObjectName ("consumergroup").getCanonicalName();
         this.assignedPartitionsOffsetManager = new OffsetManager();
         this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
         ConsistentRegionContext crContext = getCrContext();
-        // if no partition assignment strategy is specified, set the round-robin when nTopics > 1
-        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG) && nTopics > 1) {
+        // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed
+        if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {
             String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
             kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            logger.info (MessageFormat.format ("Multiple topics specified. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+            trace.info (MessageFormat.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
         }
-        logger.info (MessageFormat.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
+        trace.info (MessageFormat.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
-        logger.debug (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
     }
 
@@ -171,9 +156,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void event (MBeanServerConnection jcp, OperatorContext context, EventType eventType) {
-        logger.debug ("JMX connection related event received: " + eventType);
+        trace.log (DEBUG_LEVEL, "JMX connection related event received: " + eventType);
         if (eventType == EventType.LostNotifications) {
-            logger.warn ("JMX notification lost");
+            trace.warn ("JMX notification lost");
         }
     }
 
@@ -200,40 +185,43 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public void setup (MBeanServerConnection jcp, OperatorContext context) throws InstanceNotFoundException, MBeanRegistrationException, NotCompliantMBeanException, ReflectionException, MBeanException, IOException {
         try {
-            ObjectName groupMbeanName = createMBeanObjectName();
             ConsistentRegionContext crContext = getCrContext();
+            ObjectName groupMbeanName = createMBeanObjectName ("consumergroup");
             this.crGroupCoordinatorMXBeanName = groupMbeanName.getCanonicalName();
             // Try to register the MBean for checkpoint coordination in JCP. One of the operators in the consumer group wins.
-            logger.debug ("Trying to register MBean in JCP: " + crGroupCoordinatorMXBeanName);
+            trace.log (DEBUG_LEVEL, "Trying to register MBean in JCP: " + crGroupCoordinatorMXBeanName);
             if (jcp.isRegistered (groupMbeanName)) {
-                logger.debug (crGroupCoordinatorMXBeanName + " already registered");
+                trace.log (DEBUG_LEVEL, crGroupCoordinatorMXBeanName + " already registered");
             }
             else {
                 try {
-                    // Constructor signature: (String groupId, Integer consistentRegionIndex)
+                    // Constructor signature: (String groupId, Integer consistentRegionIndex, String traceLevel)
                     jcp.createMBean (CrConsumerGroupCoordinator.class.getName(), groupMbeanName, 
-                            new Object[]{this.groupId, new Integer(crContext.getIndex())},
-                            new String[] {"java.lang.String", "java.lang.Integer"});
-                    logger.debug ("MBean registered: " + crGroupCoordinatorMXBeanName);
+                            new Object[] {getGroupId(), new Integer(crContext.getIndex()), DEBUG_LEVEL.toString()},
+                            new String[] {"java.lang.String", "java.lang.Integer", "java.lang.String"});
+                    trace.log (DEBUG_LEVEL, "MBean registered: " + crGroupCoordinatorMXBeanName);
                 }
                 catch (InstanceAlreadyExistsException e) {
                     // another operator managed to create it first. that is ok, just use that one.
-                    logger.debug (MessageFormat.format ("another operator just created {0}: {1}", crGroupCoordinatorMXBeanName, e.getMessage()));
+                    trace.log (DEBUG_LEVEL, MessageFormat.format ("another operator just created {0}: {1}", crGroupCoordinatorMXBeanName, e.getMessage()));
                 }
             }
             try {
                 jcp.removeNotificationListener (groupMbeanName, this);
             } catch (ListenerNotFoundException | InstanceNotFoundException e) {
-                logger.debug ("removeNotificationListener failed: " + e.getLocalizedMessage());
+                trace.log (DEBUG_LEVEL, "removeNotificationListener failed: " + e.getLocalizedMessage());
             }
-            logger.debug("adding client as notification listener to " + crGroupCoordinatorMXBeanName);
+            trace.log (DEBUG_LEVEL, "adding client as notification listener to " + crGroupCoordinatorMXBeanName);
             jcp.addNotificationListener (groupMbeanName, this, /*filter=*/null, /*handback=*/null);
 
-            logger.debug ("creating Proxies ...");
+            trace.log (DEBUG_LEVEL, "creating Proxies ...");
+            crMxBean = JMX.newMXBeanProxy (jcp, getCrContext().getConsistentRegionMXBeanName(), ConsistentRegionMXBean.class);
             crGroupCoordinatorMxBean = JMX.newMXBeanProxy (jcp, groupMbeanName, CrConsumerGroupCoordinatorMXBean.class, /*notificationEmitter=*/true);
-            logger.debug ("MBean Proxy get test: group-ID = " + crGroupCoordinatorMxBean.getGroupId() + "; CR index = " + crGroupCoordinatorMxBean.getConsistentRegionIndex());
-            crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
+            trace.log (DEBUG_LEVEL, "MBean Proxy get test: group-ID = " + crGroupCoordinatorMxBean.getGroupId() + "; CR index = " + crGroupCoordinatorMxBean.getConsistentRegionIndex());
             crGroupCoordinatorMxBean.registerConsumerOperator (getOperatorContext().getName());
+        }
+        catch (Exception e) {
+            e.printStackTrace();
         }
         finally {
             jmxSetupLatch.countDown();
@@ -242,13 +230,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
     /**
      * Creates the object name for the group MBean.
-     * The name is {@value #MBEAN_DOMAIN_NAME}:type=consumergroup,groupIdHash=<i>hashCode(our group-ID)</i>
+     * The name is {@value #MBEAN_DOMAIN_NAME}:type=<i>mBeanType</i>,groupIdHash=<i>hashCode(our group-ID)</i>
+     * @param mBeanType The 'type' property value of the object name
      * @return An ObjectName instance
      */
-    private ObjectName createMBeanObjectName() {
+    private ObjectName createMBeanObjectName (String mBeanType) {
         Hashtable <String, String> props = new Hashtable<>();
-        props.put ("type", "consumergroup");
-        final int hash = this.groupId.hashCode();
+        props.put ("type", mBeanType);
+        final int hash = getGroupId().hashCode();
         props.put ("groupIdHash", (hash < 0? "N": "P") + Math.abs (hash));
 
         try {
@@ -278,25 +267,18 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void handleNotification (Notification notification, Object handback) {
-        logger.info (MessageFormat.format ("handleNotification() [{0}]; notification = {1}", this.state, notification));
+        trace.info (MessageFormat.format ("handleNotification() [{0}]; notification = {1}", this.state, notification));
         if (notification.getType().equals (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE)) {
             CrConsumerGroupCoordinator.CheckpointMerge merge = gson.fromJson (notification.getMessage(), CrConsumerGroupCoordinator.CheckpointMerge.class);
             MergeKey key = merge.getKey();
             jmxNotificationConditionLock.lock();
             jmxMergeCompletedNotifMap.put (key, merge);
-            logger.debug (MessageFormat.format("handleNotification(): notification {0} stored, signalling waiting threads ...", key));
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("handleNotification(): notification {0} stored, signalling waiting threads ...", key));
             jmxNotificationCondition.signalAll();
             jmxNotificationConditionLock.unlock();
         }
-        else if (notification.getType().equals (CrConsumerGroupCoordinatorMXBean.PARTITIONS_META_CHANGED)) {
-            String msg = notification.getMessage();
-            ArrayList<TP> partitions = SerializationUtils.deserialize (Base64.getDecoder().decode (msg));
-            logger.debug ("handleNotification(): partitions from JMX notification: " + partitions);
-            this.assignablePartitions.addAll (partitions);
-            logger.debug ("handleNotification(): assignable partitions for topics " + this.subscribedTopics + ": " + this.assignablePartitions);
-        }
         else {
-            logger.warn ("unexpected notification type (ignored): " + notification.getType());
+            trace.warn ("unexpected notification type (ignored): " + notification.getType());
         }
     }
 
@@ -306,7 +288,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
-        logger.info (MessageFormat.format ("startConsumer() [{0}] - consumer start initiated", state));
+        trace.info (MessageFormat.format ("startConsumer() [{0}] - consumer start initiated", state));
         // Connect the PE for this operator to the Job Control Plane. 
         // A single connection is maintained to the Job Control Plane. The connection occurs asynchronously.
         // Does this mean that we might not yet be connected after connect()?
@@ -318,11 +300,57 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         super.startConsumer();
         // now we have a consumer object.
         assignedPartitionsOffsetManager.setOffsetConsumer (getConsumer());
-        initialOffsets.setOffsetConsumer (getConsumer());
         ClientState newState = ClientState.EVENT_THREAD_STARTED;
-        logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.info ("consumer started");
+        trace.info ("consumer started");
+    }
+
+
+    /**
+     * Subscribes with a pattern and start consuming offsets with a given timestamp in milliseconds since Epoch.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopicsWithTimestamp(java.util.regex.Pattern, long)
+     */
+    @Override
+    public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
+        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: pattern = {1}, timestamp = {2}",
+                state, (pattern == null? "null": pattern.pattern()), timestamp));
+        assert this.initialStartPosition == StartPosition.Time;
+        if (pattern == null) {
+            trace.error ("When the " + getThisClassName() + " consumer client is used, topics or apattern must be specified.");
+            throw new KafkaConfigurationException ("pattern == null");
+        }
+        initSeekOffsetMap();
+        subscribe (pattern, this);
+        // when later partitions are assigned dynamically, we seek in onPartitionsAssigned
+        ClientState newState = ClientState.SUBSCRIBED;
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
+        trace.info ("subscribed to pattern: " + pattern.pattern());
+    }
+
+
+    /**
+     * Subscribes with a pattern and start consuming at a given start position (Beginning, End, Default).
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#subscribeToTopics(java.util.regex.Pattern, com.ibm.streamsx.kafka.clients.consumer.StartPosition)
+     */
+    @Override
+    public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
+        trace.info (MessageFormat.format ("subscribeToTopics [{0}]: pattern = {1}, startPosition = {2}",
+                state, (pattern == null? "null": pattern.pattern()), startPosition));
+        assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
+        assert startPosition == this.initialStartPosition;
+        if (pattern == null) {
+            trace.error ("When the " + getThisClassName() + " consumer client is used, topics or apattern must be specified.");
+            throw new KafkaConfigurationException ("pattern == null");
+        }
+        initSeekOffsetMap();
+        subscribe (pattern, this);
+        // when later partitions are assigned dynamically, we seek in onPartitionsAssigned
+        ClientState newState = ClientState.SUBSCRIBED;
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
+        trace.info ("subscribed to pattern: " + pattern.pattern());
     }
 
 
@@ -342,48 +370,25 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopics (Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
-        logger.info (MessageFormat.format ("subscribeToTopics [{0}]: topics = {1}, partitions = {2}, startPosition = {3}",
+        trace.info (MessageFormat.format ("subscribeToTopics [{0}]: topics = {1}, partitions = {2}, startPosition = {3}",
                 state, topics, partitions, startPosition));
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
         assert startPosition == this.initialStartPosition;
         if (partitions != null && !partitions.isEmpty()) {
-            logger.error("When the " + getThisClassName() + " consumer client is used, no partitions must be specified. partitions: " + partitions);
+            trace.error("When the " + getThisClassName() + " consumer client is used, no partitions must be specified. partitions: " + partitions);
             throw new KafkaConfigurationException ("Partitions for assignment must not be specified. Found: " + partitions);
         }
         if (topics == null || topics.isEmpty()) {
-            logger.error ("When the " + getThisClassName() + " consumer client is used, topics must be specified. topics: " + topics);
+            trace.error ("When the " + getThisClassName() + " consumer client is used, topics must be specified. topics: " + topics);
             throw new KafkaConfigurationException ("topics must not be null or empty. topics = " + topics);
         }
-
-        // get initial start offsets of ALL partitions of all our topics - we do not yet know which partition we get later on
-        // before we can get them, we must assign and seek
-        Set<TopicPartition> topicPartitionCandidates;
-        // read meta data of the given topics to fetch all topic partitions
-        topicPartitionCandidates = getAllTopicPartitionsForTopic (topics);
-        assign (topicPartitionCandidates);
-        if (startPosition != StartPosition.Default) {
-            seekToPosition (topicPartitionCandidates, startPosition);
-        }
-        // register the topic partitions with the initial offsets manager
-        initialOffsets.addTopics (topicPartitionCandidates);
-        // fetch the consumer offsets of initial positions
-        initialOffsets.savePositionFromCluster();
-        createJcpCvFromInitialOffsets();
-        // create seekOffsetMap, so that we can seek in onPartitionsAssigned()
         initSeekOffsetMap();
-        for (TopicPartition tp: initialOffsets.getMappedTopicPartitions()) {
-            this.seekOffsetMap.put (tp, initialOffsets.getOffset(tp.topic(), tp.partition()));
-        }
-        // unassign all/unsubscribe:
-        assign (null);
         subscribe (topics, this);
-        //        setAssignablePartitions (topicPartitionCandidates);
-        this.subscribedTopics = new ArrayList<String> (topics);
-        // when later partitions are assigned dynamically, we seek using the seekOffsetMap
+        // when later partitions are assigned dynamically, we seek in onPartitionsAssigned
         ClientState newState = ClientState.SUBSCRIBED;
-        logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.info ("subscribed to " + topics);
+        trace.info ("subscribed to " + topics);
     }
 
 
@@ -403,50 +408,25 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Collection<String> topics, Collection<Integer> partitions, long timestamp) throws Exception {
-        logger.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: topics = {1}, partitions = {2}, timestamp = {3}",
+        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: topics = {1}, partitions = {2}, timestamp = {3}",
                 state, topics, partitions, timestamp));
         assert this.initialStartPosition == StartPosition.Time;
         // partitions must be null or empty
         if (partitions != null && !partitions.isEmpty()) {
-            logger.error("When the " + getThisClassName() + " Consumer client is used, no partitions must be specified. partitions: " + partitions);
+            trace.error("When the " + getThisClassName() + " Consumer client is used, no partitions must be specified. partitions: " + partitions);
             throw new KafkaConfigurationException ("Partitions for assignment must not be specified. Found: " + partitions);
         }
         if (topics == null || topics.isEmpty()) {
-            logger.error ("When the " + getThisClassName() + " consumer client is used, topics must be specified. topics: " + topics);
+            trace.error ("When the " + getThisClassName() + " consumer client is used, topics must be specified. topics: " + topics);
             throw new KafkaConfigurationException ("topics must not be null or empty. topics = " + topics);
         }
-
-        // get initial start offsets of ALL partitions of all our topics - we do not yet know which partition we get later on
-        // before we can get them, we must assign and seek
-        Map <TopicPartition, Long /* timestamp */> topicPartitionTimestampMap = new HashMap<TopicPartition, Long>();
-        Set<TopicPartition> topicPartitions = getAllTopicPartitionsForTopic (topics);
-        topicPartitions.forEach (tp -> topicPartitionTimestampMap.put (tp, timestamp));
-
-        logger.debug ("subscribeToTopicsWithTimestamp: topicPartitionTimestampMap = " + topicPartitionTimestampMap);
-        //        Set<TopicPartition> topicPartitionCandidates = topicPartitionTimestampMap.keySet();
-        assign (topicPartitions);
-        seekToTimestamp (topicPartitionTimestampMap);
-
-        // register the partitions with the initial offsets manager
-        initialOffsets.addTopics (topicPartitions);
-        // fetch the consumer offsets of initial positions
-        initialOffsets.savePositionFromCluster();
-        createJcpCvFromInitialOffsets();
-        // create seekOffsetMap, so that we can seek in onPartitionsAssigned()
         initSeekOffsetMap();
-        for (TopicPartition tp: initialOffsets.getMappedTopicPartitions()) {
-            this.seekOffsetMap.put (tp, initialOffsets.getOffset(tp.topic(), tp.partition()));
-        }
-        // unassign all/unsubscribe:
-        assign (null);
         subscribe (topics, this);
-        //        setAssignablePartitions (topicPartitions);
-        this.subscribedTopics = new ArrayList<String> (topics);
         // when later partitions are assigned dynamically, we seek using the seekOffsetMap
         ClientState newState = ClientState.SUBSCRIBED;
-        logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.info ("subscribed to " + topics);
+        trace.info ("subscribed to " + topics);
     }
 
 
@@ -459,7 +439,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopicsWithOffsets(String topic, List<Integer> partitions, List<Long> startOffsets) throws Exception {
-        logger.debug ("subscribeToTopicsWithOffsets: topic = " + topic + ", partitions = " + partitions + ", startOffsets = " + startOffsets);
+        trace.log (DEBUG_LEVEL, "subscribeToTopicsWithOffsets: topic = " + topic + ", partitions = " + partitions + ", startOffsets = " + startOffsets);
         throw new KafkaConfigurationException ("Subscription (assignment of partitions) with offsets is not supported by this client: " + getThisClassName());
     }
 
@@ -471,6 +451,18 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
+        if (ENABLE_CHECK_REGISTERED_ON_CHECKPOINT) {
+            final String myOperatorName = getOperatorContext().getName();
+            try {
+                Set<String> registeredConsumers = this.crGroupCoordinatorMxBean.getRegisteredConsumerOperators();
+                if (!registeredConsumers.contains (myOperatorName)) {
+                    trace.warn (MessageFormat.format ("My operator name not registered in group MXBean: {0}, trying to register", myOperatorName));
+                    this.crGroupCoordinatorMxBean.registerConsumerOperator (myOperatorName);
+                }
+            } catch (IOException e) {
+                trace.error (e.getMessage());
+            }
+        }
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.CHECKPOINT, checkpoint, true);
         sendEvent (event);
         event.await();
@@ -487,13 +479,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onReset (final Checkpoint checkpoint) throws InterruptedException {
-        resetPrepareData (checkpoint);
+        resetPrepareDataBeforeStopPolling(checkpoint);
+        sendStopPollingEvent();
+        resetPrepareDataAfterStopPolling (checkpoint);
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
         event.await();
         // in this client, we start polling at full speed after getting a permit to submit tuples
         sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
-
     }
 
     /**
@@ -518,14 +511,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onDrain () throws Exception {
-        logger.info (MessageFormat.format("onDrain() [{0}] - entering", state));
+        trace.info (MessageFormat.format ("onDrain() [{0}] - entering", state));
         try {
             // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
             ClientState newState = ClientState.DRAINING;
-            logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
             sendStopPollingEvent();
-            logger.debug ("onDrain(): sendStopPollingEvent() exit: event processed by event thread");
+            trace.log (DEBUG_LEVEL, "onDrain(): sendStopPollingEvent() exit: event processed by event thread");
             // when CR is operator driven, do not wait for queue to be emptied.
             // This would never happen because the tuple submitter thread is blocked in makeConsistent() in postSubmit(...) 
             // and cannot empty the queue
@@ -537,9 +530,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     // wait for them to be processed.
                 }
                 long before = System.currentTimeMillis();
-                logger.debug("onDrain() waiting for message queue to become empty ...");
+                trace.log (DEBUG_LEVEL, "onDrain() waiting for message queue to become empty ...");
                 awaitMessageQueueProcessed();
-                logger.debug("onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
+                trace.log (DEBUG_LEVEL, "onDrain() message queue empty after " + (System.currentTimeMillis() - before) + " milliseconds");
             }
             final boolean commitSync = true;
             final boolean commitPartitionWise = false;   // commit all partitions in one server request
@@ -554,18 +547,18 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 sendCommitEvent (offsets);
             }
             else {
-                logger.info ("onDrain(): no offsets to commit");
+                trace.info ("onDrain(): no offsets to commit");
             }
             newState = ClientState.DRAINED;
-            logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
             // drain is followed by checkpoint.
             // Don't poll for new messages in the meantime. - Don't send a 'start polling event'
         } catch (InterruptedException e) {
-            logger.debug("Interrupted waiting for empty queue or committing offsets");
+            trace.log (DEBUG_LEVEL, "Interrupted waiting for empty queue or committing offsets");
             // NOT to start polling for Kafka messages again, is ok after interruption
         }
-        logger.debug("onDrain() - exiting");
+        trace.log (DEBUG_LEVEL, "onDrain() - exiting");
     }
 
 
@@ -574,7 +567,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onCheckpointRetire (long id) {
-        logger.debug (MessageFormat.format("onCheckpointRetire() [{0}] - entering, id = {1}", state, id));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("onCheckpointRetire() [{0}] - entering, id = {1}", state, id));
         Collection<MergeKey> retiredMergeKeys = new ArrayList<>(10);
         for (MergeKey k: jmxMergeCompletedNotifMap.keySet()) {
             if (k.getSequenceId() <= id) {   // remove also older (smaller) IDs
@@ -582,12 +575,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
         }
         for (MergeKey k: retiredMergeKeys) {
-            jmxMergeCompletedNotifMap.remove(k);
+            jmxMergeCompletedNotifMap.remove (k);
         }
         try {
             this.crGroupCoordinatorMxBean.cleanupMergeMap (id);
         } catch (IOException e) {
-            logger.warn ("onCheckpointRetire() failed (Retrying for next higher sequence ID): " + e.getLocalizedMessage());
+            trace.warn ("onCheckpointRetire() failed (Retrying for next higher sequence ID): " + e.getMessage());
         }
     }
 
@@ -607,15 +600,15 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         } catch (Exception topicPartitionUnknown) {
             // can happen when onPartitionsAssigned happened between fetching a record from the queue by this thread and postSubmit.
             // onPartitionsRevoked must have been called before, initiating a consistent region reset.
-            logger.warn (topicPartitionUnknown.getLocalizedMessage());
+            trace.warn (topicPartitionUnknown.getLocalizedMessage());
         }
         ConsistentRegionContext crContext = getCrContext();
         if (crContext.isTriggerOperator() && ++nSubmittedRecords >= triggerCount) {
-            logger.debug("Making region consistent..."); //$NON-NLS-1$
+            trace.log (DEBUG_LEVEL, "Making region consistent..."); //$NON-NLS-1$
             // makeConsistent blocks until all operators in the CR have drained and checkpointed
             boolean isSuccess = crContext.makeConsistent();
             nSubmittedRecords = 0l;
-            logger.debug("Completed call to makeConsistent: isSuccess = " + isSuccess); //$NON-NLS-1$
+            trace.log (DEBUG_LEVEL, "Completed call to makeConsistent: isSuccess = " + isSuccess); //$NON-NLS-1$
         }
     }
 
@@ -631,42 +624,32 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
-        logger.info (MessageFormat.format("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
+        trace.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
         getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
+        // remove the content of the queue. It contains uncommitted messages.
+        // They will fetched again after rebalance.
+        getMessageQueue().clear();
+        setConsumedTopics (null);
         if (!(state == ClientState.SUBSCRIBED || state == ClientState.RESET_COMPLETE)) {
             ClientState newState = ClientState.CR_RESET_PENDING;
-            logger.debug (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
             sendStopPollingEventAsync();
-
-            boolean resetPending = false;
-            try {
-                resetPending = crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true, getOperatorContext().getName());
-            } catch (IOException ioe) {
-                logger.warn ("Could not test for already pending rebalance caused consistent region reset: " + ioe.getLocalizedMessage());
-            }
-            if (resetPending) {
-                logger.debug (MessageFormat.format ("onPartitionsRevoked() [{0}]: consistent region reset already initiated", state));
+            ConsistentRegionMXBean.State crState = crMxBean.getState();
+            trace.info ("CR state: " + crState);
+            if (crState == ConsistentRegionMXBean.State.RESETTING) {
+                trace.log (DEBUG_LEVEL, MessageFormat.format ("onPartitionsRevoked() [{0}]: consistent region is already resetting.", state));
             }
             else {
-                logger.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
-                ThreadFactory thf = getOperatorContext().getThreadFactory();
-                thf.newThread (new Runnable() {
-
-                    @Override
-                    public void run() {
-                        try {
-                            logger.info ("Resetting the consistent region NOW.");
-                            getCrContext().reset();
-                        } catch (IOException e) {
-                            // restart the operator 
-                            e.printStackTrace();
-                            throw new RuntimeException ("Failed to reset the consistent region: " + e.getLocalizedMessage(), e);
-                        }
-                    }
-                }).start();
+                trace.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
+                trace.info ("Resetting the consistent region NOW.");
+                try {
+                    crMxBean.reset (true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+                }
             }
-
             // this callback is called within the context of a poll() invocation.
             // onPartitionsRevoked() is followed by onPartitionsAssigned() with the new assignment within that poll().
             // We must process this assignment, but seeking is not required because this happens within the reset 
@@ -713,36 +696,17 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsAssigned (Collection<TopicPartition> newAssignedPartitions) {
-        logger.info (MessageFormat.format("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
-
-        // get meta data of potentially assignable partitions for all subscribed topics, added partitions may be
-        // returned from meta data or not dependent on the refresh policy. Therefore broadcast our assignment to all consumers of the group
-        // to make them aware of potentially added partitions.
-        int nPartitions = assignablePartitions.size();
-        updateAssignablePartitionsFromMetadata();
-        logger.debug ("onPartitionsAssigned(): assignable partitions for topics " + this.subscribedTopics + ": " + this.assignablePartitions);
-        if (nPartitions > 0 && assignablePartitions.size() > nPartitions) {
-            // we have discovered new partitions for the subscribed topics; number of partitions always increases
-            try {
-                ArrayList <TP> c = new ArrayList<>(assignablePartitions);
-                logger.debug ("onPartitionsAssigned(): partitions discovered from mata data changed. broadcasting as JMX notification within the group: " + c);
-                this.crGroupCoordinatorMxBean.broadcastData (serializeObject (c), CrConsumerGroupCoordinatorMXBean.PARTITIONS_META_CHANGED);
-            } catch (IOException e) {
-                logger.warn ("onPartitionsAssigned(): changed partition metadata could not be broadcasted: " + e.getLocalizedMessage());
-            }
-        }
+        trace.info (MessageFormat.format ("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
         Set<TopicPartition> previousAssignment = new HashSet<>(getAssignedPartitions());
         getAssignedPartitions().clear();
         getAssignedPartitions().addAll (newAssignedPartitions);
         nAssignedPartitions.setValue (newAssignedPartitions.size());
         Set<TopicPartition> gonePartitions = new HashSet<>(previousAssignment);
         gonePartitions.removeAll (newAssignedPartitions);
-        logger.info ("topic partitions that are not assigned anymore: " + gonePartitions);
+        trace.info ("topic partitions that are not assigned anymore: " + gonePartitions);
 
         synchronized (assignedPartitionsOffsetManager) {
             if (!gonePartitions.isEmpty()) {
-                logger.debug("removing consumer records from gone partitions from message queue");
-                getMessageQueue().removeIf (queuedRecord -> belongsToPartition (queuedRecord, gonePartitions));
                 for (TopicPartition tp: gonePartitions) {
                     // remove the topic partition also from the offset manager
                     assignedPartitionsOffsetManager.remove (tp.topic(), tp.partition());
@@ -750,14 +714,31 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
             assignedPartitionsOffsetManager.updateTopics (newAssignedPartitions);
         }
-        assignedPartitionsOffsetManager.savePositionFromCluster();
-        logger.debug("onPartitionsAssigned() assignedPartitionsOffsetManager = " + assignedPartitionsOffsetManager);
-        logger.debug("onPartitionsAssigned() assignedPartitions = " + getAssignedPartitions());
+        setConsumedTopics (newAssignedPartitions);
+        trace.log (DEBUG_LEVEL, "onPartitionsAssigned() assignedPartitionsOffsetManager = " + assignedPartitionsOffsetManager);
+        trace.log (DEBUG_LEVEL, "onPartitionsAssigned() assignedPartitions = " + getAssignedPartitions());
         switch (state) {
         case SUBSCRIBED:
         case RESET_COMPLETE:
+            assert (seekOffsetMap != null);
+            // the seek offset map can be empty - The consumer has been started for the first time or reset to initial state without assigned partitions
+            // the seek offset map can contain offsets from a checkpoint or those from the CVs when reset to initial with assigned partitions
+            // the seek offset map can contain offsets from a checkpoint, and a CV can exist for a partition that is not in the checkpoint. A partition may have added and assigned.
+            // Add all offsets from the 'initialOffsets' to the seekOffset if not yet present for the topic partition
+            try {
+                final Map<TopicPartition, Long> initialOffsetsMap = initialOffsets.createOffsetMap (newAssignedPartitions);
+                trace.info (MessageFormat.format ("seekOffsetMap created from initial offsets: {0}", initialOffsetsMap));
+                initialOffsetsMap.forEach ((tp, offs) -> {
+                    seekOffsetMap.putIfAbsent (tp, offs);
+                });
+            } catch (InterruptedException e) {
+                trace.log (DEBUG_LEVEL, "interrupted creating a seekOffsetMap from JCP control variables");
+            } catch (IOException e) {
+                throw new KafkaOperatorRuntimeException (e.getMessage());
+            }
             seekPartitions (newAssignedPartitions, seekOffsetMap);
-            // update the fetch positions for all assigned partitions - 
+            // update the fetch positions in the offset manager for all assigned partitions - 
+            assignedPartitionsOffsetManager.savePositionFromCluster();
             break;
 
         case CR_RESET_PENDING:
@@ -765,15 +746,17 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             break;
         default:
             // ... not observed during tests
-            logger.warn (MessageFormat.format("onPartitionsAssigned() [{0}]: unexpected state for onPartitionsAssigned()", state));
+            trace.warn (MessageFormat.format ("onPartitionsAssigned() [{0}]: unexpected state for onPartitionsAssigned()", state));
         }
         try {
             checkSpaceInMessageQueueAndPauseFetching (true);
         } catch (IllegalStateException | InterruptedException e) {
+            ;
             // IllegalStateException cannot happen
             // On Interruption, do nothing
         }
     }
+
 
     /**
      * Seeks the given partitions to the offsets in the map. If the map does not contain a mapping, the partition is seeked to what is given as initial start position (End, Beginning, Time)
@@ -786,7 +769,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // collection and map for seeking to inital startposition
         Collection <TopicPartition> tp1 = new ArrayList<>(1);
         Map <TopicPartition, Long> tpTimestampMap1 = new HashMap<>();
-        Set<TopicPartition> seekFailedPartitions = new HashSet<>();
+        Set<TopicPartition> seekFailedPartitions = new HashSet<> (partitions);
         List<TopicPartition> sortedPartitions = new LinkedList<> (partitions);
         Collections.sort (sortedPartitions, new Comparator<TopicPartition>() {
             @Override
@@ -797,17 +780,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
         for (TopicPartition tp: sortedPartitions) {
             try {
-                // in 'subscribe', the 'seekOffsetMap' has been filled with initial offsets dependent
-                // on the startPosition parameter or has been restored from checkpoints via MXBean
                 if (offsetMap.containsKey (tp)) {
-                    final long seekToOffset = offsetMap.get(tp);
-                    logger.info (MessageFormat.format ("seekPartitions() seeking {0} to offset {1}", tp, seekToOffset));
+                    final long seekToOffset = offsetMap.get (tp);
+                    trace.info (MessageFormat.format ("seekPartitions() seeking {0} to offset {1}", tp, seekToOffset));
                     consumer.seek (tp, seekToOffset);
                 }
                 else {
-                    // partition for which we have no offset, for example, a partition that has 
-                    // been added to the topic after last checkpoint.
-                    // Seek to startPosition given as operator parameter(s)
+                    // We have never seen the partition. Seek to startPosition given as operator parameter(s)
                     switch (this.initialStartPosition) {
                     case Default:
                         // do not seek
@@ -816,57 +795,40 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     case End:
                         tp1.clear();
                         tp1.add (tp);
-                        logger.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to {1}", tp, this.initialStartPosition));
+                        trace.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to {1}", tp, this.initialStartPosition));
                         seekToPosition (tp1, this.initialStartPosition);
                         break;
                     case Time:
                         tpTimestampMap1.clear();
                         tpTimestampMap1.put (tp, this.initialStartTimestamp);
-                        logger.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to timestamp {1}", tp, this.initialStartTimestamp));
+                        trace.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to timestamp {1}", tp, this.initialStartTimestamp));
                         seekToTimestamp (tpTimestampMap1);
                         break;
                     default:
                         // unsupported start position, like 'Offset',  is already treated by initialization checks
-                        final String msg = MessageFormat.format("seekPartitions(): {0} does not support startPosition {1}.", getThisClassName(), this.initialStartPosition);
-                        logger.error (msg);
-                        throw new RuntimeException (msg);
+                        final String msg = MessageFormat.format ("seekPartitions(): {0} does not support startPosition {1}.", getThisClassName(), this.initialStartPosition);
+                        trace.error (msg);
+                        throw new KafkaOperatorRuntimeException (msg);
                     }
+                    long initialFetchOffset = getConsumer().position (tp);
+                    initialOffsets.saveOffset (tp, initialFetchOffset, false);
                 }
+                seekFailedPartitions.remove (tp);
             }
             catch (IllegalArgumentException topicPartitionNotAssigned) {
                 // when this happens the ConsumerRebalanceListener will be called later
-                logger.warn (MessageFormat.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
-                seekFailedPartitions.add (tp);
+                trace.warn (MessageFormat.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
+            } catch (InterruptedException e) {
+                trace.log (DEBUG_LEVEL, "interrupted creating or saving offset to JCP control variable");
+                // leave for-loop
+                break;
+            } catch (IOException e) {
+                throw new KafkaOperatorRuntimeException (e.getMessage());
             }
-        }
+        }   // for
+        trace.log (DEBUG_LEVEL, "partitions failed to seek: " + seekFailedPartitions);
         return seekFailedPartitions;
     }
-
-    /**
-     * updates the assignablePartitions from the meta data of the subscribed topics. Note that the meta data might not be refreshed by the client.
-     * When the meta data has not yet fetched, a call to the Kafka server is made.
-     */
-    private void updateAssignablePartitionsFromMetadata() {
-        for (String topic: this.subscribedTopics) {
-            // partitionsFor might return outdated partition information.
-            List <PartitionInfo> partList = getConsumer().partitionsFor (topic);
-            for (PartitionInfo part: partList) 
-                this.assignablePartitions.add (new CrConsumerGroupCoordinator.TP (part.topic(), part.partition()));
-        }
-    }
-
-
-    /**
-     * initializes the assignablePartitions from a Collection of TopicPartitions.
-     * @param topicPartitions the topic partitions
-     */
-    @SuppressWarnings("unused")
-    private void setAssignablePartitions (Collection<TopicPartition> topicPartitions) {
-        this.assignablePartitions.clear();
-        for (TopicPartition part: topicPartitions) 
-            this.assignablePartitions.add (new CrConsumerGroupCoordinator.TP (part.topic(), part.partition()));
-    }
-
 
 
     /**
@@ -886,10 +848,10 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // test CR index against index in MBean
         int myCrIndex = getCrContext().getIndex();
         int groupCrIndex = crGroupCoordinatorMxBean.getConsistentRegionIndex();
-        logger.debug("CR index from MBean = " + groupCrIndex + "; this opertor's CR index = " + myCrIndex);
+        trace.log (DEBUG_LEVEL, "CR index from MBean = " + groupCrIndex + "; this opertor's CR index = " + myCrIndex);
         if (groupCrIndex != myCrIndex) {
-            final String msg = Messages.getString("CONSUMER_GROUP_IN_MULTIPLE_CONSISTENT_REGIONS", getOperatorContext().getKind(), this.groupId);
-            logger.error (msg);
+            final String msg = Messages.getString("CONSUMER_GROUP_IN_MULTIPLE_CONSISTENT_REGIONS", getOperatorContext().getKind(), getGroupId());
+            trace.error (msg);
             throw new KafkaConfigurationException (msg);
         }
         // test that group-ID is not the generated (random) value
@@ -899,9 +861,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         if (initialStartPosition == StartPosition.Offset) {
             throw new KafkaConfigurationException (getThisClassName() + " does not support startPosition = " + initialStartPosition);
         }
-        logger.info ("initial start position for first partition assignment = " + initialStartPosition);
+        trace.info ("initial start position for first partition assignment = " + initialStartPosition);
         if (initialStartPosition == StartPosition.Time) {
-            logger.info ("start timestamp for first partition assignment = " + initialStartTimestamp);
+            trace.info ("start timestamp for first partition assignment = " + initialStartTimestamp);
         }
     }
 
@@ -924,24 +886,18 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     protected void processResetToInitEvent() {
-        logger.info (MessageFormat.format("processResetToInitEvent() [{0}] - entering", state));
-        clearDrainBuffer();
-        getMessageQueue().clear();
+        trace.info (MessageFormat.format ("processResetToInitEvent() [{0}] - entering", state));
         try {
-            initialOffsets = getInitialOffsetsFromJcpCv();
-            initialOffsets.setOffsetConsumer (getConsumer());
-            logger.debug ("initialOffsets = " + initialOffsets); //$NON-NLS-1$
-            initSeekOffsetMap();
-            initialOffsets.getMappedTopicPartitions().forEach (tp -> {
-                this.seekOffsetMap.put (tp, this.initialOffsets.getOffset(tp.topic(), tp.partition()));
-            });
-
+            clearDrainBuffer();
+            getMessageQueue().clear();
             // When no one of the KafkaConsumer in this group has been restarted before the region reset,
             // partition assignment will most likely not change and no onPartitionsRevoked()/onPartitionsAssigned will be fired on our
             // ConsumerRebalanceListener. That's why we must seek here to the partitions we think we are assigned to (can also be no partition).
             // If a consumer within our group - but not this operator - restarted, partition assignment may have changed, but we
             // are not yet notified about it. That's why we must handle the failed seeks.
             // When this operator is restarted and reset, getAssignedPartitions() will return an empty Set.
+            this.seekOffsetMap = initialOffsets.createOffsetMap (getAssignedPartitions());
+            trace.info (MessageFormat.format ("initial Offsets for assignment {0}: {1}", getAssignedPartitions(), this.seekOffsetMap));
 
             // Reset also the assignedPartitionsOffsetManager to the initial offsets of the assigned partitions. The assignedPartitionsOffsetManager goes into the checkpoint,
             // and its offsets are used as the seek position when it comes to reset from a checkpoint. There must be a seek position also in
@@ -951,28 +907,38 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             Collection<TopicPartition> failedSeeks = seekPartitions (getAssignedPartitions(), this.seekOffsetMap);
             failedSeeks.forEach (tp -> assignedPartitionsOffsetManager.remove (tp.topic(), tp.partition()));
             assignedPartitionsOffsetManager.savePositionFromCluster();
+            // reset tuple counter for operator driven CR
+            nSubmittedRecords = 0l;
+            ClientState newState = ClientState.RESET_COMPLETE;
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+            state = newState;
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("processResetToInitEvent() [{0}] - exiting", state));
         }
         catch (Exception e) {
-            throw new RuntimeException (e.getLocalizedMessage(), e);
+            throw new KafkaOperatorRuntimeException (e.getMessage(), e);
         }
-        ClientState newState = ClientState.RESET_COMPLETE;
-        logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
-        state = newState;
-        logger.debug (MessageFormat.format("processResetToInitEvent() [{0}] - exiting", state));
     }
 
 
 
     /**
-     * prepares the reset by clearing queues and buffers and creating the seek offset map.
+     * creates the seek offset map.
      * This method is run within a runtime thread.
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
-    public void resetPrepareData (Checkpoint checkpoint) throws InterruptedException {
+    public void resetPrepareDataBeforeStopPolling (Checkpoint checkpoint) throws InterruptedException {
+        createSeekOffsetMap (checkpoint);
+    }
+
+    /**
+     * clears the drain buffer and the message queue.
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareDataAfterStopPolling(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    protected void resetPrepareDataAfterStopPolling(Checkpoint checkpoint) throws InterruptedException {
         clearDrainBuffer();
         getMessageQueue().clear();
-        createSeekOffsetMap (checkpoint);
     }
 
     /**
@@ -989,10 +955,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     protected void processResetEvent (Checkpoint checkpoint) {
 
-        logger.info (MessageFormat.format("processResetEvent() [{0}] - entering", state));
-        clearDrainBuffer();
-        getMessageQueue().clear();
-        
+        trace.info (MessageFormat.format ("processResetEvent() [{0}] - entering", state));
+
         // When no one of the KafkaConsumer in this group has been restarted before the region reset,
         // partition assignment will most likely not change and no onPartitionsRevoked()/onPartitionsAssigned will be fired on our
         // ConsumerRebalanceListener. That's why we must seek here to the partitions we think we are assigned to (can also be no partition).
@@ -1008,10 +972,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         Collection<TopicPartition> failedSeeks = seekPartitions (getAssignedPartitions(), this.seekOffsetMap);
         failedSeeks.forEach (tp -> assignedPartitionsOffsetManager.remove (tp.topic(), tp.partition()));
         assignedPartitionsOffsetManager.savePositionFromCluster();
+        // reset tuple counter for operator driven CR
+        nSubmittedRecords = 0l;
         ClientState newState = ClientState.RESET_COMPLETE;
-        logger.debug(MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.debug (MessageFormat.format("processResetEvent() [{0}] - exiting", state));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("processResetEvent() [{0}] - exiting", state));
     }
 
     /**
@@ -1033,57 +999,62 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @SuppressWarnings("unchecked")
     private void createSeekOffsetMap (Checkpoint checkpoint) throws InterruptedException {
-        String operatorName = getOperatorContext().getName();
+        final String operatorName = getOperatorContext().getName();
         long chkptSeqId = checkpoint.getSequenceId();
         int resetAttempt = getCrContext().getResetAttempt();
         MergeKey key = new MergeKey (chkptSeqId, resetAttempt);
-        logger.info (MessageFormat.format("createSeekOffsetMap() [{0}] - entering. chkptSeqId = {1}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
+        trace.info (MessageFormat.format ("createSeekOffsetMap() [{0}] - entering. chkptSeqId = {1}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
         try {
-            logger.info (MessageFormat.format ("createSeekOffsetMap() - merging {0} operator checkpoints into a single group checkpoint", crGroupCoordinatorMxBean.getNumRegisteredConsumers()));
             final ObjectInputStream inputStream = checkpoint.getInputStream();
-            Set<TP> assignableParts = (Set<TP>) inputStream.readObject();
+            final String myOperatorNameInCkpt = (String) inputStream.readObject();
+            Set<String> contributingOperators = (Set<String>) inputStream.readObject();
             OffsetManager offsMgr = (OffsetManager) inputStream.readObject();
-            Map <TopicPartition, Long> committedOffsetsMap = (Map <TopicPartition, Long>) inputStream.readObject();
-            logger.debug (MessageFormat.format("createSeekOffsetMap(): assignablePartitions read from checkpoint: {0}", assignableParts));
-            logger.debug (MessageFormat.format("createSeekOffsetMap(): offset manager read from checkpoint: {0}", offsMgr));
-            logger.debug (MessageFormat.format("createSeekOffsetMap(): committedOffsetsMap read from checkpoint: {0}", committedOffsetsMap));
-            this.assignablePartitions.addAll (assignableParts);
-            int nPartitionsTotal = assignableParts.size();
-            int nPartitionsChckpt = offsMgr.size();
-            logger.info (MessageFormat.format("contributing {0} partition => offset mappings to the group''s checkpoint for total {1} partitions", nPartitionsChckpt, nPartitionsTotal));
-            if (nPartitionsChckpt > 0) {
-                // send checkpoint data to CrGroupCoordinator MXBean and wait for the notification
-                // to fetch the group's complete checkpoint. Then, process the group's checkpoint.
-                Map<CrConsumerGroupCoordinator.TP, Long> partialOffsetMap = new HashMap<>();
-                for (TopicPartition tp: offsMgr.getMappedTopicPartitions()) {
-                    final String topic = tp.topic();
-                    final int partition = tp.partition();
-                    final Long offset = offsMgr.getOffset (topic, partition);
-                    partialOffsetMap.put (new TP (topic, partition), offset);
-                }
+            trace.info (MessageFormat.format ("createSeekOffsetMap() - merging {0} operator checkpoints into a single group checkpoint", contributingOperators.size()));
 
-                logger.info (MessageFormat.format ("Merging my group''s checkpoint contribution: partialOffsetMap = {0}, all consumable partitions = {1}",
-                        partialOffsetMap, assignableParts));
-                this.crGroupCoordinatorMxBean.mergeConsumerCheckpoint (chkptSeqId, resetAttempt, assignableParts, partialOffsetMap, operatorName);
+            if (trace.isEnabledFor (DEBUG_LEVEL)) {
+                trace.log (DEBUG_LEVEL, MessageFormat.format ("createSeekOffsetMap(): myOperatorName read from checkpoint: {0}", myOperatorNameInCkpt));
+                trace.log (DEBUG_LEVEL, MessageFormat.format ("createSeekOffsetMap(): contributingOperators read from checkpoint: {0}", contributingOperators));
+                trace.log (DEBUG_LEVEL, MessageFormat.format ("createSeekOffsetMap(): offset manager read from checkpoint: {0}", offsMgr));
             }
-            else {
-                logger.info ("createSeekOffsetMap(): no contribution to the group's checkpoint from this operator");
+            if (!operatorName.equals (myOperatorNameInCkpt)) {
+                trace.warn (MessageFormat.format ("Operator name in checkpoint ({0}) differs from current operator name: {1}", myOperatorNameInCkpt, operatorName));
             }
+            int nPartitionsChckpt = offsMgr.size();
+            if (!contributingOperators.contains (operatorName)) {
+                trace.error (MessageFormat.format ("This operator''s name ({0}) not found in contributing operator names: {1}",
+                        operatorName, contributingOperators));
+            }
+            trace.info (MessageFormat.format ("contributing {0} partition => offset mappings to the group''s checkpoint.", nPartitionsChckpt));
+            // send checkpoint data to CrGroupCoordinator MXBean and wait for the notification
+            // to fetch the group's complete checkpoint. Then, process the group's checkpoint.
+            Map<CrConsumerGroupCoordinator.TP, Long> partialOffsetMap = new HashMap<>();
+            for (TopicPartition tp: offsMgr.getMappedTopicPartitions()) {
+                final String topic = tp.topic();
+                final int partition = tp.partition();
+                final Long offset = offsMgr.getOffset (topic, partition);
+                partialOffsetMap.put (new TP (topic, partition), offset);
+            }
+
+            trace.info (MessageFormat.format ("Merging my group''s checkpoint contribution: partialOffsetMap = {0}, myOperatorName = {1}",
+                    partialOffsetMap,operatorName));
+            this.crGroupCoordinatorMxBean.mergeConsumerCheckpoint (chkptSeqId, resetAttempt, contributingOperators.size(), partialOffsetMap, operatorName);
 
             // check JMX notification and wait for notification
             jmxNotificationConditionLock.lock();
             long waitStartTime= System.currentTimeMillis();
+            // increase timeout exponentially with every reset attempt by 20%
+            //            long timeoutMillis = (long)(Math.pow (1.2, resetAttempt) * (double)timeouts.getJmxResetNotificationTimeout());
             long timeoutMillis = timeouts.getJmxResetNotificationTimeout();
             boolean waitTimeLeft = true;
             int nWaits = 0;
             long timeElapsed = 0;
-            logger.debug (MessageFormat.format("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2} ms.",
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2} ms.",
                     CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, timeoutMillis));
-            while (!jmxMergeCompletedNotifMap.containsKey(key) && waitTimeLeft) {
+            while (!jmxMergeCompletedNotifMap.containsKey (key) && waitTimeLeft) {
                 long remainingTime = timeoutMillis - timeElapsed;
                 waitTimeLeft = remainingTime > 0;
                 if (waitTimeLeft) {
-                    if (nWaits++ %50 == 0) logger.debug (MessageFormat.format("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2} of {3} ms",
+                    if (nWaits++ %50 == 0) trace.log (DEBUG_LEVEL, MessageFormat.format ("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2} of {3} ms",
                             CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, remainingTime, timeoutMillis));
                     jmxNotificationCondition.await (100, TimeUnit.MILLISECONDS);
                 }
@@ -1093,54 +1064,33 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             if (merge == null) {
                 final String msg = MessageFormat.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3} milliseconds.",
                         CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, crGroupCoordinatorMXBeanName, timeoutMillis);
-                logger.warn (msg);
-                logger.info ("will restore group's checkpoint by merge of partly merged checkpoints with last committed offsets");
-                // JMX notification may have lost, an at least partly usable result may be available anyway...
+                trace.error (msg);
+                throw new KafkaOperatorResetFailedException (msg);
             }
             else {
-                logger.info (MessageFormat.format ("waiting for JMX notification for sequenceId {0} took {1} ms", key, timeElapsed));
+                trace.info (MessageFormat.format ("waiting for JMX notification for sequenceId {0} took {1} ms", key, timeElapsed));
             }
 
-            Map <TP, Long> mergedOffsetMap = merge != null? merge.getConsolidatedOffsetMap(): crGroupCoordinatorMxBean.getConsolidatedOffsetMap (chkptSeqId, resetAttempt, operatorName);
-            logger.info ("reset offsets (group's checkpoint) received/fetched from MXBean: " + mergedOffsetMap);
+            Map <TP, Long> mergedOffsetMap = merge.getConsolidatedOffsetMap();
+            trace.info ("reset offsets (group's checkpoint) received/fetched from MXBean: " + mergedOffsetMap);
 
-            // reset offsets from MXBean may be incomplete when the checkpoint was taken in the middle of rebalancing the group.
-            // In order to have an offset to which we can seek, merge with the committedOffsetsMap - which might be older.
             initSeekOffsetMap();
             mergedOffsetMap.forEach ((tp, offset) -> {
                 this.seekOffsetMap.put (new TopicPartition (tp.getTopic(), tp.getPartition()), offset);
             });
-            committedOffsetsMap.forEach ((tp, committedOffset) -> {
-                if (!this.seekOffsetMap.containsKey (tp)) {
-                    logger.warn (MessageFormat.format ("createSeekOffsetMap(): consolidated offset map is missing offset for topic partition {0}. Using last committed offset at drain time: {1}", tp, committedOffset));
-                    this.seekOffsetMap.put (tp, committedOffset);
-                }
-                else {
-                    // compare offsets and log when they are different
-                    long offset = seekOffsetMap.get(tp).longValue();
-                    if (committedOffset.longValue() != offset) {
-                        logger.debug (MessageFormat.format("seek offsets for {0} from merged checkpoint {1} and committed at drain {2} differ. "
-                                + " Assertion {1} > {2} must be true.", tp, offset, committedOffset));
-                    }
-                    else {
-                        logger.debug (MessageFormat.format("seek offsets for {0} from merged checkpoint {1} and committed at drain {2} match.",
-                                tp, offset, committedOffset));
-                    }
-                }
-            });
         }
         catch (InterruptedException e) {
-            logger.debug ("createSeekOffsetMap(): interrupted waiting for the JMX notification");
+            trace.log (DEBUG_LEVEL, "createSeekOffsetMap(): interrupted waiting for the JMX notification");
             return;
         }
         catch (IOException | ClassNotFoundException e) {
-            logger.error ("reset failed: " + e.getLocalizedMessage());
+            trace.error ("reset failed: " + e.getLocalizedMessage());
             throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
         }
         finally {
             jmxNotificationConditionLock.unlock();
         }
-        logger.debug ("createSeekOffsetMap(): seekOffsetMap = " + this.seekOffsetMap);
+        trace.log (DEBUG_LEVEL, "createSeekOffsetMap(): seekOffsetMap = " + this.seekOffsetMap);
     }
 
 
@@ -1169,52 +1119,31 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     protected void processCheckpointEvent (Checkpoint checkpoint) {
-        logger.info (MessageFormat.format ("processCheckpointEvent() [{0}] sequenceId = {1}", state, checkpoint.getSequenceId()));
+        trace.info (MessageFormat.format ("processCheckpointEvent() [{0}] sequenceId = {1}", state, checkpoint.getSequenceId()));
         try {
-            // get committed Offsets for all Partitions.
-            // Note, that checkpoint() can be called before all consumers in the group have committed.
-            // This means that this map may contain offsets committed next to last drain.
-            // On reset to such a checkpoint there is a chance that more tuples are replayed when 
-            // checkpoint merge over MXBen fails for any reason - but only then.
-            KafkaConsumer <?, ?> consumer = getConsumer();
-            Set <TopicPartition> topicPartitions = new HashSet<>();
-            for (String topic: subscribedTopics) {
-                List <PartitionInfo> partitionInfos = consumer.partitionsFor (topic);
-                for (PartitionInfo pi: partitionInfos) {
-                    topicPartitions.add (new TopicPartition (pi.topic(), pi.partition()));
+            Set<String> registeredConsumers = this.crGroupCoordinatorMxBean.getRegisteredConsumerOperators();
+            final String myOperatorName = getOperatorContext().getName();
+            if (ENABLE_CHECK_REGISTERED_ON_CHECKPOINT) {
+                if (!registeredConsumers.contains (myOperatorName)) {
+                    trace.error (MessageFormat.format ("My operator name not registered in group MXBean: {0}", myOperatorName));
                 }
-            }
-            // partitionsFor(..) returns the info from the meta data, which may be out-dated in our consumer.
-            // merge with assignablePartitions, which is synchronized via JMX over the consumers of the group 
-            for (TP tpa: this.assignablePartitions) {
-                TopicPartition tp = new TopicPartition (tpa.getTopic(), tpa.getPartition());
-                if (!topicPartitions.contains (tp)) {
-                    topicPartitions.add (tp);
-                }
-            }
-
-            Map <TopicPartition, Long> committedOffsetsMap = new HashMap<>();
-            for (TopicPartition tp: topicPartitions) {
-                OffsetAndMetadata ofsm = consumer.committed (tp);
-                // consumer.committed(...) returns null if there was no prior commit
-                committedOffsetsMap.put (tp, ofsm == null? 0l: ofsm.offset());
             }
             ObjectOutputStream oStream = checkpoint.getOutputStream();
-            oStream.writeObject (this.assignablePartitions);
+            oStream.writeObject (myOperatorName);
+            oStream.writeObject (registeredConsumers);
             oStream.writeObject (this.assignedPartitionsOffsetManager);
-            oStream.writeObject (committedOffsetsMap);
-            if (logger.isDebugEnabled()) {
-                logger.debug ("data written to checkpoint: assignablePartitions = " + this.assignablePartitions);
-                logger.debug ("data written to checkpoint: assignedPartitionsOffsetManager = " + this.assignedPartitionsOffsetManager);
-                logger.debug ("data written to checkpoint: current committed offsets = " + committedOffsetsMap);
+            if (trace.isEnabledFor (DEBUG_LEVEL)) {
+                trace.log (DEBUG_LEVEL, "data written to checkpoint: myOperatorName = " + myOperatorName);
+                trace.log (DEBUG_LEVEL, "data written to checkpoint: contributingOperators = " + registeredConsumers);
+                trace.log (DEBUG_LEVEL, "data written to checkpoint: assignedPartitionsOffsetManager = " + this.assignedPartitionsOffsetManager);
             }
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
         ClientState newState = ClientState.CHECKPOINTED;
-        logger.debug (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        logger.debug ("processCheckpointEvent() - exiting.");
+        trace.log (DEBUG_LEVEL, "processCheckpointEvent() - exiting.");
     }
 
 
@@ -1228,7 +1157,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     protected void processUpdateAssignmentEvent (TopicPartitionUpdate update) {
-        logger.warn("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
+        trace.warn("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
     }
 
 
@@ -1245,11 +1174,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // Don't change state, when state is something CR related, like DRAINING, RESETTING, ... 
         if (state == ClientState.POLLING /*|| state == ClientState.CR_RESET_PENDING*/ || state == ClientState.POLLING_THROTTLED) {
             ClientState newState = ClientState.POLLING_STOPPED;
-            logger.debug (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
         }
         else {
-            logger.debug (MessageFormat.format ("runPollLoop() [{0}]: polling stopped", state));
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("runPollLoop() [{0}]: polling stopped", state));
         }
     }
 
@@ -1266,22 +1195,22 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
 
-        if (logger.isInfoEnabled() && !(state == ClientState.POLLING || state == ClientState.POLLING_THROTTLED)) {
-            logger.info (MessageFormat.format ("pollAndEnqueue() [{0}]: Polling for records {1}, Kafka poll timeout = {2}",
+        if (trace.isInfoEnabled() && !(state == ClientState.POLLING || state == ClientState.POLLING_THROTTLED)) {
+            trace.info (MessageFormat.format ("pollAndEnqueue() [{0}]: Polling for records {1}, Kafka poll timeout = {2}",
                     state, (isThrottled? "(throttled)": "(normal)"), pollTimeout)); //$NON-NLS-1$
         }
-        if (logger.isTraceEnabled()) logger.trace ("Polling for records..."); //$NON-NLS-1$
+        if (trace.isTraceEnabled()) trace.trace ("Polling for records..."); //$NON-NLS-1$
         // Note: within poll(...) the ConsumerRebalanceListener might be called, changing the state to CR_RESET_PENDING
         long before = 0;
-        if (logger.isDebugEnabled()) before = System.currentTimeMillis();
+        if (trace.isDebugEnabled()) before = System.currentTimeMillis();
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
         int numRecords = records == null? 0: records.count();
-        if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
-        if (logger.isDebugEnabled()) {
-            logger.debug (MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));
+        if (trace.isTraceEnabled() && numRecords == 0) trace.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
+        if (trace.isDebugEnabled()) {
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));
         }
         if (state == ClientState.CR_RESET_PENDING) {
-            logger.debug (MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
             return 0;
         }
         // state transition
@@ -1293,16 +1222,16 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 newState = isThrottled? ClientState.POLLING_THROTTLED: ClientState.POLLING;
             }
             if (state != newState) {
-                logger.debug (MessageFormat.format("client state transition: {0} -> {1}", state, newState));
+                trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
                 state = newState;
             }
         }
         // add records to message queue
         if (numRecords > 0) {
-            if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
+            if (trace.isDebugEnabled()) trace.debug ("# polled records: " + numRecords);
             records.forEach(cr -> {
-                if (logger.isTraceEnabled()) {
-                    logger.trace (MessageFormat.format ("consumed [{0}]: tp={1}, pt={2}, of={3}, ts={4}, ky={5}",
+                if (trace.isTraceEnabled()) {
+                    trace.trace (MessageFormat.format ("consumed [{0}]: tp={1}, pt={2}, of={3}, ts={4}, ky={5}",
                             state,  cr.topic(), cr.partition(), cr.offset(), cr.timestamp(), cr.key()));
                 }
                 getMessageQueue().add(cr);
@@ -1328,15 +1257,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
         //  if ((state == ClientState.RESET_COMPLETE || state == ClientState.CHECKPOINTED) && pollingStartPending.get() == false) {
-        if (!(state == ClientState.POLLING || state == ClientState.DRAINING || state == ClientState.DRAINED || state == ClientState.CR_RESET_PENDING) && pollingStartPending.get() == false) {
-            logger.debug (MessageFormat.format ("getNextRecord() [{0}] - Acquired permit - initiating polling for records", state)); 
+        if (!pollingStartPending.get() && !(state == ClientState.POLLING || state == ClientState.DRAINING || state == ClientState.DRAINED || state == ClientState.CR_RESET_PENDING)) {
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("getNextRecord() [{0}] - Acquired permit - initiating polling for Kafka messages", state)); 
             pollingStartPending.set (true);
-            try {
-                crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
-            } catch (IOException e) {
-                // connection to MX bean is broken. state is reset on JMX initialization in setup()
-                e.printStackTrace();
-            }
             sendStartPollingEvent();
             Thread.sleep(50);
         }
@@ -1367,26 +1290,23 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         this.initialStartTimestamp = initialStartTimestamp;
     }
 
-    /**
-     * Creates an operator-scoped JCP control variable if it not yet exists and stores the initial offsets manager in serialized format.
-     * @throws Exception
-     */
-    private void createJcpCvFromInitialOffsets() throws Exception {
-        logger.debug ("createJcpCvFromInitialOffsets(). initialOffsets = " + initialOffsets); 
-        initialOffsetsCV = getJcpContext().createStringControlVariable (OffsetManager.class.getName() + ".initial",
-                false, serializeObject (initialOffsets));
-        OffsetManager mgr = getInitialOffsetsFromJcpCv();
-        logger.debug ("Retrieved value for initialOffsetsCV = " + mgr); 
-    }
 
     /**
-     * Retrieves the initial offsets manager from the JCP control variable.
-     * @return  an OffsetManager object
-     * @throws Exception
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#onShutdown(long, java.util.concurrent.TimeUnit)
      */
-    private OffsetManager getInitialOffsetsFromJcpCv() throws Exception {
-        return SerializationUtils.deserialize (Base64.getDecoder().decode (initialOffsetsCV.sync().getValue()));
+    @Override
+    public void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
+        if (this.crGroupCoordinatorMxBean != null) {
+            try {
+                crGroupCoordinatorMxBean.deregisterConsumerOperator (getOperatorContext().getName());
+            } catch (Exception e) {
+                trace.warn (MessageFormat.format ("deregister {0} operator from MXBean {1} failed: {2}",
+                        getOperatorContext().getName(), this.crGroupCoordinatorMXBeanName, e.toString()));
+            }
+        }
+        super.onShutdown (timeout, timeUnit);
     }
+
 
     /**
      * The builder for the consumer client following the builder pattern.
@@ -1401,7 +1321,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         private long triggerCount;
         private StartPosition initialStartPosition;
         private long initialStartTimestamp;
-        private int numTopics = 0;
+        private boolean singleTopic = false;   // safest default
 
         public final Builder setOperatorContext(OperatorContext c) {
             this.operatorContext = c;
@@ -1433,8 +1353,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             return this;
         }
 
-        public final Builder setNumTopics (int n) {
-            this.numTopics = n;
+        public final Builder setSingleTopic (boolean s) {
+            this.singleTopic = s;
             return this;
         }
 
@@ -1461,7 +1381,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
          * @throws Exception
          */
         public ConsumerClient build() throws Exception {
-            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, numTopics);
+            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, singleTopic);
             client.setPollTimeout (this.pollTimeout);
             client.setTriggerCount (this.triggerCount);
             client.setInitialStartPosition (this.initialStartPosition);

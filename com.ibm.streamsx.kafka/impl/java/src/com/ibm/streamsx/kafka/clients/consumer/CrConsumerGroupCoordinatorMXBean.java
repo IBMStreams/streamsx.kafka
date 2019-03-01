@@ -21,11 +21,6 @@ public interface CrConsumerGroupCoordinatorMXBean {
     public final static String MERGE_COMPLETE_NTF_TYPE = "OFFSET.MAP.MERGE.COMPLETE";
 
     /**
-     * JMX Notification type partitions have been assigned to a consumer in the group
-     */
-    public final static String PARTITIONS_META_CHANGED = "PARTITIONS.META.CHANGED";
-
-    /**
      * Returns the index of the consistent region.
      * @return the consumer group index
      * @throws IOException
@@ -42,26 +37,46 @@ public interface CrConsumerGroupCoordinatorMXBean {
     /**
      * registers a consumer operator 
      * @param id a unique identifier of the operator, for example the operators full name
+     * @see #deregisterConsumerOperator(String)
+     * @throws IOException
      */
-    public void registerConsumerOperator (String id);
+    public void registerConsumerOperator (String id) throws IOException;
+
+    /**
+     * deregisters a consumer operator 
+     * @param id a unique identifier of the operator, for example the operators full name
+     * @see #registerConsumerOperator(String)
+     * @throws IOException
+     */
+    public void deregisterConsumerOperator (String id) throws IOException;
 
     /**
      * returns the number of registered consumers, which should be the size of the consumer group.
      * @return the number of consumers
+     * @throws IOException
      */
-    public int getNumRegisteredConsumers();
+    public int getNumRegisteredConsumers() throws IOException;
+
+    /**
+     * Get the names of the registered Consumer operators
+     * @return the name of the registered operators. If none is registered, an empty Set is returned.
+     * @see #registerConsumerOperator(String)
+     * @see #deregisterConsumerOperator(String)
+     * @throws IOException
+     */
+    public Set<String> getRegisteredConsumerOperators() throws IOException;
 
     /**
      * Merges the checkpoint data of a single consumer into the consolidated group checkpoint.
      * @param chkptSequenceId the checkpoint sequence ID.
      * @param resetAttempt the current number of attempts of resetting the CR
-     * @param allPartitions  the total set of all expected partitions
+     * @param nRequiredDistinctContributions the number of expected distinct contributions for merge completeness
      * @param partialResetOffsetMap the partial set of offsets being partialResetOffsetMap.keySet() typically a subset of allPartitions.
      * @param operatorName The unique name of the operator
      * @throws IOException
      */
     public void mergeConsumerCheckpoint (long chkptSequenceId, int resetAttempt, 
-            Set<CrConsumerGroupCoordinator.TP> allPartitions, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap, String operatorName) throws IOException;
+            int nRequiredDistinctContributions, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap, String operatorName) throws IOException;
 
     /**
      * Gets the consolidated offset map that has been created by merging parts via {@link #mergeConsumerCheckpoint(long, int, Set, Map)}.
@@ -79,15 +94,7 @@ public interface CrConsumerGroupCoordinatorMXBean {
      * @throws IOException
      */
     public void cleanupMergeMap (long chkptSequenceId) throws IOException;
-    /**
-     * broadcasts a JMX message of type all registered notification listeners that contains the given data
-     * the partitions given in the partitions parameter.
-     * @param data the data to be broadcasted. For example, this can be a deserialized object.
-     * @param jmxNotificationType the notification type
-     * @throws IOException
-     */
-    public void broadcastData (String data, String jmxNotificationType) throws IOException;
-    
+
     /**
      * Sets the rebalance reset pending state atomically to the given value and returns the old value.
      * @param pending the new state

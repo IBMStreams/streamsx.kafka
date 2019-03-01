@@ -13,6 +13,11 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
+/**
+ * Instantiated in consistent region, when consistentRegionPolicy is not transactional.
+ * 
+ * @author The IBM Kafka toolkit maintainers
+ */
 public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
 
     private static final Logger logger = Logger.getLogger(AtLeastOnceKafkaProducerClient.class);
@@ -22,8 +27,6 @@ public class AtLeastOnceKafkaProducerClient extends KafkaProducerClient {
     public <K, V> AtLeastOnceKafkaProducerClient(OperatorContext operatorContext, Class<?> keyType,
             Class<?> messageType, boolean guaranteeOrdering, KafkaOperatorProperties props) throws Exception {
         super(operatorContext, keyType, messageType, guaranteeOrdering, props);
-        logger.info (getThisClassName() + " starting...");
-        
         this.futuresList = Collections.synchronizedList(new ArrayList<Future<RecordMetadata>>());
     }
 

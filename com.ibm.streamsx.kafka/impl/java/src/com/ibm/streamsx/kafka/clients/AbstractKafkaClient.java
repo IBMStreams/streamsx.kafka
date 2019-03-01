@@ -53,6 +53,7 @@ public abstract class AbstractKafkaClient {
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
         this.operatorContext = operatorContext;
+        logger.info ("instantiating client: " + getThisClassName());
         this.jcpContext = operatorContext.getOptionalContext (ControlPlaneContext.class);
         // Create a unique client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
         // This is important, otherwise running multiple consumers from the same

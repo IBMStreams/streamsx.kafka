@@ -19,6 +19,11 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
+/**
+ * Producer client for transactional message delivery in consistent region.
+ * 
+ * @author The IBM Kafka toolkit maintainers
+ */
 public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
     // default value of server config transaction.max.timeout.ms
@@ -34,7 +39,6 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
     public <K, V> TransactionalKafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             boolean guaranteeOrdering, KafkaOperatorProperties kafkaProperties, boolean lazyTransactionBegin) throws Exception {
         super(operatorContext, keyClass, valueClass, guaranteeOrdering, kafkaProperties);
-        logger.info (getThisClassName() + " starting...");
         this.lazyTransactionBegin = lazyTransactionBegin;
         // If this variable has not been set before, then set it to the current end offset.
         // Otherwise, this variable will be overridden with the value is retrieved

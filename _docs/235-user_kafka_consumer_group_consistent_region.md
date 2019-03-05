@@ -2,7 +2,7 @@
 title: "Kafka Consumer group support in a consistent region"
 permalink: /docs/user/ConsumerGroupConsistentRegion/
 excerpt: "Functional description how consumer groups are supported in a consistent region"
-last_modified_at: 2018-08-31T12:37:48+01:00
+last_modified_at: 2019-03-05T12:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -44,54 +44,60 @@ Each consumer operator has two threads.
 
 - The **process thread** pulls messages from the message queue and, when a consistent region permit is acquired, it creates and submits tuples. This thread also saves the offsets of the submitted tuples for every topic and partition in a data structure called the *offset manager* after tuple submission.
 
+### Shared data
+
+When group management is used in a consistent region, the consumer client implementation `CrKafkaConsumerGroupClient` is used in the operator. This client implementation uses a job-scoped MXBean in the JobControlPlane operator, which is unique for the consumer group to which the client belongs to. When the connection to the JobControlPlane is created, every Consumer operator registers itself with its operator name, so that each member of the group can obtain the number of consumer operators in the consumer group and its names. Using this MXBean is one reason, why a consumer group must not be spread over multiple Streams jobs. This MXBean is not persisted. When the JobControlPlane operator restarts, it reconnects to all consumer operators, and then they register again, so that the registration will be restored.
+
+For every topic partition that is assigned to any of the operators in the consumer group, a shared control variable of Long type is created for the consumer group. Such a variable contains the initial fetch offset for a particular topic partition in the consumer group. The variable is created when a consumer sees a topic partition the first time. These control variables are used on reset to initial state to ensure that the fetch position is the same on every reset to initial state.
+
 ### Checkpointed data
 
 The operator's checkpoint contains following data
 
-1. The set of assignable partitions of all subscribed topics. When there is more than one operator in a consumer group, each operator is assigned to a not overlapping subset of this.
-2. the offset manager. The offset manager contains the mapping from \[topic, partition\] to the offset of the message fetched next for the assigned partitions. These are the start offsets for these partitions after reset.
-3. a partition offset map for *all partitions of all subscribed topics* containing the offsets committed at last drain. The subset for the assigned partitions must be the same as the mappings in the offset manager.
-
-**Note:** when one operator (A) creates a checkpoint, an other operator (B) may not yet haved committed offsets, so that operator A may have lower offsets in the map for those partitions that are assigned to operator B.
+1. The operator name of the operator that is checkpointed.
+2. All operator names that participate in the consumer group. These are the names of the operators registered in the MXBean.
+3. the offset manager. The offset manager contains the mapping from \[topic, partition\] to the offset of the message fetched next for the assigned partitions. These are the start offsets for these partitions after reset.
 
 ## Operator Function
 
 ### Initialization
 
-The consumer operators, which are members of a consumer group try to create a job-scoped MBean in the JCP operator, which has an object name unique for the consumer group. It is initialized with group-ID and consistent region index. All operators do this concurrently, but only one manages to create the MBean. All operators compare their own consistent region index with the consistent region index attribute of the MBean. If the indexes differ, the rule that all members must be in the same group is violated. Operator initialization fails.
+The consumer operators, which are members of a consumer group try to create a job-scoped MXBean in the JCP operator, which has an object name unique for the consumer group. It is initialized with group-ID and consistent region index. All operators do this concurrently, but only one manages to create the MXBean. All operators compare their own consistent region index with the consistent region index attribute of the MBean. If the indexes differ, the rule is violated that all group members must belong to the same consistent region. The operator initialization will fail in this case.
 
-Next, each operator independently determines the initial offsets for all partitions of all topics that the operator subscribes later. These mappings from topic partitions to offsets are stored in a JCP control variable and used to seek initially after partition assignment or after a reset to initial state.
-
-The operator maintains a *seek offset map*, which contains topic-partition-to-offset mappings for all partitions. This map is initially filled with the initial offsets (It is also filled during reset of the consistent region).
-
-Then, the opertor subscribes to the configured topics. It has no partitions assigned yet. The client is in state SUBSCRIBED.
+Then, the opertor subscribes to the configured topics or pattern. It has no partitions assigned yet. The client is in state SUBSCRIBED.
 
 ### Partition revocation and assignment
 
-Partition assignment and revocation is done by Kafka. The client is notified by callbacks about these events whithin the call of the `poll` API of the KafkaConsumer - and only then. `onPartitionsRevoked` is always followed by `onPartitionsAssigned` with the newly assigned partitions.
+Partition assignment and revocation is done by Kafka. The client is notified by callbacks about these events whithin the call of the `poll` API of the KafkaConsumer - and only then. `onPartitionsRevoked` is always followed by `onPartitionsAssigned` with the newly assigned partitions. `onPartitionsRevoked` is always called *before* partitions are unassigned. When partitions are revoked, the Kafka consumer (part of the kafka client) forgets its assignment and all fetch offsets of the partitions being revoked.
 
 #### Partition revocation
+
 `onPartitionsRevoked` is ignored when the client has just subscribed, or after reset to initial state or to a checkpoint. Otherwise, a reset of the consistent region is initiated by the operator:
+- The message queue is cleared, so that tuple submission stops
 - A stop polling event is submitted to the event queue, which lets the operator stop polling for new messages. Letting the operator stop polling avoids that the callbacks are called again before the reset event is processed.
-- A reset of the consitent region is triggered asynchronous. The state of the client changes to CR_RESET_INITIATED.
+- If the state of the region is *not* `RESETTING`, a reset of the consistent region is triggered asynchronous.
+- The state of the client changes to CR_RESET_PENDING.
 - `onPartitionsAssigned` with the new partition assignment is always called back after `onPartitionsRevoked` within the context of the current poll.
-- When it comes to the consistent region reset, the operator places a reset event into the event queue. This event is 
+- When it comes to the consistent region reset, the operator places a reset event into the event queue. This event is
 always processed by the event thread *after* the current `poll` has finished. Therefore also `onPartitionsAssigned` is called before the reset event can be processed.
 
 #### Partition assignment
 
 The cycle `onPartitionsRevoked` - `onPartitionsAssigned` can happen whenever the client polls for messages. The client performs following:
 
-- update the *assignable partitions* from the meta data of the subscribed topics. Partitions may have been added to the topics by an administrator.
 - for the partitions that are *not assigned anymore* to this consumer
-    - remove all messages from the message queue, so that they will not be submitted as tuples
     - remove the \[topic, partition\] to offset mappings from the offset manager
 - save the newly assigned partitions for this operator
-- add the new partitions to the offset manager, and get the fetch positions for each assigned partition from the Kafka broker.
-- When the operator is in state SUBSCRIBED or RESET_COMPLETE, i.e. not awaiting a reset of the consistent region, seek all partitions to the offsets in the *seek offset map*. The seek position for those partitions, which are not in the map is calculated like an initial offset (what the **startPosition** parameter is).
-- When the operator is in state CR_RESET_INITIATED (awaiting a reset) the assigned partitions are not seeked. This happens during reset later. 
+- add the new topic partitions to the offset manager
+- seek the assigned partitions to
+  - an offset from a *merged* checkpoint
+  - an initial offset from a control variable, or
+  - an initial offset determined from the **startPosition** parameter, which is then saved in a contol variable
+- When the operator is in state CR_RESET_PENDING (awaiting a reset) the assigned partitions are not seeked. This happens during reset later.
 
-The operator maintains the metric **nPartitionsAssigned** showing the number of currently assigned partitions.
+The operator maintains following metrics when partitions are assigned:
+- **nPartitionsAssigned** showing the number of currently assigned partitions
+- **nConsumedTopics** showing the number of topics consumed by this operator in the group
 
 ## drain processing
 
@@ -101,42 +107,40 @@ The operator maintains two metrics, the drain time of last drain, and the maximu
 
 ## reset processing
 
-When the operator resets to a previous state, each operator must have a *seek offset map*, which maps topic partitions to offsets for all partitions that can be potentially assigned. The way how this map is created is different for reset to initial state and reset to a checkpoint.
-
-A reset of the consistent region can happen 
-- after new partitions have been assigned (the operator has triggered the reset before during `onPartitionsRevoked`)
+A reset of the consistent region can happen
+- after new partitions have been assigned (a consumer operator within the group has triggered the reset during its `onPartitionsRevoked`)
 - without change of partition assignment, for example, when a downstream PE has caused the reset
 - with subsequent partition assignment, for example, when a PE hosting a consumer operator restarted.
 
-Each operator performs these steps on reset of the consistent region:
+When the operator is reset without restart, it seeks the assigined partitions to initial offsets or offsets from a merged checkpoint. A partition assignment *can* happen afterwards. When the operator is reset after relaunch of its PE, a partition assignement will definitely happen. It can be an empty partition assignment, however. The partition assignment will consist of partition revocation followed by a partition assignment. The partition assignment can also change when partitions are assigned at the time of reset.
 
-- the operator stops polling for new messages. This happens automatically when the reset or reset to inital event is enqueued into the event queue.
-- it clears the message queue
-- create the *seek offset map*
-- for the currently assigned partitions, seek to the offsets in the seek offset map. For partitions that have no mapping, seek to what the **startPosition** parameter is
-- update the offsets in the offset manager with the start positions for the assigned partitions
-- set the client state to RESET_COMPLETE
-- the operator starts polling in throttled mode for messages filling the message queue
-- when the operator acquires a permit to submit messages, the the operator starts polling at full speed, and the message queue is processed submitting tuples.
+### Reset processing to inital state
 
-### create the seek offset map during reset to initial state
+Polling for new Kafka messages is stopped, the drain buffer and the message queues are cleared.
+When the operator has assigned partitions, a *seek offset map* is created from the initial offsets stored in the control variables. This map maps the currently assigned partitions to the initial offsets.
 
-The seek offset map is restored from the initial offsets gathered from the control variable in the JCP.
+The assigned partitions are seeked to the initial offsets, and the offset manager is updated and refreshed with the fetch positions from the broker. After reset processing the consumer client goes into state `RESET_COMPLETE` and starts polling with throttled speed.
 
-### create the seek offset map during reset using a checkpoint
+### Reset processing to a previous state using a checkpoint
 
-The checkpoint of each consumer operator contains three data items:
+When the operator resets to a previous state, each operator must have offsets of its currently assigned partitions and those partitons, which can be assigned later. The currently assigned partitions can be different from tha assigned partitions at checkpoint time. That's why the checkpoints of the consumer operators within a consumer group must be merged, so that all consumer operators have the same *merged checkpoint*.
 
-1. the assignable partitions (of all subscribed topics) at checkpoint time
-2. the offset manager, next fetch positions (offsets) for those partitions, which were assigned to the consumer at checkpoint time
-3. a partition-to-offset map with committed offsets of all assignable partitions. These are those offsets, which each operator saw in the Kafka cluster at its individual checkpoint time.
+The checkpoint of each operator contains
 
-The goal is to restore a seek offset map from data (2) of all consumer operators within the consumer group. Then it could be *guaranteed* that a consumer seeks to the right offset of a partition even if this partition was assigned to a different consumer at the last consistent cut.
+1. Its own operator name
+2. The operator names of all consumer operators at the time of checkpoint
+3. Its offset manager at the time of the checkpoint. The offset manager can be understood of a map from topic partition to fetch offset.
 
-The data portions (2), are merged by using the MBean created in the JCP. Each consumer operator sends its partition-offset map (2) together with the assignable partitions (1), and the checkpoint-ID to the MBean, which creates a merge in a map with the checkpoint-ID as the key. When the MBean has received mappings for all partitions in the assignable partitions (1) for the checkpoint-ID, the merge is treated being complete, and a JMX notification with the merged offset map is emitted. The JMX notification also contains the checkpoint-ID, so that the operator can wait for exactly the notification for current checkpoint sequence-ID. When an operator has received the right notification, it creates the seek offset map from the merged offset map received with the JMX notification.
+The offsets (3) are merged by using the MXBean in the JobControlPlane.
+Each consumer operator sends its partition-offset map (3) together with its operator name (1), the number of distinct consumer operators *N* (from (2)), and the checkpoint sequence-ID to the MXBean. When the MXBean has received *N* contributions with *N* different operator names for the chackpoint sequence-ID, the merge is treated being complete, and a JMX notification with the merged offset map is emitted. The JMX notification also contains the checkpoint-ID, so that the operator can wait for exactly the notification for current checkpoint sequence-ID. When an operator has received the right notification, it creates the seek offset map from the merged offset map received with the JMX notification.
 
-When a consumer has not received the notification in time, the map in the MBean may be incomplete. In this case, the merged map is obtaioned from the MBean, and a missing partition-to-offset mapping for the seek offset map is taken from the partition to offset map (3).
+The timeout for receiving the JMX notification is `minimum (CR_resetTimeout/2, max.poll.interval.ms/2, 15000 ms)`. The merges in the MXBean and the received JMX notifications in the consumer client are removed on `retireCheckpoint`.
 
-The timeout for receiving the JMX notification is `minimum (CR_resetTimeout/2, max.poll.interval.ms/2, 15000 ms)`.
+After this checkpoint merge happened, polling for new Kafka messages is stopped, the drain buffer and the message queues are cleared.
 
-The merges in the MBean and the received JMX notifications in the consumer client are removed on `retireCheckpoint`.
+The assigned partitions are seeked to the offsets from merged checkpoint, and the offset manager is updated and refreshed with the fetch positions from the broker. After reset processing the consumer client goes into state `RESET_COMPLETE` and starts polling with throttled speed.
+
+### Partition assignment after reset.
+
+The `onPartitionsRevoked` callback is ignored when a reset happened before. The partition assignment within the `onPartitionsAssigned` callback is done as described above.
+

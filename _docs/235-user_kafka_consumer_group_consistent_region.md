@@ -99,13 +99,13 @@ The operator maintains following metrics when partitions are assigned:
 - **nPartitionsAssigned** showing the number of currently assigned partitions
 - **nConsumedTopics** showing the number of topics consumed by this operator in the group
 
-## drain processing
+## Drain processing
 
 On drain, the operator stops polling for new messages, and, if the region is *not operator driven*, drains the entire content of the message queue into a temporary buffer. Then, the offsets from the offset manager are committed in one single synchronous server request. If this fails, for only one partition, an exception is thrown causing an operator restart with subsequent reset to the last consistent state.
 
 The operator maintains two metrics, the drain time of last drain, and the maximum drain time, both measured in milliseconds.
 
-## reset processing
+## Reset processing
 
 A reset of the consistent region can happen
 - after new partitions have been assigned (a consumer operator within the group has triggered the reset during its `onPartitionsRevoked`)

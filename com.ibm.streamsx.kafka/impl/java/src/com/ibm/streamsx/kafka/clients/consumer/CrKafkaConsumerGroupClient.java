@@ -665,23 +665,18 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * onPartitionsAssigned performs following:
      * <ul>
      * <li>
-     * update the assignable partitions from meta data. On change (for example, when partitions have
-     * been added to topics and the metadata in the client have been refreshed) synchronize the partitions
-     * with the other consumers in the group via JMX</li>
-     * <li>
      * save current assignment for this operator
-     * </li>
-     * <li>
-     * remove the messages for the gone partitions from the message queue. The message queue contains only uncommitted consumer records.
      * </li>
      * <li>
      * update the offsetManager for the assigned partitions: remove gone partitions, update the topics with the newly assigned partitions
      * </li>
      * <li>
-     * When the client has initially subscribed to topics or has been reset before, a 'seekOffsetMap' has been updated before. This map maps
-     * topic partitions to offsets. for every assigned partition, the client seeks to the offset in the map. If the assigned partition 
-     * cannot be found in the map, the initial offset is determined as given by operator parameter 'startPosition' and 
-     * optionally 'startTimestamp'.
+     * When the client has has been reset before from a checkpoint, or has been reset to initial state with assigned partitions,
+     * a 'seekOffsetMap' with content in it has been created before. This map maps
+     * topic partitions to offsets. When partitions are assigned that have no mapping in the map, the control variable is accessed 
+     * for the initial offset, and added to the map. If there is no control variable, the initial offset is determined as given
+     * by operator parameter 'startPosition' and optionally 'startTimestamp' and written into a control variable for the topic partition.
+     * For every assigned partition, the client seeks to the offset in the map.
      * </li>
      * <li>
      * update the offset manager with the new fetch positions. This information goes into the next checkpoint.
@@ -697,12 +692,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public void onPartitionsAssigned (Collection<TopicPartition> newAssignedPartitions) {
         trace.info (MessageFormat.format ("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
-        Set<TopicPartition> previousAssignment = new HashSet<>(getAssignedPartitions());
+        Set<TopicPartition> gonePartitions = new HashSet<>(getAssignedPartitions());
+        gonePartitions.removeAll (newAssignedPartitions);
         getAssignedPartitions().clear();
         getAssignedPartitions().addAll (newAssignedPartitions);
         nAssignedPartitions.setValue (newAssignedPartitions.size());
-        Set<TopicPartition> gonePartitions = new HashSet<>(previousAssignment);
-        gonePartitions.removeAll (newAssignedPartitions);
         trace.info ("topic partitions that are not assigned anymore: " + gonePartitions);
 
         synchronized (assignedPartitionsOffsetManager) {
@@ -1019,12 +1013,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             if (!operatorName.equals (myOperatorNameInCkpt)) {
                 trace.warn (MessageFormat.format ("Operator name in checkpoint ({0}) differs from current operator name: {1}", myOperatorNameInCkpt, operatorName));
             }
-            int nPartitionsChckpt = offsMgr.size();
             if (!contributingOperators.contains (operatorName)) {
                 trace.error (MessageFormat.format ("This operator''s name ({0}) not found in contributing operator names: {1}",
                         operatorName, contributingOperators));
             }
-            trace.info (MessageFormat.format ("contributing {0} partition => offset mappings to the group''s checkpoint.", nPartitionsChckpt));
+            trace.info (MessageFormat.format ("contributing {0} partition => offset mappings to the group''s checkpoint.", offsMgr.size()));
             // send checkpoint data to CrGroupCoordinator MXBean and wait for the notification
             // to fetch the group's complete checkpoint. Then, process the group's checkpoint.
             Map<CrConsumerGroupCoordinator.TP, Long> partialOffsetMap = new HashMap<>();

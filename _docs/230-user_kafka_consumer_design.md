@@ -2,7 +2,7 @@
 title: "KafkaConsumer operator design"
 permalink: /docs/user/KafkaConsumerDesign/
 excerpt: "Describes the design of the KafkaConsumer operator."
-last_modified_at: 2018-01-10T12:37:48+01:00
+last_modified_at: 2019-03-05T12:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -38,6 +38,7 @@ The operator supports the following SPL types for the key and message attributes
 | startTime | | This parameter is only used when the **startPosition** parameter is set to `Time`. Then the operator will begin reading records from the earliest offset whose timestamp is greater than or equal to the timestamp specified by this parameter. If no offsets are found, then the operator will begin reading messages from what is is specified by the auto.offset.reset consumer property, which is latest as default value. The timestamp must be given as an 'int64' type in milliseconds since Unix epoch. |
 | startOffset | | This parameter indicates the start offset that the operator should begin consuming messages from. In order for this parameter's values to take affect, the **startPosition** parameter must be set to `Offset`. Furthermore, the specific partition(s) that the operator should consume from must be specified via the **partition** parameter. |
 | topic | | Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the **partition** parameter. |
+| pattern | | Specifies a pattern matching subscribed topics. |
 | groupId | *random generated* | The consumer group that the consumer belongs to |
 | clientId | *random generated* | The client ID |
 | partition | | Specifies the partitions that the consumer should be assigned to for each of the topics specified. It should be noted that using this parameter will "assign" the consumer to the specified topics, rather than "subscribe" to them. This implies that the consumer will not use Kafka's group management feature. |
@@ -49,11 +50,12 @@ The operator supports the following SPL types for the key and message attributes
 | outputTimestampAttributeName | "messageTimestamp" | Specifies the output attribute name that should contain the record's timestamp. It is presented in milliseconds since Unix epoch.If not specified, the operator will attempt to store the message in an attribute named 'messageTimestamp'. The attribute must have the SPL type `int64` or `uint64`. |
 | userLib | '[application_dir]/etc/libs' | Allows the user to specify paths to JAR files that should be loaded into the operators classpath. This is useful if the user wants to be able to specify their own partitioners. The value of this parameter can either point to a specific JAR file, or to a directory. In the case of a directory, the operator will load all files ending in *.jar into the classpath.  By default, this parameter will load all jar files found in <application_dir>/etc/libs. |
 | triggerCount | | This parameter specifies the number of messages that will be submitted to the output port before initiating a checkpoint. The operator retrieves batches of messages from Kafka, and the consistent region is only started after all messages in the batch have been submitted. The implication of this is that more tuples maybe submitted by the operator before a consistent region is triggered. This parameter is only used if the operator is the start of a consistent region. |
-| commitCount | 500 | This parameter specifies the number of tuples that will be submitted to the output port before committing their offsets. This parameter is only used when the operator is *not* part of a consistent region. When the operator participates in a consistent region, offsets are always committed when the region drains. |
+| commitPeriod | 5.0 | This parameter specifies a time interval in seconds for committing offsets of submitted tuples. This parameter is only used when the operator is *not* part of a consistent region. When the operator participates in a consistent region, offsets are always committed when the region drains. |
+| commitCount | 2000 | This parameter specifies the number of tuples that will be submitted to the output port before committing their offsets. This parameter is only used when the operator is *not* part of a consistent region. When the operator participates in a consistent region, offsets are always committed when the region drains. |
 
 ### Automatic deserialization
 
-The operator will automatically select the appropriate deserializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type: 
+The operator will automatically select the appropriate deserializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type:
 
 | Deserializer | SPL Types |
 | --- | --- |
@@ -62,11 +64,11 @@ The operator will automatically select the appropriate deserializers for the key
 | org.apache.kafka.common.serialization.LongDeserializer | int64, uint64 |
 | org.apache.kafka.common.serialization.DoubleDeserializer | float64 |
 | org.apache.kafka.common.serialization.FloatDeserializer | float32 |
-| org.apache.kafka.common.serialization.ByteArrayDeserializer | blob | 
+| org.apache.kafka.common.serialization.ByteArrayDeserializer | blob |
 
 All thses deserializers are extended by a corresponding wrapper that catches `SerializationException`.
 
-Users can override this behaviour and specify which deserializer to use by setting the `key.deserializer` and `value.deserializer` properties. 
+Users can override this behaviour and specify which deserializer to use by setting the `key.deserializer` and `value.deserializer` properties.
 
 ### Kafka's Group Management
 
@@ -81,27 +83,27 @@ The custom metric **isGroupManagementActive** indicates whether the operator is 
 
 ### Consistent Region Support
 
-The operator can be in a consistent region and can be the start of a consistent region. The operator behaves as follows during the consistent region stages: 
+The operator can be in a consistent region and can be the start of a consistent region. The operator behaves as follows during the consistent region stages:
 
 #### Drain
-The operator stops submitting tuples and stops polling for new Kafka messages. The offsets of the submitted tuples are committed synchronously. 
+The operator stops submitting tuples and stops polling for new Kafka messages. The offsets of the submitted tuples are committed synchronously.
 
 #### Checkpoint
 The operator will save the last offset position that the KafkaConsumer client retrieved messages from. During reset, the operator will consume records starting from this offset position.
 After checkpointing, the operator will start consuming messages from the Kafka broker and buffer them internally. When the operator acquires a permit to submit tuples, it starts submitting tuples.
 
 #### Reset
-The operator will seek to the offset position saved in the checkpoint. The operator will begin consuming records starting from this position. 
+The operator will seek to the offset position saved in the checkpoint. The operator will begin consuming records starting from this position.
 
 #### ResetToInitialState
-The first time the operator was started, the initial offset that the KafkaConsumer client would begin reading from was stored in the JCP operator. When `resetToInitialState()` is called, the operator will retrieve this initial offset from the JCP and seek to this position. The operator will begin consumer records starting from this position. 
+The first time the operator was started, the initial offset that the KafkaConsumer client would begin reading from was stored in the JCP operator. When `resetToInitialState()` is called, the operator will retrieve this initial offset from the JCP and seek to this position. The operator will begin consumer records starting from this position.
 
 For details about the consistent region handling when operators are a group of consumers, read [this article](https://ibmstreams.github.io/streamsx.kafka/docs/user/ConsumerGroupConsistentRegion/).
 
 ### Input Ports
 
 The operator has a control input port, that can be used to assign and de-assign topic partitions with offsets from which the operator is to consume tuples.
-When the operator is configured with the optional input port, the parameters **topic**, **partition**, **startPosition** and related are ignored. Kafka's group
+When the operator is configured with the optional input port, the parameters **topic**, **pattern**, **partition**, **startPosition** and related are ignored. Kafka's group
 management is disabled when the control port is used because the consumer manually assigns to topic partitions.
 
 ### Output Ports

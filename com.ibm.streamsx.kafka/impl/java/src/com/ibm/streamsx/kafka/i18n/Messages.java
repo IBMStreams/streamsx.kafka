@@ -30,10 +30,11 @@ public class Messages {
         }
     }
 
-    public static String getString(String key, Object... args) {
+    public static String getString (String key, Object... args) {
         try {
             String msg = getRawMsg (key);
-            return MessageFormat.format(msg, args);
+            if (args == null) return msg;
+            return MessageFormat.format (msg, args);
         } catch (MissingResourceException e) {
             return '!' + key + '!';
         }

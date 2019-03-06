@@ -1036,7 +1036,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             jmxNotificationConditionLock.lock();
             long waitStartTime= System.currentTimeMillis();
             // increase timeout exponentially with every reset attempt by 20%
-            //            long timeoutMillis = (long)(Math.pow (1.2, resetAttempt) * (double)timeouts.getJmxResetNotificationTimeout());
+            // long timeoutMillis = (long)(Math.pow (1.2, resetAttempt) * (double)timeouts.getJmxResetNotificationTimeout());
             long timeoutMillis = timeouts.getJmxResetNotificationTimeout();
             boolean waitTimeLeft = true;
             int nWaits = 0;
@@ -1053,7 +1053,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 }
                 timeElapsed = System.currentTimeMillis() - waitStartTime;
             }
-            CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get(key);
+            CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get (key);
             if (merge == null) {
                 final String msg = MessageFormat.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3} milliseconds.",
                         CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, crGroupCoordinatorMXBeanName, timeoutMillis);
@@ -1065,7 +1065,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
 
             Map <TP, Long> mergedOffsetMap = merge.getConsolidatedOffsetMap();
-            trace.info ("reset offsets (group's checkpoint) received/fetched from MXBean: " + mergedOffsetMap);
+            trace.info ("reset offsets (group's checkpoint) received from MXBean: " + mergedOffsetMap);
 
             initSeekOffsetMap();
             mergedOffsetMap.forEach ((tp, offset) -> {

@@ -21,7 +21,6 @@ import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
-import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
@@ -34,7 +33,6 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerClient implements ConsumerRebalanceListener {
 
     private static final Logger trace = Logger.getLogger(NonCrKafkaConsumerGroupClient.class);
-    private static final long JCP_CONNECT_TIMEOUT_MILLIS = 20000;
     private long initialStartTimestamp = 0l;
 
     /**
@@ -62,22 +60,6 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             throw new KafkaOperatorException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", getInitialStartPosition()));
         }
     }
-
-    /**
-     * Tests for a connection establishment with the JCP operator and throws an exception if it cannot be connected. 
-     * @param connectTimeoutMillis The connect timeout in milliseconds
-     * @param startPos the initial startposition, used for the exception message only
-     * @throws MissingJobControlPlaneException The connection cannot be created
-     */
-    private void testForJobControlPlaneOrThrow (long connectTimeoutMillis, StartPosition startPos) throws MissingJobControlPlaneException {
-        if (!testJobControlConnection (connectTimeoutMillis)) {
-            trace.error (MessageFormat.format ("Could not connect to the JobControlPlane "
-                    + "within {0} milliseconds. Make sure that the operator graph contains "
-                    + "a JobControlPlane operator to support group management with startPosition {1}.", connectTimeoutMillis, startPos));
-            throw new MissingJobControlPlaneException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", startPos));
-        }
-    }
-
 
     /**
      * Subscription with pattern not supported by this client implementation.

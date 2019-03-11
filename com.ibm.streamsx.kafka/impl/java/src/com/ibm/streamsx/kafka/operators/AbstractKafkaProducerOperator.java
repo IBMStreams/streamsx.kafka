@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.MetricName;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.Attribute;
@@ -23,6 +24,7 @@ import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
+import com.ibm.streamsx.kafka.clients.metrics.CustomMetricUpdateListener;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
@@ -45,6 +47,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected static final String PARTITIONATTR_PARAM_NAME = "partitionAttribute"; //$NON-NLS-1$
     protected static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
     protected static final String CONSISTENT_REGION_POLICY_PARAM_NAME = "consistentRegionPolicy";
+    protected static final String FLUSH_PARAM_NAME = "flush";
 
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
@@ -64,6 +67,24 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     private boolean guaranteeOrdering = false;
+    private int flush = 0;
+
+    @Parameter (optional = true, name = FLUSH_PARAM_NAME,
+            description = "Specifies the number of tuples, after which the producer is flushed. When not specified, "
+                    + "or when the parameter value is not positive, "
+                    + "the flush interval is adaptively  calculated to avoid queing times significantly over five seconds.\\n"
+                    + "\\n"
+                    + "Flushing the producer makes all buffered records immediately available to send to the server "
+                    + "(even if `linger.ms` is greater than 0) and blocks on the completion of the requests "
+                    + "associated with the buffered records. When a small value is specified, the batching of tuples to server "
+                    + "requests and compression (if used) may get inefficient.\\n"
+                    + "\\n"
+                    + "Under normal circumstances, this parameter should be used only when the adaptive flush control gives not "
+                    + "the desired results, for example when the custom metrics **buffer-available-bytes** goes very small and "
+                    + "**record-queue-time-max** or **record-queue-time-avg** gets too high.")
+    public void setFlush (int value) {
+        this.flush = value;
+    }
 
     @Parameter(optional = true, name=CONSISTENT_REGION_POLICY_PARAM_NAME,
             description="Specifies the policy to use when in a consistent region.\\n"
@@ -342,23 +363,25 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
         if(crContext == null) {
-            logger.info ("Creating KafkaProducerClient...");
-            producer = new KafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+            logger.info ("Creating KafkaProducerClient ...");
+            producer = new KafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
         } else {
             switch(consistentRegionPolicy) {
             case AtLeastOnce:
             case NonTransactional:
                 logger.info("Creating AtLeastOnceKafkaProducerClient...");
-                producer = new AtLeastOnceKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+                producer = new AtLeastOnceKafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
                 break;
             case Transactional:
                 logger.info("Creating TransactionalKafkaProducerClient...");
-                producer = new TransactionalKafkaProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props, /*lazyTransactionBegin*/true);
+                producer = new TransactionalKafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props, /*lazyTransactionBegin*/true);
                 break;
             default:
                 throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
             }
         }
+        producer.setFlushAfter (flush);
+        logger.info ("producer client " + producer.getThisClassName() + " created");
     }
 
     /**

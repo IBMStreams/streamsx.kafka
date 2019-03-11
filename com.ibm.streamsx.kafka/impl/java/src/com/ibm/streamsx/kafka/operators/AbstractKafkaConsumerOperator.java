@@ -152,13 +152,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }
 
-    @CustomMetric (kind = Metric.Kind.GAUGE, name = "nConsumedTopics", description = "Number of topics consumed by this consumer.")
+    @CustomMetric (kind = Metric.Kind.GAUGE, name = "nConsumedTopics", description = "Number of topics consumed by this consumer. "
+            + "This is the number of topics of the assigned partitions. "
+            + "Note, that a consumer can subscribe to topics, or to a pattern matching numerous topics, "
+            + "but cannot have assigned partitions of the subscribed topics. This metric value is never higher than metric **nAssignedPartitions**.")
     public void setnConsumedTopics (Metric nPendingMessages) {
         // Note: The number of topics consumed by a whole consumer group can be higher.
         // When not in a consistent region, we have no inter-operator communication to find out the number
-        // of topics consumed by the whole group.
-        // When we are in consistent region, we can count the number of topics that match a pattern subscription
-        // via the Group-MXBean.
+        // of topics consumed by the whole group. That's why we count the topics of each individual consumer.
 
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }

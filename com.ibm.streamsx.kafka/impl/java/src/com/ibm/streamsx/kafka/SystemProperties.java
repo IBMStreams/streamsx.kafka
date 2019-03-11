@@ -27,8 +27,8 @@ public class SystemProperties {
             return Level.DEBUG;
         }
     }
-    
-    
+
+
     /**
      * The system property kafka.trace.debug can be used to override the severity for metrics debug messages.
      * Use the enum values of {@link org.apache.log4j.Level} enum as values for the property.
@@ -51,5 +51,18 @@ public class SystemProperties {
             e.printStackTrace();
             return Level.TRACE;
         }
+    }
+
+    /**
+     * The system property 'kafka.op.legacy' can be used to disable the behavioral changes that require a JCP.
+     * The property must have the value "true" (case insensitive) or "1". 
+     * @return true, when the property kafka.op.legacy is '1' or 'true', false otherwise.
+     */
+    public static boolean isLegacyBehavior() {
+        String prop = System.getProperty ("kafka.op.legacy");
+        if (prop == null) return false;
+        if (prop.equalsIgnoreCase ("true")) return true;
+        if (prop.equals ("1")) return true;
+        return false;
     }
 }

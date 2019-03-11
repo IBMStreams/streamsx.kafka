@@ -34,7 +34,6 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
     private static final Logger trace = Logger.getLogger(NonCrKafkaConsumerClient.class);
-    private static final long JCP_CONNECT_TIMEOUT_MILLIS = 15000;
 
 
     /**
@@ -102,16 +101,9 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         }
         assign (partsToAssign);
         if (getInitialStartPosition() != StartPosition.Default) {
-
             if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-                if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
-                    trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startPosition " + startPosition
-                            + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
-                }
-            }
-            // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
-            if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART && canUseJobControlPlane()) {
-                // JCP detected, seek when partition not yet committed
+                testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
+                // JCP connected, seek when partition not yet committed
                 for (TopicPartition tp: partsToAssign) {
                     if (!isCommittedForPartition (tp)) {
                         seekToPosition (tp, startPosition);
@@ -154,15 +146,11 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         final Set<TopicPartition> topicPartitions = topicPartitionTimestampMap.keySet();
 
         assign (topicPartitions);
+        
         if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-            if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
-                trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the assigned partitions will be seeked to the startTime " + timestamp
-                        + ". To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
-            }
-        }
-        // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
-        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART && canUseJobControlPlane()) {
-            // JCP detected, seek only when partition not yet committed
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
+            // JCP connected, seek when partition not yet committed
+            // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
             for (TopicPartition tp: topicPartitions) {
                 if (!isCommittedForPartition (tp)) {
                     seekToTimestamp (tp, timestamp);
@@ -198,14 +186,9 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             topicPartitionOffsetMap.put (new TopicPartition (topic, partitionNo), startOffsets.get(i++));
         }
         if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-            if (!testJobControlConnection (JCP_CONNECT_TIMEOUT_MILLIS)) {
-                trace.warn ("A JobControlPlane operator cannot be connected. After PE relaunch the partitions will be seeked to the startOffsets. "
-                        + "To support fetching from last committed offset after PE relaunch, add a JobControlPlane operator to the application graph.");
-            }
-        }
-        // do not evaluate PE.getRelaunchCount(). It is 0 when the width of a parallel region has changed.
-        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART && canUseJobControlPlane()) {
-            // JCP detected, seek only when partition not yet committed
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
+            // JCP connected, seek when partition not yet committed
+            // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
             assign (topicPartitionOffsetMap.keySet());
             for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
                 if (!isCommittedForPartition (tp)) {
@@ -217,7 +200,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             assignToPartitionsWithOffsets (topicPartitionOffsetMap);
         }
     }
-
 
 
 

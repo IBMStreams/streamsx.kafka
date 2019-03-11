@@ -83,11 +83,13 @@ public class CVOffsetAccessor {
             this.cvMap.put (tp, cv);
         }
         final long result = cv.sync().getValue().longValue() - OFFSET_WORKAROUND_ZERO;
-        trace.info (MessageFormat.format ("offset from CV for partition {0}: {1}", tp, result));
-        if (result == NO_OFFSET) return false;
-        // offset present, cache value
-        cache.put (tp, new Long (result));
-        return true;
+        final boolean hasOffset = result != NO_OFFSET;
+        trace.info (MessageFormat.format ("offset from CV for partition {0}: {1}", tp, (hasOffset? "" + result: "NO_OFFSET")));
+        if (hasOffset) {
+            // offset present, cache value
+            cache.put (tp, new Long (result));
+        }
+        return hasOffset;
     }
 
     /**
@@ -156,7 +158,7 @@ public class CVOffsetAccessor {
         }
         long offsCv = cv.sync().getValue().longValue() - OFFSET_WORKAROUND_ZERO;
         cache.put (tp, new Long (offsCv));
-        trace.info (MessageFormat.format ("offset for {0} read from CV: {1}", tp, offsCv));
+        trace.info (MessageFormat.format ("offset for {0} read from CV: {1}", tp, (offsCv == NO_OFFSET? "NO_OFFSET": "" + offsCv)));
         return offsCv;
     }
 

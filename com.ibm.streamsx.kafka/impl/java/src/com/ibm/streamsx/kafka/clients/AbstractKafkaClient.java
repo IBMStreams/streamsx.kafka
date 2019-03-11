@@ -121,7 +121,7 @@ public abstract class AbstractKafkaClient {
      * Get the class name of this instance.
      * @return The class name of 'this'
      */
-    protected String getThisClassName() {
+    public String getThisClassName() {
         return this.getClass().getName();
     }
 

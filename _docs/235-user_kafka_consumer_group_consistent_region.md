@@ -68,14 +68,14 @@ Then, the opertor subscribes to the configured topics or pattern. It has no part
 
 ### Partition revocation and assignment
 
-Partition assignment and revocation is done by Kafka. The client is notified by callbacks about these events whithin the call of the `poll` API of the KafkaConsumer - and only then. `onPartitionsRevoked` is always followed by `onPartitionsAssigned` with the newly assigned partitions. `onPartitionsRevoked` is always called *before* partitions are unassigned. When partitions are revoked, the Kafka consumer (part of the kafka client) forgets its assignment and all fetch offsets of the partitions being revoked.
+Partition assignment and revocation is done by Kafka. The client is notified by callbacks about these events whithin the call of the `poll` API of the KafkaConsumer - and only then. `onPartitionsRevoked` is always followed by `onPartitionsAssigned` with the newly assigned partitions. `onPartitionsRevoked` is always called *before* partitions are unassigned. When partitions are revoked, the Kafka consumer (part of the kafka client) forgets its assignment and all current fetch positions of the partitions being revoked.
 
 #### Partition revocation
 
 `onPartitionsRevoked` is ignored when the client has just subscribed, or after reset to initial state or to a checkpoint. Otherwise, a reset of the consistent region is initiated by the operator:
 - The message queue is cleared, so that tuple submission stops
-- A stop polling event is submitted to the event queue, which lets the operator stop polling for new messages. Letting the operator stop polling avoids that the callbacks are called again before the reset event is processed.
-- If the state of the region is *not* `RESETTING`, a reset of the consistent region is triggered asynchronous.
+- A stop polling event is asynchronously submitted to the event queue, which lets the operator stop polling for new messages when the `onPartitionsRevoked` - `onPartitionsAssigned` sequence within the current `poll` invocation is processed. Letting the operator stop polling avoids that the callbacks are called again before the reset event is processed.
+- The consistent region reset is triggered in *force mode*. *Force mode* resets the consecutive reset counter.
 - The state of the client changes to CR_RESET_PENDING.
 - `onPartitionsAssigned` with the new partition assignment is always called back after `onPartitionsRevoked` within the context of the current poll.
 - When it comes to the consistent region reset, the operator places a reset event into the event queue. This event is

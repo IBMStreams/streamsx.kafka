@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.8.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.9.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -51,7 +51,7 @@
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
-<p class="p">The operator implements Kafka's KafkaConsumer API of the Kafka client version 1.0. As a result, it supports all Kafka properties that are supported by the underlying API. The consumer properties for the Kafka consumer v1.0 can be found in the <a class="xref" href="https://kafka.apache.org/10/documentation.html#newconsumerconfigs">Apache Kafka documentation</a>. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration must be specified using the <strong class="ph b">appConfigName</strong> parameter. 
+<p class="p">The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.1.1. As a result, it supports all Kafka properties that are supported by the underlying API. The consumer properties for the Kafka consumer 2.1.1 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka 2.1 documentation</a>. Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration must be specified using the <strong class="ph b">appConfigName</strong> parameter. 
 </p>
 
 <p class="p">The only property that the user is required to set is the <tt class="ph tt">bootstrap.servers</tt> property, which points to the Kafka brokers, for example <tt class="ph tt">kafka-0.mydomain:9092,kafka-1.mydomain:9092,kafka-2.mydomain:9092</tt>. All other properties are optional. The operator sets or adjusts some properties by default to enable users to quickly get started with the operator. The following lists which properties the operator sets by default: 
@@ -1780,7 +1780,7 @@ This operator supports 20 parameters.
 
     <dd class="dd">
 
-<p class="p">Number of topics consumed by this consumer.
+<p class="p">Number of topics consumed by this consumer. This is the number of topics of the assigned partitions. Note, that a consumer can subscribe to topics, or to a pattern matching numerous topics, but cannot have assigned partitions of the subscribed topics. This metric value is never higher than metric <strong class="ph b">nAssignedPartitions</strong>.
 </p>
 
      <p class="p"/>

@@ -25,9 +25,9 @@ public class KafkaSplDoc {
             ;
 
     public static final String CONSUMER_WHERE_TO_FIND_PROPERTIES = ""
-            + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 1.0. As a result, it supports all "
-            + "Kafka properties that are supported by the underlying API. The consumer properties for the Kafka consumer v1.0 "
-            + "can be found in the [https://kafka.apache.org/10/documentation.html#newconsumerconfigs|Apache Kafka documentation].\\n"
+            + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.1.1. As a result, it supports all "
+            + "Kafka properties that are supported by the underlying API. The consumer properties for the Kafka consumer 2.1.1 "
+            + "can be found in the [https://kafka.apache.org/documentation/#consumerconfigs|Apache Kafka 2.1 documentation].\\n"
             ;
 
     public static final String CONSUMER_DEFAULT_AND_ADJUSTED_PROPERTIES = ""
@@ -354,10 +354,10 @@ public class KafkaSplDoc {
 
     public static final String PRODUCER_WHERE_TO_FIND_PROPERTIES = ""
 
-            + "The operator implements Kafka's KafkaProducer API of the Kafka client version 1.0. As a result, "
+            + "The operator implements Kafka's KafkaProducer API of the Kafka client version 2.1.1. As a result, "
             + "it supports all Kafka properties that are supported by the "
-            + "underlying API. The producer properties for the Kafka producer v1.0 "
-            + "can be found in the [https://kafka.apache.org/10/documentation.html#producerconfigs|Apache Kafka documentation].\\n"
+            + "underlying API. The producer properties for the Kafka producer 2.1.1 "
+            + "can be found in the [https://kafka.apache.org/documentation/#producerconfigs|Apache Kafka 2.1 documentation].\\n"
             ;
 
     public static final String PRODUCER_DEFAULT_AND_ADJUSTED_PROPERTIES = ""
@@ -392,7 +392,9 @@ public class KafkaSplDoc {
             + "---\\n"
             + "\\n"
             + "**NOTE:** Although properties are adjusted, users can override any of the above properties by explicitly setting "
-            + "the property value in either a properties file or in an application configuration. \\n"
+            + "the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be "
+            + "specified for the Kafka producer version 2.1, are supported by all Broker versions. An example for is the Zstandard "
+            + "compression algorithm, which is supported with broker version 2.1 and above.\\n"
             ;
 
     public static final String PRODUCER_EXPOSED_KAFKA_METRICS = ""

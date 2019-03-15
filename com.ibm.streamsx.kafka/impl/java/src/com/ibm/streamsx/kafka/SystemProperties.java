@@ -10,14 +10,15 @@ import org.apache.log4j.Level;
  * <li>kafka.metrics.trace.debug - override the DEBUG level for periodic Kafka metric output; example: "-Dkafka.metrics.trace.debug=info"</li>
  * <li>kafka.op.legacy - 1 or 'true' enables v1.x legacy behavior when not in consistent region; example: "-Dkafka.op.legacy=true"</li>
  * <li>kafka.prefetch.min.free.mb - override (increase) the default minimum free memory for low memory detection; example: "-Dkafka.prefetch.min.free.mb=200"</li>
- * <li></li>
- * <li></li>
- * <li></li>
  * </ul> 
- * @author rolef
- *
+ * @author IBM Kafka toolkit maintainers
  */
 public class SystemProperties {
+
+    private static final String KAFKA_PREFETCH_MIN_FREE_MB = "kafka.prefetch.min.free.mb";
+    private static final String KAFKA_OP_TRACE_DEBUG = "kafka.op.trace.debug";
+    private static final String KAFKA_METRICS_TRACE_DEBUG = "kafka.metrics.trace.debug";
+    private static final String KAFKA_OP_LEGACY = "kafka.op.legacy";
 
     /**
      * The system property kafka.op.trace.debug can be used to override the severity for debug messages.
@@ -33,12 +34,13 @@ public class SystemProperties {
      * @return The level from the property value or Level.DEBUG
      */
     public static Level getDebugLevelOverride() {
-        final String prop = System.getProperty ("kafka.op.trace.debug");
+        final String prop = System.getProperty (KAFKA_OP_TRACE_DEBUG);
         if (prop == null) return Level.DEBUG;
         try {
+            // unparsable values are converted to DEBUG; exception is never thrown
             return Level.toLevel (prop.toUpperCase());
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println (KAFKA_OP_TRACE_DEBUG + ": " + e);
             return Level.DEBUG;
         }
     }
@@ -58,12 +60,13 @@ public class SystemProperties {
      * @return The level from the property value or Level.TRACE
      */
     public static Level getDebugLevelMetricsOverride() {
-        final String prop = System.getProperty ("kafka.metrics.trace.debug");
+        final String prop = System.getProperty (KAFKA_METRICS_TRACE_DEBUG);
         if (prop == null) return Level.TRACE;
         try {
+            // unparsable values are converted to DEBUG; exception is never thrown
             return Level.toLevel (prop.toUpperCase());
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println (KAFKA_METRICS_TRACE_DEBUG + ": " + e);
             return Level.TRACE;
         }
     }
@@ -74,7 +77,7 @@ public class SystemProperties {
      * @return true, when the property kafka.op.legacy is '1' or 'true', false otherwise.
      */
     public static boolean isLegacyBehavior() {
-        final String prop = System.getProperty ("kafka.op.legacy");
+        final String prop = System.getProperty (KAFKA_OP_LEGACY);
         if (prop == null) return false;
         if (prop.equalsIgnoreCase ("true")) return true;
         if (prop.equals ("1")) return true;
@@ -83,17 +86,17 @@ public class SystemProperties {
 
     /**
      * The system property 'kafka.prefetch.min.free.mb' can be used to override the minimum free memory before messages are fetched.
-     * @return the property value or 0 if the property is not used.
+     * @return the property value multiplied by 2^20 (1M) or 0 if the property is not used.
      */
     public static long getPreFetchMinFreeMemory() {
-        final String prop = System.getProperty ("kafka.prefetch.min.free.mb");
+        final String prop = System.getProperty (KAFKA_PREFETCH_MIN_FREE_MB);
         if (prop == null) return 0L;
         try {
             final long mb = Long.parseLong (prop);
             return mb * 1024L * 1024L;
         }
         catch (Exception e) {
-            System.out.println ("kafka.prefetch.min.free.mb: " + e);
+            System.err.println (KAFKA_PREFETCH_MIN_FREE_MB + ": " + e);
             return 0L;
         }
     }

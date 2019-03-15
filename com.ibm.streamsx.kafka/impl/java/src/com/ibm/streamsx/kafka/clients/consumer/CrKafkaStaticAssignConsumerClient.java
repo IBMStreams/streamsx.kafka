@@ -1,5 +1,6 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
@@ -304,7 +305,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     @Override
     protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
         if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
-        ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
+        ConsumerRecords<?, ?> records = getConsumer().poll (Duration.ofMillis (pollTimeout));
         int numRecords = records == null? 0: records.count();
         if (numRecords > 0) {
             records.forEach(cr -> {

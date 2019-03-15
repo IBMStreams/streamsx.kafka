@@ -4,6 +4,7 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -534,7 +535,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug("Shutdown sequence started..."); //$NON-NLS-1$
         getMessageQueue().clear();
         drainBuffer.clear();
-        consumer.close(CONSUMER_CLOSE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        consumer.close (Duration.ofMillis (CONSUMER_CLOSE_TIMEOUT_MS));
         processing.set (false);
     }
 

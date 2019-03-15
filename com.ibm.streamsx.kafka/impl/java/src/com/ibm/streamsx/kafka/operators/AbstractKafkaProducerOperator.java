@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.MetricName;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.Attribute;
@@ -24,7 +23,6 @@ import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
-import com.ibm.streamsx.kafka.clients.metrics.CustomMetricUpdateListener;
 import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;

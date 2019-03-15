@@ -6,6 +6,7 @@ package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -375,7 +376,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
     @Override
     protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
         if (trace.isTraceEnabled()) trace.trace("Polling for records..."); //$NON-NLS-1$
-        ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
+        ConsumerRecords<?, ?> records = getConsumer().poll (Duration.ofMillis (pollTimeout));
         int numRecords = records == null? 0: records.count();
         if (trace.isTraceEnabled() && numRecords == 0) trace.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
         if (numRecords > 0) {

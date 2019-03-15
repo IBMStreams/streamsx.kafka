@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -1188,7 +1189,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // Note: within poll(...) the ConsumerRebalanceListener might be called, changing the state to CR_RESET_PENDING
         long before = 0;
         if (trace.isDebugEnabled()) before = System.currentTimeMillis();
-        ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
+        ConsumerRecords<?, ?> records = getConsumer().poll (Duration.ofMillis (pollTimeout));
         int numRecords = records == null? 0: records.count();
         if (trace.isDebugEnabled()) {
             trace.debug (MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));

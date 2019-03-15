@@ -54,7 +54,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
     
     private static final long DEFAULT_CONSUMER_TIMEOUT = 100l;
-    private static final long SHUTDOWN_TIMEOUT = 5l;
+    private static final long SHUTDOWN_TIMEOUT = 15l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
     private static final StartPosition DEFAULT_START_POSITION = StartPosition.Default;
     private static final String DEFAULT_OUTPUT_MESSAGE_ATTR_NAME = "message"; //$NON-NLS-1$
@@ -814,12 +814,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     // initiates start polling if assigned or subscribed by sending an event
                     produceTuples();
                 } catch (Exception e) {
-                    Logger.getLogger(this.getClass()).error("Operator error", e); //$NON-NLS-1$
+                    Logger.getLogger (this.getClass()).error("Operator error", e); //$NON-NLS-1$
                     // Propagate all exceptions to the runtime to make the PE fail and possibly restart.
                     // Otherwise this thread terminates leaving the PE in a healthy state without being healthy.
                     throw new RuntimeException (e.getLocalizedMessage(), e);
                 } finally {
-                    processThreadEndedLatch.countDown();
+                    if (processThreadEndedLatch != null) processThreadEndedLatch.countDown();
                     logger.info ("process thread (tid = " +  Thread.currentThread().getId() + ") ended.");
                 }
             }

@@ -1190,7 +1190,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         if (trace.isDebugEnabled()) before = System.currentTimeMillis();
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
         int numRecords = records == null? 0: records.count();
-        if (trace.isTraceEnabled() && numRecords == 0) trace.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
         if (trace.isDebugEnabled()) {
             trace.debug (MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));
         }

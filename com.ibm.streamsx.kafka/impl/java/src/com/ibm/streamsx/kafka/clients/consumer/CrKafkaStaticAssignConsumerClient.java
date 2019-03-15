@@ -306,9 +306,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
         if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
         ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
         int numRecords = records == null? 0: records.count();
-        if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
         if (numRecords > 0) {
-            if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
             records.forEach(cr -> {
                 if (logger.isTraceEnabled()) {
                     logger.trace (cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$

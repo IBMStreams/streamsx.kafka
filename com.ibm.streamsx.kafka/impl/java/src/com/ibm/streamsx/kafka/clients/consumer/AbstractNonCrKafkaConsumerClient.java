@@ -379,7 +379,6 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         int numRecords = records == null? 0: records.count();
         if (trace.isTraceEnabled() && numRecords == 0) trace.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
         if (numRecords > 0) {
-            if (trace.isDebugEnabled()) trace.debug("# polled records: " + numRecords);
             records.forEach(cr -> {
                 if (trace.isTraceEnabled()) {
                     trace.trace (cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$

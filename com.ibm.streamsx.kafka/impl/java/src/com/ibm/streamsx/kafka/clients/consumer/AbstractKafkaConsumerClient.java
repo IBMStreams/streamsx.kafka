@@ -90,10 +90,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private long lastPollTimestamp = 0;
     private long fetchMaxBytes;
     private final long minFreeMemory;
+    private final int memChkThresholdBatchSzMultiplier;
 
     private AtomicBoolean processing;
     private Set<TopicPartition> assignedPartitions = new HashSet<>();
-    private Set<String> consumedTopics = new HashSet<>();
     private SubscriptionMode subscriptionMode = SubscriptionMode.NONE;
 
     private Exception initializationException;
@@ -181,6 +181,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         final long prefetchMinFree = SystemProperties.getPreFetchMinFreeMemory();
         final long fetchMaxBytes2 = 2 * fetchMaxBytes;
         this.minFreeMemory = prefetchMinFree < fetchMaxBytes2? fetchMaxBytes2: prefetchMinFree;
+        this.memChkThresholdBatchSzMultiplier = SystemProperties.getMemoryCheckThresholdMultiplier (0);
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean (false);
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (getMessageQueueSizeMultiplier() * getMaxPollRecords());
@@ -193,17 +194,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
-     * Replaces the consumed topics by the topics from the collection of topic partitions and maintains the custom metric "nConsumedTopics"
+     * Maintains the custom metric "nConsumedTopics"
      * @param topicPartitions A collection of topic partitions. Multiple occurrences of the same topic will be counted as one single topic.
+     *                        A null value sets the metric value to 0.
      */
     protected void setConsumedTopics (Collection<TopicPartition> topicPartitions) {
-        synchronized (this.consumedTopics) {
-            this.consumedTopics.clear();
-            if (topicPartitions != null) {
-                topicPartitions.forEach (tp -> this.consumedTopics.add (tp.topic()));
-            }
-            this.nConsumedTopics.setValue (this.consumedTopics.size());
+        if (topicPartitions == null) {
+            this.nConsumedTopics.setValue (0L);
+            return;
         }
+        Set <String> topics = new HashSet<> (topicPartitions.size());
+        if (topicPartitions != null) {
+            topicPartitions.forEach (tp -> topics.add (tp.topic()));
+        }
+        this.nConsumedTopics.setValue (topics.size());
     }
 
     /**
@@ -825,13 +829,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException Thread interrupted while waiting.
      */
     private boolean isSpaceInMsgQueueWait() throws InterruptedException {
-        // assume, one batch goes always into the queue without memory check
-        boolean space = messageQueue.size() < maxPollRecords;
+        final int mqSize = messageQueue.size();
+        // assume, N batches go always into the queue without memory check;
+        // N can be tweaked with a java property, and can also be 0
+        boolean space = mqSize <= memChkThresholdBatchSzMultiplier * maxPollRecords;
         boolean lowMemory = false;
         int remainingCapacity = 0;
-        int mqSize = 0;
         if (!space) {
-            // queue filled by more than max.poll.records; do capacity and memory check
+            // queue filled by more than N * max.poll.records; do capacity and memory check
             remainingCapacity = messageQueue.remainingCapacity();
             final boolean hasCapacity = remainingCapacity >= maxPollRecords;
             if (hasCapacity) {
@@ -848,21 +853,18 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                             remainingCapacity, maxPollRecords));
                 }
             }
-            nPendingMessages.setValue(mqSize);
+            nPendingMessages.setValue (mqSize);
             if (lowMemory)
                 nLowMemoryPause.increment();
             else
                 nQueueFullPause.increment();
             try {
                 msgQueueLock.lock();
-                msgQueueEmptyCondition.await(100, TimeUnit.MILLISECONDS);
+                msgQueueEmptyCondition.await (100, TimeUnit.MILLISECONDS);
             } finally {
                 msgQueueLock.unlock();
             }
-            nPendingMessages.setValue(mqSize);
-            if (logger.isTraceEnabled()) {
-                logger.trace ("isSpaceInMsgQueueWait() returning 'false'");
-            }
+            nPendingMessages.setValue (mqSize);
         }
         return space;
     }
@@ -1081,17 +1083,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         final double totalMemory = rt.totalMemory();
 
         // Is there still room to grow?
-        if (totalMemory < (maxMemory * MAX_USED_RATIO) && (maxMemory - totalMemory) > minimumFree)
+        if (totalMemory < (maxMemory * MAX_USED_RATIO) && (maxMemory - totalMemory) >= minimumFree)
             return false;
 
         final double freeMemory = rt.freeMemory();
 
-        // Low memory if free memory at less than 5% of max.
+        // Low memory if free memory at less than 10% of max.
         final boolean isLow = freeMemory < (maxMemory * MEM_FREE_TOTAL_RATIO) || freeMemory < minimumFree;
-//        if (isLow && logger.isEnabledFor (DEBUG_LEVEL)) {
-//            logger.log (DEBUG_LEVEL, MessageFormat.format ("lowMemory: maxMemory = {0}, totalMemory = {1}, freeMemory = {2}",
-//                    maxMemory, totalMemory, freeMemory));
-//        }
+        if (isLow && logger.isEnabledFor (DEBUG_LEVEL)) {
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("lowMemory: maxMemory = {0}, totalMemory = {1}, freeMemory = {2}, minFree = {3}",
+                    maxMemory, totalMemory, freeMemory, minimumFree));
+        }
         return isLow;
     }
 

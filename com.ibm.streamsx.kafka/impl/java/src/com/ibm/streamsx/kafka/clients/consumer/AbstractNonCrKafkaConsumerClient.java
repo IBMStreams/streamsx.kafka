@@ -47,7 +47,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaConsumerClient implements Controllable {
 
     private static final Logger trace = Logger.getLogger(AbstractNonCrKafkaConsumerClient.class);
-    protected static final long JCP_CONNECT_TIMEOUT_MILLIS = 15000;
+    protected static final long JCP_CONNECT_TIMEOUT_MILLIS = 30000;
 
     private CommitMode commitMode;
     private long commitPeriodMillis = 10000;

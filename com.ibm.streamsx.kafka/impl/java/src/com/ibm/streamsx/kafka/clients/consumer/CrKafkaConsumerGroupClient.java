@@ -1179,7 +1179,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long, boolean)
      */
     @Override
-    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
+    protected EnqueResult pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
 
         if (trace.isInfoEnabled() && !(state == ClientState.POLLING || state == ClientState.POLLING_THROTTLED)) {
             trace.info (MessageFormat.format ("pollAndEnqueue() [{0}]: Polling for records {1}, Kafka poll timeout = {2}",
@@ -1191,12 +1191,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         if (trace.isDebugEnabled()) before = System.currentTimeMillis();
         ConsumerRecords<?, ?> records = getConsumer().poll (Duration.ofMillis (pollTimeout));
         int numRecords = records == null? 0: records.count();
+        EnqueResult r = new EnqueResult (0);
         if (trace.isDebugEnabled()) {
             trace.debug (MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));
         }
         if (state == ClientState.CR_RESET_PENDING) {
             trace.log (DEBUG_LEVEL, MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
-            return 0;
+            return r;
         }
         // state transition
         // if state is DRAINING, do not change the state
@@ -1213,6 +1214,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         }
         // add records to message queue
         if (numRecords > 0) {
+            r.setNumRecords (numRecords);
             if (trace.isDebugEnabled()) trace.debug ("# polled records: " + numRecords);
             final BlockingQueue<ConsumerRecord<?, ?>> messageQueue = getMessageQueue();
             records.forEach(cr -> {
@@ -1220,10 +1222,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     trace.trace (MessageFormat.format ("consumed [{0}]: tp={1}, pt={2}, of={3}, ts={4}, ky={5}",
                             state,  cr.topic(), cr.partition(), cr.offset(), cr.timestamp(), cr.key()));
                 }
+                final int vsz = cr.serializedValueSize();
+                final int ksz = cr.serializedKeySize();
+                if (vsz > 0) r.incrementSumValueSize (vsz);
+                if (ksz > 0) r.incrementSumKeySize (ksz);
                 messageQueue.add(cr);
             });
         }
-        return numRecords;
+        return r;
     }
 
 

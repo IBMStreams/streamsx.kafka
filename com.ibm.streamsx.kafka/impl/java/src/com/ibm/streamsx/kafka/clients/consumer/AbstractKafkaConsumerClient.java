@@ -35,6 +35,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
@@ -89,7 +90,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private long maxPollIntervalMs;
     private long lastPollTimestamp = 0;
     private long fetchMaxBytes;
-    private final long minFreeMemory;
+    private final long minFreeMemoryInitial;
+    private long minFreeMemoryAdjusted;
     private final int memChkThresholdBatchSzMultiplier;
 
     private AtomicBoolean processing;
@@ -179,8 +181,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         maxPollIntervalMs = getMaxPollIntervalMsFromProperties (this.kafkaProperties);
         fetchMaxBytes = getFetchMaxBytesFromProperties (this.kafkaProperties);
         final long prefetchMinFree = SystemProperties.getPreFetchMinFreeMemory();
-        final long fetchMaxBytes2 = 2 * fetchMaxBytes;
-        this.minFreeMemory = prefetchMinFree < fetchMaxBytes2? fetchMaxBytes2: prefetchMinFree;
+        final long fetchMaxBytes2 = minFreeSaveSetting (fetchMaxBytes);
+        this.minFreeMemoryInitial = prefetchMinFree < fetchMaxBytes2? fetchMaxBytes2: prefetchMinFree;
+        this.minFreeMemoryAdjusted = this.minFreeMemoryInitial;
         this.memChkThresholdBatchSzMultiplier = SystemProperties.getMemoryCheckThresholdMultiplier (0);
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean (false);
@@ -579,12 +582,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Here you implement polling for records and typically enqueue them into the message queue.
      * @param pollTimeout The time, in milliseconds, spent waiting in poll if data is not available in the buffer.
      * @param isThrottled true, when polling is throttled, false otherwise
-     * @return number of records enqueued into the message queue
+     * @return number of records and the enqueues number of key/value bytes
      * @throws InterruptedException The thread has been interrupted 
      * @throws SerializationException The value or the key from the message could not be deserialized
      * @see AbstractKafkaConsumerClient#getMessageQueue()
      */
-    protected abstract int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException;
+    protected abstract EnqueResult pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException;
 
     /**
      * A hook that is called before records are de-queued from the message queue for tuple submission.
@@ -753,10 +756,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         }
                     }
                     lastPollTimestamp = System.currentTimeMillis();
-                    int nRecordsEnqueued = pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
-                    if (logger.isDebugEnabled()) {
-                        logger.debug ("# records fetched and enqueued: " + nRecordsEnqueued);
+                    EnqueResult r = pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
+                    final int nMessages = r.getNumRecords();
+                    final long nQueuedBytes = r.getSumTotalSize();
+                    final Level l = Level.DEBUG;
+//                    final Level l = DEBUG_LEVEL;
+                    if (logger.isEnabledFor (l) && nMessages > 0) {
+                        logger.log (l, MessageFormat.format ("{0} records with total {1}/{2}/{3} bytes (key/value/sum) fetched and enqueued",
+                                nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));
                     }
+                    tryAdjustMinFreeMemory (nQueuedBytes, nMessages);
                     nConsecutiveRuntimeExc = 0;
                     nPendingMessages.setValue (messageQueue.size());
                     if (throttleSleepMillis > 0l) {
@@ -783,6 +792,40 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug("Stop polling. Message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
     }
 
+    /**
+     * multiplies a buffer size with a factor to be on the safe side
+     * @return
+     */
+    private long minFreeSaveSetting (long bufferBytes) {
+        return 2L * bufferBytes;
+    }
+
+    /**
+     * Adjusts the {@link #minFreeMemoryAdjusted} member variable for low memory check.
+     * @param numBytes  number of last fetched bytes
+     * @param nMessages number of last fetched messages
+     */
+    private void tryAdjustMinFreeMemory (long numBytes, int nMessages) {
+        final long newMinFree = minFreeSaveSetting (numBytes);
+        if (newMinFree <= this.minFreeMemoryAdjusted)
+            return;
+        
+        logger.warn (MessageFormat.format ("adjusting the minimum free memory from {0} to {1} to fetch new Kafka messages", this.minFreeMemoryAdjusted, newMinFree));
+        //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
+        // now let's see if this would be possible
+        Runtime rt = Runtime.getRuntime();
+        final long maxMemory = rt.maxMemory();
+        final long totalMemory = rt.totalMemory();
+        final long freeMemory =  rt.freeMemory();
+        if ((maxMemory - totalMemory + freeMemory) < newMinFree) {
+            logger.warn (MessageFormat.format ("The operator is short of memory for large message batches with potentially big messages."
+                    + "The last inserted batch contained {0} messages with total {1} bytes after de-compression."
+                    + "You should decrease the ''{2}'' consumer configuration from {3} to a value smaller than {4} and"
+                    + "increase the maximum memory for the Java VM by using the ''vmArg: \"-Xmx<MAX_MEM>\"'' operator configuration.",
+                    nMessages, numBytes, ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords, nMessages));
+        }
+        this.minFreeMemoryAdjusted = newMinFree;
+    }
 
     /**
      * checks available space in the message queue and pauses fetching
@@ -840,7 +883,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             remainingCapacity = messageQueue.remainingCapacity();
             final boolean hasCapacity = remainingCapacity >= maxPollRecords;
             if (hasCapacity) {
-                lowMemory = isLowMemory (minFreeMemory);
+                lowMemory = isLowMemory (minFreeMemoryAdjusted);
             }
             space = hasCapacity && !lowMemory;
         }

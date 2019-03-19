@@ -303,19 +303,24 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long, boolean)
      */
     @Override
-    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
+    protected EnqueResult pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
         if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
         ConsumerRecords<?, ?> records = getConsumer().poll (Duration.ofMillis (pollTimeout));
         int numRecords = records == null? 0: records.count();
+        EnqueResult r = new EnqueResult (numRecords);
         if (numRecords > 0) {
             records.forEach(cr -> {
                 if (logger.isTraceEnabled()) {
                     logger.trace (cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
                 }
+                final int vsz = cr.serializedValueSize();
+                final int ksz = cr.serializedKeySize();
+                if (vsz > 0) r.incrementSumValueSize (vsz);
+                if (ksz > 0) r.incrementSumKeySize (ksz);
                 getMessageQueue().add(cr);
             });
         }
-        return numRecords;
+        return r;
     }
 
 

@@ -374,20 +374,25 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long, boolean)
      */
     @Override
-    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
+    protected EnqueResult pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
         if (trace.isTraceEnabled()) trace.trace("Polling for records..."); //$NON-NLS-1$
         ConsumerRecords<?, ?> records = getConsumer().poll (Duration.ofMillis (pollTimeout));
         int numRecords = records == null? 0: records.count();
         if (trace.isTraceEnabled() && numRecords == 0) trace.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
+        EnqueResult r = new EnqueResult (numRecords);
         if (numRecords > 0) {
             records.forEach(cr -> {
                 if (trace.isTraceEnabled()) {
                     trace.trace (cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
                 }
-                getMessageQueue().add(cr);
+                final int vsz = cr.serializedValueSize();
+                final int ksz = cr.serializedKeySize();
+                if (vsz > 0) r.incrementSumValueSize (vsz);
+                if (ksz > 0) r.incrementSumKeySize (ksz);
+                getMessageQueue().add (cr);
             });
         }
-        return numRecords;
+        return r;
     }
 
 

@@ -19,6 +19,12 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
 
+++ What's new in version 1.9.1
+
+* improved low memory detection for the consumer when records are queued in the consumer
+
+* No adjustment of **retries** producer configuration to 10, as long as consistent region policy is not `Transactional`. The version 2.1.1 producer's default **retries** config (2,147,483,647) is used instead when not specified.
+
 ++ What's new in version 1.9.0
 
 * Upgrade of kafka-clients from version 1.0 to 2.1.1
@@ -72,7 +78,7 @@ This is an overview of changes for major and minor version upgrades. For details
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>1.9.0</info:version>
+   <info:version>1.9.1</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

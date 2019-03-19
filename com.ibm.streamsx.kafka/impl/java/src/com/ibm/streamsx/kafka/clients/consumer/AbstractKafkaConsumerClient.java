@@ -4,6 +4,7 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,6 +35,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
@@ -44,6 +46,7 @@ import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaMetricException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.consumer.Event.EventType;
@@ -60,14 +63,19 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected static final String N_PARTITION_REBALANCES = "nPartitionRebalances";
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerClient.class);
+    private static final double MEM_FREE_TOTAL_RATIO = 0.1;
+    private static final double MAX_USED_RATIO = 1.0 - MEM_FREE_TOTAL_RATIO;
 
     private static final long EVENT_LOOP_PAUSE_TIME_MS = 100;
     private static final long CONSUMER_CLOSE_TIMEOUT_MS = 2000;
 
+    /** default value in Kafka 2.1.1 for max.poll.records */
     private static final int DEFAULT_MAX_POLL_RECORDS_CONFIG = 500;
-    private static final long DEFAULT_MAX_POLL_INTERVAL_MS_CONFIG = 300000l;
+    private static final long DEFAULT_MAX_POLL_INTERVAL_MS_CONFIG = 300_000l;
     private static final long DEFAULT_CONSUMER_POLL_TIMEOUT_MS = 100l;
     private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
+    /** default value in Kafka 2.1.1 for fetch.max.bytes */
+    private static final long DEFAULT_FETCH_MAX_BYTES = 52_428_800;
 
     private OffsetCommitCallback offsetCommitCallback = this;
     private KafkaConsumer<?, ?> consumer;
@@ -81,10 +89,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private int maxPollRecords;
     private long maxPollIntervalMs;
     private long lastPollTimestamp = 0;
+    private long fetchMaxBytes;
+    private final long minFreeMemoryInitial;
+    private long minFreeMemoryAdjusted;
+    private final int memChkThresholdBatchSzMultiplier;
 
     private AtomicBoolean processing;
     private Set<TopicPartition> assignedPartitions = new HashSet<>();
-    private Set<String> consumedTopics = new HashSet<>();
     private SubscriptionMode subscriptionMode = SubscriptionMode.NONE;
 
     private Exception initializationException;
@@ -168,6 +179,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         timeouts.adjust (this.kafkaProperties);
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);
         maxPollIntervalMs = getMaxPollIntervalMsFromProperties (this.kafkaProperties);
+        fetchMaxBytes = getFetchMaxBytesFromProperties (this.kafkaProperties);
+        final long prefetchMinFree = SystemProperties.getPreFetchMinFreeMemory();
+        final long fetchMaxBytes2 = minFreeSaveSetting (fetchMaxBytes);
+        this.minFreeMemoryInitial = prefetchMinFree < fetchMaxBytes2? fetchMaxBytes2: prefetchMinFree;
+        this.minFreeMemoryAdjusted = this.minFreeMemoryInitial;
+        this.memChkThresholdBatchSzMultiplier = SystemProperties.getMemoryCheckThresholdMultiplier (0);
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean (false);
         messageQueue = new LinkedBlockingQueue<ConsumerRecord<?, ?>> (getMessageQueueSizeMultiplier() * getMaxPollRecords());
@@ -180,17 +197,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
-     * Replaces the consumed topics by the topics from the collection of topic partitions and maintains the custom metric "nConsumedTopics"
+     * Maintains the custom metric "nConsumedTopics"
      * @param topicPartitions A collection of topic partitions. Multiple occurrences of the same topic will be counted as one single topic.
+     *                        A null value sets the metric value to 0.
      */
     protected void setConsumedTopics (Collection<TopicPartition> topicPartitions) {
-        synchronized (this.consumedTopics) {
-            this.consumedTopics.clear();
-            if (topicPartitions != null) {
-                topicPartitions.forEach (tp -> this.consumedTopics.add (tp.topic()));
-            }
-            this.nConsumedTopics.setValue (this.consumedTopics.size());
+        if (topicPartitions == null) {
+            this.nConsumedTopics.setValue (0L);
+            return;
         }
+        Set <String> topics = new HashSet<> (topicPartitions.size());
+        if (topicPartitions != null) {
+            topicPartitions.forEach (tp -> topics.add (tp.topic()));
+        }
+        this.nConsumedTopics.setValue (topics.size());
     }
 
     /**
@@ -275,6 +295,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 try {
                     maxPollRecords = getMaxPollRecordsFromProperties(kafkaProperties);
                     maxPollIntervalMs = getMaxPollIntervalMsFromProperties(kafkaProperties);
+                    fetchMaxBytes = getFetchMaxBytesFromProperties (kafkaProperties);
                     consumer = new KafkaConsumer<>(kafkaProperties);
                     processing.set (true);
                 }
@@ -521,7 +542,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug("Shutdown sequence started..."); //$NON-NLS-1$
         getMessageQueue().clear();
         drainBuffer.clear();
-        consumer.close(CONSUMER_CLOSE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        consumer.close (Duration.ofMillis (CONSUMER_CLOSE_TIMEOUT_MS));
         processing.set (false);
     }
 
@@ -561,12 +582,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Here you implement polling for records and typically enqueue them into the message queue.
      * @param pollTimeout The time, in milliseconds, spent waiting in poll if data is not available in the buffer.
      * @param isThrottled true, when polling is throttled, false otherwise
-     * @return number of records enqueued into the message queue
+     * @return number of records and the enqueues number of key/value bytes
      * @throws InterruptedException The thread has been interrupted 
      * @throws SerializationException The value or the key from the message could not be deserialized
      * @see AbstractKafkaConsumerClient#getMessageQueue()
      */
-    protected abstract int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException;
+    protected abstract EnqueResult pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException;
 
     /**
      * A hook that is called before records are de-queued from the message queue for tuple submission.
@@ -735,7 +756,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         }
                     }
                     lastPollTimestamp = System.currentTimeMillis();
-                    /*int nRecordsEnqueued = */pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
+                    EnqueResult r = pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
+                    final int nMessages = r.getNumRecords();
+                    final long nQueuedBytes = r.getSumTotalSize();
+                    final Level l = Level.DEBUG;
+//                    final Level l = DEBUG_LEVEL;
+                    if (logger.isEnabledFor (l) && nMessages > 0) {
+                        logger.log (l, MessageFormat.format ("{0} records with total {1}/{2}/{3} bytes (key/value/sum) fetched and enqueued",
+                                nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));
+                    }
+                    tryAdjustMinFreeMemory (nQueuedBytes, nMessages);
                     nConsecutiveRuntimeExc = 0;
                     nPendingMessages.setValue (messageQueue.size());
                     if (throttleSleepMillis > 0l) {
@@ -762,6 +792,40 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug("Stop polling. Message in event queue: " + eventQueue.peek().getEventType()); //$NON-NLS-1$
     }
 
+    /**
+     * multiplies a buffer size with a factor to be on the safe side
+     * @return
+     */
+    private long minFreeSaveSetting (long bufferBytes) {
+        return 2L * bufferBytes;
+    }
+
+    /**
+     * Adjusts the {@link #minFreeMemoryAdjusted} member variable for low memory check.
+     * @param numBytes  number of last fetched bytes
+     * @param nMessages number of last fetched messages
+     */
+    private void tryAdjustMinFreeMemory (long numBytes, int nMessages) {
+        final long newMinFree = minFreeSaveSetting (numBytes);
+        if (newMinFree <= this.minFreeMemoryAdjusted)
+            return;
+        
+        logger.warn (MessageFormat.format ("adjusting the minimum free memory from {0} to {1} to fetch new Kafka messages", this.minFreeMemoryAdjusted, newMinFree));
+        //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
+        // now let's see if this would be possible
+        Runtime rt = Runtime.getRuntime();
+        final long maxMemory = rt.maxMemory();
+        final long totalMemory = rt.totalMemory();
+        final long freeMemory =  rt.freeMemory();
+        if ((maxMemory - totalMemory + freeMemory) < newMinFree) {
+            logger.warn (MessageFormat.format ("The operator is short of memory for large message batches with potentially big messages. "
+                    + "The last inserted batch contained {0} messages with total {1} bytes after de-compression. "
+                    + "You should decrease the ''{2}'' consumer configuration from {3} to a value smaller than {4} and/or "
+                    + "increase the maximum memory for the Java VM by using the ''vmArg: \"-Xmx<MAX_MEM>\"'' operator parameter.",
+                    nMessages, numBytes, ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords, nMessages));
+        }
+        this.minFreeMemoryAdjusted = newMinFree;
+    }
 
     /**
      * checks available space in the message queue and pauses fetching
@@ -808,20 +872,20 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException Thread interrupted while waiting.
      */
     private boolean isSpaceInMsgQueueWait() throws InterruptedException {
-        boolean space = messageQueue.isEmpty();
+        final int mqSize = messageQueue.size();
+        // assume, N batches go always into the queue without memory check;
+        // N can be tweaked with a java property, and can also be 0
+        boolean space = mqSize <= memChkThresholdBatchSzMultiplier * maxPollRecords;
         boolean lowMemory = false;
         int remainingCapacity = 0;
-        int mqSize = 0;
         if (!space) {
-            // queue not empty
-            mqSize = messageQueue.size();
-            if (mqSize <= 4 * maxPollRecords)
-                space = true;
-            else {
-                lowMemory = isLowMemory();
-                remainingCapacity = messageQueue.remainingCapacity();
-                space = !lowMemory && remainingCapacity >= maxPollRecords;
+            // queue filled by more than N * max.poll.records; do capacity and memory check
+            remainingCapacity = messageQueue.remainingCapacity();
+            final boolean hasCapacity = remainingCapacity >= maxPollRecords;
+            if (hasCapacity) {
+                lowMemory = isLowMemory (minFreeMemoryAdjusted);
             }
+            space = hasCapacity && !lowMemory;
         }
         if (!space) {
             if (logger.isEnabledFor (DEBUG_LEVEL)) {
@@ -832,21 +896,18 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                             remainingCapacity, maxPollRecords));
                 }
             }
-            nPendingMessages.setValue(mqSize);
+            nPendingMessages.setValue (mqSize);
             if (lowMemory)
                 nLowMemoryPause.increment();
             else
                 nQueueFullPause.increment();
             try {
                 msgQueueLock.lock();
-                msgQueueEmptyCondition.await(100, TimeUnit.MILLISECONDS);
+                msgQueueEmptyCondition.await (100, TimeUnit.MILLISECONDS);
             } finally {
                 msgQueueLock.unlock();
             }
-            nPendingMessages.setValue(mqSize);
-            if (logger.isTraceEnabled()) {
-                logger.trace ("isSpaceInMsgQueueWait() returning 'false'");
-            }
+            nPendingMessages.setValue (mqSize);
         }
         return space;
     }
@@ -1058,19 +1119,25 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * avoid continuing to add read messages to message queue.
      * See issue streamsx.kafka #91
      */
-    private static boolean isLowMemory() {
+    private static boolean isLowMemory (double minimumFree) {
+        //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
         Runtime rt = Runtime.getRuntime();
         final double maxMemory = rt.maxMemory();
         final double totalMemory = rt.totalMemory();
 
         // Is there still room to grow?
-        if (totalMemory < (maxMemory * 0.90))
+        if (totalMemory < (maxMemory * MAX_USED_RATIO) && (maxMemory - totalMemory) >= minimumFree)
             return false;
 
         final double freeMemory = rt.freeMemory();
 
         // Low memory if free memory at less than 10% of max.
-        return freeMemory < (maxMemory * 0.1);
+        final boolean isLow = freeMemory < (maxMemory * MEM_FREE_TOTAL_RATIO) || freeMemory < minimumFree;
+        if (isLow && logger.isEnabledFor (DEBUG_LEVEL)) {
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("lowMemory: maxMemory = {0}, totalMemory = {1}, freeMemory = {2}, minFree = {3}",
+                    maxMemory, totalMemory, freeMemory, minimumFree));
+        }
+        return isLow;
     }
 
     /**
@@ -1106,6 +1173,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     DEFAULT_MAX_POLL_INTERVAL_MS_CONFIG;
     }
 
+    /**
+     * Returns the value of the `fetch.max.bytes` property from given properties.
+     * @param kafkaProperties the properties
+     * @return the property value or the default value {@value #DEFAULT_FETCH_MAX_BYTES} if the property is not set.
+     */
+    private static long getFetchMaxBytesFromProperties (KafkaOperatorProperties kafkaProperties) {
+        return kafkaProperties.containsKey (ConsumerConfig.FETCH_MAX_BYTES_CONFIG)?
+                Long.valueOf (kafkaProperties.getProperty (ConsumerConfig.FETCH_MAX_BYTES_CONFIG)):
+                    DEFAULT_FETCH_MAX_BYTES;
+    }
     /**
      * Returns the partitions for the given topics from the metadata.
      * This method will issue a remote call to the server if it does not already have any metadata about the given topic.

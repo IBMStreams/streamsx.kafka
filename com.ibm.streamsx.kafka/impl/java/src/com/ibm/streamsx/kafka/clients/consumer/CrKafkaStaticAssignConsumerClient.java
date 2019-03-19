@@ -1,5 +1,6 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
@@ -302,21 +303,24 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#pollAndEnqueue(long, boolean)
      */
     @Override
-    protected int pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
+    protected EnqueResult pollAndEnqueue (long pollTimeout, boolean isThrottled) throws InterruptedException, SerializationException {
         if (logger.isTraceEnabled()) logger.trace("Polling for records..."); //$NON-NLS-1$
-        ConsumerRecords<?, ?> records = getConsumer().poll (pollTimeout);
+        ConsumerRecords<?, ?> records = getConsumer().poll (Duration.ofMillis (pollTimeout));
         int numRecords = records == null? 0: records.count();
-        if (logger.isTraceEnabled() && numRecords == 0) logger.trace("# polled records: " + (records == null? "0 (records == null)": "0"));
+        EnqueResult r = new EnqueResult (numRecords);
         if (numRecords > 0) {
-            if (logger.isDebugEnabled()) logger.debug("# polled records: " + numRecords);
             records.forEach(cr -> {
                 if (logger.isTraceEnabled()) {
                     logger.trace (cr.topic() + "-" + cr.partition() + " key=" + cr.key() + " - offset=" + cr.offset()); //$NON-NLS-1$
                 }
+                final int vsz = cr.serializedValueSize();
+                final int ksz = cr.serializedKeySize();
+                if (vsz > 0) r.incrementSumValueSize (vsz);
+                if (ksz > 0) r.incrementSumKeySize (ksz);
                 getMessageQueue().add(cr);
             });
         }
-        return numRecords;
+        return r;
     }
 
 

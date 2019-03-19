@@ -68,7 +68,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         private long batchSizeAvg = 0l;
         private long bufferAvailBytes = 0l;
         private long recordQueueTimeAvg = 0l;
-        private long bufferPoolWaitTimeTotal = 0l;
+        private long bufferPoolWaitTimeTotalNanos = 0l;
         private long requestRate = 0l;
 
         public void setRecordQueueTimeMax (long v) { this.recordQueueTimeMax = v; }
@@ -77,7 +77,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         public void setBatchSizeAvg (long v) { this.batchSizeAvg = v; }
         public void setBufferAvailBytes (long v) { this.bufferAvailBytes = v; }
         public void setRecordQueueTimeAvg (long v) { this.recordQueueTimeAvg = v; }
-        public void setBufferPoolWaitTimeTotal (long v) { this.bufferPoolWaitTimeTotal = v; }
+        public void setBufferPoolWaitTimeTotalNanos (long v) { this.bufferPoolWaitTimeTotalNanos = v; }
         public void setRequestRate (long v) { this.requestRate = v; }
 
         /**
@@ -86,7 +86,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         @Override
         public void afterCustomMetricsUpdated() {
             if (logger.isEnabledFor (DEBUG_LEVEL_METRICS)) {
-                logger.log (DEBUG_LEVEL_METRICS, MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotal= {7}",
+                logger.log (DEBUG_LEVEL_METRICS, MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotalNanos= {7}",
                         recordQueueTimeMax,
                         recordQueueTimeAvg,
                         outgoingByteRate,
@@ -94,7 +94,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         recordsPerRequestAvg,
                         batchSizeAvg,
                         bufferAvailBytes,
-                        bufferPoolWaitTimeTotal));
+                        bufferPoolWaitTimeTotalNanos));
             }
         }
 
@@ -177,7 +177,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
             metricsFetcher.registerUpdateListener ("bufferpool-wait-time-total", new CustomMetricUpdateListener() {
                 @Override
                 public void customMetricUpdated (final String customMetricName, final MetricName kafkaMetricName, final long value) {
-                    metricsMonitor.setBufferPoolWaitTimeTotal (value);
+                    metricsMonitor.setBufferPoolWaitTimeTotalNanos (value);
                 }
             });
             metricsFetcher.registerUpdateListener ("request-rate", new CustomMetricUpdateListener() {

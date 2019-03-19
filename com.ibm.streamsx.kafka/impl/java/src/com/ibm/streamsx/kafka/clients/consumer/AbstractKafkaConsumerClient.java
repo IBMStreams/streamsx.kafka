@@ -818,10 +818,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         final long totalMemory = rt.totalMemory();
         final long freeMemory =  rt.freeMemory();
         if ((maxMemory - totalMemory + freeMemory) < newMinFree) {
-            logger.warn (MessageFormat.format ("The operator is short of memory for large message batches with potentially big messages."
-                    + "The last inserted batch contained {0} messages with total {1} bytes after de-compression."
-                    + "You should decrease the ''{2}'' consumer configuration from {3} to a value smaller than {4} and"
-                    + "increase the maximum memory for the Java VM by using the ''vmArg: \"-Xmx<MAX_MEM>\"'' operator configuration.",
+            logger.warn (MessageFormat.format ("The operator is short of memory for large message batches with potentially big messages. "
+                    + "The last inserted batch contained {0} messages with total {1} bytes after de-compression. "
+                    + "You should decrease the ''{2}'' consumer configuration from {3} to a value smaller than {4} and/or "
+                    + "increase the maximum memory for the Java VM by using the ''vmArg: \"-Xmx<MAX_MEM>\"'' operator parameter.",
                     nMessages, numBytes, ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords, nMessages));
         }
         this.minFreeMemoryAdjusted = newMinFree;

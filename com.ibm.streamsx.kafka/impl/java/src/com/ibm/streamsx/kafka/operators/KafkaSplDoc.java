@@ -372,7 +372,7 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| acks | Controls the durability of records that are sent. Adjusted to `all` when in consistent region, and **consistentRegionPolicy** parameter is `Transactional`, otherwise `acks` is unchanged. The value `0` (fire and forget) is not recommended. |\\n"
             + "|---|\\n"
-            + "| retries | `10`. When `0` is provided as **retries** and **consistentRegionPolicy** parameter is `Transactional` **retries** is adjusted to `1`. |\\n"
+            + "| retries | When `0` is provided as **retries** and **consistentRegionPolicy** parameter is `Transactional` **retries** is adjusted to `1`, unchanged otherwise. |\\n"
             + "|---|\\n"
             + "| linger.ms | `100` |\\n"
             + "|---|\\n"

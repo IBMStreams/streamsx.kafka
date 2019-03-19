@@ -223,13 +223,9 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         if (!kafkaProperties.containsKey (ProducerConfig.LINGER_MS_CONFIG)) {
             this.kafkaProperties.put (ProducerConfig.LINGER_MS_CONFIG, "100");
         }
-        // retries
-        if (!kafkaProperties.containsKey (ProducerConfig.RETRIES_CONFIG)) {
-            this.kafkaProperties.put (ProducerConfig.RETRIES_CONFIG, "10");
-        }
         // max.in.flight.requests.per.connection
         // when record order is to be kept and retries are enabled, max.in.flight.requests.per.connection must be 1
-        final long retries = Long.parseLong (this.kafkaProperties.getProperty (ProducerConfig.RETRIES_CONFIG).trim());
+        final long retries = kafkaProperties.containsKey (ProducerConfig.RETRIES_CONFIG)? Long.parseLong (this.kafkaProperties.getProperty (ProducerConfig.RETRIES_CONFIG).trim()): Integer.MAX_VALUE;
         final String maxInFlightRequestsPerConWhenUnset = guaranteeOrdering && retries > 0l? "1": "10";
         if (!kafkaProperties.containsKey (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION)) {
             this.kafkaProperties.put (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequestsPerConWhenUnset);

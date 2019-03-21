@@ -30,6 +30,8 @@ userdocs:
         url: /docs/user/migration_from_messaging
       - title: "KafkaConsumer Design"
         url: /docs/user/KafkaConsumerDesign
+      - title: "Consuming big messages"
+        url: /docs/user/ConsumingBigMessages
       - title: "Consumer Groups in a consistent region"
         url: /docs/user/ConsumerGroupConsistentRegion
       - title: "KafkaProducer Design"

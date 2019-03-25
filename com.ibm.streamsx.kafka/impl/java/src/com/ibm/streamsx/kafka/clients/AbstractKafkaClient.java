@@ -78,6 +78,7 @@ public abstract class AbstractKafkaClient {
             }
         }
         kafkaProperties.put (clientIdConfig, this.clientId);
+        kafkaProperties.expandApplicationDirectory (operatorContext.getPE().getApplicationDirectory().getAbsolutePath());
     }
 
 

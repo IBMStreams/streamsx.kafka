@@ -90,8 +90,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private long maxPollIntervalMs;
     private long lastPollTimestamp = 0;
     private long fetchMaxBytes;
-    private final long minFreeMemoryInitial;
-    private long minFreeMemoryAdjusted;
+    private final long minAllocatableMemoryInitial;
+    private long minAllocatableMemoryAdjusted;
     private final int memChkThresholdBatchSzMultiplier;
 
     private AtomicBoolean processing;
@@ -181,9 +181,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         maxPollIntervalMs = getMaxPollIntervalMsFromProperties (this.kafkaProperties);
         fetchMaxBytes = getFetchMaxBytesFromProperties (this.kafkaProperties);
         final long prefetchMinFree = SystemProperties.getPreFetchMinFreeMemory();
-        final long fetchMaxBytes2 = minFreeSaveSetting (fetchMaxBytes);
-        this.minFreeMemoryInitial = prefetchMinFree < fetchMaxBytes2? fetchMaxBytes2: prefetchMinFree;
-        this.minFreeMemoryAdjusted = this.minFreeMemoryInitial;
+        final long fetchMaxBytes2 = minAllocatableMemorySaveSetting (fetchMaxBytes);
+        this.minAllocatableMemoryInitial = prefetchMinFree < fetchMaxBytes2? fetchMaxBytes2: prefetchMinFree;
+        this.minAllocatableMemoryAdjusted = this.minAllocatableMemoryInitial;
         this.memChkThresholdBatchSzMultiplier = SystemProperties.getMemoryCheckThresholdMultiplier (0);
         eventQueue = new LinkedBlockingQueue<Event>();
         processing = new AtomicBoolean (false);
@@ -793,38 +793,38 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     }
 
     /**
-     * multiplies a buffer size with a factor to be on the safe side
-     * @return
+     * multiplies a number of bytes with a factor to be on the safe side 
+     * @return 2.1 * numBytes
      */
-    private long minFreeSaveSetting (long bufferBytes) {
-        return 2L * bufferBytes;
+    private long minAllocatableMemorySaveSetting (long numBytes) {
+        return (21L * numBytes) / 10L;
     }
 
     /**
-     * Adjusts the {@link #minFreeMemoryAdjusted} member variable for low memory check.
+     * Adjusts the {@link #minAllocatableMemoryAdjusted} member variable for low memory check.
      * @param numBytes  number of last fetched bytes
      * @param nMessages number of last fetched messages
      */
     private void tryAdjustMinFreeMemory (long numBytes, int nMessages) {
-        final long newMinFree = minFreeSaveSetting (numBytes);
-        if (newMinFree <= this.minFreeMemoryAdjusted)
+        final long newMinAlloc = minAllocatableMemorySaveSetting (numBytes);
+        if (newMinAlloc <= this.minAllocatableMemoryAdjusted)
             return;
         
-        logger.warn (MessageFormat.format ("adjusting the minimum free memory from {0} to {1} to fetch new Kafka messages", this.minFreeMemoryAdjusted, newMinFree));
+        logger.warn (MessageFormat.format ("adjusting the minimum allocatable memory from {0} to {1} to fetch new Kafka messages", this.minAllocatableMemoryAdjusted, newMinAlloc));
         //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
         // now let's see if this would be possible
         Runtime rt = Runtime.getRuntime();
         final long maxMemory = rt.maxMemory();
         final long totalMemory = rt.totalMemory();
         final long freeMemory =  rt.freeMemory();
-        if ((maxMemory - totalMemory + freeMemory) < newMinFree) {
+        if ((maxMemory - totalMemory + freeMemory) < newMinAlloc) {
             logger.warn (MessageFormat.format ("The operator is short of memory for large message batches with potentially big messages. "
                     + "The last inserted batch contained {0} messages with total {1} bytes after de-compression. "
                     + "You should decrease the ''{2}'' consumer configuration from {3} to a value smaller than {4} and/or "
                     + "increase the maximum memory for the Java VM by using the ''vmArg: \"-Xmx<MAX_MEM>\"'' operator parameter.",
                     nMessages, numBytes, ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords, nMessages));
         }
-        this.minFreeMemoryAdjusted = newMinFree;
+        this.minAllocatableMemoryAdjusted = newMinAlloc;
     }
 
     /**
@@ -883,7 +883,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             remainingCapacity = messageQueue.remainingCapacity();
             final boolean hasCapacity = remainingCapacity >= maxPollRecords;
             if (hasCapacity) {
-                lowMemory = isLowMemory (minFreeMemoryAdjusted);
+                lowMemory = isLowMemory (minAllocatableMemoryAdjusted);
             }
             space = hasCapacity && !lowMemory;
         }
@@ -1119,23 +1119,24 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * avoid continuing to add read messages to message queue.
      * See issue streamsx.kafka #91
      */
-    private static boolean isLowMemory (double minimumFree) {
+    private static boolean isLowMemory (double minAlloctable) {
         //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
         Runtime rt = Runtime.getRuntime();
         final double maxMemory = rt.maxMemory();
         final double totalMemory = rt.totalMemory();
+        final double unallocated = maxMemory - totalMemory;
 
         // Is there still room to grow?
-        if (totalMemory < (maxMemory * MAX_USED_RATIO) && (maxMemory - totalMemory) >= minimumFree)
+        if (totalMemory < (maxMemory * MAX_USED_RATIO) && unallocated >= minAlloctable)
             return false;
 
         final double freeMemory = rt.freeMemory();
 
         // Low memory if free memory at less than 10% of max.
-        final boolean isLow = freeMemory < (maxMemory * MEM_FREE_TOTAL_RATIO) || freeMemory < minimumFree;
+        final boolean isLow = freeMemory < (maxMemory * MEM_FREE_TOTAL_RATIO) || unallocated + freeMemory < minAlloctable;
         if (isLow && logger.isEnabledFor (DEBUG_LEVEL)) {
-            logger.log (DEBUG_LEVEL, MessageFormat.format ("lowMemory: maxMemory = {0}, totalMemory = {1}, freeMemory = {2}, minFree = {3}",
-                    maxMemory, totalMemory, freeMemory, minimumFree));
+            logger.log (DEBUG_LEVEL, MessageFormat.format ("lowMemory: maxMemory = {0}, totalMemory = {1}, freeMemory = {2}, minAlloc = {3}",
+                    maxMemory, totalMemory, freeMemory, minAlloctable));
         }
         return isLow;
     }

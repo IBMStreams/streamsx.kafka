@@ -759,8 +759,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     EnqueResult r = pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
                     final int nMessages = r.getNumRecords();
                     final long nQueuedBytes = r.getSumTotalSize();
-//                    final Level l = Level.DEBUG;
-                    final Level l = DEBUG_LEVEL;
+                    final Level l = Level.DEBUG;
+//                    final Level l = DEBUG_LEVEL;
                     if (logger.isEnabledFor (l) && nMessages > 0) {
                         logger.log (l, MessageFormat.format ("{0} records with total {1}/{2}/{3} bytes (key/value/sum) fetched and enqueued",
                                 nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));

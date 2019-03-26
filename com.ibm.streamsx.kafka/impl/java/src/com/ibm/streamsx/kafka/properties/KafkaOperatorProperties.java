@@ -1,12 +1,15 @@
 package com.ibm.streamsx.kafka.properties;
 
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 
 public class KafkaOperatorProperties extends Properties {
     private static final long serialVersionUID = 1L;
+
+    public static final String TOKEN_APP_DIR = "{applicationDir}";
 
     public KafkaOperatorProperties() {
         this(new Properties());
@@ -37,6 +40,21 @@ public class KafkaOperatorProperties extends Properties {
         }
     }
 
+
+    /**
+     * Expands the {@value #TOKEN_APP_DIR} token by the given application directory in all property values.
+     * @param applicationDdirectory The replacement for the token
+     */
+    public void expandApplicationDirectory (final String applicationDirectory) {
+        Set <String> keys = this.stringPropertyNames();
+        for (String key: keys) {
+            String propVal = getProperty (key);
+            if (propVal.contains (TOKEN_APP_DIR)) {
+                put (key, propVal.replace (TOKEN_APP_DIR, applicationDirectory));
+            }
+        }
+    }
+
     /*
      * Convenience methods
      */
@@ -47,7 +65,7 @@ public class KafkaOperatorProperties extends Properties {
     public long getBufferMemory() {
         return Long.parseLong (getProperty (ProducerConfig.BUFFER_MEMORY_CONFIG, "33554432").trim());
     }
-    
+
     public String getBootstrapServers() {
         return getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG);
     }

@@ -98,7 +98,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     private StartPosition initialStartPosition = StartPosition.Default;
     private long initialStartTimestamp = -1l;
     private CountDownLatch jmxSetupLatch;
-    private AtomicBoolean pollingStartPending = new AtomicBoolean (false);
+    private AtomicBoolean startPollingRequired = new AtomicBoolean (false);
 
     /** Lock for setting/checking the JMX notification */
     private final ReentrantLock jmxNotificationConditionLock = new ReentrantLock();
@@ -466,7 +466,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         event.await();
         // in this client, we start polling at full speed after getting a permit to submit tuples
         sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
-        pollingStartPending.set (true);
+        startPollingRequired.set (true);
     }
 
 
@@ -486,7 +486,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         event.await();
         // in this client, we start polling at full speed after getting a permit to submit tuples
         sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
-        pollingStartPending.set (true);
+        startPollingRequired.set (true);
     }
 
     /**
@@ -501,7 +501,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         event.await();
         // in this client, we start polling at full speed after getting a permit to submit tuples
         sendStartThrottledPollingEvent (THROTTLED_POLL_SLEEP_MS);
-        pollingStartPending.set (true);
+        startPollingRequired.set (true);
     }
 
     /**
@@ -1202,9 +1202,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
-        if (pollingStartPending.get()) {
+        if (startPollingRequired.getAndSet (false)) {
             trace.log (DEBUG_LEVEL, MessageFormat.format ("getNextRecord() [{0}] - Acquired permit - initiating polling for Kafka messages", state));
-            pollingStartPending.set (false);
             sendStartPollingEvent();
         }
         return super.getNextRecord (timeout, timeUnit);

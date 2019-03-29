@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="What's new in version 1.6.0"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_page"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>What's new in version 1.6.0</title>
+</head>
+<body id="spldoc_page">
+
+
+<h1 class="title topictitle1">What's new in version 1.6.0</h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.9.2</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka$1.html">What's new and what has changed</a> &gt; What's new in version 1.6.0</p>
+
+</div>
+
+
+<div class="section">
+<div class="p">
+<ul class="ul">
+<li class="li"> The KafkaProducer exposes many performance metrics of the producer client as operator metrics</li>
+
+<li class="li">
+<p class="p"> The most important producer configs have default values, which result in higher reliability and throughput. These are <tt class="ph tt">retries</tt>, <tt class="ph tt">compression.type</tt>, <tt class="ph tt">linger.ms</tt>, <tt class="ph tt">batch.size</tt>, and <tt class="ph tt">max.in.flight.requests.per.connection</tt>.
+</p>
+</li>
+
+<li class="li">
+<p class="p"> New operator parameter <strong class="ph b">guaranteeOrdering</strong> for the KafkaProducer, which guarantees that the sequence in a topic partition is the same as the order of tuples in case of retries.
+</p>
+</li>
+
+<li class="li">
+<p class="p"> Queue control for the KafkaProducer operator to stabilize the maximum queue time and to avoid timeouts sending records
+</p>
+</li>
+
+<li class="li">
+<p class="p"> The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
+</p>
+</li>
+
+</ul>
+
+</div>
+
+</div>
+
+</div>
+
+
+</body>
+</html>

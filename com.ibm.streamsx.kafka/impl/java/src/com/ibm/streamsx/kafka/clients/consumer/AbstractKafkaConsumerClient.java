@@ -65,8 +65,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerClient.class);
     private static final double MEM_FREE_TOTAL_RATIO = 0.1;
     private static final double MAX_USED_RATIO = 1.0 - MEM_FREE_TOTAL_RATIO;
-
-    private static final long EVENT_LOOP_PAUSE_TIME_MS = 100;
     private static final long CONSUMER_CLOSE_TIMEOUT_MS = 2000;
 
     /** default value in Kafka 2.1.1 for max.poll.records */
@@ -86,6 +84,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final String groupId;
     private final boolean groupIdGenerated;
     private long pollTimeout = DEFAULT_CONSUMER_POLL_TIMEOUT_MS;
+    private Object throttledPollWaitMonitor = new Object();
     private int maxPollRecords;
     private long maxPollIntervalMs;
     private long lastPollTimestamp = 0;
@@ -430,7 +429,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 break;
             default:
                 logger.error("runEventLoop(): Unexpected event received: " + event.getEventType());
-                Thread.sleep(EVENT_LOOP_PAUSE_TIME_MS);
                 break;
             }
         }
@@ -773,7 +771,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     nConsecutiveRuntimeExc = 0;
                     nPendingMessages.setValue (messageQueue.size());
                     if (throttleSleepMillis > 0l) {
-                        Thread.sleep (throttleSleepMillis);
+                        synchronized (throttledPollWaitMonitor) {
+                            throttledPollWaitMonitor.wait (throttleSleepMillis);
+                        }
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
@@ -979,6 +979,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug (MessageFormat.format("Sending event: {0}", event));
         eventQueue.add (event);
         logger.debug(MessageFormat.format("Event {0} inserted into queue, q={1}", event, eventQueue));
+        synchronized (throttledPollWaitMonitor) {
+            throttledPollWaitMonitor.notifyAll();
+        }
     }
 
     /**

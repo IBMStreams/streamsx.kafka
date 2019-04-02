@@ -429,30 +429,33 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
     }
 
     /**
+     * Empty default implementation
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processResetToInitEvent()
      */
     @Override
     protected void processResetToInitEvent() {
-        throw new RuntimeException ("resetToInitialState(): consistent region is not supported by this consumer client: " + getThisClassName());
+        trace.log (DEBUG_LEVEL, "processResetToInitEvent");
     }
 
 
 
     /**
+     * Empty default implementation
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpointRetire(long)
      */
     @Override
     public void onCheckpointRetire(long id) {
-        throw new RuntimeException ("onCheckpointRetire(): consistent region is not supported by this consumer client: " + getThisClassName());
+        trace.log (DEBUG_LEVEL, "onCheckpointRetire, id = " + id);
     }
 
 
     /**
+     * Empty default implementation
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onResetToInitialState()
      */
     @Override
     public void onResetToInitialState() throws InterruptedException {
-        throw new RuntimeException ("onResetToInitialState(): consistent region is not supported by this consumer client: " + getThisClassName());
+        trace.log (DEBUG_LEVEL, "onResetToInitialState");
     }
 
 

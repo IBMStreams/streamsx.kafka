@@ -346,9 +346,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         messageType = messageAttr.getAttribute().getType().getObjectType();
 
         crContext = context.getOptionalContext(ConsistentRegionContext.class);
-        if (crContext != null) {
-            isResetting = new AtomicBoolean(context.getPE().getRelaunchCount() > 0);
-        }
+        // isResetting can always be false when not in consistent region.
+        // When not in consistent region, reset happens _before_ allPortsReady(), so that tuple processing 
+        // is not conflicting with RESET processing, for which this flag is used.
+        isResetting = new AtomicBoolean (crContext != null && context.getPE().getRelaunchCount() > 0);
 
         initProducer();
         final boolean registerAsInput = false;
@@ -400,7 +401,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public void process(StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
-        if (crContext != null && isResetting.get()) {
+        if (isResetting.get()) {
             logger.debug("Operator is in the middle of resetting...skipping tuple processing!"); //$NON-NLS-1$
             return;
         }
@@ -487,7 +488,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void resetToInitialState() throws Exception {
         if (crContext == null) return;  // ignore 'config checkpoint'
         logger.debug (">>> RESET TO INIT..."); //$NON-NLS-1$
-
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.close();
         producer = null;

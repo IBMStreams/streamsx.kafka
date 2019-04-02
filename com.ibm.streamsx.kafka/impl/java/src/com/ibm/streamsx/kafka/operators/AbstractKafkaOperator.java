@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.AbstractOperator;
@@ -32,6 +33,7 @@ import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.DataGovernanceUtil;
 import com.ibm.streamsx.kafka.IGovernanceConstants;
+import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.ToolkitInfoReader;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
@@ -40,6 +42,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractKafkaOperator extends AbstractOperator implements StateHandler {
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaOperator.class);
+    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
 
     private static final String DEFAULT_USER_LIB_DIR = "/etc/libs/*"; //$NON-NLS-1$
     protected static final MetaType[] SUPPORTED_ATTR_TYPES = { 

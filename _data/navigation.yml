@@ -28,6 +28,8 @@ userdocs:
         url: /docs/user/SPLDoc
       - title: "Migration from streamsx.messaging toolkit"
         url: /docs/user/migration_from_messaging
+      - title: "Kafka toolkit v1 versus v2"
+        url: /docs/user/kafka_toolkit_1_vs_2
       - title: "KafkaConsumer Design"
         url: /docs/user/KafkaConsumerDesign
       - title: "Consuming big messages"

@@ -72,12 +72,11 @@ Partition assignment and revocation is done by Kafka. The client is notified by 
 
 #### Partition revocation
 
-`onPartitionsRevoked` is ignored when the client has just subscribed, or after reset to initial state or to a checkpoint. Otherwise, a reset of the consistent region is initiated by the operator:
+`onPartitionsRevoked` is ignored when the client has just subscribed, or after reset to initial state or to a checkpoint, and if the client has not yet fetched messages. Otherwise, a reset of the consistent region is initiated by the operator:
 - The message queue is cleared, so that tuple submission stops
-- A stop polling event is asynchronously submitted to the event queue, which lets the operator stop polling for new messages when the `onPartitionsRevoked` - `onPartitionsAssigned` sequence within the current `poll` invocation is processed. Letting the operator stop polling avoids that the callbacks are called again before the reset event is processed.
+- A stop polling event is asynchronously submitted to the event queue, which lets the operator stop polling for new messages. Stop polling avoids that the callbacks are called again before the reset event is processed.
 - The consistent region reset is triggered in *force mode*. *Force mode* resets the consecutive reset counter.
 - The state of the client changes to CR_RESET_PENDING.
-- `onPartitionsAssigned` with the new partition assignment is always called back after `onPartitionsRevoked` within the context of the current poll.
 - When it comes to the consistent region reset, the operator places a reset event into the event queue. This event is
 always processed by the event thread *after* the current `poll` has finished. Therefore also `onPartitionsAssigned` is called before the reset event can be processed.
 
@@ -112,7 +111,7 @@ A reset of the consistent region can happen
 - without change of partition assignment, for example, when a downstream PE has caused the reset
 - with subsequent partition assignment, for example, when a PE hosting a consumer operator restarted.
 
-When the operator is reset without restart, it seeks the assigined partitions to initial offsets or offsets from a merged checkpoint. A partition assignment *can* happen afterwards. When the operator is reset after relaunch of its PE, a partition assignement will definitely happen. It can be an empty partition assignment, however. The partition assignment will consist of partition revocation followed by a partition assignment. The partition assignment can also change when partitions are assigned at the time of reset.
+When the operator is reset without restart, it seeks the assigined partitions to initial offsets or offsets from a merged checkpoint. A partition assignment *can* happen afterwards. When the operator is reset after relaunch of its PE, a partition assignement will definitely happen. It can be an empty partition assignment, however. The partition assignment will consist of partition revocation followed by a partition assignment. The partition assignment can also change when partitions are assigned at the time of reset. After reset processing the consumer client goes into state `RESET_COMPLETE` and starts polling with throttled speed.
 
 ### Reset processing to inital state
 

@@ -17,10 +17,13 @@ The toolkit version 2 has two potentially breaking changes, which are tracked by
 1. Group management with initial fetch position: [issue 94](https://github.com/IBMStreams/streamsx.kafka/issues/94)
 2. Operator restart without seek: [issue 107](https://github.com/IBMStreams/streamsx.kafka/issues/107)
 
-These changes affect the KafkaConsumer operator usage outside a consistent region, and only when the **startPosition** parameter is used with a value different from `Default`. There are **no changes** when
+These changes affect the KafkaConsumer operator usage outside a consistent region,
+and only when the **startPosition** parameter is used with a value different from `Default`.
+There are **no changes** when
+
 - the consumer operator is used in a consistent region, or
 - the consumer operator has an input port, or
-- the consumer operator is not configured with **startPosition** parameter
+- the consumer operator is not configured with **startPosition** parameter, or
 - the **startPosition** parameter has the value `Default`.
 
 ## (1) Enable group management also with start position when not in consistent region

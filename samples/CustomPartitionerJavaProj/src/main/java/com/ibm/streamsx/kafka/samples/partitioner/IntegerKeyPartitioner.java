@@ -14,23 +14,20 @@ import org.apache.kafka.common.Cluster;
  */
 public class IntegerKeyPartitioner implements Partitioner {
 
-	@Override
-	public void configure(Map<String, ?> configs) {
-		
-	}
+    @Override
+    public void configure (Map<String, ?> configs) {
 
-	@Override
-	public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
-		if(!(key instanceof Integer)) 
-			throw new RuntimeException("The key must of type Integer. Found: " + key.getClass().getCanonicalName());
+    }
 
-		return (Integer)key;
-	}
+    @Override
+    public int partition (String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
+        if (!(key instanceof Integer)) {
+            throw new RuntimeException("The key must of type Integer. Found: " + key.getClass().getCanonicalName());
+        }
+        return (Integer)key;
+    }
 
-	@Override
-	public void close() {
-		// TODO Auto-generated method stub
-		
-	}
-
+    @Override
+    public void close() {
+    }
 }

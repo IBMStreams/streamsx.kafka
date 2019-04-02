@@ -11,7 +11,6 @@ import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.Attribute;
@@ -35,7 +34,6 @@ import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
-import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
 import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
@@ -51,7 +49,6 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerOperator.class);
-    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
     
     private static final long DEFAULT_CONSUMER_TIMEOUT = 100l;
     private static final long SHUTDOWN_TIMEOUT = 15l;
@@ -1113,7 +1110,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @Override
     public void resetToInitialState() throws Exception {
-        final int attempt = crContext.getResetAttempt();
+        final int attempt = crContext == null? -1: crContext.getResetAttempt();
         logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
         if (consumer.isProcessing()) {

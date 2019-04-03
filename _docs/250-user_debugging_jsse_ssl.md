@@ -38,6 +38,8 @@ The options that can be used for the `javax.net.debug=<x>` system property are d
 
 Where _&lt;x&gt;_ is one of :
 
+| x | description |
+| --- | --- |
 | `help` | prints out this help |
 | `all`  | turn on all debugging |
 | `true` | turn on all debugging, for compatibility |
@@ -45,6 +47,8 @@ Where _&lt;x&gt;_ is one of :
 
 The following can be used with **ssl**:
 
+| ssl:x | description |
+| --- | --- |
 | `record`       | enable per-record tracing |
 | `handshake`    | print each handshake message |
 | `keygen`       | print key generation data |
@@ -59,11 +63,15 @@ The following can be used with **ssl**:
 
 **handshake** debugging can be widened with:
 
+| ssl:handshake:x | description |
+| --- | --- |
 | `data`    | hex dump of each handshake message |
 | `verbose` | verbose handshake message printing |
 
 **record** debugging can be widened with:
 
+| ssl:record:x | description |
+| --- | --- |
 | `plaintext` | hex dump of record plaintext |
 | `packet`    | print raw SSL/TLS packets |
 

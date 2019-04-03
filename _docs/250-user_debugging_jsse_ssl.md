@@ -38,34 +38,34 @@ The options that can be used for the `javax.net.debug=<x>` system property are d
 
 Where _&lt;x&gt;_ is one of :
 
-`help` | prints out following help:
-`all`  | turn on all debugging
-`true` | turn on all debugging, for compatibility
-`ssl`  | turn on ssl debugging
+| `help` | prints out this help |
+| `all`  | turn on all debugging |
+| `true` | turn on all debugging, for compatibility |
+| `ssl`  | turn on ssl debugging |
 
 The following can be used with **ssl**:
 
-`record`        | enable per-record tracing
-`handshake`     | print each handshake message
-`keygen`        | print key generation data
-`session`       | print session activity
-`defaultctx`    | print default SSL initialization
-`sslctx`        | print SSLContext tracing
-`sessioncache`  | print session cache tracing
-`keymanager`    | print key manager tracing
-`trustmanager`  | print trust manager tracing
-`nio`           | print nio tracing
-`pluggability`  | print pluggability tracing
+| `record`       | enable per-record tracing |
+| `handshake`    | print each handshake message |
+| `keygen`       | print key generation data |
+| `session`      | print session activity |
+| `defaultctx`   | print default SSL initialization |
+| `sslctx`       | print SSLContext tracing |
+| `sessioncache` | print session cache tracing |
+| `keymanager`   | print key manager tracing |
+| `trustmanager` | print trust manager tracing |
+| `nio`          | print nio tracing |
+| `pluggability` | print pluggability tracing |
 
 **handshake** debugging can be widened with:
 
-`data`          | hex dump of each handshake message
-`verbose`       | verbose handshake message printing
+| `data`    | hex dump of each handshake message |
+| `verbose` | verbose handshake message printing |
 
 **record** debugging can be widened with:
 
-`plaintext`     | hex dump of record plaintext
-`packet`        | print raw SSL/TLS packets
+| `plaintext` | hex dump of record plaintext |
+| `packet`    | print raw SSL/TLS packets |
 
 
 **Examples:**

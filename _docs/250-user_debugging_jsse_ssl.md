@@ -63,7 +63,7 @@ The following can be used with **ssl**:
 
 **handshake** debugging can be widened with:
 
-| ssl:handshake:x | description |
+| ssl`:handshake:`x | description |
 | --- | --- |
 | `data`    | hex dump of each handshake message |
 | `verbose` | verbose handshake message printing |

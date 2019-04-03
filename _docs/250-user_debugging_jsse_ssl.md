@@ -14,7 +14,7 @@ sidebar:
 ## Introduction
 
 The Kafka operators can be configured to use [SSL for encryption and authentication](https://kafka.apache.org/documentation/#security_ssl).
-Issues in this area can be trouble-shooted by enabling SSL debugging by using the **vmArg** parameter.
+Issues in this area can be trouble-shooted by enabling SSL debugging by setting the `javax.net.debug` system property using the **vmArg** parameter.
 
 **Example:**
 

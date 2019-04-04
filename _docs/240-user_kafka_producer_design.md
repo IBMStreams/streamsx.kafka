@@ -15,7 +15,7 @@ The KafkaProducer operator is used to produce messages on Kafka topics. The oper
 
 ### Apache Kafka - Supported Version
 
-These operators will only support Apache Kafka v0.10.2 and newer. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used. 
+These operators will only support Apache Kafka v0.10.2 and newer. For older versions of Kafka, it is recommended that the Kafka operators from the **com.ibm.streamsx.messaging** toolkit be used.
 
 ### Supported SPL Types
 
@@ -43,6 +43,7 @@ The operator supports the following SPL types for the key and message attributes
 | timestampAttribute | "messageTimestamp" | Specifies the attribute on the input port that contains the timestamp for the message. If not specified, the operator will look for an input attribute named messageTimestamp. If this parameter is not specified and there is no input attribute named messageTimestamp, the operator will use the timestamp provided by Kafka (broker config `log.message.timestamp.type=\[CreateTime\|LogAppendTime\]`). |
 | partitionAttribute | "partition" | Specifies the input attribute that contains the partition number that the message should be written to. If this parameter is not specified, the operator will look for an input attribute named **partition**. If the user does not indicate which partition the message should be written to, then Kafka's default partitioning strategy will be used instead (partition based on the specified partitioner or in a round-robin fashion). |
 | consistentRegionPolicy | AtLeastOnce | Enables at least once or transactional producer in consistent region |
+| flush | 0 | Flushes the producer every N tuples, i.e. makes all accumulated batches ready to send and sends them. When not set or less than 1, the flush is adaptive dependent on buffer utilization and flush duration. |
 
 ### Automatic Serialization
 
@@ -61,7 +62,7 @@ Users can override this behaviour and specify which serializer to use by setting
 
 ### Input Ports
 
-The operator will have a single input port. The `messageAttrName`, `partitionAttribute`, `topicAttribute`, `timestampAttribute`, and `keyAttrName` parameters are used to specify 
+The operator will have a single input port. The `messageAttrName`, `partitionAttribute`, `topicAttribute`, `timestampAttribute`, and `keyAttrName` parameters are used to specify
 the input attributes that contain the message and key values, respectively. Each tuple received by this operator will be written to the topic.
 
 ### Output Ports
@@ -70,7 +71,9 @@ The operator does not have any output ports.
 
 ### Consistent Region Strategy
 
-The operator can be part of a consistent region, however it cannot be the start of a consistent region. The operator is capable of supporting at least once message delivery semantics and transactional message delivery.
+The operator can be part of a consistent region, however it cannot be the start of a consistent region.
+The operator is capable of supporting at least once message delivery semantics and transactional message delivery.
+On drain, the producer operator is flushed, i.e. all accumulated records are immediately sent.
 
 
 ### Error Handling

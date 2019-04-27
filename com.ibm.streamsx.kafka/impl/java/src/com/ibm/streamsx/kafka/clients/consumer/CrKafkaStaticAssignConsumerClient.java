@@ -347,7 +347,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             final boolean commitSync = true;
             final boolean commitPartitionWise = false;   // commit all partitions in one server request
             CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
-
+            offsets.setThrowOnSynchronousCommitFailure (false);
             synchronized (offsetManager) {
                 for (TopicPartition tp: offsetManager.getMappedTopicPartitions()) {
                     offsets.put (tp, offsetManager.getOffset(tp.topic(), tp.partition()));

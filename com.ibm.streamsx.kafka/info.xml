@@ -66,7 +66,7 @@ continues fetching at the last committed offset.
 
 ++ What's new in version 1.9.2
 
-* Kafka properties can now contain the `{applicationDir}` placeholder. This placeholder is replaced by the application directory at runtime before the properties are passed to the Kafka client library. As an example, you can specify a following property value for the SSL truststore location: `ssl.truststore.location={applicationDir}/etc/myTruststore.jks` and put the truststore file into the `etc` directory of your application.
+* Kafka properties can now contain the `{applicationDir}` placeholder. This placeholder is replaced by the application directory at runtime before the properties are passed to the Kafka client library. As an example, you can specify the following property value for the SSL truststore location: `ssl.truststore.location={applicationDir}/etc/myTruststore.jks` and put the truststore file into the `etc` directory of your application.
 
 ++ What's new in version 1.9.1
 

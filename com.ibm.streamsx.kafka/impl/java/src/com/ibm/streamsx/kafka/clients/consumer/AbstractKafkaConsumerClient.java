@@ -42,6 +42,7 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.ProcessingElement;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streamsx.kafka.ConsumerCommitFailedException;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaMetricException;
@@ -471,10 +472,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         // the commit failed and cannot be retried. This can only occur if you are using 
                         // automatic group management with subscribe(Collection), or if there is an active
                         // group with the same groupId which is using group management.
-                        logger.warn (Messages.getString("OFFSET_COMMIT_FAILED_FOR_PARTITION", tp, e.getLocalizedMessage()));
-                        // expose the exception to the runtime. When committing synchronous, 
-                        // we usually want the offsets really have committed or restart operator, for example when in a CR
-                        throw new RuntimeException (e.getMessage(), e);
+                        logger.error (Messages.getString("OFFSET_COMMIT_FAILED_FOR_PARTITION", tp, e.getLocalizedMessage()));
+                        if (offsets.isThrowOnSynchronousCommitFailure()) {
+                            // expose the exception to the runtime. When committing synchronous, 
+                            // we usually want the offsets really have committed or restart operator, for example when in a CR
+                            throw new ConsumerCommitFailedException (e.getMessage(), e);
+                        }
                     }
                 }
                 else {
@@ -502,10 +505,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     //if the commit failed and cannot be retried. This can only occur if you are using 
                     // automatic group management with subscribe(Collection), or if there is an active
                     // group with the same groupId which is using group management.
-                    logger.warn (Messages.getString("OFFSET_COMMIT_FAILED", e.getLocalizedMessage()));
-                    // expose the exception to the runtime. When committing synchronous, 
-                    // we usually want the offsets really have committed or restart operator, for example when in a CR
-                    throw new RuntimeException (e.getMessage(), e);
+                    logger.error (Messages.getString("OFFSET_COMMIT_FAILED", e.getLocalizedMessage()));
+                    if (offsets.isThrowOnSynchronousCommitFailure()) {
+                        // expose the exception to the runtime. When committing synchronous, 
+                        // we usually want the offsets really have committed or restart operator, for example when in a CR
+                        throw new ConsumerCommitFailedException (e.getMessage(), e);
+                    }
                 }
             }
             else {

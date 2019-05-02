@@ -5,22 +5,25 @@ use com.ibm.streamsx.kafka::* ;
 type Message = rstring key, rstring message, int64 messageTimestamp ;
 
 /*
- * This sample demonstrates how to configure the KafkaConsumer 
- * to begin consuming offsets from a specific timestamp.
+ * This sample demonstrates how to configure the KafkaConsumer
+ * to begin consuming offsets from a specific offset.
  */
 composite KafkaStartOffsetSample
 {
     graph
+        // when using startPosition: Offset for the consumer operator, we need a JobControlPlane for correct restart behaviour
+        () as JCP = JobControlPlane() {}
+
         (stream<Message, tuple<int64 offset, int32 partition>> KafkaConsumer_1_out0) as KafkaConsumer_1 =
             KafkaConsumer()
         {
             param
-                topic : "offsetPartitionsTest" ;
                 propertiesFile : "etc/consumer.properties" ;
-                startPosition : Offset;
+                topic : "offsetPartitionsTest" ;
                 partition : 0;
+                startPosition : Offset;
                 startOffset : 50l;
-                
+
                 /* NOTE: If assigning the operator to multiple partitions, a start offset for each
                  * partition must also be specified. The order of the startOffsets corresponds to
                  * the order of the partition.
@@ -49,11 +52,11 @@ composite KafkaMessageGenerator
             param
                 iterations : 100u ;
             output
-                Beacon_4_out0 : 
+                Beacon_4_out0 :
                     key = "key_" +(rstring) IterationCount(),
                     message = "msg_" +(rstring) IterationCount(),
                     messageTimestamp = (int64)IterationCount();
-                    
+
         }
 
         () as KafkaProducer_3 = KafkaProducer(Beacon_4_out0)

@@ -42,6 +42,7 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.ProcessingElement;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streamsx.kafka.ConsumerCommitFailedException;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaMetricException;
@@ -65,8 +66,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerClient.class);
     private static final double MEM_FREE_TOTAL_RATIO = 0.1;
     private static final double MAX_USED_RATIO = 1.0 - MEM_FREE_TOTAL_RATIO;
-
-    private static final long EVENT_LOOP_PAUSE_TIME_MS = 100;
     private static final long CONSUMER_CLOSE_TIMEOUT_MS = 2000;
 
     /** default value in Kafka 2.1.1 for max.poll.records */
@@ -86,6 +85,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final String groupId;
     private final boolean groupIdGenerated;
     private long pollTimeout = DEFAULT_CONSUMER_POLL_TIMEOUT_MS;
+    private Object throttledPollWaitMonitor = new Object();
     private int maxPollRecords;
     private long maxPollIntervalMs;
     private long lastPollTimestamp = 0;
@@ -430,7 +430,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 break;
             default:
                 logger.error("runEventLoop(): Unexpected event received: " + event.getEventType());
-                Thread.sleep(EVENT_LOOP_PAUSE_TIME_MS);
                 break;
             }
         }
@@ -473,10 +472,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                         // the commit failed and cannot be retried. This can only occur if you are using 
                         // automatic group management with subscribe(Collection), or if there is an active
                         // group with the same groupId which is using group management.
-                        logger.warn (Messages.getString("OFFSET_COMMIT_FAILED_FOR_PARTITION", tp, e.getLocalizedMessage()));
-                        // expose the exception to the runtime. When committing synchronous, 
-                        // we usually want the offsets really have committed or restart operator, for example when in a CR
-                        throw new RuntimeException (e.getMessage(), e);
+                        logger.error (Messages.getString("OFFSET_COMMIT_FAILED_FOR_PARTITION", tp, e.getLocalizedMessage()));
+                        if (offsets.isThrowOnSynchronousCommitFailure()) {
+                            // expose the exception to the runtime. When committing synchronous, 
+                            // we usually want the offsets really have committed or restart operator, for example when in a CR
+                            throw new ConsumerCommitFailedException (e.getMessage(), e);
+                        }
                     }
                 }
                 else {
@@ -504,10 +505,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     //if the commit failed and cannot be retried. This can only occur if you are using 
                     // automatic group management with subscribe(Collection), or if there is an active
                     // group with the same groupId which is using group management.
-                    logger.warn (Messages.getString("OFFSET_COMMIT_FAILED", e.getLocalizedMessage()));
-                    // expose the exception to the runtime. When committing synchronous, 
-                    // we usually want the offsets really have committed or restart operator, for example when in a CR
-                    throw new RuntimeException (e.getMessage(), e);
+                    logger.error (Messages.getString("OFFSET_COMMIT_FAILED", e.getLocalizedMessage()));
+                    if (offsets.isThrowOnSynchronousCommitFailure()) {
+                        // expose the exception to the runtime. When committing synchronous, 
+                        // we usually want the offsets really have committed or restart operator, for example when in a CR
+                        throw new ConsumerCommitFailedException (e.getMessage(), e);
+                    }
                 }
             }
             else {
@@ -773,7 +776,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     nConsecutiveRuntimeExc = 0;
                     nPendingMessages.setValue (messageQueue.size());
                     if (throttleSleepMillis > 0l) {
-                        Thread.sleep (throttleSleepMillis);
+                        synchronized (throttledPollWaitMonitor) {
+                            throttledPollWaitMonitor.wait (throttleSleepMillis);
+                        }
                     }
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
@@ -979,6 +984,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug (MessageFormat.format("Sending event: {0}", event));
         eventQueue.add (event);
         logger.debug(MessageFormat.format("Event {0} inserted into queue, q={1}", event, eventQueue));
+        synchronized (throttledPollWaitMonitor) {
+            throttledPollWaitMonitor.notifyAll();
+        }
     }
 
     /**

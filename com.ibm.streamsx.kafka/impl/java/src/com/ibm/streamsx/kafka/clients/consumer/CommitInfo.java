@@ -16,8 +16,9 @@ import org.apache.kafka.common.TopicPartition;
 public class CommitInfo {
 
     private Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>();
-    private boolean commitSynchronous = false;
-    private boolean commitPartitionWise = true;
+    private final boolean commitSynchronous;
+    private final boolean commitPartitionWise;
+    private boolean throwOnSynchronousCommitFailure = true;
 
     /**
      * Creates a new CommitInfo object
@@ -27,6 +28,20 @@ public class CommitInfo {
     public CommitInfo (boolean commitSync, boolean partitionWise) {
         this.commitSynchronous = commitSync;
         this.commitPartitionWise = partitionWise;
+    }
+
+    /**
+     * @return the true if an exception is to be thrown to the runtime when synchronous offset commit fails
+     */
+    public boolean isThrowOnSynchronousCommitFailure() {
+        return throwOnSynchronousCommitFailure;
+    }
+
+    /**
+     * @param doThrow the flag to control synchronous commit failure handling. If set to true, an exception is thrown.
+     */
+    public void setThrowOnSynchronousCommitFailure (boolean doThrow) {
+        this.throwOnSynchronousCommitFailure = doThrow;
     }
 
     /**

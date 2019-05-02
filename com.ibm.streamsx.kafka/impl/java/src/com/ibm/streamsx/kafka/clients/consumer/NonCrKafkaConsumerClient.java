@@ -114,6 +114,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 seekToPosition (partsToAssign, startPosition);
             }
         }
+        resetCommitPeriod (System.currentTimeMillis());
     }
 
 
@@ -160,6 +161,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         else {
             seekToTimestamp (topicPartitionTimestampMap);
         }
+        resetCommitPeriod (System.currentTimeMillis());
     }
 
 
@@ -199,6 +201,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         else {
             assignToPartitionsWithOffsets (topicPartitionOffsetMap);
         }
+        resetCommitPeriod (System.currentTimeMillis());
     }
 
 

@@ -331,7 +331,6 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
                 }
             }
             try {
-                resetCommitPeriod (now);
                 if (!offsets.isEmpty()) {
                     // sendCommitEvent terminates the poll loop, throws InterruptedException:
                     sendCommitEvent (offsets);
@@ -345,6 +344,8 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
                 // is not thrown when asynchronously committed; can be silently ignored.
                 // Only when we decide to change to synchronous commit, we can end up here.
                 // Then it is ok, NOT to start polling again. 
+            } finally {
+                resetCommitPeriod (now);
             }
         }
     }

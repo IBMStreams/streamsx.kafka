@@ -70,7 +70,7 @@ public class KafkaOperatorsStartPositionTest extends AbstractKafkaTest {
 
         // create the consumer
         Topology topo = getTopology();
-
+        topo.addJobControlPlane();
         Map<String, Object> consumerParams = new HashMap<>();
         consumerParams.put("topic", Constants.TOPIC_POS);
         consumerParams.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);

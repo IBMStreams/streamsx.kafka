@@ -264,7 +264,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "**topic** parameter, and the operator cannot participate in a consumer group.\\n"
                     + "\\n"
                     + "\\n"
-                    + "If this parameter is not specified, the start position is `Default`.")
+                    + "If this parameter is not specified, the start position is `Default`.\\n"
+                    + "\\n"
+                    + "\\n"
+                    + "Note, that using a startPosition other than `Default` requires the application always to have a **JobControlPlane** "
+                    + "operator in its graph. The **startPosition** is effective only when the Consumer has not yet committed offsets "
+                    + "within the Streams job's life cycle."
+                    + "")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
     }

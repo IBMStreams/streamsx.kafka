@@ -19,6 +19,47 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
 
+++ What's new in version 2.0.0
+
++++ New Features
+
+**Changes when the operator is not part of a consistent region**
+
+* KafkaConsumer: The operator can now participate in a consumer group with **startPosition** parameter values `Beginning`, `End`, and `Time`.
+* KafkaConsumer: After re-launch, the operator does not overwrite the initial fetch offset to what the **startPosition** parameter is.
+
+To achieve this new startPosition handling, the application must include a `JobControlPlane` operator when startPosition is not `Default`.
+Details of the changes, including sample code, can be found in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/kafka_toolkit_1_vs_2/|Toolkit documentation on Github].
+
++++ Incompatible changes, which may break existing applications
+
+The behavior of the **KafkaConsumer** operator changes when
+
+1. the operator is *not* used in a consistent region, and
+2. the **startPosition** parameter is used with `Beginning`, `End`, `Time`, or `Offset`.
+
+In all other cases the behavior of the KafkaConsumer is unchanged.
+
+Previous versions of the KafkaConsumer operator did *not* enable group management in autonomous regions, with **startPosition** different from `Default`,
+even when a group-ID was configured. Since toolkit version 2.0, group management is enabled with all **startPosition** values except `Offset`.
+
+The conditions for a consumer operator to be part of a consumer group
+are now identical for consistent and autonomous region:
+
+  1. A group identifier must be specified
+  2. The operator must not have a control input port
+  3. The **partitions** parameter must not be used
+
+Correct handling of the initial start position requires always a **JobControlPlane** operator in the application graph, also when
+consistent region is not used. Without a **JobControlPlane** in the application graph, the Consumer operator will fail to initialize
+when **startPosition** is used and is not `Default`.
+
+Since toolkit version 2.0, the **startPosition** has effect only when the consumer operator is initially launched at job submission.
+When the consumer's PE is re-launched or when new PEs are launched after changing the width of a parallel region, the fetch position
+is *not reset* to what **startPosition** is - in opposite to previous versions. More precisely, the fetch position is now only then reset
+for a topic partition, when the consumer has not yet committed offsets for the partition. In all other cases, the consumer
+continues fetching at the last committed offset.
+
 ++ What's new in version 1.9.4
 
 * Bug fix: Support for resetToInitialState when checkpointing in an autonomous region is configured
@@ -30,7 +71,7 @@ This is an overview of changes for major and minor version upgrades. For details
 
 ++ What's new in version 1.9.2
 
-* Kafka properties can now contain the `{applicationDir}` token. This token is replaced by the application directory at runtime before the properties are passed to the Kafka client library. As an example, you can specify following property value for the SSL truststore location: `ssl.truststore.location={applicationDir}/etc/myTruststore.jks` and put the truststore file into the `etc` directory of your application.
+* Kafka properties can now contain the `{applicationDir}` placeholder. This placeholder is replaced by the application directory at runtime before the properties are passed to the Kafka client library. As an example, you can specify the following property value for the SSL truststore location: `ssl.truststore.location={applicationDir}/etc/myTruststore.jks` and put the truststore file into the `etc` directory of your application.
 
 ++ What's new in version 1.9.1
 
@@ -91,7 +132,7 @@ This is an overview of changes for major and minor version upgrades. For details
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>1.9.4</info:version>
+   <info:version>2.0.0.__dev__</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

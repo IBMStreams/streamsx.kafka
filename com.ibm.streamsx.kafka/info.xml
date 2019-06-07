@@ -12,6 +12,7 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 * 1.1
 * 2.0
 * 2.1
+* 2.2
 
 # Additional information
 
@@ -23,7 +24,7 @@ This is an overview of changes for major and minor version upgrades. For details
 
 # New Features
 
-The included Kafka client has been upgraded from version 2.1.1 to 2.2.1.
+The included Kafka client has been upgraded from version 2.1.1 to 2.2.1. Support for Kafka broker 2.2 has been added.
 
 The toolkit has enhancements for the KafkaConsumer when it is used in an autonomous region (i.e. not part of a consistent region):
 

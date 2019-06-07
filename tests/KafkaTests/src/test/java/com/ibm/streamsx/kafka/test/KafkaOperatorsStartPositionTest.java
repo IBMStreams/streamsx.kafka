@@ -63,14 +63,14 @@ public class KafkaOperatorsStartPositionTest extends AbstractKafkaTest {
         @SuppressWarnings("unchecked")
         Future<BigInteger> future = (Future<BigInteger>)StreamsContextFactory.getStreamsContext(Type.STANDALONE).submit(producerTopo);
         future.get();
-        Thread.sleep(TimeUnit.SECONDS.toMillis(50));
+        Thread.sleep(3000L);
         if(!future.isDone()) {
             future.cancel(true);
         }
 
         // create the consumer
         Topology topo = getTopology();
-
+        topo.addJobControlPlane();
         Map<String, Object> consumerParams = new HashMap<>();
         consumerParams.put("topic", Constants.TOPIC_POS);
         consumerParams.put("propertiesFile", Constants.PROPERTIES_FILE_PATH);

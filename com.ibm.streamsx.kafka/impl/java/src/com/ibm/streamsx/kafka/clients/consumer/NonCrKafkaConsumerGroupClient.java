@@ -76,6 +76,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
             testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
         }
+        resetCommitPeriod (System.currentTimeMillis());
     }
 
 
@@ -94,6 +95,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         if (startPosition != StartPosition.Default && Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
             testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
         }
+        resetCommitPeriod (System.currentTimeMillis());
     }
 
 
@@ -124,6 +126,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         if (startPosition != StartPosition.Default && Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
             testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
         }
+        resetCommitPeriod (System.currentTimeMillis());
     }
 
     /**
@@ -154,6 +157,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
             testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
         }
+        resetCommitPeriod (System.currentTimeMillis());
     }
 
 

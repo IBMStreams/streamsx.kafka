@@ -1,9 +1,9 @@
 package com.ibm.streamsx.kafka.clients.producer;
 
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -18,18 +18,17 @@ import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaMetricException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
-import com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener;
 import com.ibm.streamsx.kafka.clients.metrics.CustomMetricUpdateListener;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsFetcher;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsProvider;
+import com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public class KafkaProducerClient extends AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
-    private static final int CLOSE_TIMEOUT = 5;
-    private static final TimeUnit CLOSE_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
+    private static final int CLOSE_TIMEOUT_MS = 5000;
 
     protected KafkaProducer<?, ?> producer;
     protected ProducerCallback callback;
@@ -353,7 +352,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
     public void close() {
         logger.trace("Closing..."); //$NON-NLS-1$
-        producer.close(CLOSE_TIMEOUT, CLOSE_TIMEOUT_TIMEUNIT);
+        producer.close (Duration.ofMillis (CLOSE_TIMEOUT_MS));
     }
 
     public void setSendException(Exception sendException) {

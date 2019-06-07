@@ -25,9 +25,9 @@ public class KafkaSplDoc {
             ;
 
     public static final String CONSUMER_WHERE_TO_FIND_PROPERTIES = ""
-            + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.1.1. As a result, it supports all "
-            + "Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.1.1 "
-            + "can be found in the [https://kafka.apache.org/documentation/#consumerconfigs|Apache Kafka 2.1 documentation].\\n"
+            + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.2.1. As a result, it supports all "
+            + "Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.2 "
+            + "can be found in the [https://kafka.apache.org/documentation/#consumerconfigs|Apache Kafka 2.2 documentation].\\n"
             + "\\n"
             + "When you reference files within your application, which are bundled with the Streams application bundle, for example "
             + "an SSL truststore or a key tab file for Kerberos authentication, you can use the `{applicationDir}` placeholder in the "
@@ -320,10 +320,10 @@ public class KafkaSplDoc {
 
     public static final String PRODUCER_WHERE_TO_FIND_PROPERTIES = ""
 
-            + "The operator implements Kafka's KafkaProducer API of the Kafka client version 2.1.1. As a result, "
+            + "The operator implements Kafka's KafkaProducer API of the Kafka client version 2.2.1. As a result, "
             + "it supports all Kafka properties that are supported by the "
-            + "underlying API. The producer properties for the Kafka producer 2.1.1 "
-            + "can be found in the [https://kafka.apache.org/documentation/#producerconfigs|Apache Kafka 2.1 documentation].\\n"
+            + "underlying API. The producer properties for the Kafka producer 2.2 "
+            + "can be found in the [https://kafka.apache.org/documentation/#producerconfigs|Apache Kafka 2.2 documentation].\\n"
             + "\\n"
             + "When you reference files within your application, which are bundled with the Streams application bundle, for example "
             + "an SSL truststore or a key tab file for Kerberos authentication, you can use the `{applicationDir}` placeholder in the "

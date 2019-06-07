@@ -2,17 +2,17 @@
  * This SPL namespace contains all functions and operators that are required to integrate with Kafka message brokers.
  * 
  * + Compatibility
- * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.1.1. This toolkit contains the Kafka client library version 2.1.1.
+ * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.1.1. This toolkit contains the Kafka client library version 2.2.1.
  * Note, that Kafka transactions cannot be used when you connect to a Kafka broker that is below version 0.11, and that Zstandard 
  * compression is incompatible with brokers below version 2.1.
  * 
  * + Configuration
  * 
  * The operators use Kafka's Producer or Consumer API. As a consequence, you can specify all properties for the APIs to control 
- * the behavior of the operators. The producer for Apache Kafka 2.1 can be found in the 
- * [https://kafka.apache.org/documentation/#producerconfigs|producer configs section of the Apache Kafka 2.1 documentation],
+ * the behavior of the operators. The producer configuration for Apache Kafka 2.2 can be found in the 
+ * [https://kafka.apache.org/documentation/#producerconfigs|producer configs section of the Apache Kafka 2.2 documentation],
  * the configs for the Apache Kafka Consumer can be found in the 
- * [https://kafka.apache.org/documentation/#consumerconfigs|consumer configs section of the Apache Kafka 2.1 documentation].
+ * [https://kafka.apache.org/documentation/#consumerconfigs|consumer configs section of the Apache Kafka 2.2 documentation].
  * 
  * Properties can be specified in different ways:
  * * As an Application configuration

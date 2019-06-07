@@ -23,6 +23,8 @@ This is an overview of changes for major and minor version upgrades. For details
 
 # New Features
 
+The included Kafka client has been upgraded from version 2.1.1 to 2.2.1.
+
 The toolkit has enhancements for the KafkaConsumer when it is used in an autonomous region (i.e. not part of a consistent region):
 
 * The KafkaConsumer operator can now participate in a consumer group with **startPosition** parameter values `Beginning`, `End`, and `Time`.
@@ -132,7 +134,7 @@ continues fetching at the last committed offset.
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>2.0.0.__dev__</info:version>
+   <info:version>2.0.0</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

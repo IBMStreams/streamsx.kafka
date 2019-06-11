@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 1.9.4</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -43,7 +43,7 @@
 <div class="section"><h2 class="title sectiontitle">Supported Kafka Versions
 </h2>
 
-<p class="p">This version of the toolkit supports <strong class="ph b">Apache Kafka v0.10.2, v0.11.x, 1.0.x, 1.1.x, v2.0.x</strong>, and <strong class="ph b">v2.1.x</strong>.
+<p class="p">This version of the toolkit supports <strong class="ph b">Apache Kafka v0.10.2, v0.11.x, 1.0.x, 1.1.x, v2.0.x, v2.1.x</strong>, and <strong class="ph b">v2.2.x</strong>.
 </p>
 
 </div>
@@ -51,7 +51,7 @@
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
-<p class="p">The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.1.1. As a result, it supports all Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.1.1 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka 2.1 documentation</a>.
+<p class="p">The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.2.1. As a result, it supports all Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.2 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka 2.2 documentation</a>.
 </p>
 
 <p class="p">When you reference files within your application, which are bundled with the Streams application bundle, for example an SSL truststore or a key tab file for Kerberos authentication, you can use the <tt class="ph tt">{applicationDir}</tt> placeholder in the property values. Before the configs are passed to the Kafka client, the <tt class="ph tt">{applicationDir}</tt> placeholder is replaced by the application directory of the application. Examples how to use the placeholder are shown below.
@@ -633,13 +633,11 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <div class="p">
 <ul class="ul">
-<li class="li"> A <tt class="ph tt">group.id</tt> consumer property must be given. The group-ID defines which operators belong to a consumer group. When no group-ID is given, group management will not be in place.The <tt class="ph tt">group.id</tt> can be specified via property file, app configuration, or the <strong class="ph b">groupId</strong> parameter.</li>
+<li class="li"> A <tt class="ph tt">group.id</tt> consumer property must be given. The group-ID defines which operators belong to a consumer group. When no group-ID is given, group management will not be in place. The <tt class="ph tt">group.id</tt> can be specified via property file, app configuration, or the <strong class="ph b">groupId</strong> parameter.</li>
 
 <li class="li"> The operator must not be configured with the optional input port.</li>
 
-<li class="li"> The parameter <strong class="ph b">partition</strong> must not be used.</li>
-
-<li class="li"> <strong class="ph b">Restriction, when not in a consistent region:</strong> The <strong class="ph b">startPosition</strong> parameter must have the value <tt class="ph tt">Default</tt> or must not be specified (<a class="xref" href="https://github.com/IBMStreams/streamsx.kafka/issues/94">issue 94</a>).</li>
+<li class="li"> The <strong class="ph b">partition</strong> parameter must not be used.</li>
 
 </ul>
 
@@ -649,17 +647,21 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 <ul class="ul">
 <li class="li"> when no group ID is specified, or</li>
 
-<li class="li"> when the operator is configured with input port, or</li>
+<li class="li"> when the operator is configured with the optional input port, or</li>
 
-<li class="li"> when the <strong class="ph b">partition</strong> parameter is specified, or</li>
-
-<li class="li"> <strong class="ph b">only when not in consistent region</strong>, the value of the <strong class="ph b">startPosition</strong> is different from <tt class="ph tt">Default</tt>.</li>
+<li class="li"> when the <strong class="ph b">partition</strong> parameter is specified.</li>
 
 </ul>
 
 </div>
 
 <p class="p">In a consistent region, a consumer group must not have consumers outside of the consistent region, for example in a different Streams job.
+</p>
+
+<p class="p">When not in a consistent region, the consumer group must not have consumers outside of the Streams job unless the <strong class="ph b">startPosition</strong> parameter is not used or has the value <tt class="ph tt">Default</tt>.
+</p>
+
+<p class="p">When group management is used together with <strong class="ph b">startPosition</strong> <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>, or <tt class="ph tt">Time</tt>, the application graph must have a <strong class="ph b">JobControlPlane</strong> operator to work correctly. When the <tt class="ph tt">JobControlPlane</tt> operator cannot be connected, the operator will fail to initialize.
 </p>
 
 <p class="p"><strong class="ph b">Metrics related to group management</strong>
@@ -672,13 +674,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d4081e874">
+<th class="entry" colspan="1" valign="top" id="d4081e877">
 <p class="p">metric name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d4081e880">
+<th class="entry" colspan="1" valign="top" id="d4081e883">
 <p class="p">description
 </p>
 
@@ -690,13 +692,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e874 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e877 ">
 <p class="p">isGroupManagementActive
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e880 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e883 ">
 <p class="p"><tt class="ph tt">1</tt> indicates that group management is active, <tt class="ph tt">0</tt> indicates that group management is inactive.
 </p>
 
@@ -705,13 +707,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e874 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e877 ">
 <p class="p">nPartitionRebalances
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e880 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e883 ">
 <p class="p">Number of partition assignment rebalances for each consumer operator. <strong class="ph b">The metric is only visible when group management is active.</strong>
 </p>
 
@@ -757,7 +759,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 <p class="p"><em class="ph i">a) The consumer operator has no input port</em>
 </p>
 
-<p class="p">When a consumer operator is not part of a consumer group (no group identifier specified, partitions are given, or <strong class="ph b">startPosition</strong> is not <tt class="ph tt">Default</tt>), i.e. a single consumer is pinned to topic partitions, all partitions will be seeked to what <strong class="ph b">startPosition</strong> is.
+<p class="p">With group management enabled, the operators of a consumer group need a <tt class="ph tt">JobControlPlane</tt> operator in the application graph to coordinate the initial fetch offsets when the <strong class="ph b">startPosition</strong> parameter is set and not <tt class="ph tt">Default</tt>. When re-launched, the operator seeks a partition to the fetch offset given by <strong class="ph b">startPosition</strong> when none of the operators within the group previously committed offsets for this partition. When offsets have been committed, the fetch offset for a partition at operator start will be its last committed offset. This behavior enables you to change the width of a parallel region with consumers being a consumer group. The <tt class="ph tt">JobControlPlane</tt> operator is not required when the <strong class="ph b">startPosition</strong> parameter is not used or has the value <tt class="ph tt">Default</tt>.
+</p>
+
+<p class="p">When group management is not enabled for a consumer operator (no group identifier specified or partitions specified), i.e. a single consumer is pinned to topic partitions, a <tt class="ph tt">JobControlPlane</tt> operator is required in the application graph when <strong class="ph b">startPosition</strong> is not <tt class="ph tt">Default</tt>. The consumer operator stores those partitions in it for which it has already committed offsets. These partitions will <em class="ph i">not</em> be seeked to <strong class="ph b">startPosition</strong> after re-launch of a PE.
+</p>
+
+<p class="p">Omitting the <strong class="ph b">startPosition</strong> parameter or using <tt class="ph tt">Default</tt> as the value does <strong class="ph b">not</strong> require a <tt class="ph tt">JobControlPlane</tt> operator.
 </p>
 
 <p class="p"><em class="ph i">b) The consumer operator is configured with a control input port</em>
@@ -805,13 +813,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d4081e1072">
+<th class="entry" colspan="1" valign="top" id="d4081e1121">
 <p class="p">metric name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d4081e1078">
+<th class="entry" colspan="1" valign="top" id="d4081e1127">
 <p class="p">description
 </p>
 
@@ -823,13 +831,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e1072 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1121 ">
 <p class="p">drainTimeMillis
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e1078 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1127 ">
 <p class="p">drain duration of the last drain in milliseconds
 </p>
 
@@ -838,13 +846,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e1072 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1121 ">
 <p class="p">drainTimeMillisMax
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e1078 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1127 ">
 <p class="p">maximum drain duration in milliseconds
 </p>
 
@@ -1624,6 +1632,9 @@ This operator supports 20 parameters.
 </div>
 
 <p class="p">If this parameter is not specified, the start position is <tt class="ph tt">Default</tt>.
+</p>
+
+<p class="p">Note, that using a startPosition other than <tt class="ph tt">Default</tt> requires the application always to have a <strong class="ph b">JobControlPlane</strong> operator in its graph. The <strong class="ph b">startPosition</strong> is effective only when the Consumer has not yet committed offsets within the Streams job's life cycle.
 </p>
 <dl class="dl">
 

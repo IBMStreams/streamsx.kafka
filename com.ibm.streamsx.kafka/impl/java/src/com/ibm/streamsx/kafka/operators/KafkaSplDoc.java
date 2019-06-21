@@ -347,7 +347,7 @@ public class KafkaSplDoc {
             + "---\\n"
             + "| Property name | Default Value |\\n"
             + "|===|\\n"
-            + "| client.id | Generated ID in the form: `C-J<JobId>-<operator name>` |\\n"
+            + "| client.id | Generated ID in the form: `P-J<JobId>-<operator name>` |\\n"
             + "|---|\\n"
             + "| key.serializer | See **Automatic Serialization** section below |\\n"
             + "|---|\\n"

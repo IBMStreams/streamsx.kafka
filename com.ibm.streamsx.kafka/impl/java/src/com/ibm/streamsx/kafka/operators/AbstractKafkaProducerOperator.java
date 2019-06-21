@@ -122,7 +122,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                     + "is the operator default value.\\n"
                     + "\\n"
                     + "If unset, the default value of this parameter is `false`, which means that the "
-                    + "order can change due to retries.")
+                    + "order can change due to retries. Please be aware that setting " 
+                    + GUARANTEE_ORDERING_PARAM_NAME
+                    + " to `true` degrades the producer throughput as only one PRODUCE request per topic partition "
+                    + "is active at any time.")
     public void setGuaranteeOrdering (boolean guaranteeOrdering) {
         this.guaranteeOrdering = guaranteeOrdering;
     }

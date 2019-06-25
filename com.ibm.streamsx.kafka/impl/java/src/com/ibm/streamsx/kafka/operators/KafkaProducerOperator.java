@@ -63,8 +63,14 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
             + "# Error Handling\\n"
             + "\\n"
             + "Many exceptions thrown by the underlying Kafka API are considered fatal. In the event "
-            + "that Kafka throws an exception, the operator will restart. Some exceptions can be "
-            + "retried, such as those that occur due to network error. Users are encouraged "
-            + "to set the KafkaProducer `retries` property to a value greater than 0 to enable the producer's "
+            + "that Kafka throws an exception, the operator's PE will be stopped when not in a consistent region. "
+            + "The Streams Runtime will re-launch the PE if the PE is restartable.\\n"
+            + "\\n"
+            + "When the operator is used in a consistent region, the producer is re-initialized, and the region is reset. "
+            + "When draining the operator fails, the PE fails and is re-launched.\\n"
+            + "\\n"
+            + "Some exceptions can be "
+            + "retried, such as those that occur due to network error. Users are discourad "
+            + "to set the KafkaProducer `retries` property to 0 to disable the producer's "
             + "retry mechanism.";
 }

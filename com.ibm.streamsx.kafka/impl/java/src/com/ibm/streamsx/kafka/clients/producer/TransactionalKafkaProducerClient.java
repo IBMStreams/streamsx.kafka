@@ -212,20 +212,25 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
      */
     @Override
     public void handleSendException (Exception e) {
-        logger.error ("Exception received producing messages: " + e);
         // reset only once; 
         if (!resetInitiatedOnce.getAndSet (true)) {
+            logger.error ("Exception received producing messages: " + e);
             try {
                 sendException = e;
+                logger.info ("triggering reset of the consistent region");
                 crContext.reset();
             }
             catch (IOException ioe) {
-                producer.close (Duration.ofMillis(0L));
+                producer.close (Duration.ofMillis (0L));
                 // stop the PE, the runtime may re-launch it
                 System.exit (1);
             }
         }
+        else {
+            logger.info ("Exception received producing messages (CR reset triggered): " + e);
+        }
     }
+
 
     @Override
     public void drain() throws Exception {

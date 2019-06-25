@@ -28,7 +28,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class KafkaProducerClient extends AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
-    private static final int CLOSE_TIMEOUT_MS = 5000;
+    public static final int CLOSE_TIMEOUT_MS = 5000;
 
     protected KafkaProducer<?, ?> producer;
     protected ProducerCallback callback;
@@ -259,11 +259,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
-        if (sendException != null) {
-            logger.error(Messages.getString("PREVIOUS_BATCH_FAILED_TO_SEND", sendException.getLocalizedMessage()), //$NON-NLS-1$
-                    sendException);
-            throw sendException;
-        }
         synchronized (flushLock) {
             if (flushAfter > 0) {
                 // non-adaptive flush 
@@ -350,13 +345,16 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         }
     }
 
-    public void close() {
+    public void close (long timeoutMillis) {
         logger.trace("Closing..."); //$NON-NLS-1$
-        producer.close (Duration.ofMillis (CLOSE_TIMEOUT_MS));
+        producer.close (Duration.ofMillis (timeoutMillis));
     }
 
-    public void setSendException(Exception sendException) {
-        this.sendException = sendException;
+    public void handleSendException (Exception e) {
+        this.sendException = e;
+        producer.close (Duration.ofMillis(0L));
+        // kill the PE - eventually it gets re-launched by the Streams Runtime
+        System.exit (1);
     }
 
     @SuppressWarnings("rawtypes")

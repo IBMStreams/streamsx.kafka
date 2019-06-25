@@ -1,6 +1,8 @@
 package com.ibm.streamsx.kafka.clients.producer;
 
+import java.io.IOException;
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -10,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
@@ -17,6 +20,8 @@ import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
@@ -33,21 +38,18 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
     private List<Future<RecordMetadata>> futuresList;
     private String transactionalId;
-    private final boolean lazyTransactionBegin;
     private AtomicBoolean transactionInProgress = new AtomicBoolean (false);
+    private ConsistentRegionContext crContext;
+    private AtomicBoolean resetInitiatedOnce = new AtomicBoolean (false);
 
     public <K, V> TransactionalKafkaProducerClient(OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
-            boolean guaranteeOrdering, KafkaOperatorProperties kafkaProperties, boolean lazyTransactionBegin) throws Exception {
+            boolean guaranteeOrdering, KafkaOperatorProperties kafkaProperties) throws Exception {
         super(operatorContext, keyClass, valueClass, guaranteeOrdering, kafkaProperties);
-        this.lazyTransactionBegin = lazyTransactionBegin;
+        this.crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
         // If this variable has not been set before, then set it to the current end offset.
         // Otherwise, this variable will be overridden with the value is retrieved
         this.futuresList = Collections.synchronizedList(new ArrayList<Future<RecordMetadata>>());
         initTransactions();
-        if (!lazyTransactionBegin) {
-            // begin a new transaction before the operator starts processing tuples
-            checkAndBeginTransaction();
-        }
     }
 
     @Override
@@ -191,6 +193,7 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
      * Makes all buffered records immediately available to send and blocks until completion of the associated requests.
      * 
      * @throws InterruptedException. If flush is interrupted, an InterruptedException is thrown.
+     * @throws KafkaOperatorRuntimeException. flushing the producer operator failed (exception received in callback)
      */
     @Override
     public synchronized void flush() {
@@ -198,6 +201,30 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         // post-condition is, that all futures are in done state.
         // No need to wait by calling future.get() on all futures in futuresList
         futuresList.clear();
+        if (sendException != null) {
+            logger.error (Messages.getString ("PREVIOUS_BATCH_FAILED_TO_SEND", sendException.getLocalizedMessage()), sendException);
+            throw new KafkaOperatorRuntimeException ("flushing the producer failed.", sendException);
+        }
+    }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#handleSendException(java.lang.Exception)
+     */
+    @Override
+    public void handleSendException (Exception e) {
+        logger.error ("Exception received producing messages: " + e);
+        // reset only once; 
+        if (!resetInitiatedOnce.getAndSet (true)) {
+            try {
+                sendException = e;
+                crContext.reset();
+            }
+            catch (IOException ioe) {
+                producer.close (Duration.ofMillis(0L));
+                // stop the PE, the runtime may re-launch it
+                System.exit (1);
+            }
+        }
     }
 
     @Override
@@ -220,9 +247,6 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
             logger.log (DEBUG_LEVEL, "No transaction in progress. Nothing to commit.");
         }
         assert (transactionInProgress.get() == false);
-        if (!lazyTransactionBegin) {
-            checkAndBeginTransaction();
-        }
     }
 
     /**
@@ -241,17 +265,14 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
 
     @Override
     public void reset (Checkpoint checkpoint) throws Exception {
-        if (logger.isEnabledFor (DEBUG_LEVEL)) logger.log (DEBUG_LEVEL, "TransactionalKafkaProducerClient -- RESET id=" + checkpoint.getSequenceId());
-
+        if (logger.isEnabledFor (DEBUG_LEVEL)) {
+            logger.log (DEBUG_LEVEL, getThisClassName() + " -- RESET id=" + (checkpoint == null? -1L: checkpoint.getSequenceId())); //$NON-NLS-1$
+        }
         // check 'transactionInProgress' for true and set atomically to false
         if (transactionInProgress.compareAndSet (true, false)) {
             // abort the current transaction
             abortTransaction();
         }
         assert (transactionInProgress.get() == false);
-        if (!lazyTransactionBegin) {
-            checkAndBeginTransaction();
-        }
-        setSendException(null);
     }
 }

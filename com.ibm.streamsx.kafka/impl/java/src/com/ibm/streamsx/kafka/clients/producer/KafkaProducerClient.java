@@ -347,6 +347,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
     public void close (long timeoutMillis) {
         logger.trace("Closing..."); //$NON-NLS-1$
+        this.metricsFetcher.stop();
         producer.close (Duration.ofMillis (timeoutMillis));
     }
 

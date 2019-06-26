@@ -37,6 +37,17 @@ public abstract class AbstractKafkaClient {
     protected static final long METRICS_REPORT_INTERVAL = 2_000;
     protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
     protected static final Level DEBUG_LEVEL_METRICS = SystemProperties.getDebugLevelMetricsOverride();
+    
+    /**
+     * when set to true, following properties are set when unset:
+     * <ul>
+     * <li>reconnect.backoff.max.ms = 10000</li>
+     * <li>reconnect.backoff.ms = 250</li>
+     * <li>retry.backoff.ms = 500</li>
+     * </ul>
+     * @param SLOW_RECONNECT the slowReconnect to set
+     */
+    private static final boolean SLOW_RECONNECT = true;
 
     private final String clientId;
     private final boolean clientIdGenerated;
@@ -47,7 +58,7 @@ public abstract class AbstractKafkaClient {
     /**
      * Constructs a new AbstractKafkaClient using Kafka properties
      * @param operatorContext the operator context
-     * @param kafkaProperties the kafka properties - modifies the client.id
+     * @param kafkaProperties the kafka properties - modifies a bunch of properties
      * @param isConsumer use true, if this is a consumer client, false otherwise
      */
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
@@ -69,9 +80,9 @@ public abstract class AbstractKafkaClient {
             clientIdGenerated = false;
             int udpChannel = operatorContext.getChannel();
             if (udpChannel >= 0) {
-                // we are in UDP
+                // we are in a parallel region
                 this.clientId = kafkaProperties.getProperty (clientIdConfig) + "-" + udpChannel;
-                logger.warn ("UDP detected. modified client.id: " + this.clientId);
+                logger.warn ("Operator in parallel region detected. modified client.id: " + this.clientId);
             }
             else {
                 this.clientId = kafkaProperties.getProperty (clientIdConfig);
@@ -79,6 +90,16 @@ public abstract class AbstractKafkaClient {
         }
         kafkaProperties.put (clientIdConfig, this.clientId);
         kafkaProperties.expandApplicationDirectory (operatorContext.getPE().getApplicationDirectory().getAbsolutePath());
+        final String clientDnsLookup = isConsumer? ConsumerConfig.CLIENT_DNS_LOOKUP_CONFIG: ProducerConfig.CLIENT_DNS_LOOKUP_CONFIG;
+        if (!kafkaProperties.containsKey (clientDnsLookup)) kafkaProperties.put (clientDnsLookup, "use_all_dns_ips");
+        if (SLOW_RECONNECT) {
+            final String reconnectBackoffMaxMs = isConsumer? ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG: ProducerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG;
+            final String reconnectBackoffMs = isConsumer? ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG: ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG;
+            final String retryBackoffMs = isConsumer? ConsumerConfig.RETRY_BACKOFF_MS_CONFIG: ProducerConfig.RETRY_BACKOFF_MS_CONFIG;
+            if (!kafkaProperties.containsKey (reconnectBackoffMaxMs)) kafkaProperties.put (reconnectBackoffMaxMs, "10000");
+            if (!kafkaProperties.containsKey (reconnectBackoffMs)) kafkaProperties.put (reconnectBackoffMs, "250");
+            if (!kafkaProperties.containsKey (retryBackoffMs)) kafkaProperties.put (retryBackoffMs, "500");
+        }
     }
 
 

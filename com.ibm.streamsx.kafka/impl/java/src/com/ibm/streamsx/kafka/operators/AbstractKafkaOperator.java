@@ -41,6 +41,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 @Libraries({ "opt/downloaded/*", "impl/lib/*" })
 public abstract class AbstractKafkaOperator extends AbstractOperator implements StateHandler {
 
+    public static final String SSL_DEBUG_PARAM = "sslDebug";
+
     private static final Logger logger = Logger.getLogger(AbstractKafkaOperator.class);
     protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
 
@@ -77,6 +79,21 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
                     + "containing Kafka properties.")
     public void setAppConfigName(String appConfigName) {
         this.appConfigName = appConfigName;
+    }
+
+    @Parameter(optional = true, name = SSL_DEBUG_PARAM,
+            description = "If SSL/TLS protocol debugging is enabled, all SSL protocol data and information "
+                    + "is logged to the console. This setting is equivalent to **vmArg: \\\"-Djavax.net.debug=true\\\";**. "
+                    + "The default value for this parameter is `false`.\\n"
+                    + "The parameter is ignored when the `javax.net.debug` property is set via the **vmArg** parameter.")
+    public void setSslDebug (boolean sslDebug) {
+        final String javaxNetDebug = System.getProperty ("javax.net.debug");
+        if (sslDebug && javaxNetDebug == null) {
+            System.setProperty ("javax.net.debug", "true");
+        }
+        if (javaxNetDebug != null || sslDebug) {
+            System.out.println ("Property javax.net.debug: " + System.getProperty ("javax.net.debug"));
+        }
     }
 
     @Parameter(optional = true, name="userLib",

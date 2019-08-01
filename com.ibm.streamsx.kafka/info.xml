@@ -13,12 +13,24 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 * 2.0
 * 2.1
 * 2.2
+* 2.3
 
 # Additional information
 
 + What's new and what has changed
 
 This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
+
+++ What's new in version 2.1.0
+
+* The following consumer and producer configurations are setup by the operators per default:
+  * client.dns.lookup = use_all_dns_ips
+  * reconnect.backoff.max.ms = 10000 (Kafka's default is 1000)
+  * reconnect.backoff.ms = 250 (Kafka's default is 50)
+  * retry.backoff.ms = 500 (Kafka's default is 100)
+* new optional operator parameter **sslDebug**
+* bug fixes, see the release note on [https://github.com/IBMStreams/streamsx.kafka/releases/tag/v2.1.0|Github]
+* support for Kafka broker version 2.3
 
 ++ What's new in version 2.0.0
 
@@ -135,7 +147,7 @@ continues fetching at the last committed offset.
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>2.0.0</info:version>
+   <info:version>2.1.0</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

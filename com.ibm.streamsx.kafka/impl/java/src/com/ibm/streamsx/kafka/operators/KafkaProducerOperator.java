@@ -70,7 +70,7 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
             + "When draining the operator fails, the PE fails and is re-launched.\\n"
             + "\\n"
             + "Some exceptions can be "
-            + "retried, such as those that occur due to network error. Users are discourad "
+            + "retried, such as those that occur due to network error. It is not recommended "
             + "to set the KafkaProducer `retries` property to 0 to disable the producer's "
             + "retry mechanism.";
 }

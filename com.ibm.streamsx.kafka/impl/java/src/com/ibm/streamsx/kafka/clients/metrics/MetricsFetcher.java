@@ -151,7 +151,7 @@ public class MetricsFetcher implements Runnable {
     }
 
     /**
-     * gets the current value of the metric given by the metric name
+     * Gets the current value of the metric given by the metric name.
      * @param metricName the name of the metric for which the value is to be fetched
      * @return the metric value converted for a custom metric by a. The converter is either a specific converter or the default converter.
      * @throws KafkaMetricException the metric value cannot be fetched - No such metric, metric does not match the filter 

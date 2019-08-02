@@ -12,7 +12,7 @@ sidebar:
 {%include editme %}
 
 
-### v2.0.0 (latest release)
+### v2.0.x (latest release)
 
 [Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/spldoc/html/)
 

@@ -14,7 +14,11 @@ sidebar:
 ## Introduction
 
 The Kafka operators can be configured to use [SSL for encryption and authentication](https://kafka.apache.org/documentation/#security_ssl).
-Issues in this area can be trouble-shooted by enabling SSL debugging by setting the `javax.net.debug` system property using the **vmArg** parameter.
+Issues in this area can be trouble-shooted by enabling SSL debugging.
+
+### Toolkit version 2.0 and older
+
+Set the `javax.net.debug` system property using the **vmArg** parameter.
 
 **Example:**
 
@@ -32,6 +36,23 @@ Issues in this area can be trouble-shooted by enabling SSL debugging by setting 
 
     vmArg: "-Djavax.net.debug=ssl:trustmanager", "-Xmx1G";
 
+### Toolkit version 2.1 and newer
+
+Use the optional **sslDebug** operators parameter to turn on SSL debugging. When both, `-Djavax.net.debug` via **vmArg**, and **sslDebug** operator
+parameter is used, the **sslDebug** parameter is ignored regardless of its value.
+
+**Example:**
+
+    stream <MessageType.StringMessage, MessageType.ConsumerMessageMetadata> ReceivedMessages as O = KafkaConsumer() {
+        param
+            propertiesFile: "etc/consumer.properties";    // here we set up the SSL related configs
+            topic: "topic1", "topic2";
+            clientId: "consumerClient-0";
+            groupId: "group-0";
+            sslDebug: true;   // equivalent to javax.net.debug=all
+    }
+
+### Fine-grained debugging options
 
 The options that can be used for the `javax.net.debug=<x>` system property are described in the
 [IBM Knowledge Center](https://www.ibm.com/support/knowledgecenter/en/SSYKE2_7.1.0/com.ibm.java.security.component.71.doc/security-component/jsse2Docs/debug.html).
@@ -82,3 +103,4 @@ The following can be used with **ssl**:
     vmArg: "-Djavax.net.debug=ssl:nio,session";
 
 Unfortunately the SSL trace appears in stdout without timestamps, so that they cannot be correlated with PE operator trace.
+Turning on debugging for SSL has no effect (also no negative effect) as long as no SSL provider is active within the Java virtual machine.

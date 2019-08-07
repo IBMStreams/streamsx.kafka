@@ -285,7 +285,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
         public MergeKey (long sequenceId, int resetAttempt) {
             this.sequenceId = sequenceId;
             this.resetAttempt = INCLUDE_RESET_ATTEMPT_INTO_KEY? resetAttempt: -1;
-            this.toString = MessageFormat.format("{0}/{1}", sequenceId, resetAttempt);
+            this.toString = MessageFormat.format("{0,number,#}/{1}", sequenceId, resetAttempt);
         }
 
         /**
@@ -343,7 +343,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
 
         @Deprecated
         public String toJson() {
-            String pattern = "'{'\"sequenceId\":{0},\"resetAttempt\":{1},\"toString\":\"{2}\"'}'";
+            String pattern = "'{'\"sequenceId\":{0,number,#},\"resetAttempt\":{1,number,#},\"toString\":\"{2}\"'}'";
             return MessageFormat.format (pattern, sequenceId, resetAttempt, toString);
         }
     }
@@ -424,7 +424,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
 
         @Deprecated
         public String toJson() {
-            String pattern = "'{'\"topic\":\"{0}\",\"partition\":{1},\"toString\":\"{2}\"'}'";
+            String pattern = "'{'\"topic\":\"{0}\",\"partition\":{1,number,#},\"toString\":\"{2}\"'}'";
             return MessageFormat.format (pattern, topic, partition, toString);
         }
     }
@@ -433,7 +433,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
         // test JSON generation
         com.google.gson.Gson gson = (new com.google.gson.GsonBuilder()).enableComplexMapKeySerialization().create();
         int nExpectedContribs = 3;
-        CheckpointMerge m = new CheckpointMerge (new MergeKey(2,  1), nExpectedContribs);
+        CheckpointMerge m = new CheckpointMerge (new MergeKey(1002,  1), nExpectedContribs);
         Map <TP, Long> m1 = new HashMap <>();
         m1.put (new TP ("top1", 0), 10l);
         m1.put (new TP ("top1", 1), 11l);
@@ -660,7 +660,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
 
         @Deprecated
         public String toJson() {
-            String pattern = "'{'\"consolidatedOffsetMap\":{0},\"contributedOperatorNames\":{1},\"nExpectedContributions\":{2},\"nContributions\":{3},\"complete\":{4},\"key\":{5}'}'";
+            String pattern = "'{'\"consolidatedOffsetMap\":{0},\"contributedOperatorNames\":{1},\"nExpectedContributions\":{2,number,#},\"nContributions\":{3,number,#},\"complete\":{4},\"key\":{5}'}'";
             return MessageFormat.format (pattern, offsetMap2Json(), contributedOperatorNames2Json(), nExpectedContributions, nContributions, complete, key.toJson());
         }
     }

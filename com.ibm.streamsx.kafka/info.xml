@@ -20,6 +20,10 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
 
+++ What's new in version 2.0.1
+
+* Bug fix: Resetting from checkpoint will fail when sequence id is greater or equal 1000
+
 ++ What's new in version 2.0.0
 
 # New Features
@@ -135,7 +139,7 @@ continues fetching at the last committed offset.
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>2.0.0</info:version>
+   <info:version>2.0.1</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

@@ -1,0 +1,1908 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="Operator KafkaConsumer"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_operator"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>Operator KafkaConsumer</title>
+</head>
+<body id="spldoc_operator">
+
+
+<h1 class="title topictitle1">Operator <tt class="ph tt">KafkaConsumer</tt></h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+
+</div>
+
+<div class="section splprimop">
+  <embed class="image" src="../../image/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaConsumer.svg" width="872" height="112"/>
+</div>
+
+<div class="section">
+
+<p class="p">The KafkaConsumer operator is used to consume messages from Kafka topics. The operator can be configured to consume messages from one or more topics, as well as consume messages from specific partitions within topics.
+</p>
+
+<p class="p">The standard use patterns for the KafkaConsumer operator are described in the <a class="xref" href="https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/">overview</a> of the user documentation.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Supported Kafka Versions
+</h2>
+
+<p class="p">This version of the toolkit supports <strong class="ph b">Apache Kafka v0.10.2, v0.11.x, 1.0.x, 1.1.x, v2.0.x, v2.1.x</strong>, and <strong class="ph b">v2.2.x</strong>.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka Properties
+</h2>
+
+<p class="p">The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.2.1. As a result, it supports all Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.2 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka 2.2 documentation</a>.
+</p>
+
+<p class="p">When you reference files within your application, which are bundled with the Streams application bundle, for example an SSL truststore or a key tab file for Kerberos authentication, you can use the <tt class="ph tt">{applicationDir}</tt> placeholder in the property values. Before the configs are passed to the Kafka client, the <tt class="ph tt">{applicationDir}</tt> placeholder is replaced by the application directory of the application. Examples how to use the placeholder are shown below.
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+ssl.truststore.location={applicationDir}/etc/myTruststore.jks
+</pre>
+
+or
+</div>
+
+<div class="p">
+<pre class="pre codeblock">
+sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
+    debug=true \
+    credsType=both \
+    useKeytab="{applicationDir}/etc/myKeytab.keytab" \
+    principal="kafka/host.domain@EXAMPLE.DOMAIN.COM";
+</pre>
+
+
+</div>
+
+<p class="p">Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration must be specified using the <strong class="ph b">appConfigName</strong> parameter.
+</p>
+
+<p class="p">The only property that the user is required to set is the <tt class="ph tt">bootstrap.servers</tt> property, which points to the Kafka brokers, for example <tt class="ph tt">kafka-0.mydomain:9092,kafka-1.mydomain:9092,kafka-2.mydomain:9092</tt>. All other properties are optional.
+</p>
+
+<p class="p">The operator sets or adjusts some properties by default to enable users to quickly get started with the operator. The following lists which properties the operator sets by default: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d4081e136">
+<p class="p">Property Name
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d4081e142">
+<p class="p">Default Value
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">client.id
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">Generated ID in the form: <tt class="ph tt">C-J&lt;JobId&gt;-&lt;operator name&gt;</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">group.id
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">hash from domain-ID, instance-ID, job-ID, and operator name
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">key.deserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">See <strong class="ph b">Automatic deserialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">value.deserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">See <strong class="ph b">Automatic deserialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">partition.assignment.strategy
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p"><strong class="ph b">Only when multiple topics are specified:</strong> <tt class="ph tt">org.apache.kafka.clients.consumer.RoundRobinAssignor</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">auto.commit.enable
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">adjusted to <tt class="ph tt">false</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">max.poll.interval.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">adjusted to a minimum of <em class="ph i">3 * max (reset timeout, drain timeout)</em> when in consistent region, 300000 otherwise
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">metadata.max.age.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">adjusted to a maximum of 2000
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">session.timeout.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">adjusted to a maximum of 20000
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">request.timeout.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">adjusted to session.timeout.ms + 5000
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">metric.reporters
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">added to provided reporters: <tt class="ph tt">com.ibm.streamsx.kafka.clients.consumer.ConsumerMetricsReporter</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">metrics.sample.window.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p">adjusted to <tt class="ph tt">10000</tt>
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+<p class="p"><strong class="ph b">NOTE:</strong> Although properties are adjusted, users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Automatic Deserialization
+</h2>
+
+<p class="p">The operator will automatically select the appropriate deserializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d4081e393">
+<p class="p">Deserializer
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d4081e399">
+<p class="p">SPL Types
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<p class="p">org.apache.kafka.common.serialization.StringDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<p class="p">rstring
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<p class="p">org.apache.kafka.common.serialization.IntegerDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<p class="p">int32, uint32
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<p class="p">org.apache.kafka.common.serialization.LongDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<p class="p">int64, uint64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<p class="p">org.apache.kafka.common.serialization.FloatDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<p class="p">float32
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<p class="p">org.apache.kafka.common.serialization.DoubleDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<p class="p">float64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<p class="p">org.apache.kafka.common.serialization.ByteArrayDeserializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<p class="p">blob
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+<p class="p">These deserializers are wrapped by extensions that catch exceptions of type <tt class="ph tt">org.apache.kafka.common.errors.SerializationException</tt> to allow the operator to skip over malformed messages. The used extensions do not modify the actual deserialization function of the given base deserializers from the above table.
+</p>
+
+<p class="p">Users can override this behavior and specify which deserializer to use by setting the <tt class="ph tt">key.deserializer</tt> and <tt class="ph tt">value.deserializer</tt> properties. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Following metrics created by the Kafka consumer client are exposed as custom metrics:
+</h2>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d4081e539">
+<p class="p">Custom Metric
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d4081e545">
+<p class="p">Description
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p">connection-count
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The current number of active connections.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p">incoming-byte-rate
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The number of bytes read off all sockets per second
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p"><em class="ph i">topic</em>-<em class="ph i">partition</em>:records-lag
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The latest lag of the specific partition. A value of <tt class="ph tt">-1</tt> indicates that the metric is not applicable to the operator.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p">records-lag-max
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The maximum lag in terms of number of records for any partition in this window
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p">fetch-size-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The average number of bytes fetched per request
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p"><em class="ph i">topic</em>:fetch-size-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The average number of bytes fetched per request for a topic
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p">commit-rate
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The number of commit calls per second
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<p class="p">commit-latency-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<p class="p">The average time taken for a commit request
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Committing received Kafka messages
+</h2>
+
+<p class="p">Committing offsets is always controlled by the Streams operator. All auto-commit related settings via consumer properties are ignored by the operator.
+</p>
+
+<p class="p"><strong class="ph b">a) The operator is not part of a consistent region</strong>
+</p>
+
+<p class="p">The consumer operator commits the offsets of those Kafka messages, which have been submitted as tuples. Offsets are committed under the following conditions:
+</p>
+
+<p class="p"><strong class="ph b">1. The partitions within a consumer group are rebalanced.</strong> Before new partitions are assigned, the offsets of the currently assigned partitions are committed. When the partitions are re-assigned, the operators start fetching from these committed offsets. The periodic commit controlled by the <strong class="ph b">commitCount</strong> or <strong class="ph b">commitPeriod</strong> parameter is reset after rebalance.
+</p>
+
+<p class="p"><strong class="ph b">2. Offsets are committed periodically.</strong> The period can be a time period or a tuple count. If nothing is specified, offsets are committed every 5 seconds. The time period can be specified with the <strong class="ph b">commitPeriod</strong> parameter. When the <strong class="ph b">commitCount</strong> parameter is used with a value of N, offsets are committed every N submitted tuples.
+</p>
+
+<p class="p"><strong class="ph b">3. Partition assignment via control port is removed.</strong> The offsets of those partitions which are de-assigned are committed.
+</p>
+
+<p class="p"><strong class="ph b">b) The operator is part of a consistent region</strong>
+</p>
+
+<p class="p">Offsets are always committed when the consistent region drains, i.e. when the region becomes a consistent state. On drain, the consumer operator commits the offsets of those Kafka messages that have been submitted as tuples. When the operator is in a consistent region, the parameters <strong class="ph b">commitCount</strong> and <strong class="ph b">commitPeriod</strong> are ignored because the commit frequency is given by the trigger period of the consistent region. In a consistent region, offsets are committed synchronously, i.e. the offsets are committed when the drain processing of the operator finishes. Commit failures result in consistent region reset.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka's Group Management
+</h2>
+
+<p class="p">The operator is capable of taking advantage of <a class="xref" href="https://kafka.apache.org/documentation/#intro_consumers">Kafka's group management function</a>. <br/><img class="image" src="../../image/copy/1$kafka_groups.png" alt=""/><br/> In the figure above, the topic <strong class="ph b">myTopic</strong> with three partitions is consumed by two consumer groups. In <em class="ph i">Group A</em>, which has four consumers, one consumer is idle because the number of partitions is only three. All other consumers in the group would consume exactly one topic partition. <em class="ph i">Consumer group B</em> has less consumers than partitions. One consumer is assigned to two partitions. The assignment of consumers to partition(s) is fully controlled by Kafka.
+</p>
+
+<p class="p">In order for the operator to use this function, the following requirements must be met
+</p>
+
+<div class="p">
+<ul class="ul">
+<li class="li"> A <tt class="ph tt">group.id</tt> consumer property must be given. The group-ID defines which operators belong to a consumer group. When no group-ID is given, group management will not be in place. The <tt class="ph tt">group.id</tt> can be specified via property file, app configuration, or the <strong class="ph b">groupId</strong> parameter.</li>
+
+<li class="li"> The operator must not be configured with the optional input port.</li>
+
+<li class="li"> The <strong class="ph b">partition</strong> parameter must not be used.</li>
+
+</ul>
+
+</div>
+
+<div class="p">The other way round, group management is inactive in following cases
+<ul class="ul">
+<li class="li"> when no group ID is specified, or</li>
+
+<li class="li"> when the operator is configured with the optional input port, or</li>
+
+<li class="li"> when the <strong class="ph b">partition</strong> parameter is specified.</li>
+
+</ul>
+
+</div>
+
+<p class="p">In a consistent region, a consumer group must not have consumers outside of the consistent region, for example in a different Streams job.
+</p>
+
+<p class="p">When not in a consistent region, the consumer group must not have consumers outside of the Streams job unless the <strong class="ph b">startPosition</strong> parameter is not used or has the value <tt class="ph tt">Default</tt>.
+</p>
+
+<p class="p">When group management is used together with <strong class="ph b">startPosition</strong> <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>, or <tt class="ph tt">Time</tt>, the application graph must have a <strong class="ph b">JobControlPlane</strong> operator to work correctly. When the <tt class="ph tt">JobControlPlane</tt> operator cannot be connected, the operator will fail to initialize.
+</p>
+
+<p class="p"><strong class="ph b">Metrics related to group management</strong>
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d4081e877">
+<p class="p">metric name
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d4081e883">
+<p class="p">description
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e877 ">
+<p class="p">isGroupManagementActive
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e883 ">
+<p class="p"><tt class="ph tt">1</tt> indicates that group management is active, <tt class="ph tt">0</tt> indicates that group management is inactive.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e877 ">
+<p class="p">nPartitionRebalances
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e883 ">
+<p class="p">Number of partition assignment rebalances for each consumer operator. <strong class="ph b">The metric is only visible when group management is active.</strong>
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Checkpointing behavior in an autonomous region
+</h2>
+
+<p class="p">The operator can be configured for operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with an input port. When the operator has no input port, checkpointing can be configured, but is silently ignored. The operator checkpoints the current partition assignment, which is modified via control tuples received by the input port. The current fetch positions are not saved.
+</p>
+
+<p class="p">On reset, the partition assignment is restored from the checkpoint. The fetch offsets will be the last committed offsets.
+</p>
+
+<p class="p">With <tt class="ph tt">config checkpoint: operatorDriven;</tt> the operator creates a checkpoint when the partition assignment changes, i.e. after each input tuple has been processed.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Operator restart behavior
+</h2>
+
+<p class="p"><strong class="ph b">When in a consistent region</strong>
+</p>
+
+<p class="p">When the operator is part of a consistent region, the operator is reset to the initial state or to the last consistent state when the PE is re-launched. The operator or the group of consumer operators replay tuples. There are no specifics in this case.
+</p>
+
+<p class="p"><strong class="ph b">When not in a consistent region</strong>
+</p>
+
+<p class="p"><em class="ph i">a) The consumer operator has no input port</em>
+</p>
+
+<p class="p">With group management enabled, the operators of a consumer group need a <tt class="ph tt">JobControlPlane</tt> operator in the application graph to coordinate the initial fetch offsets when the <strong class="ph b">startPosition</strong> parameter is set and not <tt class="ph tt">Default</tt>. When re-launched, the operator seeks a partition to the fetch offset given by <strong class="ph b">startPosition</strong> when none of the operators within the group previously committed offsets for this partition. When offsets have been committed, the fetch offset for a partition at operator start will be its last committed offset. This behavior enables you to change the width of a parallel region with consumers being a consumer group. The <tt class="ph tt">JobControlPlane</tt> operator is not required when the <strong class="ph b">startPosition</strong> parameter is not used or has the value <tt class="ph tt">Default</tt>.
+</p>
+
+<p class="p">When group management is not enabled for a consumer operator (no group identifier specified or partitions specified), i.e. a single consumer is pinned to topic partitions, a <tt class="ph tt">JobControlPlane</tt> operator is required in the application graph when <strong class="ph b">startPosition</strong> is not <tt class="ph tt">Default</tt>. The consumer operator stores those partitions in it for which it has already committed offsets. These partitions will <em class="ph i">not</em> be seeked to <strong class="ph b">startPosition</strong> after re-launch of a PE.
+</p>
+
+<p class="p">Omitting the <strong class="ph b">startPosition</strong> parameter or using <tt class="ph tt">Default</tt> as the value does <strong class="ph b">not</strong> require a <tt class="ph tt">JobControlPlane</tt> operator.
+</p>
+
+<p class="p"><em class="ph i">b) The consumer operator is configured with a control input port</em>
+</p>
+
+<p class="p">When the operator is configured with an input port, the partition assignments, which have been created via the control stream, are lost. It is therefore recommended to fuse the consumer operator with the source of the control stream to replay the control tuples after restart or to use a <tt class="ph tt">config checkpoint</tt> clause, preferably <tt class="ph tt">operatorDriven</tt>, to restore the partition assignment and continue fetching records beginning with the last committed offsets.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Consistent Region Support
+</h2>
+
+<p class="p">The operator can be the start of a consistent region. Both operator driven and periodic triggering of the region are supported. If using operator driven, the <strong class="ph b">triggerCount</strong> parameter must be set to indicate how often the operator should initiate a consistent region.
+</p>
+
+<p class="p">When a group-ID is specified via the consumer property <tt class="ph tt">group.id</tt> or the <strong class="ph b">groupId</strong> parameter, the operator participates automatically in a consumer group defined by the group ID. A consistent region can have multiple consumer groups.
+</p>
+
+<p class="p"><strong class="ph b">Tuple replay after reset of the consistent region</strong>
+</p>
+
+<p class="p">After reset of the consistent region, the operators that participate in a consumer group may replay tuples that have been submitted by a different consumer before. The reason for this is, that the assignment of partitions to consumers can change. This property of a consumer group must be kept in mind when combining a consumer groups with consistent region.
+</p>
+
+<p class="p">When <strong class="ph b">no group-ID is specified</strong>, the partition assignment is static (a consumer consumes all partitions or those, which are specified), so that the consumer operator replays after consistent region reset those tuples, which it has submitted before.
+</p>
+
+<p class="p">When the consumers of a consumer group rebalance the partition assignment, for example, immediately after job submission, or when the broker node being the group's coordinator is shutdown, multiple resets of the consistent region can occur when the consumers start up. It is recommended to set the <tt class="ph tt">maxConsecutiveResetAttempts</tt> parameter of the <tt class="ph tt">@consistent</tt> annotation to a higher value than the default value of 5.
+</p>
+
+<p class="p">On drain, the operator will commit offsets of the submitted tuples.
+</p>
+
+<p class="p">On checkpoint, the operator will save the last offset for each topic-partition that it is assigned to. In the event of a reset, the operator will seek to the saved offset for each topic-partition and begin consuming messages from that point.
+</p>
+
+<p class="p"><strong class="ph b">Metrics related to consistent region</strong>
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d4081e1121">
+<p class="p">metric name
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d4081e1127">
+<p class="p">description
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e1121 ">
+<p class="p">drainTimeMillis
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e1127 ">
+<p class="p">drain duration of the last drain in milliseconds
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e1121 ">
+<p class="p">drainTimeMillisMax
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e1127 ">
+<p class="p">maximum drain duration in milliseconds
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+<p class="p"><strong class="ph b">These metrics are only present when the operator participates in a consistent region.</strong>
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Error Handling
+</h2>
+
+<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafka throws an exception, the operator will restart. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Summary</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Ports</dt>
+
+  <dd class="dd">This operator has 1 input port and 1 output port.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Windowing</dt>
+
+  <dd class="dd">This operator does not accept any windowing configurations.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Parameters</dt>
+
+  <dd class="dd">This operator supports 20 parameters.
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__commitPeriod">commitPeriod</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__pattern">pattern</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Metrics</dt>
+
+  <dd class="dd">This operator reports 7 metrics.</dd>
+
+ 
+</dl>
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Properties</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Implementation</dt>
+
+  <dd class="dd">Java</dd>
+
+ 
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set">Input Ports</a></strong></p>
+<dl class="dl">
+  
+   <dt class="dt dlterm">Ports (0)</dt>
+
+   <dd class="dd">
+
+<div class="p">This port is used to specify the topic-partition offsets that the consumer should begin reading messages from. When this port is specified, the operator will ignore the <tt class="ph tt">topic</tt>, <tt class="ph tt">partition</tt> and <tt class="ph tt">startPosition</tt> parameters. The operator will only begin consuming messages once a tuple is received on this port. Each tuple received on this port will cause the operator to seek to the offsets for the specified topic-partitions. This works as follows: 
+<ul class="ul">
+<li class="li"> To seek to the beginning of a topic-partition, set the value of the offset to <tt class="ph tt">-2.</tt></li>
+
+<li class="li"> To seek to the end of a topic-partition, set the value of the offset attribute to <tt class="ph tt">-1.</tt></li>
+
+<li class="li"> To start fetching from the default position, omit the offset attribute or set the value of the offset to <tt class="ph tt">-3</tt></li>
+
+<li class="li"> Any other value will cause the operator to seek to that offset value. If that value does not exist, then the operator will use the <tt class="ph tt">auto.offset.reset</tt> policy to determine where to begin reading messages from.</li>
+
+</ul>
+
+</div>
+
+<p class="p">This input port must contain a single <tt class="ph tt">rstring</tt> attribute. In order to add or remove a topic partition, the attribute must contain a JSON string in the following format: 
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+{
+  "action" : "ADD" or "REMOVE",
+  "topicPartitionOffsets" : [
+    {
+      "topic" : "topic-name"
+      ,"partition" : &lt;partition_number&gt;
+      ,"offset" : &lt;offset_number&gt;             &lt;--- the offset attribute is optional 
+    },
+    ...
+  ]
+}
+</pre>
+
+
+</div>
+
+<p class="p">The following types and convenience functions are available to aid in creating the messages: 
+</p>
+
+<div class="p">
+<ul class="ul">
+<li class="li"> <tt class="ph tt">type Control.TopicPartition = rstring topic, int32 partition;</tt></li>
+
+<li class="li"> <tt class="ph tt">type Control.TopicPartitionOffset = rstring topic, int32 partition, int64 offset;</tt></li>
+
+<li class="li"> <tt class="ph tt">rstring addTopicPartitionMessage (rstring topic, int32 partition, int64 offset);</tt></li>
+
+<li class="li"> <tt class="ph tt">rstring addTopicPartitionMessage (rstring topic, int32 partition);</tt></li>
+
+<li class="li"> <tt class="ph tt">rstring addTopicPartitionMessage (list&lt;Control.TopicPartitionOffset&gt; topicPartitionsToAdd);</tt></li>
+
+<li class="li"> <tt class="ph tt">rstring addTopicPartitionMessage (list&lt;Control.TopicPartition&gt; topicPartitionsToAdd);</tt></li>
+
+<li class="li"> <tt class="ph tt">rstring removeTopicPartitionMessage (rstring topic, int32 partition);</tt></li>
+
+<li class="li"> <tt class="ph tt">rstring removeTopicPartitionMessage (list&lt;Control.TopicPartition&gt; topicPartitionsToRemove);</tt></li>
+
+</ul>
+
+</div>
+
+<p class="p"><strong class="ph b">Important Note:</strong> This input port must not receive a final punctuation. Final markers are automatically forwarded causing downstream operators close their input ports. When this input port receives a final marker, it will stop fetching Kafka messages and stop submitting tuples.
+</p>
+   </dd>
+
+  
+    
+      <dt class="dt dlterm">Properties</dt>
+
+      <dd class="dd">
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__optional">Optional</a>: true
+     </li>
+
+   </ul>
+
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__controlport">ControlPort</a>: true
+</li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__windowingmode">WindowingMode</a>: NonWindowed
+</li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__windowpunctuationinputmode">WindowPunctuationInputMode</a>: Oblivious
+</li>
+
+   </ul>
+
+      </dd>
+
+    
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set">Output Ports</a></strong></p>
+<dl class="dl">
+  
+     <dt class="dt dlterm">Assignments</dt>
+
+       <dd class="dd">Java operators do not support output assignments.
+       </dd>
+
+  
+</dl>
+
+<dl class="dl">
+  
+   <dt class="dt dlterm">Ports (0)</dt>
+
+   <dd class="dd">
+
+<p class="p">This port produces tuples based on records read from the Kafka topic(s). A tuple will be output for each record read from the Kafka topic(s).
+</p>
+
+<p class="p"/>
+
+   <dl class="dl">
+    
+      <dt class="dt dlterm">Properties</dt>
+
+      <dd class="dd">
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set__optional">Optional</a>: false
+     </li>
+
+   </ul>
+
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set__windowpunctuationoutputmode">WindowPunctuationOutputMode</a>: Generating
+     </li>
+
+   </ul>
+
+      </dd>
+
+    
+   </dl>
+
+   <p class="p"/>
+
+   </dd>
+
+  
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
+This operator supports 20 parameters.
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__commitPeriod">commitPeriod</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__pattern">pattern</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+<dl class="dl">
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__appConfigName"><!-- --></a><tt class="ph tt">appConfigName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the application configuration containing Kafka properties.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__clientId"><!-- --></a><tt class="ph tt">clientId</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the client ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">client.id</tt> Kafka property if specified.
+</p>
+
+<p class="p">Each operator must have a unique client ID. When operators are replicated by a parallel region, the channel-ID is automatically appended to the clientId to make the client-ID distinct for the parallel channels.
+</p>
+
+<p class="p">If this parameter is not specified and the <tt class="ph tt">client.id</tt> Kafka property is not specified, the operator will create an ID with the pattern <tt class="ph tt">C-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a consumer operator, and <tt class="ph tt">P-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a producer operator.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__commitCount"><!-- --></a><tt class="ph tt">commitCount</tt></dt>
+
+<dd class="dd">
+<p class="p">This parameter specifies the number of tuples that will be submitted to the output port before committing their offsets. Valid values are greater than zero. This parameter is optional and conflicts with the <strong class="ph b">commitPeriod</strong> parameter.
+</p>
+
+<p class="p">This parameter is only used when the operator is not part of a consistent region. When the operator participates in a consistent region, offsets are always committed when the region drains.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__commitPeriod"><!-- --></a><tt class="ph tt">commitPeriod</tt></dt>
+
+<dd class="dd">
+<p class="p">This parameter specifies the period of time in seconds, after which the offsets of submitted tuples are committed. This parameter is optional and has a default value of 5.0. Its minimum value is <tt class="ph tt">0.1</tt>, smaller values are pinned to 0.1 seconds. This parameter cannot be used when the <strong class="ph b">commitCount</strong> parameter is used.
+</p>
+
+<p class="p">This parameter is only used when the operator is not part of a consistent region. When the operator participates in a consistent region, offsets are always committed when the region drains.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: float64
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__groupId"><!-- --></a><tt class="ph tt">groupId</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the group ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">group.id</tt> Kafka property if specified. If this parameter is not specified and the <tt class="ph tt">group.id</tt> Kafka property is not specified, the operator will use a generated group ID, and the group management feature is not active.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputKeyAttributeName"><!-- --></a><tt class="ph tt">outputKeyAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that should contain the key. If not specified, the operator will attempt to store the message in an attribute named 'key'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputMessageAttributeName"><!-- --></a><tt class="ph tt">outputMessageAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that will contain the message. If not specified, the operator will attempt to store the message in an attribute named 'message'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputOffsetAttributeName"><!-- --></a><tt class="ph tt">outputOffsetAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that should contain the offset. If not specified, the operator will attempt to store the message in an attribute named 'offset'. The attribute must have the SPL type 'int64' or 'uint64'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputPartitionAttributeName"><!-- --></a><tt class="ph tt">outputPartitionAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that should contain the partition number. If not specified, the operator will attempt to store the partition number in an attribute named 'partition'. The attribute must have the SPL type 'int32' or 'uint32'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputTimestampAttributeName"><!-- --></a><tt class="ph tt">outputTimestampAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that should contain the record's timestamp. It is presented in milliseconds since Unix epoch.If not specified, the operator will attempt to store the message in an attribute named 'messageTimestamp'. The attribute must have the SPL type 'int64' or 'uint64'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputTopicAttributeName"><!-- --></a><tt class="ph tt">outputTopicAttributeName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the output attribute name that should contain the topic. If not specified, the operator will attempt to store the message in an attribute named 'topic'.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__partition"><!-- --></a><tt class="ph tt">partition</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the partitions that the consumer should be assigned to for each of the topics specified. When you specify multiple topics, the consumer reads from the given partitions of all given topics. For example, if the <strong class="ph b">topic</strong> parameter has the values <tt class="ph tt">"topic1", "topic2"</tt>, and the <strong class="ph b">partition</strong> parameter has the values <tt class="ph tt">0, 1</tt>, then the consumer will assign to <tt class="ph tt">{topic1, partition 0}</tt>, <tt class="ph tt">{topic1, partition 1}</tt>, <tt class="ph tt">{topic2, partition 0}</tt>, and <tt class="ph tt">{topic2, partition 1}</tt>.
+</p>
+
+<div class="p"><strong class="ph b">Notes:</strong>
+<ul class="ul">
+<li class="li"> Partiton numbers in Kafka are zero-based. For example, a topic with three partitions has the partition numbers 0, 1, and 2.</li>
+
+<li class="li"> When using this parameter, the consumer will <em class="ph i">assign</em> the consumer to the specified topics partitions, rather than <em class="ph i">subscribe</em> to the topics. This implies that the consumer will not use Kafka's group management feature.</li>
+
+</ul>
+
+</div>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__pattern"><!-- --></a><tt class="ph tt">pattern</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies a regular expression to subscribe dynamically all matching topics. The pattern matching will be done periodically against topic existing at the time of check.
+</p>
+
+<div class="p"><strong class="ph b">Some basic examples:</strong>
+<ul class="ul">
+<li class="li"> <tt class="ph tt">pattern: "myTopic";</tt> subscribes only to topic <tt class="ph tt">myTopic</tt> when it is present.</li>
+
+<li class="li"> <tt class="ph tt">pattern: "myTopic.*";</tt> subscribes to <tt class="ph tt">myTopic</tt> and all topics that begin with <tt class="ph tt">myTopic</tt></li>
+
+<li class="li"> <tt class="ph tt">pattern: ".*Topic";</tt> subscribes to <tt class="ph tt">Topic</tt> and all topics that end at <tt class="ph tt">Topic</tt></li>
+
+</ul>
+
+</div>
+
+<p class="p">This parameter is incompatible with the <strong class="ph b">topic</strong> and the <strong class="ph b">partition</strong> parameter. Dynamic subscription with a pattern implies group management. The parameter is therefore incompatible with all <em class="ph i">operator configurations that disable group management</em>:
+</p>
+
+<div class="p">
+<ul class="ul">
+<li class="li"> no group identifier configured (neither via <strong class="ph b">groupId</strong> parameter nor as <tt class="ph tt">group.id</tt> consumer configuration)</li>
+
+<li class="li"> presence of an input control port</li>
+
+<li class="li"> usage of the <strong class="ph b">partition</strong> parameter</li>
+
+<li class="li"> usage of <strong class="ph b">startPosition</strong> parameter with a different value than <tt class="ph tt">Default</tt> (only when not in consistent region)</li>
+
+</ul>
+
+</div>
+
+<p class="p">The regular expression syntax follows the Perl 5 regular expressions with some differences. For details see <a class="xref" href="https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html">Regular Expressions in Java 8</a>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__propertiesFile"><!-- --></a><tt class="ph tt">propertiesFile</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the properties file containing Kafka properties. A relative path is always interpreted as relative to the <em class="ph i">application directory</em> of the Streams application.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__startOffset"><!-- --></a><tt class="ph tt">startOffset</tt></dt>
+
+<dd class="dd">
+<p class="p">This parameter indicates the start offset that the operator should begin consuming messages from. In order for this parameter's values to take affect, the <strong class="ph b">startPosition</strong> parameter must be set to <tt class="ph tt">Offset</tt>. Furthermore, the specific partition(s) that the operator should consume from must be specified via the <strong class="ph b">partition</strong> parameter.
+</p>
+
+<p class="p">If multiple partitions are specified via the <strong class="ph b">partition</strong> parameter, then the same number of offset values must be specified. There is a one-to-one mapping between the position of the partition from the <strong class="ph b">partition</strong> parameter and the position of the offset from the <strong class="ph b">startOffset</strong> parameter. For example, if the <strong class="ph b">partition</strong> parameter has the values <tt class="ph tt">0, 1</tt>, and the <strong class="ph b">startOffset</strong> parameter has the values <tt class="ph tt">100l, 200l</tt>, then the operator will begin consuming messages from partition 0 at offset 100 and will consume messages from partition 1 at offset 200.
+</p>
+
+<p class="p">A limitation with using this parameter is that <strong class="ph b">only one single topic</strong> can be specified via the <strong class="ph b">topic</strong> parameter. 
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int64
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__startPosition"><!-- --></a><tt class="ph tt">startPosition</tt></dt>
+
+<dd class="dd">
+<div class="p">Specifies where the operator should start reading from topics. Valid options include: <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>, <tt class="ph tt">Default</tt>, <tt class="ph tt">Time</tt>, and <tt class="ph tt">Offset</tt>.
+<ul class="ul">
+<li class="li"> <tt class="ph tt">Beginning</tt>: The consumer starts reading from the beginning of the data in the Kafka topics. It starts with smallest available offset.</li>
+
+<li class="li"> <tt class="ph tt">End</tt>: The consumer starts reading at the end of the topic. It consumes only newly inserted data.</li>
+
+<li class="li"> <tt class="ph tt">Default</tt>: Kafka decides where to start reading. When the consumer has a group ID that is already known to the Kafka broker, the consumer starts reading the topic partitions from where it left off (after last committed offset). When the consumer has an unknown group ID, consumption starts at the position defined by the consumer config <tt class="ph tt">auto.offset.reset</tt>, which defaults to <tt class="ph tt">latest</tt>. Consumer offsets are retained for the time specified by the broker config <tt class="ph tt">offsets.retention.minutes</tt>, which defaults to 1440 (24 hours). When this time expires, the Consumer won't be able to resume after last committed offset, and the value of consumer property <tt class="ph tt">auto.offset.reset</tt> applies (default <tt class="ph tt">latest</tt>).</li>
+
+<li class="li"> <tt class="ph tt">Time</tt>: The consumer starts consuming messages with at a given timestamp. More precisely, when a time is specified, the consumer starts at the earliest offset whose timestamp is greater than or equal to the given timestamp. If no consumer offset is found for a given timestamp, the consumer starts consuming from what is configured by consumer config <tt class="ph tt">auto.offset.reset</tt>, which defaults to <tt class="ph tt">latest</tt>. The timestamp where to start consuming must be given as <strong class="ph b">startTime</strong> parameter in milliseconds since Unix epoch.</li>
+
+<li class="li"> <tt class="ph tt">Offset</tt>: The consumer starts consuming at a specific offset. The offsets must be specified for all topic partitions by using the <strong class="ph b">startOffset</strong> parameter. This implies that the <strong class="ph b">partition</strong> parameter must be specified and that Kafka's group management feature cannot be used as the operator assigns itself statically to the given partition(s). When <tt class="ph tt">Offset</tt> is used as the start position <strong class="ph b">only one single topic</strong> can be specified via the <strong class="ph b">topic</strong> parameter, and the operator cannot participate in a consumer group.</li>
+
+</ul>
+
+</div>
+
+<p class="p">If this parameter is not specified, the start position is <tt class="ph tt">Default</tt>.
+</p>
+
+<p class="p">Note, that using a startPosition other than <tt class="ph tt">Default</tt> requires the application always to have a <strong class="ph b">JobControlPlane</strong> operator in its graph. The <strong class="ph b">startPosition</strong> is effective only when the Consumer has not yet committed offsets within the Streams job's life cycle.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: com.ibm.streamsx.kafka.clients.consumer.StartPosition
+ (<tt class="ph tt">Beginning, End, Default, Time, Offset</tt>)  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: CustomLiteral
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__startTime"><!-- --></a><tt class="ph tt">startTime</tt></dt>
+
+<dd class="dd">
+<p class="p">This parameter is only used when the <strong class="ph b">startPosition</strong> parameter is set to <tt class="ph tt">Time</tt>. Then the operator will begin reading records from the earliest offset whose timestamp is greater than or equal to the timestamp specified by this parameter. If no offsets are found, then the operator will begin reading messages from what is is specified by the <tt class="ph tt">auto.offset.reset</tt> consumer property, which is <tt class="ph tt">latest</tt> as default value. The timestamp must be given as an 'int64' type in milliseconds since Unix epoch.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int64
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__topic"><!-- --></a><tt class="ph tt">topic</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the <strong class="ph b">partitions</strong> parameter. To specify multiple topics from which the operator should consume, separate the the topic names by comma, for example <tt class="ph tt">topic: "topic1", "topic2";</tt>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__triggerCount"><!-- --></a><tt class="ph tt">triggerCount</tt></dt>
+
+<dd class="dd">
+<p class="p">This parameter specifies the number of tuples that will be submitted to the output port before triggering a consistent region. This parameter is only used if the operator is the start of an <em class="ph i">operator driven</em> consistent region and is ignored otherwise.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__userLib"><!-- --></a><tt class="ph tt">userLib</tt></dt>
+
+<dd class="dd">
+<p class="p">Allows the user to specify paths to JAR files that should be loaded into the operators classpath. This is useful if the user wants to be able to specify their own partitioners. The value of this parameter can either point to a specific JAR file, or to a directory. In the case of a directory, the operator will load all files ending in <tt class="ph tt">.jar</tt> onto the classpath. By default, this parameter will load all jar files found in <tt class="ph tt">&lt;application_dir&gt;/etc/libs</tt>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics">Metrics</a></strong></p>
+<dl class="dl">
+  
+    <dt class="dt dlterm"><tt class="ph tt">isGroupManagementActive</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_gauge">Gauge</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Shows the Kafka group management state of the operator. When the metric shows 1, group management is active. When the metric is 0, group management is not in place.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nAssignedPartitions</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_gauge">Gauge</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number of topic partitions assigned to the consumer.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nConsumedTopics</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_gauge">Gauge</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number of topics consumed by this consumer. This is the number of topics of the assigned partitions. Note, that a consumer can subscribe to topics, or to a pattern matching numerous topics, but cannot have assigned partitions of the subscribed topics. This metric value is never higher than metric <strong class="ph b">nAssignedPartitions</strong>.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nDroppedMalformedMessages</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number of dropped malformed messages
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nLowMemoryPause</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number times message fetching was paused due to low memory.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nPendingMessages</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_gauge">Gauge</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number of pending messages to be submitted as tuples.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nQueueFullPause</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number times message fetching was paused due to full queue.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies">Libraries</a></strong></p>
+
+ <dl class="dl">
+ 
+  <dt class="dt dlterm">Operator class library
+  </dt>
+
+  <dd class="dd"/>
+
+  <dd class="dd"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies__managedlibrary__libpath">Library Path</a>: <tt class="ph tt">../../impl/java/bin, ../../opt/downloaded/*, ../../impl/lib/*</tt></dd>
+
+ 
+ </dl>
+
+</div>
+
+</div>
+
+
+</body>
+</html>

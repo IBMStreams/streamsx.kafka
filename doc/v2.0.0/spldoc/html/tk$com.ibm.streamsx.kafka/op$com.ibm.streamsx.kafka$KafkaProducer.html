@@ -1,0 +1,1404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="Operator KafkaProducer"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_operator"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>Operator KafkaProducer</title>
+</head>
+<body id="spldoc_operator">
+
+
+<h1 class="title topictitle1">Operator <tt class="ph tt">KafkaProducer</tt></h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+
+</div>
+
+<div class="section splprimop">
+  <embed class="image" src="../../image/tk$com.ibm.streamsx.kafka/op$com.ibm.streamsx.kafka$KafkaProducer.svg" width="872" height="112"/>
+</div>
+
+<div class="section">
+
+<p class="p">The KafkaProducer operator is used to produce messages on Kafka topics. The operator can be configured to produce messages to one or more topics.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Supported Kafka Versions
+</h2>
+
+<p class="p">This version of the toolkit supports <strong class="ph b">Apache Kafka v0.10.2, v0.11.x, 1.0.x, 1.1.x, v2.0.x, v2.1.x</strong>, and <strong class="ph b">v2.2.x</strong>.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka Properties
+</h2>
+
+<p class="p">The operator implements Kafka's KafkaProducer API of the Kafka client version 2.2.1. As a result, it supports all Kafka properties that are supported by the underlying API. The producer properties for the Kafka producer 2.2 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#producerconfigs">Apache Kafka 2.2 documentation</a>.
+</p>
+
+<p class="p">When you reference files within your application, which are bundled with the Streams application bundle, for example an SSL truststore or a key tab file for Kerberos authentication, you can use the <tt class="ph tt">{applicationDir}</tt> placeholder in the property values. Before the configs are passed to the Kafka client, the <tt class="ph tt">{applicationDir}</tt> placeholder is replaced by the application directory of the application. Examples how to use the placeholder are shown below.
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+ssl.truststore.location={applicationDir}/etc/myTruststore.jks
+</pre>
+
+or
+</div>
+
+<div class="p">
+<pre class="pre codeblock">
+sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
+    debug=true \
+    credsType=both \
+    useKeytab="{applicationDir}/etc/myKeytab.keytab" \
+    principal="kafka/host.domain@EXAMPLE.DOMAIN.COM";
+</pre>
+
+
+</div>
+
+<p class="p">Properties can be specified in a file or in an application configuration. If specifying properties via a file, the <strong class="ph b">propertiesFile</strong> parameter can be used. If specifying properties in an application configuration, the name of the application configuration can be specified using the <strong class="ph b">appConfigName</strong> parameter.
+</p>
+
+<p class="p">The only property that the user is required to set is the <tt class="ph tt">bootstrap.servers</tt> property, which points to the Kafka brokers, for example <tt class="ph tt">kafka-0.mydomain:9092,kafka-1.mydomain:9092,kafka-2.mydomain:9092</tt>. All other properties are optional.
+</p>
+
+<p class="p">The operator sets some properties by default to enable users to quickly get started with the operator. The following lists which properties the operator sets by default: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d12601e129">
+<p class="p">Property name
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d12601e135">
+<p class="p">Default Value
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">client.id
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">Generated ID in the form: <tt class="ph tt">P-J&lt;JobId&gt;-&lt;operator name&gt;</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">key.serializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">value.serializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">acks
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">Controls the durability of records that are sent. Adjusted to <tt class="ph tt">all</tt> when in consistent region, and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>, otherwise <tt class="ph tt">acks</tt> is unchanged. The value <tt class="ph tt">0</tt> (fire and forget) is not recommended.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">retries
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">When <tt class="ph tt">0</tt> is provided as <strong class="ph b">retries</strong> and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt> <strong class="ph b">retries</strong> is adjusted to <tt class="ph tt">1</tt>.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">linger.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p"><tt class="ph tt">100</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">batch.size
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p"><tt class="ph tt">32768</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">max.in.flight.requests.per.connection
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p"><tt class="ph tt">1</tt> when <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, limited to <tt class="ph tt">5</tt> when provided and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>, or <tt class="ph tt">10</tt> in all other cases.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">enable.idempotence
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p"><tt class="ph tt">true</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">transactional.id
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">Randomly generated ID in the form: <tt class="ph tt">tid-&lt;random_string&gt;</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">transaction.timeout.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">adjusted to a minimum of <tt class="ph tt">drain timeout + 120000 milliseconds</tt>, but not greater than <tt class="ph tt">900000</tt>. Adjusted only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">metric.reporters
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">added to provided reporters: <tt class="ph tt">com.ibm.streamsx.kafka.clients.producer.ProducerMetricsReporter</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e129 ">
+<p class="p">metrics.sample.window.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e135 ">
+<p class="p">adjusted to <tt class="ph tt">10000</tt>
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+<p class="p"><strong class="ph b">NOTE:</strong> Although properties are adjusted, users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be specified for the Kafka producer version 2.1, are supported by all Broker versions. An example for is the Zstandard compression algorithm, which is supported with broker version 2.1 and above.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Kafka Properties via Application Configuration
+</h2>
+
+<p class="p">Users can specify Kafka properties using Streams' application configurations. Information on configuring application configurations can be found here: <a class="xref" href="https://www.ibm.com/support/knowledgecenter/SSCRJU_4.2.1/com.ibm.streams.admin.doc/doc/creating-secure-app-configs.html">Creating application configuration objects to securely store data</a>. Each property set in the application configuration will be loaded as a Kafka property. For example, to specify the bootstrap servers that the operator should connect to, an app config property named <tt class="ph tt">bootstrap.servers</tt> should be created.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Automatic Serialization
+</h2>
+
+<p class="p">The operator will automatically select the appropriate serializers for the key and message based on their types. The following table outlines which deserializer will be used given a particular type: 
+</p>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d12601e494">
+<p class="p">Serializer
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d12601e500">
+<p class="p">SPL Types
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e494 ">
+<p class="p">org.apache.kafka.common.serialization.StringSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e500 ">
+<p class="p">rstring
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e494 ">
+<p class="p">org.apache.kafka.common.serialization.IntegerSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e500 ">
+<p class="p">int32, uint32
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e494 ">
+<p class="p">org.apache.kafka.common.serialization.LongSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e500 ">
+<p class="p">int64, uint64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e494 ">
+<p class="p">org.apache.kafka.common.serialization.FloatSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e500 ">
+<p class="p">float32
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e494 ">
+<p class="p">org.apache.kafka.common.serialization.DoubleSerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e500 ">
+<p class="p">float64
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e494 ">
+<p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e500 ">
+<p class="p">blob
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Following metrics created by the Kafka producer client are exposed as custom metrics:
+</h2>
+
+<div class="p">
+
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+
+
+<thead class="thead" align="left">
+<tr class="row">
+<th class="entry" colspan="1" valign="top" id="d12601e625">
+<p class="p">Custom Metric
+</p>
+
+</th>
+
+<th class="entry" colspan="1" valign="top" id="d12601e631">
+<p class="p">Description
+</p>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody class="tbody">
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">connection-count
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The current number of active connections.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">compression-rate-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average compression rate of record batches (as percentage, 100 means no compression).
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p"><em class="ph i">topic</em>:compression-rate
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average compression rate of record batches for a topic (as percentage, 100 means no compression).
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">record-queue-time-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average time in ms record batches spent in the send buffer.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">record-queue-time-max
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The maximum time in ms record batches spent in the send buffer.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">record-send-rate
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average number of records sent per second.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">record-retry-total
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The total number of retried record sends
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p"><em class="ph i">topic</em>:record-send-total
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The total number of records sent for a topic.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p"><em class="ph i">topic</em>:record-retry-total
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The total number of retried record sends for a topic
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p"><em class="ph i">topic</em>:record-error-total
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The total number of record sends that resulted in errors for a topic
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">records-per-request-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average number of records per request.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">requests-in-flight
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The current number of in-flight requests awaiting a response.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">request-rate
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The number of requests sent per second
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">request-size-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average size of requests sent.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">request-latency-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average request latency in ms
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">request-latency-max
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The maximum request latency in ms
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">batch-size-avg
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The average number of bytes sent per partition per-request.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">outgoing-byte-rate
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The number of outgoing bytes sent to all servers per second
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">bufferpool-wait-time-total
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The total time an appender waits for space allocation in nanoseconds.
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d12601e625 ">
+<p class="p">buffer-available-bytes
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d12601e631 ">
+<p class="p">The total amount of buffer memory that is not being used (either unallocated or in the free list).
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+</div>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Checkpointing behavior in an autonomous region
+</h2>
+
+<p class="p">A <tt class="ph tt">config checkpoint</tt> clause has no effect to the operator.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Consistent Region Strategy
+</h2>
+
+<p class="p">The producer operator can participate in a consistent region. The operator cannot be the start of a consistent region. When the consistent region drains, the operator flushes all accumulated outstanding records to the Kafka cluster.
+</p>
+
+<p class="p">The operator supports <em class="ph i">non-transactional</em> (default behavior) and <em class="ph i">transactional</em> message delivery. The delivery can be controlled by the <strong class="ph b">consistentRegionPolicy</strong> parameter. 
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle"><em class="ph i">Non-transactional</em> delivery
+</h2>
+
+<p class="p">If the operator crashes or is reset while in a consistent region, the operator will write all tuples replayed. This ensures that every tuple sent to the operator will be written to the topic(s). However, <em class="ph i">non-transactional</em> message delivery implies that duplicate messages may be written to the topic(s).
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle"><em class="ph i">Transactional</em> delivery
+</h2>
+
+<p class="p">Messages are always inserted into a topic within the context of a transaction. Transactions are committed when the operator checkpoints. If the operator crashes or is reset while in a consistent region, the operator will abort an ongoing transaction and write all tuples replayed within a new transaction. External consumers configured with <tt class="ph tt">isolation.level=read_committed</tt> will not read the duplicates from the aborted transactions. Consumers that use a different isolation level will read duplicate messages as if they were produced without being part of a transaction.
+</p>
+
+<p class="p">For consumers that read the output topics with <tt class="ph tt">isolation.level=read_committed</tt>, the transactional producer minimizes number if duplicate messages with the downside that the produced messages are only visible at the checkpoint interval, which can be interpreted as additional latency.
+</p>
+
+<p class="p">A consumer that reads the output topics with <tt class="ph tt">isolation.level=read_committed</tt> can read duplicate messages when the consistent region fails after the Kafka transaction has been committed, but before the region has reached a consistent state.
+</p>
+
+<p class="p"><strong class="ph b">NOTE 1:</strong> Transactions in Kafka have an inactivity timeout, which is configured by the producer property <tt class="ph tt">transaction.timeout.ms</tt>. This timeout is adjusted by the operator to a minimum of the drain timeout plus 120 seconds. The maximum value of this property is limited by the server property <tt class="ph tt">transaction.max.timeout.ms</tt>, which has a default value of 900000. The operator opens a transaction when the first tuple of a consistent cut is processed. Every tuple being processed resets the inactivity timer.
+</p>
+
+<p class="p"><strong class="ph b">NOTE 2:</strong> For <em class="ph i">transactional</em> delivery, the Kafka broker must have version 0.11 or higher. Older brokers do not support transactions.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Error Handling
+</h2>
+
+<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafka throws an exception, the operator will restart. Some exceptions can be retried, such as those that occur due to network error. Users are encouraged to set the KafkaProducer <tt class="ph tt">retries</tt> property to a value greater than 0 to enable the producer's retry mechanism.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Summary</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Ports</dt>
+
+  <dd class="dd">This operator has 1 input port and 0 output ports.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Windowing</dt>
+
+  <dd class="dd">This operator does not accept any windowing configurations.</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Parameters</dt>
+
+  <dd class="dd">This operator supports 13 parameters.
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__flush">flush</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+</dd>
+
+ 
+ 
+  <dt class="dt dlterm">Metrics</dt>
+
+  <dd class="dd">This operator does not report any metrics.</dd>
+
+ 
+</dl>
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Properties</h2>
+
+<dl class="dl" compact="compact">
+ 
+  <dt class="dt dlterm">Implementation</dt>
+
+  <dd class="dd">Java</dd>
+
+ 
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set">Input Ports</a></strong></p>
+<dl class="dl">
+  
+   <dt class="dt dlterm">Ports (0)</dt>
+
+   <dd class="dd">
+
+<p class="p">This port consumes tuples to be written to the Kafka topic(s). Each tuple received on this port will be written to the Kafka topic(s).
+</p>
+   </dd>
+
+  
+    
+      <dt class="dt dlterm">Properties</dt>
+
+      <dd class="dd">
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__optional">Optional</a>: false
+     </li>
+
+   </ul>
+
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__controlport">ControlPort</a>: false
+</li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__windowingmode">WindowingMode</a>: NonWindowed
+</li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__input_port_set__windowpunctuationinputmode">WindowPunctuationInputMode</a>: Oblivious
+</li>
+
+   </ul>
+
+      </dd>
+
+    
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
+This operator supports 13 parameters.
+<p class="p"> Optional: 
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__flush">flush</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+
+</p>
+<dl class="dl">
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__appConfigName"><!-- --></a><tt class="ph tt">appConfigName</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the application configuration containing Kafka properties.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__clientId"><!-- --></a><tt class="ph tt">clientId</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the client ID that should be used when connecting to the Kafka cluster. The value specified by this parameter will override the <tt class="ph tt">client.id</tt> Kafka property if specified.
+</p>
+
+<p class="p">Each operator must have a unique client ID. When operators are replicated by a parallel region, the channel-ID is automatically appended to the clientId to make the client-ID distinct for the parallel channels.
+</p>
+
+<p class="p">If this parameter is not specified and the <tt class="ph tt">client.id</tt> Kafka property is not specified, the operator will create an ID with the pattern <tt class="ph tt">C-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a consumer operator, and <tt class="ph tt">P-J&lt;job-ID&gt;-&lt;operator name&gt;</tt> for a producer operator.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__consistentRegionPolicy"><!-- --></a><tt class="ph tt">consistentRegionPolicy</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the policy to use when in a consistent region.
+</p>
+
+<p class="p">When <tt class="ph tt">NonTransactional</tt> is specified, the operator guarantees that every tuple is written to the topic(s) at least once. When the consistent region resets, duplicates will most likely appear in the output topic(s). For consumers of the output topics, messages appears as they are produced.
+</p>
+
+<p class="p"> When <tt class="ph tt">Transactional</tt> is specified, the operator will write tuples to the topic(s) within the context of a transaction. Transactions are commited when the operator checkpoints. This implies that downstream Kafka consumers may not see the messages until operator checkpoints. Transactional delivery minimizes (though not eliminates) duplicate messages for consumers of the output topics when they are configured with the consumer property <tt class="ph tt">isolation.level=read_committed</tt>. Consumers that read with the default isolation level <tt class="ph tt">read_uncommitted</tt> see all messages as they are produced. For these consumers, there is no difference between transactional and non-transactional message delivery.
+</p>
+
+<p class="p">For backward compatibility, the parameter value <tt class="ph tt">AtLeastOnce</tt> can also be specified, but is deprecated and can be removed in a future version. <tt class="ph tt">AtLeastOnce</tt> is equivalent to <tt class="ph tt">NonTransactional</tt>.
+</p>
+
+<p class="p">This parameter is ignored if the operator is not part of a consistent region. The default value is <tt class="ph tt">NonTransactional</tt>. <strong class="ph b">NOTE</strong>: Kafka brokers older than version v0.11 do not support transactions.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy
+ (<tt class="ph tt">AtLeastOnce, NonTransactional, Transactional</tt>)  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: CustomLiteral
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__flush"><!-- --></a><tt class="ph tt">flush</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the number of tuples, after which the producer is flushed. When not specified, or when the parameter value is not positive, the flush interval is adaptively  calculated to avoid queing times significantly over five seconds.
+</p>
+
+<p class="p">Flushing the producer makes all buffered records immediately available to send to the server (even if <tt class="ph tt">linger.ms</tt> is greater than 0) and blocks on the completion of the requests associated with the buffered records. When a small value is specified, the batching of tuples to server requests and compression (if used) may get inefficient.
+</p>
+
+<p class="p">Under normal circumstances, this parameter should be used only when the adaptive flush control gives not the desired results, for example when the custom metrics <strong class="ph b">buffer-available-bytes</strong> goes very small and <strong class="ph b">record-queue-time-max</strong> or <strong class="ph b">record-queue-time-avg</strong> gets too high.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__guaranteeOrdering"><!-- --></a><tt class="ph tt">guaranteeOrdering</tt></dt>
+
+<dd class="dd">
+<p class="p">If set to true, the operator guarantees that the order of records within a topic partition is the same as the order of processed tuples when it comes to retries. This implies that the operator sets the <tt class="ph tt">max.in.flight.requests.per.connection</tt> producer property automatically to 1 if retries are enabled, i.e. when the <tt class="ph tt">retries</tt> property is unequal 0, what is the operator default value.
+</p>
+
+<p class="p">If unset, the default value of this parameter is <tt class="ph tt">false</tt>, which means that the order can change due to retries.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: boolean
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__keyAttribute"><!-- --></a><tt class="ph tt">keyAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the input attribute that contains the Kafka key value. If not specified, the operator will look for an input attribute named <em class="ph i">key</em>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__messageAttribute"><!-- --></a><tt class="ph tt">messageAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the attribute on the input port that contains the message payload. If not specified, the operator will look for an input attribute named <em class="ph i">message</em>. If this parameter is not specified and there is no input attribute named <em class="ph i">message</em>, the operator will throw an exception and terminate.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__partitionAttribute"><!-- --></a><tt class="ph tt">partitionAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the input attribute that contains the partition number that the message should be written to. If this parameter is not specified, the operator will look for an input attribute named <strong class="ph b">partition</strong>. If the user does not indicate which partition the message should be written to, then Kafka's default partitioning strategy will be used instead (partition based on the specified partitioner or in a round-robin fashion).
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int32
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__propertiesFile"><!-- --></a><tt class="ph tt">propertiesFile</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the name of the properties file containing Kafka properties. A relative path is always interpreted as relative to the <em class="ph i">application directory</em> of the Streams application.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__timestampAttribute"><!-- --></a><tt class="ph tt">timestampAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the attribute on the input port that contains the timestamp for the message. If not specified, the operator will look for an input attribute named <em class="ph i">messageTimestamp</em>. If this parameter is not specified and there is no input attribute named <em class="ph i">messageTimestamp</em>, the operator will use the timestamp provided by Kafka (broker config <tt class="ph tt">log.message.timestamp.type=[CreateTime|LogAppendTime]</tt>).
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: int64
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__topic"><!-- --></a><tt class="ph tt">topic</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the topic(s) that the producer should send messages to. The value of this parameter will take precedence over the <strong class="ph b">topicAttribute</strong> parameter. This parameter will also take precedence if the input tuple schema contains an attribute named <em class="ph i">topic</em>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__topicAttribute"><!-- --></a><tt class="ph tt">topicAttribute</tt></dt>
+
+<dd class="dd">
+<p class="p">Specifies the input attribute that contains the name of the topic that the message should be written to. If this parameter is not specified, the operator will look for an input attribute named <em class="ph i">topic</em>. This parameter value is overridden if the <strong class="ph b">topic</strong> parameter is specified.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__expressionmode">ExpressionMode</a>: Attribute
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__userLib"><!-- --></a><tt class="ph tt">userLib</tt></dt>
+
+<dd class="dd">
+<p class="p">Allows the user to specify paths to JAR files that should be loaded into the operators classpath. This is useful if the user wants to be able to specify their own partitioners. The value of this parameter can either point to a specific JAR file, or to a directory. In the case of a directory, the operator will load all files ending in <tt class="ph tt">.jar</tt> onto the classpath. By default, this parameter will load all jar files found in <tt class="ph tt">&lt;application_dir&gt;/etc/libs</tt>.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: rstring
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies">Libraries</a></strong></p>
+
+ <dl class="dl">
+ 
+  <dt class="dt dlterm">Operator class library
+  </dt>
+
+  <dd class="dd"/>
+
+  <dd class="dd"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__dependencies__managedlibrary__libpath">Library Path</a>: <tt class="ph tt">../../impl/java/bin, ../../opt/downloaded/*, ../../impl/lib/*</tt></dd>
+
+ 
+ </dl>
+
+</div>
+
+</div>
+
+
+</body>
+</html>

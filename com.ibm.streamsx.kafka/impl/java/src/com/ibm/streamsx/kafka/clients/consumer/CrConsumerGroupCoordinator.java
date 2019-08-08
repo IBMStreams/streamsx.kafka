@@ -285,7 +285,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
         public MergeKey (long sequenceId, int resetAttempt) {
             this.sequenceId = sequenceId;
             this.resetAttempt = INCLUDE_RESET_ATTEMPT_INTO_KEY? resetAttempt: -1;
-            this.toString = MessageFormat.format("{0,number,#}/{1}", sequenceId, resetAttempt);
+            this.toString = MessageFormat.format("{0,number,#}/{1,number,#}", sequenceId, resetAttempt);
         }
 
         /**
@@ -433,7 +433,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
         // test JSON generation
         com.google.gson.Gson gson = (new com.google.gson.GsonBuilder()).enableComplexMapKeySerialization().create();
         int nExpectedContribs = 3;
-        CheckpointMerge m = new CheckpointMerge (new MergeKey(1002,  1), nExpectedContribs);
+        CheckpointMerge m = new CheckpointMerge (new MergeKey (1002, 1), nExpectedContribs);
         Map <TP, Long> m1 = new HashMap <>();
         m1.put (new TP ("top1", 0), 10l);
         m1.put (new TP ("top1", 1), 11l);

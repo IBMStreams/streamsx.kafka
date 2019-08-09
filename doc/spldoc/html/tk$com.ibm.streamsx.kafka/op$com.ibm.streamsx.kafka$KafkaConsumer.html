@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.0.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.1.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -43,7 +43,7 @@
 <div class="section"><h2 class="title sectiontitle">Supported Kafka Versions
 </h2>
 
-<p class="p">This version of the toolkit supports <strong class="ph b">Apache Kafka v0.10.2, v0.11.x, 1.0.x, 1.1.x, v2.0.x, v2.1.x</strong>, and <strong class="ph b">v2.2.x</strong>.
+<p class="p">This version of the toolkit supports <strong class="ph b">Apache Kafka v0.10.2, v0.11.x, 1.0.x, 1.1.x, v2.0.x, v2.1.x, v2.2.x</strong>, and <strong class="ph b">v2.3.x</strong>.
 </p>
 
 </div>
@@ -51,7 +51,7 @@
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
-<p class="p">The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.2.1. As a result, it supports all Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.2 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka 2.2 documentation</a>.
+<p class="p">The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.2.1. As a result, it supports all Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.2 can be found in the <a class="xref" href="https://kafka.apache.org/22/documentation.html#consumerconfigs">Apache Kafka 2.2 documentation</a>.
 </p>
 
 <p class="p">When you reference files within your application, which are bundled with the Streams application bundle, for example an SSL truststore or a key tab file for Kerberos authentication, you can use the <tt class="ph tt">{applicationDir}</tt> placeholder in the property values. Before the configs are passed to the Kafka client, the <tt class="ph tt">{applicationDir}</tt> placeholder is replaced by the application directory of the application. Examples how to use the placeholder are shown below.
@@ -290,6 +290,66 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 </tr>
 
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">client.dns.lookup
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p"><tt class="ph tt">use_all_dns_ips</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">reconnect.backoff.max.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p"><tt class="ph tt">10000</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">reconnect.backoff.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p"><tt class="ph tt">250</tt>
+</p>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry" colspan="1" valign="top" headers="d4081e136 ">
+<p class="p">retry.backoff.ms
+</p>
+
+</td>
+
+<td class="entry" colspan="1" valign="top" headers="d4081e142 ">
+<p class="p"><tt class="ph tt">500</tt>
+</p>
+
+</td>
+
+</tr>
+
 </tbody>
 
 </table>
@@ -315,13 +375,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d4081e393">
+<th class="entry" colspan="1" valign="top" id="d4081e461">
 <p class="p">Deserializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d4081e399">
+<th class="entry" colspan="1" valign="top" id="d4081e467">
 <p class="p">SPL Types
 </p>
 
@@ -333,13 +393,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e461 ">
 <p class="p">org.apache.kafka.common.serialization.StringDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e467 ">
 <p class="p">rstring
 </p>
 
@@ -348,13 +408,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e461 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e467 ">
 <p class="p">int32, uint32
 </p>
 
@@ -363,13 +423,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e461 ">
 <p class="p">org.apache.kafka.common.serialization.LongDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e467 ">
 <p class="p">int64, uint64
 </p>
 
@@ -378,13 +438,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e461 ">
 <p class="p">org.apache.kafka.common.serialization.FloatDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e467 ">
 <p class="p">float32
 </p>
 
@@ -393,13 +453,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e461 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e467 ">
 <p class="p">float64
 </p>
 
@@ -408,13 +468,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e393 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e461 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArrayDeserializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e399 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e467 ">
 <p class="p">blob
 </p>
 
@@ -447,13 +507,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d4081e539">
+<th class="entry" colspan="1" valign="top" id="d4081e607">
 <p class="p">Custom Metric
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d4081e545">
+<th class="entry" colspan="1" valign="top" id="d4081e613">
 <p class="p">Description
 </p>
 
@@ -465,13 +525,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p">connection-count
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The current number of active connections.
 </p>
 
@@ -480,13 +540,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p">incoming-byte-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The number of bytes read off all sockets per second
 </p>
 
@@ -495,13 +555,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p"><em class="ph i">topic</em>-<em class="ph i">partition</em>:records-lag
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The latest lag of the specific partition. A value of <tt class="ph tt">-1</tt> indicates that the metric is not applicable to the operator.
 </p>
 
@@ -510,13 +570,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p">records-lag-max
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The maximum lag in terms of number of records for any partition in this window
 </p>
 
@@ -525,13 +585,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p">fetch-size-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The average number of bytes fetched per request
 </p>
 
@@ -540,13 +600,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p"><em class="ph i">topic</em>:fetch-size-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The average number of bytes fetched per request for a topic
 </p>
 
@@ -555,13 +615,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p">commit-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The number of commit calls per second
 </p>
 
@@ -570,13 +630,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e539 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e607 ">
 <p class="p">commit-latency-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e545 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e613 ">
 <p class="p">The average time taken for a commit request
 </p>
 
@@ -674,13 +734,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d4081e877">
+<th class="entry" colspan="1" valign="top" id="d4081e945">
 <p class="p">metric name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d4081e883">
+<th class="entry" colspan="1" valign="top" id="d4081e951">
 <p class="p">description
 </p>
 
@@ -692,13 +752,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e877 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e945 ">
 <p class="p">isGroupManagementActive
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e883 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e951 ">
 <p class="p"><tt class="ph tt">1</tt> indicates that group management is active, <tt class="ph tt">0</tt> indicates that group management is inactive.
 </p>
 
@@ -707,13 +767,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e877 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e945 ">
 <p class="p">nPartitionRebalances
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e883 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e951 ">
 <p class="p">Number of partition assignment rebalances for each consumer operator. <strong class="ph b">The metric is only visible when group management is active.</strong>
 </p>
 
@@ -813,13 +873,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d4081e1121">
+<th class="entry" colspan="1" valign="top" id="d4081e1189">
 <p class="p">metric name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d4081e1127">
+<th class="entry" colspan="1" valign="top" id="d4081e1195">
 <p class="p">description
 </p>
 
@@ -831,13 +891,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e1121 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1189 ">
 <p class="p">drainTimeMillis
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e1127 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1195 ">
 <p class="p">drain duration of the last drain in milliseconds
 </p>
 
@@ -846,13 +906,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d4081e1121 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1189 ">
 <p class="p">drainTimeMillisMax
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d4081e1127 ">
+<td class="entry" colspan="1" valign="top" headers="d4081e1195 ">
 <p class="p">maximum drain duration in milliseconds
 </p>
 
@@ -898,9 +958,9 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
  
   <dt class="dt dlterm">Parameters</dt>
 
-  <dd class="dd">This operator supports 20 parameters.
+  <dd class="dd">This operator supports 21 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__commitPeriod">commitPeriod</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__pattern">pattern</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__commitPeriod">commitPeriod</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__pattern">pattern</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__sslDebug">sslDebug</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 </dd>
@@ -1086,9 +1146,9 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <div class="section">
 <p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
-This operator supports 20 parameters.
+This operator supports 21 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__commitPeriod">commitPeriod</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__pattern">pattern</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__commitCount">commitCount</a>, <a class="xref" href="#spldoc_operator__parameter__commitPeriod">commitPeriod</a>, <a class="xref" href="#spldoc_operator__parameter__groupId">groupId</a>, <a class="xref" href="#spldoc_operator__parameter__outputKeyAttributeName">outputKeyAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputMessageAttributeName">outputMessageAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputOffsetAttributeName">outputOffsetAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputPartitionAttributeName">outputPartitionAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTimestampAttributeName">outputTimestampAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__outputTopicAttributeName">outputTopicAttributeName</a>, <a class="xref" href="#spldoc_operator__parameter__partition">partition</a>, <a class="xref" href="#spldoc_operator__parameter__pattern">pattern</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__sslDebug">sslDebug</a>, <a class="xref" href="#spldoc_operator__parameter__startOffset">startOffset</a>, <a class="xref" href="#spldoc_operator__parameter__startPosition">startPosition</a>, <a class="xref" href="#spldoc_operator__parameter__startTime">startTime</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__triggerCount">triggerCount</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 <dl class="dl">
@@ -1578,6 +1638,37 @@ This operator supports 20 parameters.
 
 
 
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__sslDebug"><!-- --></a><tt class="ph tt">sslDebug</tt></dt>
+
+<dd class="dd">
+<p class="p">If SSL/TLS protocol debugging is enabled, all SSL protocol data and information is logged to the console. This setting is equivalent to <strong class="ph b">vmArg: "-Djavax.net.debug=true";</strong>. The default value for this parameter is <tt class="ph tt">false</tt>. The parameter is ignored when the <tt class="ph tt">javax.net.debug</tt> property is set via the <strong class="ph b">vmArg</strong> parameter.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: boolean
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__startOffset"><!-- --></a><tt class="ph tt">startOffset</tt></dt>
 
 <dd class="dd">
@@ -1634,7 +1725,7 @@ This operator supports 20 parameters.
 <p class="p">If this parameter is not specified, the start position is <tt class="ph tt">Default</tt>.
 </p>
 
-<p class="p">Note, that using a startPosition other than <tt class="ph tt">Default</tt> requires the application always to have a <strong class="ph b">JobControlPlane</strong> operator in its graph. The <strong class="ph b">startPosition</strong> is effective only when the Consumer has not yet committed offsets within the Streams job's life cycle.
+<p class="p">Note, that using a startPosition other than <tt class="ph tt">Default</tt> requires the application always to have a <strong class="ph b">JobControlPlane</strong> operator in its graph. The <strong class="ph b">startPosition</strong> is effective only when the Consumer has not yet committed offsets during the Streams job's life cycle.
 </p>
 <dl class="dl">
 

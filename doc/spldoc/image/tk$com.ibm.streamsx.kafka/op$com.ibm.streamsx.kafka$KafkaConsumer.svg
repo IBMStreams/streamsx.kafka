@@ -115,9 +115,9 @@ fm9nWLz9/69lxAQUAAJR65/Ot3QZAAAAAElFTkSuQmCC"
       ><text x="48.65" y="73.0"
       >outputTopicAttributeName, partition, pattern, propertiesFile, </text
       ><text x="48.65" y="88.0"
-      >startOffset, startPosition, startTime, topic, triggerCount, </text
+      >sslDebug, startOffset, startPosition, startTime, </text
       ><text x="48.65" y="103.0"
-      >userLib</text
+      >topic, triggerCount, userLib</text
       ><set attributeName="visibility" from="hidden" end="sdt2.mouseout" to="visible" begin="sdt2.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"

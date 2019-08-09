@@ -2,7 +2,7 @@
 title: "Kafka Consumer group support in a consistent region"
 permalink: /docs/user/ConsumerGroupConsistentRegion/
 excerpt: "Functional description how consumer groups are supported in a consistent region"
-last_modified_at: 2019-03-05T12:37:48+01:00
+last_modified_at: 2019-08-09T12:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -68,21 +68,21 @@ Then, the opertor subscribes to the configured topics or pattern. It has no part
 
 ### Partition revocation and assignment
 
-Partition assignment and revocation is done by Kafka. The client is notified by callbacks about these events whithin the call of the `poll` API of the KafkaConsumer - and only then. `onPartitionsRevoked` is always followed by `onPartitionsAssigned` with the newly assigned partitions. `onPartitionsRevoked` is always called *before* partitions are unassigned. When partitions are revoked, the Kafka consumer (part of the kafka client) forgets its assignment and all current fetch positions of the partitions being revoked.
+Partition assignment and revocation is done by Kafka. The client is notified by callbacks about these events whithin the call of the `poll` API of the KafkaConsumer - and only then. `onPartitionsRevoked` is always followed by `onPartitionsAssigned` with the newly assigned partitions. Since version 2 of Kafka, `onPartitionsRevoked` and `onPartitionsAssigned` can be called within different invocations of `poll`. `onPartitionsRevoked` is always called *before* partitions are unassigned. When partitions are revoked, the Kafka consumer (part of the kafka client) forgets its assignment and all current fetch positions of the partitions being revoked.
 
 #### Partition revocation
 
 `onPartitionsRevoked` is ignored when the client has just subscribed, or after reset to initial state or to a checkpoint, and if the client has not yet fetched messages. Otherwise, a reset of the consistent region is initiated by the operator:
 - The message queue is cleared, so that tuple submission stops
-- A stop polling event is asynchronously submitted to the event queue, which lets the operator stop polling for new messages. Stop polling avoids that the callbacks are called again before the reset event is processed.
+- A stop polling event is asynchronously submitted to the event queue, which lets the operator stop polling for new messages. Stop polling avoids that the callbacks are called again before the expected reset event is processed.
 - The consistent region reset is triggered in *force mode*. *Force mode* resets the consecutive reset counter.
 - The state of the client changes to CR_RESET_PENDING.
 - When it comes to the consistent region reset, the operator places a reset event into the event queue. This event is
-always processed by the event thread *after* the current `poll` has finished. Therefore also `onPartitionsAssigned` is called before the reset event can be processed.
+always processed by the event thread *after* the current `poll` has finished. `onPartitionsAssigned` can already have been processed or not before the reset event is processed.
 
 #### Partition assignment
 
-The cycle `onPartitionsRevoked` - `onPartitionsAssigned` can happen whenever the client polls for messages. The client performs following:
+The cycle `onPartitionsRevoked` - `onPartitionsAssigned` can happen whenever the client polls for messages. Both callbacks can be invoked in the same context of `poll` or in different `poll` invocations. The client performs following:
 
 - for the partitions that are *not assigned anymore* to this consumer
     - remove the \[topic, partition\] to offset mappings from the offset manager

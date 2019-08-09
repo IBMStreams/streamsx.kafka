@@ -32,6 +32,10 @@ This is an overview of changes for major and minor version upgrades. For details
 * bug fixes, see the release note on [https://github.com/IBMStreams/streamsx.kafka/releases/tag/v2.1.0|Github]
 * support for Kafka broker version 2.3
 
+++ What's new in version 2.0.1
+
+* bug fixes, see the release note on [https://github.com/IBMStreams/streamsx.kafka/releases/tag/v2.0.1|Github]
+
 ++ What's new in version 2.0.0
 
 # New Features

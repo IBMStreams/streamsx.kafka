@@ -22,13 +22,12 @@ import com.ibm.streamsx.kafka.clients.metrics.CustomMetricUpdateListener;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsFetcher;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsProvider;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener;
-import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public class KafkaProducerClient extends AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
-    private static final int CLOSE_TIMEOUT_MS = 5000;
+    public static final int CLOSE_TIMEOUT_MS = 5000;
 
     protected KafkaProducer<?, ?> producer;
     protected ProducerCallback callback;
@@ -70,6 +69,8 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         private long bufferPoolWaitTimeTotalNanos = 0l;
         private long requestRate = 0l;
 
+        private long lastTraceMs = System.currentTimeMillis();
+
         public void setRecordQueueTimeMax (long v) { this.recordQueueTimeMax = v; }
         public void setOutgoingByteRate (long v) { this.outgoingByteRate  = v; }
         public void setRecordsPerRequestAvg (long v) { this.recordsPerRequestAvg = v; }
@@ -84,6 +85,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
          */
         @Override
         public void afterCustomMetricsUpdated() {
+            final long now = System.currentTimeMillis();
             if (logger.isEnabledFor (DEBUG_LEVEL_METRICS)) {
                 logger.log (DEBUG_LEVEL_METRICS, MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotalNanos= {7}",
                         recordQueueTimeMax,
@@ -94,6 +96,22 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         batchSizeAvg,
                         bufferAvailBytes,
                         bufferPoolWaitTimeTotalNanos));
+                lastTraceMs = now;
+            }
+            else {
+                // trace every 10 minutes at INFO severity
+                if (now - lastTraceMs >= 600_000L) {
+                    logger.info (MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotalNanos= {7}",
+                            recordQueueTimeMax,
+                            recordQueueTimeAvg,
+                            outgoingByteRate,
+                            requestRate,
+                            recordsPerRequestAvg,
+                            batchSizeAvg,
+                            bufferAvailBytes,
+                            bufferPoolWaitTimeTotalNanos));
+                    lastTraceMs = now;
+                }
             }
         }
 
@@ -259,11 +277,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
-        if (sendException != null) {
-            logger.error(Messages.getString("PREVIOUS_BATCH_FAILED_TO_SEND", sendException.getLocalizedMessage()), //$NON-NLS-1$
-                    sendException);
-            throw sendException;
-        }
         synchronized (flushLock) {
             if (flushAfter > 0) {
                 // non-adaptive flush 
@@ -350,13 +363,17 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         }
     }
 
-    public void close() {
+    public void close (long timeoutMillis) {
         logger.trace("Closing..."); //$NON-NLS-1$
-        producer.close (Duration.ofMillis (CLOSE_TIMEOUT_MS));
+        this.metricsFetcher.stop();
+        producer.close (Duration.ofMillis (timeoutMillis));
     }
 
-    public void setSendException(Exception sendException) {
-        this.sendException = sendException;
+    public void handleSendException (Exception e) {
+        this.sendException = e;
+        producer.close (Duration.ofMillis(0L));
+        // kill the PE - eventually it gets re-launched by the Streams Runtime
+        System.exit (1);
     }
 
     @SuppressWarnings("rawtypes")

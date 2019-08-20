@@ -26,6 +26,7 @@ public class MetricsFetcher implements Runnable {
     private MetricsProvider provider;
     private final OperatorContext operatorContext;
     private final Thread runnerThread;
+    private boolean running = true;
     private Object lock = new Object();
     private Map <MetricName, String> nameMap = new HashMap<>();
     private Map <String, CustomMetricUpdateListener> updatedListeners = new HashMap<>();
@@ -46,6 +47,13 @@ public class MetricsFetcher implements Runnable {
         this.runnerThread.start();
     }
 
+    /**
+     * Stops the metrics fetcher by terminating its runner thread.
+     */
+    public void stop() {
+        running = false;
+        runnerThread.interrupt();
+    }
 
     /**
      * @see java.lang.Runnable#run()
@@ -54,7 +62,7 @@ public class MetricsFetcher implements Runnable {
     public void run() {
         try {
             trace.info("starting metrics fetcher");
-            while (!Thread.interrupted()) {
+            while (running && !Thread.interrupted()) {
                 fetchMetrics();
                 Thread.sleep (fetchInterval);
             }
@@ -143,7 +151,7 @@ public class MetricsFetcher implements Runnable {
     }
 
     /**
-     * gets the current value of the metric given by the metric name
+     * Gets the current value of the metric given by the metric name.
      * @param metricName the name of the metric for which the value is to be fetched
      * @return the metric value converted for a custom metric by a. The converter is either a specific converter or the default converter.
      * @throws KafkaMetricException the metric value cannot be fetched - No such metric, metric does not match the filter 

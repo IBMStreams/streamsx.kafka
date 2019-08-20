@@ -4,7 +4,7 @@ package com.ibm.streamsx.kafka;
  * RuntimeException that is thrown when reset of the operator within a Consistent Region failed.
  * @author IBM Kafka toolkit team
  */
-public class KafkaOperatorResetFailedException extends RuntimeException {
+public class KafkaOperatorResetFailedException extends KafkaOperatorRuntimeException {
 
     private static final long serialVersionUID = 1L;
 

@@ -122,7 +122,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                     + "is the operator default value.\\n"
                     + "\\n"
                     + "If unset, the default value of this parameter is `false`, which means that the "
-                    + "order can change due to retries.")
+                    + "order can change due to retries. Please be aware that setting " 
+                    + GUARANTEE_ORDERING_PARAM_NAME
+                    + " to `true` degrades the producer throughput as only one PRODUCE request per topic partition "
+                    + "is active at any time.")
     public void setGuaranteeOrdering (boolean guaranteeOrdering) {
         this.guaranteeOrdering = guaranteeOrdering;
     }
@@ -373,7 +376,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                 break;
             case Transactional:
                 logger.info("Creating TransactionalKafkaProducerClient...");
-                producer = new TransactionalKafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props, /*lazyTransactionBegin*/true);
+                producer = new TransactionalKafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
                 break;
             default:
                 throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
@@ -446,7 +449,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                 + context.getPE().getPEId() + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
 
         producer.flush();
-        producer.close();
+        producer.close (KafkaProducerClient.CLOSE_TIMEOUT_MS);
 
         // Must call super.shutdown()
         super.shutdown();
@@ -477,9 +480,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         logger.debug (">>> RESET (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
         logger.debug("Initiating reset..."); //$NON-NLS-1$
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
-        producer.reset(checkpoint);
-
-        // reset complete
+        producer.reset (checkpoint);
+        producer.close (0L);
+        producer = null;
+        initProducer();
         isResetting.set(false);
         logger.debug ("Reset complete"); //$NON-NLS-1$
     }
@@ -489,7 +493,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         if (crContext == null) return;  // ignore 'config checkpoint'
         logger.debug (">>> RESET TO INIT..."); //$NON-NLS-1$
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
-        producer.close();
+        producer.reset (null);
+        producer.close(0L);
         producer = null;
         initProducer();
         isResetting.set(false);

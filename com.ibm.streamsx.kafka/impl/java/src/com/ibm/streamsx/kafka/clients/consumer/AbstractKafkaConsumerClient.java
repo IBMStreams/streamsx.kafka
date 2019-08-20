@@ -544,6 +544,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected void shutdown() {
         logger.debug("Shutdown sequence started..."); //$NON-NLS-1$
         getMessageQueue().clear();
+        if (metricsFetcher != null) metricsFetcher.stop();
         drainBuffer.clear();
         consumer.close (Duration.ofMillis (CONSUMER_CLOSE_TIMEOUT_MS));
         processing.set (false);

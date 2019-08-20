@@ -35,8 +35,8 @@ public class RoundingConverter implements MetricConverter {
     @Override
     public long convert (Object metricValue) {
         if (metricValue == null) return 0l;
-        if (metricValue instanceof java.lang.Double) {
-            long l = Math.round (((Double)metricValue).doubleValue());
+        if (metricValue instanceof java.lang.Number) {
+            long l = Math.round (((java.lang.Number)metricValue).doubleValue());
             // Math.round() rounds to Long.MIN_VALUE for negative infinity, we want 0 in this case: 
             return l == Long.MIN_VALUE? 0l: l;
         }

@@ -2,10 +2,12 @@ package com.ibm.streamsx.kafka.clients.producer;
 
 import java.text.MessageFormat;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -15,6 +17,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaMetricException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
@@ -30,7 +33,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     public static final int CLOSE_TIMEOUT_MS = 5000;
 
     protected KafkaProducer<?, ?> producer;
-    protected ProducerCallback callback;
+    protected Callback callback;
     protected Exception sendException;
     protected KafkaOperatorProperties kafkaProperties;
     protected Class<?> keyClass;
@@ -56,6 +59,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private final long bufferSize;
     private final long maxBufSizeThresh;
     private boolean compressionEnabled;
+    private final com.ibm.streams.operator.metrics.Metric producerGenerationMetric;
 
     /** monitors operator metrics by logging them on update **/
     private class MetricsMonitor implements MetricsUpdatedListener {
@@ -133,17 +137,21 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         bufferSize = this.kafkaProperties.getBufferMemory();
         maxBufSizeThresh = 100 * bufferSize / 90;
         compressionEnabled = !this.kafkaProperties.getProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "none").trim().equalsIgnoreCase("none");
+        producerGenerationMetric = operatorContext.getMetrics().getCustomMetric("producerGeneration");
         createProducer();
     }
 
-    protected void createProducer() {
+    protected final synchronized void createProducer() {
         producer = new KafkaProducer<>(this.kafkaProperties);
+        producerGenerationMetric.increment();
         callback = new ProducerCallback(this);
         if (metricsFetcher == null) {
             metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
                 @Override
                 public Map<MetricName, ? extends Metric> getMetrics() {
-                    return producer.metrics();
+                    synchronized (KafkaProducerClient.this) {
+                        return producer.metrics();
+                    }
                 }
                 @Override
                 public String createCustomMetricName (MetricName metricName)  throws KafkaMetricException {
@@ -274,9 +282,27 @@ public class KafkaProducerClient extends AbstractKafkaClient {
             this.kafkaProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, getSerializer(valueClass));
         }
     }
+    
+    @SuppressWarnings({ "rawtypes" })
+    /**
+     * Sends a producer record with the default callback
+     * @param record the producer record
+     * @return the Future
+     * @throws Exception
+     */
+    protected Future<RecordMetadata> send (ProducerRecord record) throws Exception {
+        return send (record, this.callback);
+    }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
+    /**
+     * Sends a producer record with callback
+     * @param record the producer record
+     * @param cb     the callback for the send.
+     * @return the Future
+     * @throws Exception
+     */
+    protected Future<RecordMetadata> send (ProducerRecord record, Callback cb) throws Exception {
         synchronized (flushLock) {
             if (flushAfter > 0) {
                 // non-adaptive flush 
@@ -347,7 +373,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                 }
             }
         }
-        return producer.send (record, callback);
+        return producer.send (record, cb);
     }
 
     /**
@@ -376,10 +402,25 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         System.exit (1);
     }
 
-    @SuppressWarnings("rawtypes")
-    public boolean processTuple(ProducerRecord producerRecord) throws Exception {
-        send(producerRecord);
-        return true;
+    /**
+     * Processes a Producer record.
+     * 
+     * @param producerRecord  the producer record
+     * @param associatedTuple a reference to the the associated Tuple from which the producer record was created.
+     * @throws Exception
+     */
+    public void processRecord (ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception {
+        send (producerRecord);
+    }
+
+    /**
+     * processes multiple producer records associated with a single tuple.
+     * @param records  the list of records
+     * @param tuple    a reference to the the associated Tuple from which the producer records were created.
+     * @throws Exception
+     */
+    public void processRecords (List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception {
+        for (ProducerRecord<?, ?> r: records) processRecord (r, associatedTuple);
     }
 
     /**

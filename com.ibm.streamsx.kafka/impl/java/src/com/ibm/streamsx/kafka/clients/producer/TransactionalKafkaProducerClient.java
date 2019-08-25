@@ -16,6 +16,7 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
@@ -171,21 +172,12 @@ public class TransactionalKafkaProducerClient extends KafkaProducerClient {
         }
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
-    public Future<RecordMetadata> send (ProducerRecord record) throws Exception {
-        Future<RecordMetadata> future = super.send(record);
-        futuresList.add(future);
-        return future;
-    }
-
-    @SuppressWarnings({"rawtypes"})
-    @Override
-    public boolean processTuple(ProducerRecord producerRecord) throws Exception {
+    public void processRecord (ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception {
         // send always within a transaction
         checkAndBeginTransaction();
-        this.send(producerRecord);
-        return true;
+        Future<RecordMetadata> future = send (producerRecord);
+        futuresList.add(future);
     }
 
 

@@ -1,5 +1,6 @@
 package com.ibm.streamsx.kafka.operators;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -12,12 +13,16 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
+import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingInput;
+import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.metrics.Metric;
+import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.DefaultAttribute;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
@@ -27,6 +32,7 @@ import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.TransactionalKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.queuing.TrackingProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -193,6 +199,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public void setPartitionAttr(TupleAttribute<Tuple, Integer> partitionAttr) {
         this.partitionAttr = partitionAttr;
     }
+
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "producerGeneration", description = "The producer generation. When a new producer is created, a new generation is created.")
+    public void setnMalformedMessages (Metric producerGeneration) { }
 
     /*
      * Retrieving the value of a TupleAttribute parameter via OperatorContext.getParameterValues()
@@ -366,7 +375,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         KafkaOperatorProperties props = getKafkaProperties();
         if(crContext == null) {
             logger.info ("Creating KafkaProducerClient ...");
-            producer = new KafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+            if (System.getProperty ("producer.experimental", "false").equalsIgnoreCase("false")) {
+                producer = new KafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+            } else {
+                TrackingProducerClient c = new TrackingProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+                // when we want a hook for produced or failed tuples, we must set a TupleProcessedHook implementation.
+                List<StreamingOutput<OutputTuple>> outputs = getOperatorContext().getStreamingOutputs();
+                if (outputs.size() > 0) {
+                    //                    c.setTupleProcessedHook (new ErrorPortSubmitter (getOperatorContext().getStreamingOutputs().get(0)));
+                }
+                producer = c;
+            }
         } else {
             switch(consistentRegionPolicy) {
             case AtLeastOnce:
@@ -416,8 +435,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         Long timestamp = (timestampAttributeName) != null ? tuple.getLong(timestampAttributeName) : null;
 
         // send message to all topics
-        for (String topic : topicList)
-            producer.processTuple(new ProducerRecord(topic, partition, timestamp, key, value));
+        if (topicList.size() == 1) {
+            producer.processRecord (new ProducerRecord (topicList.get(0), partition, timestamp, key, value), tuple);
+        }
+        else {
+            List<ProducerRecord<?, ?>> records = new ArrayList<> (topicList.size());
+            for (String topic : topicList) records.add (new ProducerRecord (topic, partition, timestamp, key, value));
+            producer.processRecords (records, tuple);
+        }
     }
 
     private List<String> getTopics(Tuple tuple) {

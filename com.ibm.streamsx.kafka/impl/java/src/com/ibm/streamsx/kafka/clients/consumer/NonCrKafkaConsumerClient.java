@@ -42,7 +42,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
      * @param operatorContext the operator context
      * @param keyClass the key class for Kafka messages
      * @param valueClass the value class for Kafka messages
-     * @param commitCount the tuple count after which offsets are committed. This parameter is ignored when auto-commit is explicitly enabled.
      * @param kafkaProperties Kafka properties
      * @throws KafkaOperatorException 
      */

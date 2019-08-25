@@ -10,7 +10,7 @@ import java.util.Set;
  * 
  * All functions are declared throwing IOException to force the client to handle communication problems.
  * 
- * @see <a href="http://www.oracle.com/technetwork/java/javase/tech/best-practices-jsp-136021.html#mozTocId805713">JMX Best Practices by Oracle</a>.
+ * @see <a href="http://www.oracle.com/technetwork/java/javase/tech/best-practices-jsp-136021.html#mozTocId805713">JMX Best Practices by Oracle</a>
  * @author IBM Kafka toolkit maintainers
  */
 public interface CrConsumerGroupCoordinatorMXBean {
@@ -79,7 +79,7 @@ public interface CrConsumerGroupCoordinatorMXBean {
             int nRequiredDistinctContributions, Map <CrConsumerGroupCoordinator.TP, Long> partialResetOffsetMap, String operatorName) throws IOException;
 
     /**
-     * Gets the consolidated offset map that has been created by merging parts via {@link #mergeConsumerCheckpoint(long, int, Set, Map)}.
+     * Gets the consolidated offset map that has been created by merging parts via {@link #mergeConsumerCheckpoint(long, int, int, Map, String)}.
      * @param chkptSequenceId the checkpoint sequence ID.
      * @param resetAttempt the current number of attempts of resetting the CR
      * @param operatorName The unique name of the operator

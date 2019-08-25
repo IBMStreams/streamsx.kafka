@@ -442,7 +442,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     /**
      * prepares the reset by clearing queues and buffers.
      * This method is run within a runtime thread.
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareDataAfterStopPolling(Checkpoint)
      */
     @Override
     public void resetPrepareDataAfterStopPolling (Checkpoint checkpoint) throws InterruptedException {

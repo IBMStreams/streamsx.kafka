@@ -252,14 +252,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * Processes JMX notifications from the CrGroupCoordinator MXBean.
      * The JMX notification is fired by the MXBean when the MXBean considers the group's checkpoint complete.
      * This is triggered by any operator instance of the consumer group that contributes to the group's checkpoint by
-     * calling {@link CrConsumerGroupCoordinatorMXBean#mergeConsumerCheckpoint(long, Set, Map)}.
+     * calling {@link CrConsumerGroupCoordinatorMXBean#mergeConsumerCheckpoint(long, int, int, Map, String)}.
      * <br><br>
-     * When one of the consumers has no partitions assigned at checkpoint time, for example, when we have more consumers in the
-     * group than Kafka partitions, this consumers checkpoint does not contribute to the group's checkpoint on reset.
-     * Then the other operator instances (which had partitions) only contribute to the checkpoint and cause the MXBean to fire the
-     * 'merge complete' notification. An operator that does not contribute to the group's checkpoint can therefore receive
-     * the notification at any time during its reset phase, perhaps also before {@link #processResetEvent(Checkpoint)} has been invoked.
-     * Therefore, the implementation of {@link #handleNotification(Notification, Object)} must not expect a particular client state to succeed.
+     * When we have more consumers than topic partitions, it is obvious that not all operator checkpoints contribute to
+     * the group's checkpoint. We should take into account that {@link #handleNotification(Notification, Object)} can 
+     * be called at any time. The decision, when a group's checkpoint is complete (and therefore when the JMX 
+     * notification is fired) is up to the MXBean implementation. An operator that does not contribute to the 
+     * group's checkpoint can (in theory) therefore receive the notification at any time during its reset phase, 
+     * perhaps also before {@link #processResetEvent(Checkpoint)} has been invoked.
      * 
      * @see javax.management.NotificationListener#handleNotification(javax.management.Notification, java.lang.Object)
      */
@@ -902,7 +902,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     /**
      * creates the seek offset map.
      * This method is run within a runtime thread.
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareData(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractCrKafkaConsumerClient#resetPrepareDataBeforeStopPolling(Checkpoint)
      */
     @Override
     public void resetPrepareDataBeforeStopPolling (Checkpoint checkpoint) throws InterruptedException {
@@ -961,14 +961,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     /**
      * The seek offsets are created with following algorithm from the checkpoint:
      * <ul>
-     * <li>clear the operator internal message queue</li>
-     * <li>restore 'assignablePartitions' from the checkpoint.
-     *     This is the sum of all topic partitions the consumer group consumed at checkpoint time.</li>
+     * <li>read the contributing operator names from the checkpoint (operator names of the consumer group)
      * <li>read the seek offsets from the checkpoint.
      *     These are the offsets of only those partitions the consumer was assigned at checkpoint time.</li>
-     * <li>send the offsets of the prior partitions together with the 'assignablePartitions' to the CrGroupCoordinator MXBean.
-     *     The other consumer operators will also send their prior partition-to-offset mappings.</li>
-     * <li>wait for the JMX notification that the partition-to-offset map has merged to match 'assignablePartitions'</li>
+     * <li>send the offsets of the prior partitions together with the number of operators and the own operator name to the CrGroupCoordinator MXBean.
+     *     The other consumer operators will also send their prior partition-to-offset mappings, and and their dsitinct operator name.</li>
+     * <li>wait for the JMX notification that the partition-to-offset map has merged</li>
      * <li>fetch the merged map from the MX bean so that the operator has the seek offsets of all partitions of
      *     all topics (the group's view) and store this in the 'seekOffsetMap' member variable.</li>
      * </ul>
@@ -1013,7 +1011,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
 
             trace.info (MessageFormat.format ("Merging my group''s checkpoint contribution: partialOffsetMap = {0}, myOperatorName = {1}",
-                    partialOffsetMap,operatorName));
+                    partialOffsetMap, operatorName));
             this.crGroupCoordinatorMxBean.mergeConsumerCheckpoint (chkptSeqId, resetAttempt, contributingOperators.size(), partialOffsetMap, operatorName);
 
             // check JMX notification and wait for notification

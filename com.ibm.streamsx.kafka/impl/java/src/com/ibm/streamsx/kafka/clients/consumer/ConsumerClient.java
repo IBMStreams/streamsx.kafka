@@ -170,7 +170,7 @@ public interface ConsumerClient {
 
     /**
      * Returns true when the consumer client is started and can process events.
-     * @return
+     * @return true when the consumer client is started and can process events
      */
     boolean isProcessing();
 

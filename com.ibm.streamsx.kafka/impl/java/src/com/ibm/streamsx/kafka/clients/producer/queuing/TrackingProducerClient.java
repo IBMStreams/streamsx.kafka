@@ -278,7 +278,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.ClientCallback#tupleFailedFinally(long, java.lang.Exception)
+     * @see com.ibm.streamsx.kafka.clients.producer.queuing.ClientCallback#tupleFailedFinally(long, Set, Exception)
      */
     @Override
     public void tupleFailedFinally (long seqNumber, Set<String> failedTopics, Exception lastException) {

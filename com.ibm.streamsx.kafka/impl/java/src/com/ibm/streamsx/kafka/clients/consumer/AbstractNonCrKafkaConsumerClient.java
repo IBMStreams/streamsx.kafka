@@ -499,7 +499,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
 
     /**
      * Checks if a JobControlPlane can be used after {@link #tryConnectJobControlPlane(long)} has been invoked.
-     * @return 
+     * @return true, when the JobControlPlain could be connected, false otherwise.
      */
     protected boolean canUseJobControlPlane() {
         return jcpConnected.get();

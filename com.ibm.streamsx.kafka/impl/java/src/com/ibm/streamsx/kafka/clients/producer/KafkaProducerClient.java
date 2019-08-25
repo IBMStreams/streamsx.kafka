@@ -416,7 +416,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     /**
      * processes multiple producer records associated with a single tuple.
      * @param records  the list of records
-     * @param tuple    a reference to the the associated Tuple from which the producer records were created.
+     * @param associatedTuple reference to the the associated Tuple from which the producer records were created.
      * @throws Exception
      */
     public void processRecords (List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception {

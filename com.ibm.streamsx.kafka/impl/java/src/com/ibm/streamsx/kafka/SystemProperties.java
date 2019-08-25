@@ -89,7 +89,7 @@ public class SystemProperties {
     /**
      * The factor by which 'max.poll.records' is multiplied as a threshold for memory check before fetch
      * @param defaultValue the default value returned when the property {@value #KAFKA_MEM_CHECK_THRESHOLD} is not set or the property cannot be parsed to a positive integer.
-     * @return
+     * @return the number, by which 'max.poll.records' is multiplied as threshold
      */
     public static int getMemoryCheckThresholdMultiplier (int defaultValue) {
         final String prop = System.getProperty (KAFKA_MEM_CHECK_THRESHOLD);

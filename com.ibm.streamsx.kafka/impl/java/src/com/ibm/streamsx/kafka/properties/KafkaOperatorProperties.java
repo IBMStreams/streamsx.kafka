@@ -43,7 +43,7 @@ public class KafkaOperatorProperties extends Properties {
 
     /**
      * Expands the {@value #TOKEN_APP_DIR} token by the given application directory in all property values.
-     * @param applicationDdirectory The replacement for the token
+     * @param applicationDirectory The replacement for the token
      */
     public void expandApplicationDirectory (final String applicationDirectory) {
         Set <String> keys = this.stringPropertyNames();

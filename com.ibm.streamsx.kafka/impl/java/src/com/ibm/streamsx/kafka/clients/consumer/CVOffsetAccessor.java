@@ -68,7 +68,7 @@ public class CVOffsetAccessor {
      *     If it is not -1, cache the offset for the partition and return true.
      *     if the read value is -1, the CV could be successfully created. Return false
      * </ul>
-     * @see #saveOffset(TopicPartition, long)
+     * @see #saveOffset(TopicPartition, long, boolean)
      * @param tp the topic partition
      * @return true, if there is an initial offset for the partition, false otherwise
      * @throws InterruptedException Thread interrupted syncing the CV 

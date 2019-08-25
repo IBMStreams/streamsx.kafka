@@ -350,7 +350,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#isAssignedToTopics()
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#isSubscribedOrAssigned()
      */
     @Override
     public boolean isSubscribedOrAssigned() {

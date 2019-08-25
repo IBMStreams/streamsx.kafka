@@ -93,7 +93,7 @@ public abstract class AbstractCustomMetricReporter implements MetricsReporter {
     /**
      * creates a custom metric if it is not yet present.
      * The custom metric name is created using {@link #createCustomMetricName(MetricName)}.
-     * @param metricName The name of the Kafka metric
+     * @param metric The name of the Kafka metric
      */
     private void tryCreateCustomMetric (final Metric metric) {
         final MetricName metricName = metric.metricName();

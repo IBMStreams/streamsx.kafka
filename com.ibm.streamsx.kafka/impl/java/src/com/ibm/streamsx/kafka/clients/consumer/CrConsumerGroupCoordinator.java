@@ -139,7 +139,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
      * @param nRequiredDistinctContributions the number of expected distinct contributions for merge completeness
      * @param partialResetOffsetMap the partial set of offsets being partialResetOffsetMap.keySet() typically a subset of allPartitions.
      * @param operatorName The unique name of the operator
-     * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#mergeConsumerCheckpoint(long, int, Set, Map)
+     * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#mergeConsumerCheckpoint(long, int, int, Map, String)
      */
     @Override
     public void mergeConsumerCheckpoint (long chkptSequenceId, int resetAttempt, int nRequiredDistinctContributions,
@@ -179,12 +179,12 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
 
 
     /**
-     * Gets the consolidated offset map that has been created by merging parts via {@link #mergeConsumerCheckpoint(long, int, Set, Map)}.
+     * Gets the consolidated offset map that has been created by merging parts via {@link #mergeConsumerCheckpoint(long, int, int, Map, String)}.
      * @param chkptSequenceId the checkpoint sequence ID.
      * @param resetAttempt the current number of attempts of resetting the CR
      * @param operatorName The unique name of the operator
      * @return the consolidated map that maps topic partitions to offsets
-     * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#getConsolidatedOffsetMap()
+     * @see com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinatorMXBean#getConsolidatedOffsetMap(long, int, String)
      */
     public Map<CrConsumerGroupCoordinator.TP, Long> getConsolidatedOffsetMap (long chkptSequenceId, int resetAttempt, String operatorName) {
         MergeKey mergeKey = new MergeKey (chkptSequenceId, resetAttempt);

@@ -157,7 +157,7 @@ public class RecordProduceAttempt {
 
     /**
      * Returns the destination topic for the producer record.
-     * @return
+     * @return the destination topic of the record 
      */
     public String getTopic() {
         return topic;

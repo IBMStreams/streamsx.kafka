@@ -41,9 +41,9 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      * @param operatorContext the operator context
      * @param keyClass the key class for Kafka messages
      * @param valueClass the value class for Kafka messages
-     * @param commitCount the tuple count after which offsets are committed. This parameter is ignored when auto-commit is explicitly enabled.
      * @param kafkaProperties Kafka properties
-     * @param nTopics the number of subscribed topics
+     * @param singleTopic set to true, when the client subscribes to a single topic.
+     *                    It affects the 'partition.assignment.strategy' consumer property.
      * @throws KafkaOperatorException 
      */
     private <K, V> NonCrKafkaConsumerGroupClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,

@@ -203,7 +203,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "producerGeneration", description = "The producer generation. When a new producer is created, a new generation is created.")
     public void setnMalformedMessages (Metric producerGeneration) { }
 
-    /*
+    /**
      * Retrieving the value of a TupleAttribute parameter via OperatorContext.getParameterValues()
      * returns a string in the form "InputPortName.AttributeName". However, this ends up being the
      * C++ equivalent String, which looks like: "iport$0.get_myAttr()". 
@@ -215,7 +215,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         return attrString.split("_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
     }
 
-    /*
+    /**
      * If the `partitionAttribute` is not defined, then the operator will look
      * for an input attribute called "partition". Here, we need to check that this
      * input attribute is of type "int32". 
@@ -290,10 +290,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                     // "topic" input attribute does not exist...set invalid context
                     checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
                 }
+                // TODO: validate type of topicAttribute (RSTRING, BSTRING, USTRING)
             }
         }
     }
 
+    // TODO: add schema check for optional output port
+    
     @ContextCheck(compile = true)
     public static void checkConsistentRegion(OperatorContextChecker checker) {
 
@@ -382,7 +385,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                 // when we want a hook for produced or failed tuples, we must set a TupleProcessedHook implementation.
                 List<StreamingOutput<OutputTuple>> outputs = getOperatorContext().getStreamingOutputs();
                 if (outputs.size() > 0) {
-                    //                    c.setTupleProcessedHook (new ErrorPortSubmitter (getOperatorContext().getStreamingOutputs().get(0)));
+                    c.setTupleProcessedHook (new ErrorPortSubmitter (getOperatorContext()));
                 }
                 producer = c;
             }

@@ -1,8 +1,11 @@
 package com.ibm.streamsx.kafka.operators;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -13,14 +16,13 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
-import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingInput;
-import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.meta.TupleType;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.DefaultAttribute;
@@ -72,6 +74,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     private boolean guaranteeOrdering = false;
     private int flush = 0;
+    private ErrorPortSubmitter errorPortSubmitter = null;
 
     @Parameter (optional = true, name = FLUSH_PARAM_NAME,
             description = "Specifies the number of tuples, after which the producer is flushed. When not specified, "
@@ -233,6 +236,57 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
     }
 
+    /**
+     * When output port is supported in CR, remove this contect check.
+     * @param checker
+     */
+    @ContextCheck(compile = true)
+    public static void checkErrorPortInConsistentRegion (OperatorContextChecker checker) {
+        final OperatorContext opCtx = checker.getOperatorContext();
+        final int nOPorts = opCtx.getNumberOfStreamingOutputs();
+
+        if (opCtx.getOptionalContext (ConsistentRegionContext.class) != null && nOPorts > 0) {
+            checker.setInvalidContext (MessageFormat.format ("The ''{0}'' operator does not support the error port when used in a consistent region.", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+        }
+    }
+
+    @ContextCheck(compile = true)
+    public static void checkErrorPortSchema (OperatorContextChecker checker) {
+        final OperatorContext opCtx = checker.getOperatorContext();
+        final int nOPorts = opCtx.getNumberOfStreamingOutputs();
+        if (nOPorts == 0) return;
+
+        StreamSchema inPortSchema = opCtx.getStreamingInputs().get(0).getStreamSchema();
+        StreamSchema outSchema = opCtx.getStreamingOutputs().get(0).getStreamSchema();
+        if (outSchema.getAttributeCount() > 2) {
+            checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+        }
+        // check attribute types
+        int nTupleAttrs = 0;
+        int nStringAttrs = 0;
+        for (String outAttrName: outSchema.getAttributeNames()) {
+            Attribute attr = outSchema.getAttribute (outAttrName);
+            MetaType metaType = attr.getType().getMetaType();
+            switch (metaType) {
+            case TUPLE:
+                ++nTupleAttrs;
+                TupleType tupleType = (TupleType) attr.getType();
+                StreamSchema tupleSchema = tupleType.getTupleSchema();
+                if (!tupleSchema.equals (inPortSchema)) {
+                    checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+                }
+                break;
+            case RSTRING:
+            case USTRING:
+                ++nStringAttrs;
+                break;
+            default:
+                checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+            }
+        }
+        if (nTupleAttrs > 1 || nStringAttrs > 1)
+            checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+    }
 
     @ContextCheck(runtime = true, compile = false)
     public static void checkAttributes(OperatorContextChecker checker) {
@@ -290,13 +344,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                     // "topic" input attribute does not exist...set invalid context
                     checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
                 }
-                // TODO: validate type of topicAttribute (RSTRING, BSTRING, USTRING)
+                Set<MetaType> allowedTopicMTypes = new HashSet<>(Arrays.asList(
+                        MetaType.RSTRING, MetaType.BSTRING, MetaType.USTRING
+                        ));
+                if (!allowedTopicMTypes.contains (topicAttribute.getType().getMetaType())) {
+                    checker.setInvalidContext(Messages.getString("TOPIC_ATTRIBUTE_NOT_STRING"), new Object[0]);
+                }
             }
         }
     }
 
-    // TODO: add schema check for optional output port
-    
+
     @ContextCheck(compile = true)
     public static void checkConsistentRegion(OperatorContextChecker checker) {
 
@@ -378,14 +436,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         KafkaOperatorProperties props = getKafkaProperties();
         if(crContext == null) {
             logger.info ("Creating KafkaProducerClient ...");
-            if (System.getProperty ("producer.experimental", "false").equalsIgnoreCase("false")) {
+            if (System.getProperty ("producer.experimental", "false").equalsIgnoreCase("false") && getOperatorContext().getNumberOfStreamingOutputs() == 0) {
                 producer = new KafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
             } else {
                 TrackingProducerClient c = new TrackingProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
                 // when we want a hook for produced or failed tuples, we must set a TupleProcessedHook implementation.
-                List<StreamingOutput<OutputTuple>> outputs = getOperatorContext().getStreamingOutputs();
-                if (outputs.size() > 0) {
-                    c.setTupleProcessedHook (new ErrorPortSubmitter (getOperatorContext()));
+                if (getOperatorContext().getNumberOfStreamingOutputs() > 0) {
+                    this.errorPortSubmitter = new ErrorPortSubmitter (getOperatorContext());
+                    c.setTupleProcessedHook (this.errorPortSubmitter);
                 }
                 producer = c;
             }
@@ -420,7 +478,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         OperatorContext context = getOperatorContext();
         logger.trace("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
-
+        if (this.errorPortSubmitter != null) this.errorPortSubmitter.start();
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -478,6 +536,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
         producer.flush();
         producer.close (KafkaProducerClient.CLOSE_TIMEOUT_MS);
+        if (this.errorPortSubmitter != null) this.errorPortSubmitter.stop();
 
         // Must call super.shutdown()
         super.shutdown();

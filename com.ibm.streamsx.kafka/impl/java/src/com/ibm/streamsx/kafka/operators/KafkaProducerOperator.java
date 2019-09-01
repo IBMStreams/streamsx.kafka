@@ -4,11 +4,45 @@ package com.ibm.streamsx.kafka.operators;
 import com.ibm.streams.operator.model.Icons;
 import com.ibm.streams.operator.model.InputPortSet;
 import com.ibm.streams.operator.model.InputPorts;
+import com.ibm.streams.operator.model.OutputPortSet;
+import com.ibm.streams.operator.model.OutputPortSet.WindowPunctuationOutputMode;
+import com.ibm.streams.operator.model.OutputPorts;
 import com.ibm.streams.operator.model.PrimitiveOperator;
 
 @PrimitiveOperator(name = "KafkaProducer", namespace = "com.ibm.streamsx.kafka", description = KafkaProducerOperator.DESC)
-@InputPorts({ @InputPortSet(description = "This port consumes tuples to be written to the Kafka topic(s). Each tuple received on "
-        + "this port will be written to the Kafka topic(s).", cardinality = 1, optional = false) })
+@InputPorts({
+    @InputPortSet(description = "This port consumes tuples to be written to the Kafka topic(s). Each tuple "
+            + "received on this port will be written to the Kafka topic(s).",
+            cardinality = 1, optional = false)})
+
+@OutputPorts({
+    @OutputPortSet(description = "This port is an optional error output port, which is currently **only supported, "
+            + "when the operator is not in a consistent region**. It produces tuples for input tuples that failed to "
+            + "get published on one or all of the specified topics. The error output port is asynchronous to the input port "
+            + "of the operator. The sequence of the produced tuples may also differ from the sequence of the input tuples. "
+            + "\\n\\n"
+            + "The schema of the output port must consist of one optional attribute of a tuple type with the same schema "
+            + "as the input port and one optional attribute of type rstring or ustring, that takes a JSON formatted description "
+            + "of the occured error. Both attributes can have any names and can occure in any sequence.\\n"
+            + "\\n"
+            + "**Example for declaring the output stream:**\\n"
+            + "\\n"
+            + "    stream <I failedTuple, rstring failure> Errors = KafkaProducer (Data as I) {\\n"
+            + "        ...\\n"
+            + "    }\\n"
+            + ""
+            + "**Example of the failure description**, which would go into the *failure* attribute above:\\n"
+            + "\\n"
+            + "    {\\n"
+            + "        \\\"failedTopics\\\":[\\\"topic1\\\"],\\n"
+            + "        \\\"lastExceptionType\\\":\\\"org.apache.kafka.common.errors.TopicAuthorizationException\\\",\\n"
+            + "        \\\"lastFailure\\\":\\\"Not authorized to access topics: [topic1]\\\"\\n"
+            + "    }\\n"
+            + ""
+            + "Please note that the generated JSON dows not contain line breaks as in the example above, where the JSON has "
+            + "been broken into multiple lines to better show its structure.",
+            cardinality = 1, optional = true, windowPunctuationOutputMode = WindowPunctuationOutputMode.Free)})
+
 @Icons(location16 = "icons/KafkaProducer_16.gif", location32 = "icons/KafkaProducer_32.gif")
 public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
 

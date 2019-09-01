@@ -35,7 +35,8 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     private int tupleAttrIndex = -1;
     private int stringAttrIndex = -1;
     private final BlockingQueue<OutputTuple> outQueue;
-    private final Thread tupleSubmitter;
+    private boolean isRunning = false;
+    private Thread tupleSubmitter;
     private final OperatorContext opCtxt;
 
     /**
@@ -44,7 +45,7 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     private class TupleSubmitter implements Runnable {
         @Override
         public void run() {
-            while (!tupleSubmitter.isInterrupted()) {
+            while (isRunning && !tupleSubmitter.isInterrupted()) {
                 try {
                     OutputTuple oTuple = outQueue.take();
                     out.submit(oTuple);
@@ -73,8 +74,6 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
         //        this.stringAttrIndex = stringAttrIndex;
         this.outQueue = new LinkedBlockingQueue<> (OUTPUT_QUEUE_CAPACITY);
         this.opCtxt = opContext;
-        this.tupleSubmitter = opCtxt.getThreadFactory().newThread (new TupleSubmitter());
-        this.tupleSubmitter.start();
         StreamSchema inPortSchema = opContext.getStreamingInputs().get(0).getStreamSchema();
         StreamSchema outSchema = out.getStreamSchema();
         // find the output attributes, we can assign to
@@ -106,6 +105,23 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     }
 
     /**
+     * ends the tuple submitter thread 
+     */
+    public void stop() {
+        isRunning = false;
+    }
+
+    /**
+     * creates a thread and starts the thread that reads the outgoing queue and submits tuples.
+     */
+    public void start() {
+        stop();
+        this.tupleSubmitter = opCtxt.getThreadFactory().newThread (new TupleSubmitter());
+        isRunning = true;
+        this.tupleSubmitter.start();
+    }
+
+    /**
      * Empty implementation.
      * @see com.ibm.streamsx.kafka.clients.producer.queuing.TupleProcessedHook#onTupleProduced(com.ibm.streams.operator.Tuple)
      */
@@ -130,7 +146,7 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
                 trace.error ("Output port queue congested (size = " + OUTPUT_QUEUE_CAPACITY + "). Output tuple discarded.");
             }
         } catch (InterruptedException e) {
-            trace.warn ("Interrupted inserting tuple into output queue. Output tuple discarded.");
+            trace.info ("Interrupted inserting tuple into output queue. Output tuple discarded.");
         }
     }
 }

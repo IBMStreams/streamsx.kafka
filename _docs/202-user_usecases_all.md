@@ -35,7 +35,7 @@ When **no group identifier is given**, the operator self-assignes to all partiti
 # Guaranteed processing
 
 * Consistent region: Supported (periodic and operator driven)
-* Checkpointing via `config checkpoint`: Not supported
+* Checkpointing via `config checkpoint`: Supported, but ignored. The operator does not save any data.
 
 When the operator is used in a consistent region, at least once processing through the Streams application is guaranteed.
 Without a consistent region, tuples can get lost within the Streams application when a PE restarts.

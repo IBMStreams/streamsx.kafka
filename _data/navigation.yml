@@ -24,23 +24,33 @@ userdocs:
     children:
       - title: "Overview"
         url: /docs/user/overview
+
+#      - title: "Redhat AMQ Streams"
+#        url: /docs/user/UsingRHAmqStreams
+
       - title: "SPL Doc"
         url: /docs/user/SPLDoc
+
       - title: "Migration from streamsx.messaging toolkit"
         url: /docs/user/migration_from_messaging
+
       - title: "Kafka toolkit v1 versus v2"
         url: /docs/user/kafka_toolkit_1_vs_2
+
       - title: "KafkaConsumer Design"
         url: /docs/user/KafkaConsumerDesign
+
       - title: "Consuming big messages"
         url: /docs/user/ConsumingBigMessages
+
       - title: "Consumer Groups in a consistent region"
         url: /docs/user/ConsumerGroupConsistentRegion
+
       - title: "KafkaProducer Design"
         url: /docs/user/KafkaProducerDesign
+
       - title: "Debugging SSL issues"
         url: /docs/user/debugging_ssl_issues
-
 
 # developer documentation links
 developerdocs:
@@ -48,14 +58,19 @@ developerdocs:
     children:
       - title: "Overview"
         url: /docs/developer/overview
+
       - title: "New Feature Checklist"
         url: /docs/developer/new_feature_checklist
+
       - title: "Release Process"
         url: /docs/developer/release_process
+
       - title: "SPLDoc Process"
         url: /docs/developer/spldoc_process
+
       - title: "Testing"
         url: /docs/developer/testing
+
       - title: "Useful console commands"
         url: /docs/developer/useful_commands
 

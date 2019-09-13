@@ -2,7 +2,7 @@
 title: "Usecase: Assigned Partitions"
 permalink: /docs/user/UsecaseAssignedPartitions/
 excerpt: "How to use this toolkit."
-last_modified_at: 2018-10-17T12:37:48+01:00
+last_modified_at: 2019-09-13T08:10:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -89,7 +89,7 @@ param
     expression <int32> $nPartitions: (int32) getSubmissionTimeValue ("nPartitions", "3");
 graph
     () as JCP = JobControlPlane() {}
-    
+
     @consistent (trigger = operatorDriven/*periodic, period = 60.0*/)
     @parallel (width = $nPartitions)
     () as PartitionChannel = SinglePartitionConsumer() {
@@ -107,7 +107,7 @@ param
 graph
     stream <rstring json> Messages = KafkaConsumer() {
         param
-            propertiesFile: getThisToolkitDir() + "/etc/consumer.properties";
+            propertiesFile: "etc/consumer.properties";
             topic: $topic;
             partition: $partition;
             triggerCount: 1000;
@@ -122,7 +122,7 @@ graph
 
 ## Consume six partitions with 2-to-1 relation
 
-The below example assigns a number of partitions, here 6, to a number of consumers, each one in a parallel channel, where each consumer takes two partitions. 
+The below example assigns a number of partitions, here 6, to a number of consumers, each one in a parallel channel, where each consumer takes two partitions.
 ```
 public composite Assigned6Partitions {
 param
@@ -133,7 +133,7 @@ graph
         param
             topic: "myTopic";
             partition1: getChannel() *2;
-            partition2: getChannel() *2 + (getChannel() *2 +1 > $nPartitions -1? 0: 1);
+            partition2: getChannel() *2 + ((getChannel() *2 +1) > ($nPartitions -1)? 0: 1);
         config placement: partitionExlocation ("A");
     }
 }
@@ -146,7 +146,7 @@ param
 graph
     stream <rstring json> Messages = KafkaConsumer() {
         param
-            propertiesFile: getThisToolkitDir() + "/etc/consumer.properties";
+            propertiesFile: "etc/consumer.properties";
             topic: $topic;
             partition: $partition1, $partition2;
             outputMessageAttributeName: "json";

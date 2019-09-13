@@ -2,7 +2,7 @@
 title: "Usecase: Consume All Partitions"
 permalink: /docs/user/UsecaseAllPartitions/
 excerpt: "How to use this toolkit."
-last_modified_at: 2018-10-17T12:37:48+01:00
+last_modified_at: 2019-09-13T08:35:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -23,7 +23,7 @@ Without a partition specification, the operator will consume from all partitions
 * The broker node being the group coordinator goes down
 * Meta data of the subscribed topic changes, for example the number of partitions
 
-Partition re-assignment makes the consumer replay Kafka messages beginning with last committed offsets. 
+Partition re-assignment makes the consumer replay Kafka messages beginning with last committed offsets.
 
 When **no group identifier is given**, the operator self-assignes to all partitions of the topic. When new partitions are added to the topic, the PE that contains the operator must be restarted to read also added partitions.
 
@@ -49,7 +49,7 @@ No assignment of partitions is configured through the **partition** operator par
 ```
     stream <rstring json> Messages = KafkaConsumer() {
         param
-            propertiesFile: getThisToolkitDir() + "/etc/consumer.properties";
+            propertiesFile: "etc/consumer.properties";
             topic: "myTopic";
             outputMessageAttributeName: "json";
     }
@@ -58,11 +58,11 @@ No assignment of partitions is configured through the **partition** operator par
 ## Consume keyed messages within an operator driven consistent region
 ```
     () as JCP = JobControlPlane() {}
-    
+
     @consistent (trigger = operatorDriven)
     stream <rstring json, rstring messageKey> Messages = KafkaConsumer() {
         param
-            propertiesFile: getThisToolkitDir() + "/etc/consumer.properties";
+            propertiesFile: "etc/consumer.properties";
             topic: "myTopic";
             outputMessageAttributeName: "json";
             outputKeyAttributeName: "messageKey";
@@ -74,11 +74,11 @@ No assignment of partitions is configured through the **partition** operator par
 ## Consume keyed messages within a periodic consistent region
 ```
     () as JCP = JobControlPlane() {}
-    
+
     @consistent (trigger = periodic, period = 60.0)
     stream <rstring message, rstring key> Messages = KafkaConsumer() {
         param
-            propertiesFile: getThisToolkitDir() + "/etc/consumer.properties";
+            propertiesFile: "etc/consumer.properties";
             topic: "myTopic";
     }
 ```

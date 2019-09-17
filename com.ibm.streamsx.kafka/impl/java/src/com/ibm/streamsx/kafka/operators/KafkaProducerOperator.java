@@ -16,12 +16,11 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             cardinality = 1, optional = false)})
 
 @OutputPorts({
-    @OutputPortSet(description = "This port is an optional error output port, which is currently **only supported, "
-            + "when the operator is not in a consistent region**. It produces tuples for input tuples that failed to "
+    @OutputPortSet(description = "This port is an optional error output port. It produces tuples for input tuples that failed to "
             + "get published on one or all of the specified topics. The error output port is asynchronous to the input port "
             + "of the operator. The sequence of the produced tuples may also differ from the sequence of the input tuples. "
             + "\\n\\n"
-            + "The schema of the output port must consist of one optional attribute of a tuple type with the same schema "
+            + "The schema of the output port must consist of one optional attribute of tuple type with the same schema "
             + "as the input port and one optional attribute of type rstring or ustring, that takes a JSON formatted description "
             + "of the occured error. Both attributes can have any names and can occure in any sequence.\\n"
             + "\\n"

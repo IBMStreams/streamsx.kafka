@@ -3,6 +3,8 @@ package com.ibm.streamsx.kafka.operators;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
@@ -38,6 +40,9 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     private boolean isRunning = false;
     private Thread tupleSubmitter;
     private final OperatorContext opCtxt;
+    private final Object queueMonitor = new Object();
+    private final AtomicInteger nQt = new AtomicInteger();
+    private final AtomicBoolean reset = new AtomicBoolean (false);
 
     /**
      * Runnable target for the tuple submission.
@@ -45,15 +50,26 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     private class TupleSubmitter implements Runnable {
         @Override
         public void run() {
-            while (isRunning && !tupleSubmitter.isInterrupted()) {
+            while (isRunning) {
+                OutputTuple oTuple;
                 try {
-                    OutputTuple oTuple = outQueue.take();
-                    out.submit(oTuple);
+                    oTuple = outQueue.take();
                 } catch (InterruptedException e) {
-                    trace.info ("Tuple submitter interrupted. Thread ended");
-                    return;
+                    continue;
+                }
+                // here we have taken a tuple and MUST decrement nQt.
+                try {
+                    if (!reset.get()) out.submit(oTuple);
                 } catch (Exception e) {
                     trace.error ("Failed to submit tuple: " + e);
+                    continue;
+                }
+                finally {
+                    if (nQt.decrementAndGet() == 0) {
+                        synchronized (queueMonitor) {
+                            queueMonitor.notifyAll();
+                        }
+                    }
                 }
             }
             trace.info ("Tuple submitter thread ended");
@@ -129,6 +145,28 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     public void onTupleProduced (Tuple tuple) { }
 
     /**
+     * ensure that the hook has processed everything
+     */
+    public void flush() {
+        synchronized (queueMonitor) {
+            try {
+                while (this.nQt.get() > 0) {
+                    queueMonitor.wait();
+                }
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
+
+    public void reset() {
+        reset.set (true);
+        //        if (tupleSubmitter != null) tupleSubmitter.interrupt();
+        flush();
+        reset.set (false);
+    }
+
+    /**
      * Creates the error output tuple and places it into a queue.
      * 
      * @see com.ibm.streamsx.kafka.clients.producer.queuing.TupleProcessedHook#onTupleFailed(com.ibm.streams.operator.Tuple, com.ibm.streamsx.kafka.clients.producer.queuing.FailureDescription)
@@ -142,8 +180,14 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
         if (stringAttrIndex >= 0)
             outTuple.setString (stringAttrIndex, failureJson);
         try {
+            this.nQt.incrementAndGet();
             if (!outQueue.offer (outTuple, OUT_QUEUE_OFFER_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
                 trace.error ("Output port queue congested (size = " + OUTPUT_QUEUE_CAPACITY + "). Output tuple discarded.");
+                if (this.nQt.decrementAndGet() == 0) {
+                    synchronized (queueMonitor) {
+                        queueMonitor.notifyAll();
+                    }
+                }
             }
         } catch (InterruptedException e) {
             trace.info ("Interrupted inserting tuple into output queue. Output tuple discarded.");

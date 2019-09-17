@@ -53,6 +53,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private AtomicReference<MetricName> outGoingByteRateMName = new AtomicReference<>();
     private AtomicReference<MetricName> recordQueueTimeMaxMName = new AtomicReference<>();
     private int flushAfter = 0;
+    private boolean closed = false;
     private long nRecords = 0l;
     private long bufferUseThreshold = -1;
     private double expSmoothedFlushDurationMs = 0.0;
@@ -139,6 +140,15 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         compressionEnabled = !this.kafkaProperties.getProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "none").trim().equalsIgnoreCase("none");
         producerGenerationMetric = operatorContext.getMetrics().getCustomMetric("producerGeneration");
         createProducer();
+    }
+
+    /**
+     * Returns true, when {@link #close(long)} has been called.
+     * The true state can be returned before close() has finished.
+     * @return true, when the producer client has been closed, false otherwise.
+     */
+    public final boolean isClosed() {
+        return closed;
     }
 
     protected final synchronized void createProducer() {
@@ -383,14 +393,19 @@ public class KafkaProducerClient extends AbstractKafkaClient {
      * @throws InterruptedException. If flush is interrupted, an InterruptedException is thrown.
      */
     public void flush() {
-        logger.trace("Flushing..."); //$NON-NLS-1$
+        logger.trace ("Flushing ..."); //$NON-NLS-1$
         synchronized (flushLock) {
             producer.flush();
         }
     }
 
+    /**
+     * closes the KafkaProducer, so that it releases all resources and stops the metrics fetcher.
+     * @param timeoutMillis
+     */
     public void close (long timeoutMillis) {
-        logger.trace("Closing..."); //$NON-NLS-1$
+        logger.trace ("Closing ..."); //$NON-NLS-1$
+        closed = true;
         this.metricsFetcher.stop();
         producer.close (Duration.ofMillis (timeoutMillis));
     }

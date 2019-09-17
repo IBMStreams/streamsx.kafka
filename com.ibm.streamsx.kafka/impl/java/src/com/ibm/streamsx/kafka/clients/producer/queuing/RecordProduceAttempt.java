@@ -105,7 +105,8 @@ public class RecordProduceAttempt {
 
 
     /**
-     * @return the future
+     * Returns the Future of the asynchronous send task.
+     * @return the future. Note, that the Future is null when the records are not yet sent.
      */
     public Future<RecordMetadata> getFuture() {
         return future;

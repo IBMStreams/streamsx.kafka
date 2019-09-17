@@ -1,5 +1,6 @@
 package com.ibm.streamsx.kafka.clients.producer.queuing;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +20,8 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.metrics.Metric;
+import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -26,7 +29,8 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  * This producer client queues and tracks incoming tuples, i.e. calls to {@link #send(org.apache.kafka.clients.producer.ProducerRecord, Tuple)},
  * until they are acknowledged via their associated callback. The {@link #processRecord(ProducerRecord, Tuple)} and {@link #processRecords(List, Tuple)} 
  * calls may block when the incoming queue exceeds a limit. On Exception received in the callback,
- * the queued producer record is retried with a new generation of a KafkaProducer instance.
+ * the queued producer record is retried with a new generation of a KafkaProducer instance when not in consistent region. When in
+ * consistent region, the region is reset.
  * 
  * @author IBM Kafka toolkit team
  * @since toolkit version 2.2
@@ -41,6 +45,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     private static final int MAX_PRODUCER_GENERATIONS_FOR_SEND = 3;
 
     private int producerGeneration = 0;
+    private int maxPendingTuples = MAX_NUM_PENDING_TUPLES;
     private AtomicBoolean recoveryInProgress = new AtomicBoolean (false);
     private Map <Long, TupleProcessing> pendingTuples = new HashMap<>();
     private Object pendingTuplesMonitor = new Object();
@@ -50,6 +55,9 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     private Metric nPendingTuples;
     private Metric nFailedTuples;
     private Metric nQueueFullPause;
+    private final ConsistentRegionContext crContext;
+    private AtomicBoolean resetInitiatedOnce = new AtomicBoolean (false);
+    private final boolean inConsistentRegion;
     private TupleProcessedHook tupleProcessedHook = null;
 
     /**
@@ -64,43 +72,66 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
             boolean guaranteeRecordOrder, KafkaOperatorProperties kafkaProperties) throws Exception {
         super (operatorContext, keyClass, valueClass, guaranteeRecordOrder, kafkaProperties);
         trace.info ("constructing " + getThisClassName());
-        this.recoveryThread = operatorContext.getThreadFactory().newThread (new Runnable() {
-            @Override
-            public void run() {
-                trace.info ("Recovery thread started.");
-                try {
-                    while (!recoveryThread.isInterrupted()) {
-                        awaitRecoveryEventAndRecover();
+        this.crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
+        this.inConsistentRegion = this.crContext != null;
+        if (!inConsistentRegion) {
+            this.recoveryThread = operatorContext.getThreadFactory().newThread (new Runnable() {
+                @Override
+                public void run() {
+                    trace.info ("Recovery thread started.");
+                    try {
+                        while (!(isClosed() || recoveryThread.isInterrupted())) {
+                            awaitRecoveryEventAndRecover();
+                        }
+                    } catch (InterruptedException e) {
+                        trace.info ("Recovery thread interrupted.");
                     }
-                } catch (InterruptedException e) {
-                    trace.info ("Recovery thread interrupted.");
+                    finally {
+                        trace.info ("Recovery thread finished.");
+                    }
                 }
-                finally {
-                    trace.info ("Recovery thread finished.");
-                }
-            }
-        });
-        try {
-            this.nPendingTuples = operatorContext.getMetrics().createCustomMetric ("nPendingTuples", "Number of tuples not yet produced", Metric.Kind.GAUGE);
-        } catch (IllegalArgumentException metricExists) {
-            trace.info ("custom metric exists: " + metricExists.getMessage());
+            });
+            this.recoveryThread.start();
         }
-        try {
-            this.nQueueFullPause = operatorContext.getMetrics().createCustomMetric ("nQueueFullPause", "Number times tuple processing was paused due to full tuple queue of pending tuples.", Metric.Kind.COUNTER);
-        } catch (IllegalArgumentException metricExists) {
-            trace.info ("custom metric exists: " + metricExists.getMessage());
-        }
-        try {
-            this.nFailedTuples = operatorContext.getMetrics().createCustomMetric ("nFailedTuples", "Number of tuples that could not be fully produced", Metric.Kind.COUNTER);
-        } catch (IllegalArgumentException metricExists) {
-            trace.info ("custom metric exists: " + metricExists.getMessage());
-        }
-        this.recoveryThread.start();
+        this.nPendingTuples = operatorContext.getMetrics().getCustomMetric ("nPendingTuples");
+        this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric ("nQueueFullPause");
+        this.nFailedTuples = operatorContext.getMetrics().getCustomMetric ("nFailedTuples");
     }
 
 
     /**
-     * Sets a hook that is called whenever a tuple failed or got produced successfully, i.e. to all topics.
+     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#close(long)
+     */
+    @Override
+    public void close(long timeoutMillis) {
+        super.close (timeoutMillis);
+        if (recoveryThread != null) recoveryThread.interrupt();
+    }
+
+
+    /**
+     * Returns the number of allowed pending tuples.
+     * If not explicitly set, the value is {@value #MAX_NUM_PENDING_TUPLES}. 
+     * @return the maxPendingTuples
+     * @see #setMaxPendingTuples(int)
+     */
+    public int getMaxPendingTuples() {
+        return maxPendingTuples;
+    }
+
+
+    /**
+     * @param n the maxPendingTuples to set.
+     * If not explicitly set, the value is {@value #MAX_NUM_PENDING_TUPLES}. 
+     * @see #getMaxPendingTuples()
+     */
+    public void setMaxPendingTuples (int n) {
+        this.maxPendingTuples = n;
+    }
+
+
+    /**
+     * Sets a hook that is called whenever a tuple failed or got produced successfully, i.e. produced to all topics.
      * @param hook the Hook to set
      */
     public void setTupleProcessedHook (TupleProcessedHook hook) {
@@ -188,6 +219,12 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     @Override
     public void processRecord (ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception {
         // association record to tuple is 1-to-1
+        if (resetInitiatedOnce.get()) {
+            // if reset has been initiated by this operator,
+            // we know that the producer client implementation is replaced by a new instance.
+            // This instance does not process any tuples anymore.
+            return;
+        }
         TupleProcessing pt = new TupleProcessing (associatedTuple, producerRecord, producerGeneration, MAX_PRODUCER_GENERATIONS_FOR_SEND, this);
         try {
             waitForPermitAndSendRecords (pt);
@@ -203,6 +240,12 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     @Override
     public void processRecords (List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception {
         // association record to tuple is N-to-1
+        if (resetInitiatedOnce.get()) {
+            // if reset has been initiated by this operator,
+            // we know that the producer client implementation is replaced by a new instance.
+            // This instance does not process any tuples anymore.
+            return;
+        }
         TupleProcessing pt = new TupleProcessing (associatedTuple, records, producerGeneration, MAX_PRODUCER_GENERATIONS_FOR_SEND, this);
         try {
             waitForPermitAndSendRecords (pt);
@@ -217,7 +260,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
             trace.log (DEBUG_LEVEL, "processing tuple # " + tupleSeqNo);
         synchronized (pendingTuplesMonitor) {
             int n = 0;
-            while (pendingTuples.size() >= MAX_NUM_PENDING_TUPLES) {
+            while (pendingTuples.size() >= maxPendingTuples) {
                 if (n++ == 0) nQueueFullPause.increment();
                 pendingTuplesMonitor.wait (10000L);
             }
@@ -262,15 +305,11 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         synchronized (pendingTuples) {
             tp = pendingTuples.remove (seqNumber);
             nPendingTp = pendingTuples.size();
+            if (this.tupleProcessedHook != null && tp != null) {
+                this.tupleProcessedHook.onTupleProduced (tp.getTuple());
+            }
         }
         nPendingTuples.setValue (nPendingTp);
-        if (tp == null) {
-            // tuple already de-queued
-            return;
-        }
-        if (this.tupleProcessedHook != null) {
-            this.tupleProcessedHook.onTupleProduced (tp.getTuple());
-        }
         // notify tuple processing
         synchronized (pendingTuplesMonitor) {
             pendingTuplesMonitor.notifyAll();
@@ -289,16 +328,14 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         synchronized (pendingTuples) {
             tp = pendingTuples.remove (seqNumber);
             nPendingTp = pendingTuples.size();
+            if (tp != null) {
+                if (this.tupleProcessedHook != null) {
+                    this.tupleProcessedHook.onTupleFailed (tp.getTuple(), tp.getFailure());
+                }
+                nFailedTuples.increment();
+            }
         }
         nPendingTuples.setValue (nPendingTp);
-        if (tp == null) {
-            // tuple already de-queued
-            return;
-        }
-        nFailedTuples.increment();
-        if (this.tupleProcessedHook != null) {
-            this.tupleProcessedHook.onTupleFailed (tp.getTuple(), tp.getFailure());
-        }
         synchronized (pendingTuplesMonitor) {
             pendingTuplesMonitor.notifyAll();
         }
@@ -309,7 +346,94 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
      */
     @Override
     public void tupleFailedTemporarily (long seqNumber, Exception exception) {
-        initiateRecovery();
+        if (inConsistentRegion) {
+            initiateConsistentRegionResetOnce();
+        } else {
+            initiateRecovery();
+        }
+    }
+
+    /**
+     * Tries to cancel all send requests that are not yet done.
+     * 
+     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#tryCancelOutstandingSendRequests(boolean)
+     */
+    @Override
+    public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
+        synchronized (pendingTuples) {
+            pendingTuples.forEach ((seqNo, tp) -> {
+                tp.getPendingRecords().forEach (pr -> {
+                    Future<?> future = pr.getFuture();
+                    if (future != null && !future.isDone()) {
+                        future.cancel (mayInterruptIfRunning);
+                    }
+                });
+            });
+        }
+    }
+
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#drain()
+     */
+    @Override
+    public void drain() throws Exception {
+        if (trace.isEnabledFor (DEBUG_LEVEL)) trace.log (DEBUG_LEVEL, getThisClassName() + " -- DRAIN"); //$NON-NLS-1$
+        flush();
+        // wait that pendingTuples map gets empty ...
+        synchronized (pendingTuplesMonitor) {
+            while (true) {
+                int sz;
+                synchronized (pendingTuples) {
+                    sz = pendingTuples.size();
+                    if (sz == 0) break;
+                }
+                trace.info ("waiting to get all pending tuples processed; #tuples = " + sz);
+                pendingTuplesMonitor.wait (10000L);
+            }
+        }
+    }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#checkpoint(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void checkpoint(Checkpoint checkpoint) throws Exception {
+        if (trace.isEnabledFor (DEBUG_LEVEL)) trace.log (DEBUG_LEVEL, getThisClassName() + " -- CHECKPOINT id=" + checkpoint.getSequenceId()); //$NON-NLS-1$
+    }
+
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#reset(com.ibm.streams.operator.state.Checkpoint)
+     */
+    @Override
+    public void reset (Checkpoint checkpoint) throws Exception {
+        if (trace.isEnabledFor (DEBUG_LEVEL)) {
+            trace.log (DEBUG_LEVEL, getThisClassName() + " -- RESET id=" + (checkpoint == null? -1L: checkpoint.getSequenceId())); //$NON-NLS-1$
+        }
+    }
+
+
+    private void initiateConsistentRegionResetOnce() {
+        if (!resetInitiatedOnce.getAndSet (true)) {
+            tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
+            pendingTuples.forEach((seqNo, tp) -> {
+                tp.getPendingRecords().clear();
+            });
+            pendingTuples.clear();
+            synchronized (pendingTuplesMonitor) {
+                pendingTuplesMonitor.notifyAll();
+            }
+            nPendingTuples.setValue (0L);
+            try {
+                crContext.reset();
+            }
+            catch (IOException ioe) {
+                producer.close (Duration.ofMillis (0L));
+                // stop the PE, the runtime may re-launch it
+                System.exit (1);
+            }
+        }
     }
 
     private void initiateRecovery() {

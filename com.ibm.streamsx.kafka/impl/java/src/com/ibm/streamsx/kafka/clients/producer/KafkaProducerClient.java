@@ -27,14 +27,12 @@ import com.ibm.streamsx.kafka.clients.metrics.MetricsProvider;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
-public class KafkaProducerClient extends AbstractKafkaClient {
+public abstract class KafkaProducerClient extends AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
     public static final int CLOSE_TIMEOUT_MS = 5000;
 
     protected KafkaProducer<?, ?> producer;
-    protected Callback callback;
-    protected Exception sendException;
     protected KafkaOperatorProperties kafkaProperties;
     protected Class<?> keyClass;
     protected Class<?> valueClass;
@@ -53,6 +51,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private AtomicReference<MetricName> outGoingByteRateMName = new AtomicReference<>();
     private AtomicReference<MetricName> recordQueueTimeMaxMName = new AtomicReference<>();
     private int flushAfter = 0;
+    private boolean closed = false;
     private long nRecords = 0l;
     private long bufferUseThreshold = -1;
     private double expSmoothedFlushDurationMs = 0.0;
@@ -141,10 +140,18 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         createProducer();
     }
 
+    /**
+     * Returns true, when {@link #close(long)} has been called.
+     * The true state can be returned before close() has finished.
+     * @return true, when the producer client has been closed, false otherwise.
+     */
+    public final boolean isClosed() {
+        return closed;
+    }
+
     protected final synchronized void createProducer() {
         producer = new KafkaProducer<>(this.kafkaProperties);
         producerGenerationMetric.increment();
-        callback = new ProducerCallback(this);
         if (metricsFetcher == null) {
             metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
                 @Override
@@ -282,17 +289,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
             this.kafkaProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, getSerializer(valueClass));
         }
     }
-    
-    @SuppressWarnings({ "rawtypes" })
-    /**
-     * Sends a producer record with the default callback
-     * @param record the producer record
-     * @return the Future
-     * @throws Exception
-     */
-    protected Future<RecordMetadata> send (ProducerRecord record) throws Exception {
-        return send (record, this.callback);
-    }
+
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     /**
@@ -378,29 +375,30 @@ public class KafkaProducerClient extends AbstractKafkaClient {
 
     /**
      * Makes all buffered records immediately available to send and blocks until completion of the associated requests.
-     * The post-conditioin is, that all Futures are in done state.
+     * The post-condition is, that all Futures are in done state.
      * 
      * @throws InterruptedException. If flush is interrupted, an InterruptedException is thrown.
      */
     public void flush() {
-        logger.trace("Flushing..."); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL))
+            logger.log (DEBUG_LEVEL, "Flushing ..."); //$NON-NLS-1$
         synchronized (flushLock) {
             producer.flush();
         }
     }
 
+    /**
+     * closes the KafkaProducer, so that it releases all resources and stops the metrics fetcher.
+     * @param timeoutMillis
+     */
     public void close (long timeoutMillis) {
-        logger.trace("Closing..."); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL))
+            logger.log (DEBUG_LEVEL, "Closing ..."); //$NON-NLS-1$
+        closed = true;
         this.metricsFetcher.stop();
         producer.close (Duration.ofMillis (timeoutMillis));
     }
 
-    public void handleSendException (Exception e) {
-        this.sendException = e;
-        producer.close (Duration.ofMillis(0L));
-        // kill the PE - eventually it gets re-launched by the Streams Runtime
-        System.exit (1);
-    }
 
     /**
      * Processes a Producer record.
@@ -409,9 +407,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
      * @param associatedTuple a reference to the the associated Tuple from which the producer record was created.
      * @throws Exception
      */
-    public void processRecord (ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception {
-        send (producerRecord);
-    }
+    public abstract void processRecord (ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception;
 
     /**
      * processes multiple producer records associated with a single tuple.
@@ -419,9 +415,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
      * @param associatedTuple reference to the the associated Tuple from which the producer records were created.
      * @throws Exception
      */
-    public void processRecords (List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception {
-        for (ProducerRecord<?, ?> r: records) processRecord (r, associatedTuple);
-    }
+    public abstract void processRecords (List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception;
 
     /**
      * Tries to cancel all send requests that are not yet done. 
@@ -429,19 +423,11 @@ public class KafkaProducerClient extends AbstractKafkaClient {
      * @param mayInterruptIfRunning - true if the thread executing this task send request should be interrupted;
      *                              otherwise, in-progress tasks are allowed to complete
      */
-    public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning);
 
-    public void drain() throws Exception {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void drain() throws Exception; 
 
-    public void checkpoint(Checkpoint checkpoint) throws Exception {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void checkpoint (Checkpoint checkpoint) throws Exception;
 
-    public void reset(Checkpoint checkpoint) throws Exception {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void reset (Checkpoint checkpoint) throws Exception;
 }

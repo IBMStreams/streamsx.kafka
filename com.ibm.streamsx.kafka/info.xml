@@ -16,6 +16,8 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 * 2.3
 
 # Additional information
+Additional user documentation can be found in the 
+[https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/|toolkit documentation on GitHub].
 
 + What's new and what has changed
 
@@ -23,7 +25,7 @@ This is an overview of changes for major and minor version upgrades. For details
 
 ++ What's new in version 2.2.0
 
-* The operator supports an optional output port for failed tuples
+* The `KafkaProducer` operator supports an optional output port for failed tuples
 * Exception handling in autonomous region changed. The operator does not abort its PE anymore; it recovers internally instead.
 * new custom metrics `nFailedTuples`, `nPendingTuples`, and `nQueueFullPause`
 
@@ -136,7 +138,7 @@ continues fetching at the last committed offset.
 
 * operator metrics which got invalid for an operator are flagged with a value of -1, for example the metric for the partition related consumer lag after de-assignment of a partition from a consumer operator
 
-* when not in a consistent region, offsets are committed when partitions are rebalanced within a consumer group. After re-assignment, messages are fetched beginning with the previously committed offsets. The periodic commit controlled by the **commitCount** parameter is reset after rebalance.
+* when not in a consistent region, offsets are committed when partitions are re-balanced within a consumer group. After re-assignment, messages are fetched beginning with the previously committed offsets. The periodic commit controlled by the **commitCount** parameter is reset after rebalance.
 
 ++ What's new in version 1.7.0
 
@@ -155,6 +157,12 @@ continues fetching at the last committed offset.
 * Queue control for the KafkaProducer operator to stabilize the maximum queue time and to avoid timeouts sending records
 
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
+
++ Using Red Hat AMQ Streams or other Kafka clusters configured with TLS and client authentication
+
+Red Hat AMQ Streams is a Kafka distribution for the OpenShift container platform. How to use the operators 
+of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configured similar to what AMQ Streams supports, 
+can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/|toolkit documentation].
 
    </info:description>
    <info:version>2.2.0</info:version>

@@ -15,8 +15,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import com.ibm.streamsx.kafka.SystemProperties;
-
 /**
  * This class represents a produce attempt for a producer record. It is associated with one ProducerRecord,
  * and with a single callback for the KafkaProducer.
@@ -25,7 +23,8 @@ import com.ibm.streamsx.kafka.SystemProperties;
  */
 public class RecordProduceAttempt {
     private static final Logger trace = Logger.getLogger (RecordProduceAttempt.class);
-    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
+//    private static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
+    private static final Level DEBUG_LEVEL = Level.TRACE;
 
     /**
      * This class is the Callback implementation that is invoked by the KafkaProducer.

@@ -20,7 +20,6 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.Tuple;
-import com.ibm.streamsx.kafka.SystemProperties;
 
 /**
  * This class represents a pending tuple which is being processed.
@@ -31,7 +30,8 @@ import com.ibm.streamsx.kafka.SystemProperties;
 public class TupleProcessing implements RecordProducedHandler, RecordProduceExceptionHandler {
 
     private static final Logger trace = Logger.getLogger (TupleProcessing.class);
-    protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
+    //    private static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
+    private static final Level DEBUG_LEVEL = Level.TRACE;
     private static AtomicLong nextSeqNumber = new AtomicLong();
 
     private final ClientCallback client;
@@ -171,12 +171,12 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
             if (tupleDone) {
                 success = nProducedRecords == initialNumRecords;
                 if (trace.isEnabledFor(DEBUG_LEVEL)) {
-                if (success) {
-                    trace.log (DEBUG_LEVEL, MessageFormat.format ("tuple # {0,number,#} succesfully DONE. Invoking client.tupleProcessed()...", this.seqNumber));
-                }
-                else {
-                    trace.log (DEBUG_LEVEL, MessageFormat.format ("tuple # {0,number,#} DONE with failed records. Invoking client.tupleFailedFinally()...", this.seqNumber));
-                }
+                    if (success) {
+                        trace.log (DEBUG_LEVEL, MessageFormat.format ("tuple # {0,number,#} succesfully DONE. Invoking client.tupleProcessed()...", this.seqNumber));
+                    }
+                    else {
+                        trace.log (DEBUG_LEVEL, MessageFormat.format ("tuple # {0,number,#} DONE with failed records. Invoking client.tupleFailedFinally()...", this.seqNumber));
+                    }
                 }
             }
         }
@@ -188,7 +188,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
 
     public void incrementProducerGenerationCancelTasks() {
         Collection<RecordProduceAttempt> recs = getPendingRecords();
-        trace.log (DEBUG_LEVEL, "incrementing producer generation for tuple " + seqNumber + ". #records = " + recs.size());
+        trace.info ("incrementing producer generation for tuple " + seqNumber + ". #records = " + recs.size());
         for (RecordProduceAttempt rec: recs) {
             rec.incrementProducerGenerationCancelTask();
         }

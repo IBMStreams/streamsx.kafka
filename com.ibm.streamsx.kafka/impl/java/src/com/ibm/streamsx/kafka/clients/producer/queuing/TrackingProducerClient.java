@@ -227,7 +227,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         }
         TupleProcessing pt = new TupleProcessing (associatedTuple, producerRecord, producerGeneration, MAX_PRODUCER_GENERATIONS_FOR_SEND, this);
         try {
-            waitForPermitAndSendRecords (pt);
+            waitForPermissionAndSendRecords (pt);
         } catch (InterruptedException ie) {
             trace.log (DEBUG_LEVEL, "processRecord() interrupted.");
         }
@@ -248,16 +248,16 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         }
         TupleProcessing pt = new TupleProcessing (associatedTuple, records, producerGeneration, MAX_PRODUCER_GENERATIONS_FOR_SEND, this);
         try {
-            waitForPermitAndSendRecords (pt);
+            waitForPermissionAndSendRecords (pt);
         } catch (InterruptedException ie) {
             trace.log (DEBUG_LEVEL, "processRecords() interrupted.");
         }
     }
 
-    private void waitForPermitAndSendRecords (TupleProcessing pt) throws InterruptedException {
+    private void waitForPermissionAndSendRecords (TupleProcessing pt) throws InterruptedException {
         final long tupleSeqNo = pt.getSeqNumber();
-        if (trace.isEnabledFor(DEBUG_LEVEL))
-            trace.log (DEBUG_LEVEL, "processing tuple # " + tupleSeqNo);
+        if (trace.isTraceEnabled())
+            trace.trace ("processing tuple # " + tupleSeqNo);
         synchronized (pendingTuplesMonitor) {
             int n = 0;
             while (pendingTuples.size() >= maxPendingTuples) {
@@ -267,23 +267,23 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         }
         synchronized (recoveryPendingMonitor) {
             // add pending tuple to the "queue". Must synchronize as the removal is done in a producer's callback thread
-            if (trace.isEnabledFor(DEBUG_LEVEL))
-                trace.log (DEBUG_LEVEL, "queuing tuple # " + tupleSeqNo);
+            if (trace.isTraceEnabled())
+                trace.trace ("queuing tuple # " + tupleSeqNo);
 
             synchronized (pendingTuples) {
                 pendingTuples.put (tupleSeqNo, pt);
                 nPendingTuples.setValue (pendingTuples.size());
             }
-            if (trace.isEnabledFor(DEBUG_LEVEL))
-                trace.log (DEBUG_LEVEL, "queued tuple # " + tupleSeqNo);
+            if (trace.isTraceEnabled())
+                trace.trace ("queued tuple # " + tupleSeqNo);
             for (RecordProduceAttempt pr: pt.getPendingRecords()) {
-                if (trace.isEnabledFor(DEBUG_LEVEL))
-                    trace.log (DEBUG_LEVEL, "sending record # " + pr.getProducerRecordSeqNumber() + " @tuple # " + tupleSeqNo);
+                if (trace.isTraceEnabled())
+                    trace.trace ("sending record # " + pr.getProducerRecordSeqNumber() + " @tuple # " + tupleSeqNo);
                 try {
                     Future <RecordMetadata> future = send (pr.getRecord(), pr.getCallback());
                     pr.setFuture (future);
-                    if (trace.isEnabledFor(DEBUG_LEVEL))
-                        trace.log (DEBUG_LEVEL, "sent: record # " + pr.getProducerRecordSeqNumber() + " @tuple # " + tupleSeqNo);
+                    if (trace.isTraceEnabled())
+                        trace.trace ("sent: record # " + pr.getProducerRecordSeqNumber() + " @tuple # " + tupleSeqNo);
                 }
                 catch (Exception e) {
                     trace.warn ("Failed sending record " + pr.getProducerRecordSeqNumber() + ": " + e.getMessage());
@@ -298,8 +298,8 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
      */
     @Override
     public void tupleProcessed (long seqNumber) {
-        if (trace.isEnabledFor(DEBUG_LEVEL))
-            trace.log (DEBUG_LEVEL, "tuple # " + seqNumber + " processed - de-queueing");
+        if (trace.isTraceEnabled())
+            trace.trace ("tuple # " + seqNumber + " processed - de-queueing");
         TupleProcessing tp = null;
         int nPendingTp;
         synchronized (pendingTuples) {
@@ -321,8 +321,8 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
      */
     @Override
     public void tupleFailedFinally (long seqNumber, Set<String> failedTopics, Exception lastException) {
-        if (trace.isEnabledFor(DEBUG_LEVEL))
-            trace.log (DEBUG_LEVEL, "tuple # " + seqNumber + " failed - de-queueing");
+        if (trace.isDebugEnabled())
+            trace.debug ("tuple # " + seqNumber + " failed - de-queueing");
         TupleProcessing tp = null;
         int nPendingTp;
         synchronized (pendingTuples) {
@@ -383,6 +383,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         // wait that pendingTuples map gets empty ...
         synchronized (pendingTuplesMonitor) {
             while (true) {
+                // check while condition in synchronized manner:
                 int sz;
                 synchronized (pendingTuples) {
                     sz = pendingTuples.size();

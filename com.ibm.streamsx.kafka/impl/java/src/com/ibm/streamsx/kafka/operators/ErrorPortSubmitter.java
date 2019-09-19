@@ -19,8 +19,8 @@ import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.meta.TupleType;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
-import com.ibm.streamsx.kafka.clients.producer.queuing.FailureDescription;
-import com.ibm.streamsx.kafka.clients.producer.queuing.TupleProcessedHook;
+import com.ibm.streamsx.kafka.clients.producer.FailureDescription;
+import com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook;
 
 /**
  * This class represents a Hook that submits tuples to an output port.
@@ -139,7 +139,7 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
 
     /**
      * Empty implementation.
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.TupleProcessedHook#onTupleProduced(com.ibm.streams.operator.Tuple)
+     * @see com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook#onTupleProduced(com.ibm.streams.operator.Tuple)
      */
     @Override
     public void onTupleProduced (Tuple tuple) { }
@@ -169,7 +169,7 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     /**
      * Creates the error output tuple and places it into a queue.
      * 
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.TupleProcessedHook#onTupleFailed(com.ibm.streams.operator.Tuple, com.ibm.streamsx.kafka.clients.producer.queuing.FailureDescription)
+     * @see com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook#onTupleFailed(com.ibm.streams.operator.Tuple, com.ibm.streamsx.kafka.clients.producer.FailureDescription)
      */
     @Override
     public void onTupleFailed (Tuple inTuple, FailureDescription failure) {

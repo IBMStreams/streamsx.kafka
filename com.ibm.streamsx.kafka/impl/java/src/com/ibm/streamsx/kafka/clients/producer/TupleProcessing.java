@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.ibm.streamsx.kafka.clients.producer.queuing;
+package com.ibm.streamsx.kafka.clients.producer;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -112,7 +112,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.RecordProduceExceptionHandler#onRecordProduceException(long, TopicPartition, Exception, int)
+     * @see com.ibm.streamsx.kafka.clients.producer.RecordProduceExceptionHandler#onRecordProduceException(long, TopicPartition, Exception, int)
      */
     @Override
     public void onRecordProduceException (long seqNo, TopicPartition tp, Exception e, int nProducerGenerations) {
@@ -151,7 +151,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.RecordProducedHandler#onRecordProduced(long, ProducerRecord, RecordMetadata)
+     * @see com.ibm.streamsx.kafka.clients.producer.RecordProducedHandler#onRecordProduced(long, ProducerRecord, RecordMetadata)
      */
     @Override
     public void onRecordProduced (long seqNo, ProducerRecord<?, ?> record, RecordMetadata metadata) {

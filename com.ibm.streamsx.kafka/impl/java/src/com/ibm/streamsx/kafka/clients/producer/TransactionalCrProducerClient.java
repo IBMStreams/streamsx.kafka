@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.ibm.streamsx.kafka.clients.producer.queuing;
+package com.ibm.streamsx.kafka.clients.producer;
 
 import java.text.MessageFormat;
 import java.util.List;
@@ -175,7 +175,7 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.TrackingProducerClient#processRecord(org.apache.kafka.clients.producer.ProducerRecord, com.ibm.streams.operator.Tuple)
+     * @see com.ibm.streamsx.kafka.clients.producer.TrackingProducerClient#processRecord(org.apache.kafka.clients.producer.ProducerRecord, com.ibm.streams.operator.Tuple)
      */
     @Override
     public void processRecord(ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception {
@@ -185,7 +185,7 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.TrackingProducerClient#processRecords(java.util.List, com.ibm.streams.operator.Tuple)
+     * @see com.ibm.streamsx.kafka.clients.producer.TrackingProducerClient#processRecords(java.util.List, com.ibm.streams.operator.Tuple)
      */
     @Override
     public void processRecords(List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception {

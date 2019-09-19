@@ -31,8 +31,8 @@ import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
-import com.ibm.streamsx.kafka.clients.producer.queuing.TrackingProducerClient;
-import com.ibm.streamsx.kafka.clients.producer.queuing.TransactionalCrProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.TrackingProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.TransactionalCrProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 

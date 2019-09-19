@@ -1,4 +1,4 @@
-package com.ibm.streamsx.kafka.clients.producer.queuing;
+package com.ibm.streamsx.kafka.clients.producer;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -22,7 +22,6 @@ import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
-import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
@@ -294,7 +293,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.ClientCallback#tupleProcessed(long)
+     * @see com.ibm.streamsx.kafka.clients.producer.ClientCallback#tupleProcessed(long)
      */
     @Override
     public void tupleProcessed (long seqNumber) {
@@ -317,7 +316,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.ClientCallback#tupleFailedFinally(long, Set, Exception)
+     * @see com.ibm.streamsx.kafka.clients.producer.ClientCallback#tupleFailedFinally(long, Set, Exception)
      */
     @Override
     public void tupleFailedFinally (long seqNumber, Set<String> failedTopics, Exception lastException) {
@@ -342,7 +341,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.queuing.ClientCallback#tupleFailedTemporarily(long, java.lang.Exception)
+     * @see com.ibm.streamsx.kafka.clients.producer.ClientCallback#tupleFailedTemporarily(long, java.lang.Exception)
      */
     @Override
     public void tupleFailedTemporarily (long seqNumber, Exception exception) {

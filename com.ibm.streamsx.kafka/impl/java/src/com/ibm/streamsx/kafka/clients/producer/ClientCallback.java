@@ -1,4 +1,4 @@
-package com.ibm.streamsx.kafka.clients.producer.queuing;
+package com.ibm.streamsx.kafka.clients.producer;
 
 import java.util.Set;
 

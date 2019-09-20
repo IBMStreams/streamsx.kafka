@@ -211,7 +211,7 @@ Authentication:
   options for client authentication
 
   --auth {NONE,TLS,PLAIN,SCRAM-SHA-512}, -A {NONE,TLS,PLAIN,SCRAM-SHA-512}
-                        authentication method
+                        authentication method, defaults to NONE
   --client-cert file, -C file
                         path to a file that contains the client certificate in
                         PEM format, required for TLS authentication
@@ -247,28 +247,32 @@ $ streamsx-kafka-make-properties --bootstrap kafka1.my.domain:443 \
     --client-cert user.crt --client-private-key user.key \
     --out-propfile kafka.properties
 
-keystore file ./keystore.jks generated. Store and key password is bwOCBnHDAT7VNu4e
+keystore file ./keystore-0520201806.jks generated. Store and key password is 05b5Umeirt0Zsfko
 Copy this file into the etc/ directory of your Streams application.
-truststore file ./truststore.jks generated. Store password is bwOCBnHDAT7VNu4e
+truststore file ./truststore-0520201806.jks generated. Store password is 05b5Umeirt0Zsfko
 Copy this file into the etc/ directory of your Streams application.
 $
 ```
 
-The above invocation would generate the files `keystore.jks` and `truststore.jks` in
+The above invocation would generate the files `keystore-0520201806.jks` and `truststore-0520201806.jks` in
 current working directory, and the property file `kafka.properties` with following content:
 
 ```
-bootstrap.servers=kafka1.my.domain:9093
+bootstrap.servers=kafka1.my.domain:443
 security.protocol=SSL
 ssl.keystore.type=JKS
-ssl.keystore.password=bwOCBnHDAT7VNu4e
-ssl.key.password=bwOCBnHDAT7VNu4e
-ssl.keystore.location={applicationDir}/etc/keystore.jks
+ssl.keystore.password=05b5Umeirt0Zsfko
+ssl.key.password=05b5Umeirt0Zsfko
+ssl.keystore.location={applicationDir}/etc/keystore-0520201806.jks
 ssl.endpoint.identification.algorithm=https
 ssl.truststore.type=JKS
-ssl.truststore.password=bwOCBnHDAT7VNu4e
-ssl.truststore.location={applicationDir}/etc/truststore.jks
+ssl.truststore.password=05b5Umeirt0Zsfko
+ssl.truststore.location={applicationDir}/etc/truststore-0520201806.jks
 ```
+
+**Note**, that the keystore and truststore file is created with a 10 digit random token in the filename,
+which is different on every `streamsx-kafka-make-properties` invocation.
+
 The store files must be copied into the `etc` folder within your application as they are
 referenced in this way by the properties. The property file itself can be used as basis
 for separate consumer or producer properties or can be used as is.

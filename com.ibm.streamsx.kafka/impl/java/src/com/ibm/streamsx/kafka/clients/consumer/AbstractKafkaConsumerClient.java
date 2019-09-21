@@ -650,13 +650,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug ("drainMessageQueueToBuffer(): trying to acquire lock");
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
-                logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Num records in buffer = {0}", drainBuffer.size()));
+                logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Num records in buffer = {0,number,#}", drainBuffer.size()));
             }
             nRecords = messageQueue.drainTo (drainBuffer);
             bufSize = drainBuffer.size();
         }
         qSize = messageQueue.size();
-        logger.debug (MessageFormat.format ("drainMessageQueueToBuffer(): {0} consumer records drained to buffer. bufSz = {1}, queueSz = {2}.",
+        logger.debug (MessageFormat.format ("drainMessageQueueToBuffer(): {0,number,#} consumer records drained to buffer. bufSz = {1,number,#}, queueSz = {2,number,#}.",
                 nRecords, bufSize, qSize));
         return nRecords;
     }
@@ -731,7 +731,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 messageQueue.addAll (drainBuffer);
                 final int qSize = messageQueue.size();
                 drainBuffer.clear();
-                logger.log (DEBUG_LEVEL, MessageFormat.format ("runPollLoop(): {0} consumer records added from drain buffer to the message queue. Message queue size is {1} now.", bufSz, qSize));
+                logger.log (DEBUG_LEVEL, MessageFormat.format ("runPollLoop(): {0,number,#} consumer records added from drain buffer to the message queue. Message queue size is {1,number,#} now.", bufSz, qSize));
             }
         }
         // continue polling for messages until a new event
@@ -770,7 +770,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     final Level l = Level.DEBUG;
 //                    final Level l = DEBUG_LEVEL;
                     if (logger.isEnabledFor (l) && nMessages > 0) {
-                        logger.log (l, MessageFormat.format ("{0} records with total {1}/{2}/{3} bytes (key/value/sum) fetched and enqueued",
+                        logger.log (l, MessageFormat.format ("{0,number,#} records with total {1,number,#}/{2,number,#}/{3,number,#} bytes (key/value/sum) fetched and enqueued",
                                 nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));
                     }
                     tryAdjustMinFreeMemory (nQueuedBytes, nMessages);
@@ -900,9 +900,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (!space) {
             if (logger.isEnabledFor (DEBUG_LEVEL)) {
                 if (lowMemory) {
-                    logger.log (DEBUG_LEVEL, MessageFormat.format ("low memory detected: messages queued ({0}).", mqSize));
+                    logger.log (DEBUG_LEVEL, MessageFormat.format ("low memory detected: messages queued ({0,number,#}).", mqSize));
                 } else {
-                    logger.log (DEBUG_LEVEL, MessageFormat.format ("remaining capacity in message queue ({0}) < max.poll.records ({1}).",
+                    logger.log (DEBUG_LEVEL, MessageFormat.format ("remaining capacity in message queue ({0,number,#}) < max.poll.records ({1,number,#}).",
                             remainingCapacity, maxPollRecords));
                 }
             }
@@ -1288,7 +1288,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param timestamp the timestamp in milliseconds since epoch
      */
     protected void seekToTimestamp (TopicPartition tp, long timestamp) {
-        logger.info (MessageFormat.format ("seekToTimestamp() - {0}  --> {1}", tp, timestamp));
+        logger.info (MessageFormat.format ("seekToTimestamp() - {0}  --> {1,number,#}", tp, timestamp));
         Map <TopicPartition, Long> topicPartitionTimestampMap = new HashMap<>(1);
         topicPartitionTimestampMap.put (tp, new Long(timestamp));
         Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes (topicPartitionTimestampMap);

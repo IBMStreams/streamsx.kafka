@@ -1092,7 +1092,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void reset(Checkpoint checkpoint) throws Exception {
         final int attempt = crContext == null? -1: crContext.getResetAttempt();
         final long sequenceId = checkpoint.getSequenceId();
-        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET (ckpt id/attempt={0,number,#}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
         final long before = System.currentTimeMillis();
         try {
             if (consumer.isProcessing()) {
@@ -1110,7 +1110,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
-            logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
+            logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET took {0,number,#} ms (ckpt id/attempt={1,number,#}/{2,number,#})", duration, sequenceId, attempt));
         }
     }
 
@@ -1128,6 +1128,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;
-        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
+        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT took {0,number,#} ms (attempt={1})", duration, attempt));
     }
 }

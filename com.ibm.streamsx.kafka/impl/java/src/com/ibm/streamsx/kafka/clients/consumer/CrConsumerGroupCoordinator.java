@@ -233,7 +233,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
             }
         }
         if (removedKeys > 0) 
-            trace.log (traceLevel, MessageFormat.format ("cleanupMergeMap() {0} {1} removed for checkpoint sequence {2}",
+            trace.log (traceLevel, MessageFormat.format ("cleanupMergeMap() {0,number,#} {1} removed for checkpoint sequence {2,number,#}",
                     removedKeys, (removedKeys == 1? "merge": "merges"), chkptSequenceId));
     }
 

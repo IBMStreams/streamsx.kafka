@@ -90,7 +90,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
         public void afterCustomMetricsUpdated() {
             final long now = System.currentTimeMillis();
             if (logger.isEnabledFor (DEBUG_LEVEL_METRICS)) {
-                logger.log (DEBUG_LEVEL_METRICS, MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotalNanos= {7}",
+                logger.log (DEBUG_LEVEL_METRICS, MessageFormat.format ("QTimeMax= {0,number,#} ,QTimeAvg= {1,number,#} ,oByteRate= {2,number,#} ,reqRate= {3,number,#} ,recsPerReqAvg= {4,number,#} ,batchSzAvg= {5,number,#} ,bufAvail= {6,number,#} ,bufPoolWaitTimeTotalNanos= {7,number,#}",
                         recordQueueTimeMax,
                         recordQueueTimeAvg,
                         outgoingByteRate,
@@ -104,7 +104,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
             else {
                 // trace every 10 minutes at INFO severity
                 if (now - lastTraceMs >= 600_000L) {
-                    logger.info (MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotalNanos= {7}",
+                    logger.info (MessageFormat.format ("QTimeMax= {0,number,#} ,QTimeAvg= {1,number,#} ,oByteRate= {2,number,#} ,reqRate= {3,number,#} ,recsPerReqAvg= {4,number,#} ,batchSzAvg= {5,number,#} ,bufAvail= {6,number,#} ,bufPoolWaitTimeTotalNanos= {7,number,#}",
                             recordQueueTimeMax,
                             recordQueueTimeAvg,
                             outgoingByteRate,
@@ -314,7 +314,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
                         final double weightHistory = 0.5;   // must be between 0 and 1 for exponential smoothing
                         final long dur = System.currentTimeMillis() - before;
                         expSmoothedFlushDurationMs = weightHistory * expSmoothedFlushDurationMs + (1.0 - weightHistory) * dur;
-                        logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, dur, expSmoothedFlushDurationMs));
+                        logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush after {0,number,#} records took {1,number,#} ms; smoothed flushtime = {2,number,#.#}", nRecords, dur, expSmoothedFlushDurationMs));
                     }
                     nRecords = 0l;
                 }
@@ -337,7 +337,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
                         if (bufferUseThreshold > maxBufSizeThresh)
                             bufferUseThreshold = maxBufSizeThresh;
                         if (logger.isEnabledFor (DEBUG_LEVEL)) {
-                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold initialized with {0}", bufferUseThreshold));
+                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold initialized with {0,number,#}", bufferUseThreshold));
                         }
                     }
                     long bufferUsed = bufferSize - metricsFetcher.getCurrentValue (bufferAvailMName.get());
@@ -348,7 +348,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
                         final double weightHistory = 0.5;   // must be between 0 and 1 for exponential smoothing
                         expSmoothedFlushDurationMs = weightHistory * expSmoothedFlushDurationMs + (1.0 - weightHistory) * dur;
                         if (logger.isEnabledFor (DEBUG_LEVEL)) {
-                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, dur, expSmoothedFlushDurationMs));
+                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush after {0,number,#} records took {1,number,#} ms; smoothed flushtime = {2,number,#.#}", nRecords, dur, expSmoothedFlushDurationMs));
                         }
                         nRecords = 0;
                         // time spent for flush() is approximately the maximum queue time for the last appended record.
@@ -364,7 +364,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
                         else if (bufferUseThreshold < 1024)
                             bufferUseThreshold = 1024;
                         if (logger.isEnabledFor (DEBUG_LEVEL)) {
-                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold adjusted from {0} to {1}", oldThreshold, bufferUseThreshold));
+                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold adjusted from {0,number,#} to {1,number,#}", oldThreshold, bufferUseThreshold));
                         }
                     }
                 }

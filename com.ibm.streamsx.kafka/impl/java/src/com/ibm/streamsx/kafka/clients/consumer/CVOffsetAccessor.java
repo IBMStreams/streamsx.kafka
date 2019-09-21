@@ -53,7 +53,7 @@ public class CVOffsetAccessor {
      * @return the concatenation of {@value #CV_NAME_PREFIX}-'GID'groupId-'T'topic-'P'partition#
      */
     private String createControlVariableName (final TopicPartition tp) {
-        return MessageFormat.format ("{0}-GID{1}-T{2}-P{3}", CV_NAME_PREFIX, groupId, tp.topic(), tp.partition());
+        return MessageFormat.format ("{0}-GID{1}-T{2}-P{3,number,#}", CV_NAME_PREFIX, groupId, tp.topic(), tp.partition());
     }
 
     /**
@@ -104,12 +104,12 @@ public class CVOffsetAccessor {
      * @throws IllegalArgumentException offset < 0
      */
     public synchronized long saveOffset (final TopicPartition tp, final long offset, final boolean overwriteValidOffset) throws InterruptedException, IOException {
-        trace.info (MessageFormat.format ("saveOffset: {0}, {1}, {2}", tp, offset, overwriteValidOffset));
+        trace.info (MessageFormat.format ("saveOffset: {0}, {1,number,#}, {2}", tp, offset, overwriteValidOffset));
         if (offset < 0) throw new IllegalArgumentException ("offset == " + offset);
         ControlVariableAccessor <Long> cv = cvMap.get (tp);
         if (cv == null) {
             final String cvName = createControlVariableName (tp);
-            trace.info (MessageFormat.format ("trying to create control variable {0} for offset {1}", cvName, offset));
+            trace.info (MessageFormat.format ("trying to create control variable {0} for offset {1,number,#}", cvName, offset));
             cv = jcpContext.createLongControlVariable (cvName, true, offset + OFFSET_WORKAROUND_ZERO);
             this.cvMap.put (tp, cv);
         }
@@ -123,7 +123,7 @@ public class CVOffsetAccessor {
                 // write the new value into cache and CV
                 cv.setValue (new Long (offset + OFFSET_WORKAROUND_ZERO));
                 cache.put (tp, new Long (offset));
-                trace.info (MessageFormat.format ("offset {0} saved in CV {1} and cached for TP {2}", offset, cv.getName(), tp));
+                trace.info (MessageFormat.format ("offset {0,number,#} saved in CV {1} and cached for TP {2}", offset, cv.getName(), tp));
             }
             else {
                 // old value was not NO_OFFSET and overwriting is not allowed.
@@ -145,7 +145,7 @@ public class CVOffsetAccessor {
         trace.info (MessageFormat.format ("getOffset: {0}", tp));
         Long offs = cache.get (tp);
         if (offs != null) {
-            trace.info (MessageFormat.format ("offset for {0} cached: {1}", tp, offs));
+            trace.info (MessageFormat.format ("offset for {0} cached: {1,number,#}", tp, offs));
             return offs.longValue();
         }
 

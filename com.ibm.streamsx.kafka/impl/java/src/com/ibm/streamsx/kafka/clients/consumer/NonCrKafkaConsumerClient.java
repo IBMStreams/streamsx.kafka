@@ -226,7 +226,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             assign (partitions);
         } catch (IllegalStateException | ClassNotFoundException | IOException e) {
             trace.error ("reset failed: " + e.getLocalizedMessage());
-            throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
+            throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1,number,#} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
         }
     }
 

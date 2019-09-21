@@ -72,7 +72,7 @@ public abstract class AbstractKafkaClient {
         final String clientIdConfig = isConsumer? ConsumerConfig.CLIENT_ID_CONFIG: ProducerConfig.CLIENT_ID_CONFIG;
         if (!kafkaProperties.containsKey (clientIdConfig)) {
             this.clientId = MessageFormat.format ("{0}-J{1}-{2}",
-                    (isConsumer? "C": "P"), operatorContext.getPE().getJobId(), operatorContext.getName());
+                    (isConsumer? "C": "P"), "" + operatorContext.getPE().getJobId(), operatorContext.getName());
             logger.info("generated client.id: " + this.clientId);
             clientIdGenerated = true;
         }

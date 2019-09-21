@@ -311,7 +311,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: pattern = {1}, timestamp = {2}",
+        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: pattern = {1}, timestamp = {2,number,#}",
                 state, (pattern == null? "null": pattern.pattern()), timestamp));
         assert this.initialStartPosition == StartPosition.Time;
         if (pattern == null) {
@@ -406,7 +406,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Collection<String> topics, Collection<Integer> partitions, long timestamp) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: topics = {1}, partitions = {2}, timestamp = {3}",
+        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: topics = {1}, partitions = {2}, timestamp = {3,number,#}",
                 state, topics, partitions, timestamp));
         assert this.initialStartPosition == StartPosition.Time;
         // partitions must be null or empty
@@ -779,7 +779,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     case Time:
                         tpTimestampMap1.clear();
                         tpTimestampMap1.put (tp, this.initialStartTimestamp);
-                        trace.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to timestamp {1}", tp, this.initialStartTimestamp));
+                        trace.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to timestamp {1,number,#}", tp, this.initialStartTimestamp));
                         seekToTimestamp (tpTimestampMap1);
                         break;
                     default:
@@ -979,7 +979,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         long chkptSeqId = checkpoint.getSequenceId();
         int resetAttempt = getCrContext().getResetAttempt();
         MergeKey key = new MergeKey (chkptSeqId, resetAttempt);
-        trace.info (MessageFormat.format ("createSeekOffsetMap() [{0}] - entering. chkptSeqId = {1}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
+        trace.info (MessageFormat.format ("createSeekOffsetMap() [{0}] - entering. chkptSeqId = {1,number,#}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
         try {
             final ObjectInputStream inputStream = checkpoint.getInputStream();
             final String myOperatorNameInCkpt = (String) inputStream.readObject();
@@ -1023,13 +1023,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             boolean waitTimeLeft = true;
             int nWaits = 0;
             long timeElapsed = 0;
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2} ms.",
+            trace.log (DEBUG_LEVEL, MessageFormat.format ("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2,number,#} ms.",
                     CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, timeoutMillis));
             while (!jmxMergeCompletedNotifMap.containsKey (key) && waitTimeLeft) {
                 long remainingTime = timeoutMillis - timeElapsed;
                 waitTimeLeft = remainingTime > 0;
                 if (waitTimeLeft) {
-                    if (nWaits++ %50 == 0) trace.log (DEBUG_LEVEL, MessageFormat.format ("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2} of {3} ms",
+                    if (nWaits++ %50 == 0) trace.log (DEBUG_LEVEL, MessageFormat.format ("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2,number,#} of {3,number,#} ms",
                             CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, remainingTime, timeoutMillis));
                     jmxNotificationCondition.await (100, TimeUnit.MILLISECONDS);
                 }
@@ -1037,7 +1037,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
             CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get (key);
             if (merge == null) {
-                final String msg = MessageFormat.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3} milliseconds.",
+                final String msg = MessageFormat.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3,number,#} milliseconds.",
                         CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, crGroupCoordinatorMXBeanName, timeoutMillis);
                 trace.error (msg);
                 throw new KafkaOperatorResetFailedException (msg);
@@ -1152,7 +1152,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         int numRecords = records == null? 0: records.count();
         EnqueResult r = new EnqueResult (0);
         if (trace.isDebugEnabled()) {
-            trace.debug (MessageFormat.format ("consumer.poll took {0} ms, numRecords = {1}", (System.currentTimeMillis() - before), numRecords));
+            trace.debug (MessageFormat.format ("consumer.poll took {0,number,#} ms, numRecords = {1,number,#}", (System.currentTimeMillis() - before), numRecords));
         }
         if (state == ClientState.CR_RESET_PENDING) {
             trace.log (DEBUG_LEVEL, MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
@@ -1171,7 +1171,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             final BlockingQueue<ConsumerRecord<?, ?>> messageQueue = getMessageQueue();
             records.forEach(cr -> {
                 if (trace.isTraceEnabled()) {
-                    trace.trace (MessageFormat.format ("consumed [{0}]: tp={1}, pt={2}, of={3}, ts={4}, ky={5}",
+                    trace.trace (MessageFormat.format ("consumed [{0}]: tp={1}, pt={2}, of={3,number,#}, ts={4,number,#}, ky={5}",
                             state,  cr.topic(), cr.partition(), cr.offset(), cr.timestamp(), cr.key()));
                 }
                 final int vsz = cr.serializedValueSize();

@@ -13,9 +13,11 @@ public interface ClientCallback {
     /**
      * A tuple failed to send to at least one topic, which cannot be recovered.
      * @param seqNumber the tuple's sequence number
+     * @param failedTopics the topics, which failed for the tuple
      * @param lastException the last occurred exception.
+     * @param initiateRecovery When set to true, the operator is tried to recover.
      */
-    void tupleFailedFinally (long seqNumber, Set<String> failedTopics, Exception lastException);
+    void tupleFailedFinally (long seqNumber, Set<String> failedTopics, Exception lastException, boolean initiateRecovery);
 
     
     /**

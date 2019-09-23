@@ -116,7 +116,8 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
      */
     @Override
     public void onRecordProduceException (long seqNo, TopicPartition tp, Exception e, int nProducerGenerations) {
-        final boolean recordFinallyFailed = !isRecoverable(e) || nProducerGenerations > maxProducerGenerationsPerRecord;
+        final boolean excRecoverable = isRecoverable(e);
+        final boolean recordFinallyFailed = !excRecoverable || nProducerGenerations > maxProducerGenerationsPerRecord;
         trace.warn (MessageFormat.format ("Producer record {0,number,#} could not be produced for topic partition ''{1}'' with {2,number,#} producer generations: {3}",
                 seqNo, tp, nProducerGenerations, e));
         boolean tupleDone = false;
@@ -141,7 +142,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
                     nProducerGenerations, maxProducerGenerationsPerRecord, isRecoverable(e), recordFinallyFailed, producerRecordAttempts.size()));
         if (recordFinallyFailed) {
             if (tupleDone) {
-                client.tupleFailedFinally (this.seqNumber, failedTopics, e);
+                client.tupleFailedFinally (this.seqNumber, failedTopics, e, excRecoverable);
             }
         }
         else {
@@ -181,8 +182,10 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
             }
         }
         if (tupleDone) {
-            if (success) client.tupleProcessed (this.seqNumber);
-            else client.tupleFailedFinally (this.seqNumber, this.failedTopics, this.lastException);
+            if (success)
+                client.tupleProcessed (this.seqNumber);
+            else
+                client.tupleFailedFinally (this.seqNumber, this.failedTopics, this.lastException, false);
         }
     }
 

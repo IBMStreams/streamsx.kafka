@@ -45,6 +45,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
 
     private int producerGeneration = 0;
     private int maxPendingTuples = MAX_NUM_PENDING_TUPLES;
+    private int maxProducerGenerations = MAX_PRODUCER_GENERATIONS_FOR_SEND;
     private AtomicBoolean recoveryInProgress = new AtomicBoolean (false);
     private Map <Long, TupleProcessing> pendingTuples = new HashMap<>();
     private Object pendingTuplesMonitor = new Object();
@@ -120,12 +121,36 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
 
 
     /**
-     * @param n the maxPendingTuples to set.
+     * Sets the maximum number of pending tuples before {@link #processRecord(ProducerRecord, Tuple)} 
+     * or {@link #processRecords(List, Tuple)} blocks.
+     * @param n the maximum number of pending tuples to set.
      * If not explicitly set, the value is {@value #MAX_NUM_PENDING_TUPLES}. 
      * @see #getMaxPendingTuples()
      */
     public void setMaxPendingTuples (int n) {
         this.maxPendingTuples = n;
+    }
+
+
+    /**
+     * @return the maxProducerGenerations
+     * @see #setMaxProducerGenerations(int)
+     */
+    public int getMaxProducerGenerations() {
+        return maxProducerGenerations;
+    }
+
+
+    /**
+     * Sets the maximum number of producer generations for a producer record.
+     * When set to one, each record is sent with only one producer generation, and not re-sent
+     * with a recovered producer. 
+     * @param n the maxProducerGenerations to set, values < 1 are bound to 1
+     * If not explicitly set, the value is {@value #MAX_PRODUCER_GENERATIONS_FOR_SEND}.
+     * @see #getMaxProducerGenerations() 
+     */
+    public void setMaxProducerGenerations (int n) {
+        this.maxProducerGenerations = n < 1? 1: n;
     }
 
 
@@ -224,7 +249,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
             // This instance does not process any tuples anymore.
             return;
         }
-        TupleProcessing pt = new TupleProcessing (associatedTuple, producerRecord, producerGeneration, MAX_PRODUCER_GENERATIONS_FOR_SEND, this);
+        TupleProcessing pt = new TupleProcessing (associatedTuple, producerRecord, producerGeneration, maxProducerGenerations, this);
         try {
             waitForPermissionAndSendRecords (pt);
         } catch (InterruptedException ie) {
@@ -245,7 +270,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
             // This instance does not process any tuples anymore.
             return;
         }
-        TupleProcessing pt = new TupleProcessing (associatedTuple, records, producerGeneration, MAX_PRODUCER_GENERATIONS_FOR_SEND, this);
+        TupleProcessing pt = new TupleProcessing (associatedTuple, records, producerGeneration, maxProducerGenerations, this);
         try {
             waitForPermissionAndSendRecords (pt);
         } catch (InterruptedException ie) {
@@ -316,10 +341,10 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.ClientCallback#tupleFailedFinally(long, Set, Exception)
+     * @see com.ibm.streamsx.kafka.clients.producer.ClientCallback#tupleFailedFinally(long, Set, Exception, boolean)
      */
     @Override
-    public void tupleFailedFinally (long seqNumber, Set<String> failedTopics, Exception lastException) {
+    public void tupleFailedFinally (long seqNumber, Set<String> failedTopics, Exception lastException, boolean initiateRecovery) {
         if (trace.isDebugEnabled())
             trace.debug ("tuple # " + seqNumber + " failed - de-queueing");
         TupleProcessing tp = null;
@@ -338,6 +363,9 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         synchronized (pendingTuplesMonitor) {
             pendingTuplesMonitor.notifyAll();
         }
+        if (initiateRecovery) {
+            initiateRecovery();
+        }
     }
 
     /**
@@ -345,11 +373,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
      */
     @Override
     public void tupleFailedTemporarily (long seqNumber, Exception exception) {
-        if (inConsistentRegion) {
-            initiateConsistentRegionResetOnce();
-        } else {
-            initiateRecovery();
-        }
+        initiateRecovery();
     }
 
     /**
@@ -436,8 +460,17 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         }
     }
 
+
+    /**
+     * When in CR, triggers reset of the consistent region, when in autonomous region,
+     * adds an event to the internal recovery queue.
+     */
     private void initiateRecovery() {
-        trace.info ("sending producer recovery event.");
-        recoveryQueue.offer (new RecoveryEvent());
+        if (inConsistentRegion) {
+            initiateConsistentRegionResetOnce();
+        } else {
+            trace.info ("sending producer recovery event.");
+            recoveryQueue.offer (new RecoveryEvent());
+        }
     }
 }

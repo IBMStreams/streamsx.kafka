@@ -34,9 +34,8 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
 
     protected KafkaProducer<?, ?> producer;
     protected KafkaOperatorProperties kafkaProperties;
-    protected Class<?> keyClass;
-    protected Class<?> valueClass;
-    protected OperatorContext operatorContext;
+    private Class<?> keyClass;
+    private Class<?> valueClass;
     private MetricsFetcher metricsFetcher;
     protected final boolean guaranteeOrdering;
 
@@ -127,7 +126,6 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
             KafkaOperatorProperties kafkaProperties) throws Exception {
         super (operatorContext, kafkaProperties, false);
         this.kafkaProperties = kafkaProperties;
-        this.operatorContext = operatorContext;
         this.keyClass = keyClass;
         this.valueClass = valueClass;
         this.guaranteeOrdering = guaranteeRecordOrder;

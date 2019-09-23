@@ -57,13 +57,13 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
         // Need to generate a transactional.id that is unique but persists 
         // across operator re-launches. In order to guarantee this, we will
         // store the transactional.id in the JCP
-        ControlPlaneContext jcpContext = operatorContext.getOptionalContext(ControlPlaneContext.class);
+        ControlPlaneContext jcpContext = getOperatorContext().getOptionalContext(ControlPlaneContext.class);
         ControlVariableAccessor<String> transactionalIdCV = jcpContext.createStringControlVariable ("transactional_id", false, getRandomId("tid-"));
         transactionalId = transactionalIdCV.sync().getValue();
         trace.debug ("Transactional ID = " + transactionalId);
 
         // adjust transaction timeout transaction.timeout.ms
-        ConsistentRegionContext crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
+        ConsistentRegionContext crContext = getOperatorContext().getOptionalContext (ConsistentRegionContext.class);
         long drainTimeoutMillis = (long) (crContext.getDrainTimeout() * 1000.0);
         long minTransactionTimeout = drainTimeoutMillis + 120000l;
         if (minTransactionTimeout > TRANSACTION_MAX_TIMEOUT_MS) minTransactionTimeout = TRANSACTION_MAX_TIMEOUT_MS;

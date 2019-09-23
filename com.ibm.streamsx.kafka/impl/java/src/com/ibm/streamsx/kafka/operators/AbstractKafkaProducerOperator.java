@@ -449,6 +449,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // when we want a hook for produced or failed tuples, we must set a TupleProcessedHook implementation.
         pClient.setTupleProcessedHook (this.errorPortSubmitter);
         //        pClient.setMaxPendingTuples (2000);
+        pClient.setMaxProducerGenerations (2);
         producer = pClient;
         producer.setFlushAfter (flush);
         logger.info ("producer client " + producer.getThisClassName() + " created");

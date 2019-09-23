@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -22,6 +21,9 @@ import javax.management.NotificationBroadcasterSupport;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * This class represents the implementation of the consumer group MBean.
@@ -39,7 +41,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
     private final Level traceLevel;
     private Map<MergeKey, CheckpointMerge> mergeMap;
     private Set<String> registeredConsumerOperators;
-    //    private Gson gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
+    private Gson gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
     private long sequenceNumber = SEQUENCE_NO_UNINITIALIZED;
     private AtomicBoolean rebalanceResetPending;
 
@@ -160,7 +162,7 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
             }
             mergeComplete = merge.addContribution (operatorName, nRequiredDistinctContributions, partialResetOffsetMap);
             if (mergeComplete)
-                mergeJson = merge.toJson();
+                mergeJson = gson.toJson (merge);
         }
         if (mergeComplete) {
             Notification notif = new Notification (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, this, nextSequenceNumber (chkptSequenceId + 1l), mergeJson);
@@ -340,12 +342,6 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
         public String toString() {
             return toString;
         }
-
-        @Deprecated
-        public String toJson() {
-            String pattern = "'{'\"sequenceId\":{0,number,#},\"resetAttempt\":{1,number,#},\"toString\":\"{2}\"'}'";
-            return MessageFormat.format (pattern, sequenceId, resetAttempt, toString);
-        }
     }
 
     /**
@@ -421,58 +417,8 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
         public String toString() {
             return toString;
         }
-
-        @Deprecated
-        public String toJson() {
-            String pattern = "'{'\"topic\":\"{0}\",\"partition\":{1,number,#},\"toString\":\"{2}\"'}'";
-            return MessageFormat.format (pattern, topic, partition, toString);
-        }
     }
 
-    public static void main (String[] args) {
-        // test JSON generation
-        com.google.gson.Gson gson = (new com.google.gson.GsonBuilder()).enableComplexMapKeySerialization().create();
-        int nExpectedContribs = 3;
-        CheckpointMerge m = new CheckpointMerge (new MergeKey (1002, 1), nExpectedContribs);
-        Map <TP, Long> m1 = new HashMap <>();
-        m1.put (new TP ("top1", 0), 10l);
-        m1.put (new TP ("top1", 1), 11l);
-
-        Map <TP, Long> m2 = new HashMap <>();
-        m2.put (new TP ("top1", 2), 12l);
-        m2.put (new TP ("top2", 0), 20l);
-
-        Map <TP, Long> m3 = new HashMap <>();
-        m3.put (new TP ("top2", 1), 21l);
-
-        m.addContribution ("opName1", nExpectedContribs, m1);
-        m.addContribution ("opName2", nExpectedContribs, m2);
-        m.addContribution ("opName3", nExpectedContribs, m3);
-        String expected = gson.toJson (m);
-        String actual = m.toJson();
-        if (!actual.equals(expected)) {
-            System.out.println ("Different JSONs:");
-            System.out.println ("expected: " + expected);
-        }
-        System.out.println ("actual:   " + actual);
-        System.out.println ("----- reversing expected ----");
-        CheckpointMerge expected_revers = gson.fromJson (expected, CrConsumerGroupCoordinator.CheckpointMerge.class);
-        System.out.println (expected_revers.getKey());
-        System.out.println (expected_revers.getnExpectedContributions());
-        System.out.println (expected_revers.getNumContributions());
-        System.out.println (expected_revers.isComplete());
-        System.out.println (expected_revers.getConsolidatedOffsetMap());
-        System.out.println (expected_revers.getContributedOperatorNames());
-
-        System.out.println ("----- reversing actual ----");
-        CheckpointMerge actual_revers = gson.fromJson (actual, CrConsumerGroupCoordinator.CheckpointMerge.class);
-        System.out.println (actual_revers.getKey());
-        System.out.println (actual_revers.getnExpectedContributions());
-        System.out.println (actual_revers.getNumContributions());
-        System.out.println (actual_revers.isComplete());
-        System.out.println (actual_revers.getConsolidatedOffsetMap());
-        System.out.println (actual_revers.getContributedOperatorNames());
-    }
 
 
     /**
@@ -628,40 +574,6 @@ public class CrConsumerGroupCoordinator extends NotificationBroadcasterSupport i
             if (nExpectedContributions != other.nExpectedContributions)
                 return false;
             return true;
-        }
-
-        private String offsetMap2Json() {
-            String j = "[";
-            int i = 0;
-            for (Entry<TP, Long> e: consolidatedOffsetMap.entrySet()) {
-                if (i++ > 0) j += ",";
-                j += "[";
-                j += e.getKey().toJson();
-                j += ",";
-                j += e.getValue();
-                j += "]";
-            }
-            j += "]";
-            return j;
-        }
-
-        private String contributedOperatorNames2Json() {
-            String j = "[";
-            int i = 0;
-            for (String s: contributedOperatorNames) {
-                if (i++ > 0) j += ",";
-                j += "\"";
-                j += s;
-                j += "\"";
-            }
-            j += "]";
-            return j;
-        }
-
-        @Deprecated
-        public String toJson() {
-            String pattern = "'{'\"consolidatedOffsetMap\":{0},\"contributedOperatorNames\":{1},\"nExpectedContributions\":{2,number,#},\"nContributions\":{3,number,#},\"complete\":{4},\"key\":{5}'}'";
-            return MessageFormat.format (pattern, offsetMap2Json(), contributedOperatorNames2Json(), nExpectedContributions, nContributions, complete, key.toJson());
         }
     }
 }

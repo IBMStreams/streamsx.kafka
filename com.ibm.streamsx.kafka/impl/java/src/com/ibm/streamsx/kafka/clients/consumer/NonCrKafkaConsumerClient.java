@@ -5,7 +5,6 @@ package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +23,7 @@ import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -226,7 +226,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             assign (partitions);
         } catch (IllegalStateException | ClassNotFoundException | IOException e) {
             trace.error ("reset failed: " + e.getLocalizedMessage());
-            throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1,number,#} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
+            throw new KafkaOperatorResetFailedException (MsgFormatter.format ("resetting operator {0} to checkpoint sequence ID {1,number,#} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
         }
     }
 

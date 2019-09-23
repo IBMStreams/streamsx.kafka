@@ -1,7 +1,6 @@
 package com.ibm.streamsx.kafka.clients;
 
 import java.io.Serializable;
-import java.text.MessageFormat;
 import java.util.Base64;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -23,6 +22,7 @@ import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 import com.ibm.streamsx.kafka.serialization.DoubleDeserializerExt;
@@ -37,7 +37,7 @@ public abstract class AbstractKafkaClient {
     protected static final long METRICS_REPORT_INTERVAL = 2_000;
     protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
     protected static final Level DEBUG_LEVEL_METRICS = SystemProperties.getDebugLevelMetricsOverride();
-    
+
     /**
      * when set to true, following properties are set when unset:
      * <ul>
@@ -71,7 +71,7 @@ public abstract class AbstractKafkaClient {
         // application will result in a KafkaException when registering the client
         final String clientIdConfig = isConsumer? ConsumerConfig.CLIENT_ID_CONFIG: ProducerConfig.CLIENT_ID_CONFIG;
         if (!kafkaProperties.containsKey (clientIdConfig)) {
-            this.clientId = MessageFormat.format ("{0}-J{1}-{2}",
+            this.clientId = MsgFormatter.format ("{0}-J{1}-{2}",
                     (isConsumer? "C": "P"), "" + operatorContext.getPE().getJobId(), operatorContext.getName());
             logger.info("generated client.id: " + this.clientId);
             clientIdGenerated = true;

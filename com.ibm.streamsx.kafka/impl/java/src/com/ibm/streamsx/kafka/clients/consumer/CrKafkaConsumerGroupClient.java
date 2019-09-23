@@ -3,7 +3,6 @@ package com.ibm.streamsx.kafka.clients.consumer;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -59,6 +58,7 @@ import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.MergeKey;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.TP;
@@ -140,11 +140,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {
             String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
             kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            trace.info (MessageFormat.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+            trace.info (MsgFormatter.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
         }
-        trace.info (MessageFormat.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
+        trace.info (MsgFormatter.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
     }
 
@@ -201,7 +201,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 }
                 catch (InstanceAlreadyExistsException e) {
                     // another operator managed to create it first. that is ok, just use that one.
-                    trace.log (DEBUG_LEVEL, MessageFormat.format ("another operator just created {0}: {1}", crGroupCoordinatorMXBeanName, e.getMessage()));
+                    trace.log (DEBUG_LEVEL, MsgFormatter.format ("another operator just created {0}: {1}", crGroupCoordinatorMXBeanName, e.getMessage()));
                 }
             }
             try {
@@ -265,13 +265,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void handleNotification (Notification notification, Object handback) {
-        trace.info (MessageFormat.format ("handleNotification() [{0}]; notification = {1}", this.state, notification));
+        trace.info (MsgFormatter.format ("handleNotification() [{0}]; notification = {1}", this.state, notification));
         if (notification.getType().equals (CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE)) {
             CrConsumerGroupCoordinator.CheckpointMerge merge = gson.fromJson (notification.getMessage(), CrConsumerGroupCoordinator.CheckpointMerge.class);
             MergeKey key = merge.getKey();
             jmxNotificationConditionLock.lock();
             jmxMergeCompletedNotifMap.put (key, merge);
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("handleNotification(): notification {0} stored, signalling waiting threads ...", key));
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("handleNotification(): notification {0} stored, signalling waiting threads ...", key));
             jmxNotificationCondition.signalAll();
             jmxNotificationConditionLock.unlock();
         }
@@ -286,7 +286,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
-        trace.info (MessageFormat.format ("startConsumer() [{0}] - consumer start initiated", state));
+        trace.info (MsgFormatter.format ("startConsumer() [{0}] - consumer start initiated", state));
         // Connect the PE for this operator to the Job Control Plane. 
         // A single connection is maintained to the Job Control Plane. The connection occurs asynchronously.
         // Does this mean that we might not yet be connected after connect()?
@@ -299,7 +299,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // now we have a consumer object.
         assignedPartitionsOffsetManager.setOffsetConsumer (getConsumer());
         ClientState newState = ClientState.EVENT_THREAD_STARTED;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
         trace.info ("consumer started");
     }
@@ -311,7 +311,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: pattern = {1}, timestamp = {2,number,#}",
+        trace.info (MsgFormatter.format ("subscribeToTopicsWithTimestamp [{0}]: pattern = {1}, timestamp = {2,number,#}",
                 state, (pattern == null? "null": pattern.pattern()), timestamp));
         assert this.initialStartPosition == StartPosition.Time;
         if (pattern == null) {
@@ -322,7 +322,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         subscribe (pattern, this);
         // when later partitions are assigned dynamically, we seek in onPartitionsAssigned
         ClientState newState = ClientState.SUBSCRIBED;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
         trace.info ("subscribed to pattern: " + pattern.pattern());
     }
@@ -334,7 +334,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopics [{0}]: pattern = {1}, startPosition = {2}",
+        trace.info (MsgFormatter.format ("subscribeToTopics [{0}]: pattern = {1}, startPosition = {2}",
                 state, (pattern == null? "null": pattern.pattern()), startPosition));
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
         assert startPosition == this.initialStartPosition;
@@ -346,7 +346,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         subscribe (pattern, this);
         // when later partitions are assigned dynamically, we seek in onPartitionsAssigned
         ClientState newState = ClientState.SUBSCRIBED;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
         trace.info ("subscribed to pattern: " + pattern.pattern());
     }
@@ -368,7 +368,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopics (Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopics [{0}]: topics = {1}, partitions = {2}, startPosition = {3}",
+        trace.info (MsgFormatter.format ("subscribeToTopics [{0}]: topics = {1}, partitions = {2}, startPosition = {3}",
                 state, topics, partitions, startPosition));
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
         assert startPosition == this.initialStartPosition;
@@ -384,7 +384,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         subscribe (topics, this);
         // when later partitions are assigned dynamically, we seek in onPartitionsAssigned
         ClientState newState = ClientState.SUBSCRIBED;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
         trace.info ("subscribed to " + topics);
     }
@@ -406,7 +406,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Collection<String> topics, Collection<Integer> partitions, long timestamp) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp [{0}]: topics = {1}, partitions = {2}, timestamp = {3,number,#}",
+        trace.info (MsgFormatter.format ("subscribeToTopicsWithTimestamp [{0}]: topics = {1}, partitions = {2}, timestamp = {3,number,#}",
                 state, topics, partitions, timestamp));
         assert this.initialStartPosition == StartPosition.Time;
         // partitions must be null or empty
@@ -422,7 +422,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         subscribe (topics, this);
         // when later partitions are assigned dynamically, we seek using the seekOffsetMap
         ClientState newState = ClientState.SUBSCRIBED;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
         trace.info ("subscribed to " + topics);
     }
@@ -454,7 +454,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             try {
                 Set<String> registeredConsumers = this.crGroupCoordinatorMxBean.getRegisteredConsumerOperators();
                 if (!registeredConsumers.contains (myOperatorName)) {
-                    trace.warn (MessageFormat.format ("My operator name not registered in group MXBean: {0}, trying to register", myOperatorName));
+                    trace.warn (MsgFormatter.format ("My operator name not registered in group MXBean: {0}, trying to register", myOperatorName));
                     this.crGroupCoordinatorMxBean.registerConsumerOperator (myOperatorName);
                 }
             } catch (IOException e) {
@@ -512,7 +512,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onDrain () throws Exception {
-        trace.info (MessageFormat.format ("onDrain() [{0}] - entering", state));
+        trace.info (MsgFormatter.format ("onDrain() [{0}] - entering", state));
         try {
             // stop filling the message queue with more messages, this method returns when polling has stopped - not fire and forget
             sendStopPollingEvent();
@@ -562,7 +562,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onCheckpointRetire (long id) {
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("onCheckpointRetire() [{0}] - entering, id = {1}", state, id));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("onCheckpointRetire() [{0}] - entering, id = {1}", state, id));
         Collection<MergeKey> retiredMergeKeys = new ArrayList<>(10);
         for (MergeKey k: jmxMergeCompletedNotifMap.keySet()) {
             if (k.getSequenceId() <= id) {   // remove also older (smaller) IDs
@@ -619,7 +619,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
-        trace.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
+        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
         getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         // remove the content of the queue. It contains uncommitted messages.
         // They will be fetched again after rebalance.
@@ -627,10 +627,10 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         setConsumedTopics (null);
         if (state == ClientState.RECORDS_FETCHED) {
             ClientState newState = ClientState.CR_RESET_PENDING;
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
             sendStopPollingEventAsync();
-            trace.info (MessageFormat.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
+            trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
             try {
                 crMxBean.reset (true);
             } catch (Exception e) {
@@ -674,7 +674,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsAssigned (Collection<TopicPartition> newAssignedPartitions) {
-        trace.info (MessageFormat.format ("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
+        trace.info (MsgFormatter.format ("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
         Set<TopicPartition> gonePartitions = new HashSet<>(getAssignedPartitions());
         gonePartitions.removeAll (newAssignedPartitions);
         getAssignedPartitions().clear();
@@ -704,7 +704,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // Add all offsets from the 'initialOffsets' to the seekOffset if not yet present for the topic partition
             try {
                 final Map<TopicPartition, Long> initialOffsetsMap = initialOffsets.createOffsetMap (newAssignedPartitions);
-                trace.info (MessageFormat.format ("seekOffsetMap created from initial offsets: {0}", initialOffsetsMap));
+                trace.info (MsgFormatter.format ("seekOffsetMap created from initial offsets: {0}", initialOffsetsMap));
                 initialOffsetsMap.forEach ((tp, offs) -> {
                     seekOffsetMap.putIfAbsent (tp, offs);
                 });
@@ -723,7 +723,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             break;
         default:
             // ... not observed during tests
-            trace.warn (MessageFormat.format ("onPartitionsAssigned() [{0}]: unexpected state for onPartitionsAssigned()", state));
+            trace.warn (MsgFormatter.format ("onPartitionsAssigned() [{0}]: unexpected state for onPartitionsAssigned()", state));
         }
         try {
             checkSpaceInMessageQueueAndPauseFetching (true);
@@ -759,32 +759,32 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             try {
                 if (offsetMap.containsKey (tp)) {
                     final long seekToOffset = offsetMap.get (tp);
-                    trace.info (MessageFormat.format ("seekPartitions() seeking {0} to offset {1}", tp, seekToOffset));
+                    trace.info (MsgFormatter.format ("seekPartitions() seeking {0} to offset {1}", tp, seekToOffset));
                     consumer.seek (tp, seekToOffset);
                 }
                 else {
                     // We have never seen the partition. Seek to startPosition given as operator parameter(s)
                     switch (this.initialStartPosition) {
                     case Default:
-                        trace.info (MessageFormat.format ("seekPartitions() new topic partition {0}; no need to seek to {1}", tp, this.initialStartPosition));
+                        trace.info (MsgFormatter.format ("seekPartitions() new topic partition {0}; no need to seek to {1}", tp, this.initialStartPosition));
                         // do not seek
                         break;
                     case Beginning:
                     case End:
                         tp1.clear();
                         tp1.add (tp);
-                        trace.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to {1}", tp, this.initialStartPosition));
+                        trace.info (MsgFormatter.format ("seekPartitions() seeking new topic partition {0} to {1}", tp, this.initialStartPosition));
                         seekToPosition (tp1, this.initialStartPosition);
                         break;
                     case Time:
                         tpTimestampMap1.clear();
                         tpTimestampMap1.put (tp, this.initialStartTimestamp);
-                        trace.info (MessageFormat.format ("seekPartitions() seeking new topic partition {0} to timestamp {1,number,#}", tp, this.initialStartTimestamp));
+                        trace.info (MsgFormatter.format ("seekPartitions() seeking new topic partition {0} to timestamp {1,number,#}", tp, this.initialStartTimestamp));
                         seekToTimestamp (tpTimestampMap1);
                         break;
                     default:
                         // unsupported start position, like 'Offset',  is already treated by initialization checks
-                        final String msg = MessageFormat.format ("seekPartitions(): {0} does not support startPosition {1}.", getThisClassName(), this.initialStartPosition);
+                        final String msg = MsgFormatter.format ("seekPartitions(): {0} does not support startPosition {1}.", getThisClassName(), this.initialStartPosition);
                         trace.error (msg);
                         throw new KafkaOperatorRuntimeException (msg);
                     }
@@ -795,7 +795,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
             catch (IllegalArgumentException topicPartitionNotAssigned) {
                 // when this happens the ConsumerRebalanceListener will be called later
-                trace.warn (MessageFormat.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
+                trace.warn (MsgFormatter.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
             } catch (InterruptedException e) {
                 trace.log (DEBUG_LEVEL, "interrupted creating or saving offset to JCP control variable");
                 // leave for-loop
@@ -864,7 +864,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     protected void processResetToInitEvent() {
-        trace.info (MessageFormat.format ("processResetToInitEvent() [{0}] - entering", state));
+        trace.info (MsgFormatter.format ("processResetToInitEvent() [{0}] - entering", state));
         try {
             clearDrainBuffer();
             getMessageQueue().clear();
@@ -875,7 +875,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // are not yet notified about it. That's why we must handle the failed seeks.
             // When this operator is restarted and reset, getAssignedPartitions() will return an empty Set.
             this.seekOffsetMap = initialOffsets.createOffsetMap (getAssignedPartitions());
-            trace.info (MessageFormat.format ("initial Offsets for assignment {0}: {1}", getAssignedPartitions(), this.seekOffsetMap));
+            trace.info (MsgFormatter.format ("initial Offsets for assignment {0}: {1}", getAssignedPartitions(), this.seekOffsetMap));
 
             // Reset also the assignedPartitionsOffsetManager to the initial offsets of the assigned partitions. The assignedPartitionsOffsetManager goes into the checkpoint,
             // and its offsets are used as the seek position when it comes to reset from a checkpoint. There must be a seek position also in
@@ -888,9 +888,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // reset tuple counter for operator driven CR
             nSubmittedRecords = 0l;
             ClientState newState = ClientState.RESET_COMPLETE;
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("processResetToInitEvent() [{0}] - exiting", state));
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("processResetToInitEvent() [{0}] - exiting", state));
         }
         catch (Exception e) {
             throw new KafkaOperatorRuntimeException (e.getMessage(), e);
@@ -933,7 +933,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     protected void processResetEvent (Checkpoint checkpoint) {
 
-        trace.info (MessageFormat.format ("processResetEvent() [{0}] - entering", state));
+        trace.info (MsgFormatter.format ("processResetEvent() [{0}] - entering", state));
 
         // When no one of the KafkaConsumer in this group has been restarted before the region reset,
         // partition assignment will most likely not change and no onPartitionsRevoked()/onPartitionsAssigned will be fired on our
@@ -953,9 +953,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // reset tuple counter for operator driven CR
         nSubmittedRecords = 0l;
         ClientState newState = ClientState.RESET_COMPLETE;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
-        trace.log (DEBUG_LEVEL, MessageFormat.format ("processResetEvent() [{0}] - exiting", state));
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("processResetEvent() [{0}] - exiting", state));
     }
 
     /**
@@ -979,27 +979,27 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         long chkptSeqId = checkpoint.getSequenceId();
         int resetAttempt = getCrContext().getResetAttempt();
         MergeKey key = new MergeKey (chkptSeqId, resetAttempt);
-        trace.info (MessageFormat.format ("createSeekOffsetMap() [{0}] - entering. chkptSeqId = {1,number,#}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
+        trace.info (MsgFormatter.format ("createSeekOffsetMap() [{0}] - entering. chkptSeqId = {1,number,#}, resetAttempt = {2}", state, chkptSeqId, resetAttempt));
         try {
             final ObjectInputStream inputStream = checkpoint.getInputStream();
             final String myOperatorNameInCkpt = (String) inputStream.readObject();
             Set<String> contributingOperators = (Set<String>) inputStream.readObject();
             OffsetManager offsMgr = (OffsetManager) inputStream.readObject();
-            trace.info (MessageFormat.format ("createSeekOffsetMap() - merging {0} operator checkpoints into a single group checkpoint", contributingOperators.size()));
+            trace.info (MsgFormatter.format ("createSeekOffsetMap() - merging {0} operator checkpoints into a single group checkpoint", contributingOperators.size()));
 
             if (trace.isEnabledFor (DEBUG_LEVEL)) {
-                trace.log (DEBUG_LEVEL, MessageFormat.format ("createSeekOffsetMap(): myOperatorName read from checkpoint: {0}", myOperatorNameInCkpt));
-                trace.log (DEBUG_LEVEL, MessageFormat.format ("createSeekOffsetMap(): contributingOperators read from checkpoint: {0}", contributingOperators));
-                trace.log (DEBUG_LEVEL, MessageFormat.format ("createSeekOffsetMap(): offset manager read from checkpoint: {0}", offsMgr));
+                trace.log (DEBUG_LEVEL, MsgFormatter.format ("createSeekOffsetMap(): myOperatorName read from checkpoint: {0}", myOperatorNameInCkpt));
+                trace.log (DEBUG_LEVEL, MsgFormatter.format ("createSeekOffsetMap(): contributingOperators read from checkpoint: {0}", contributingOperators));
+                trace.log (DEBUG_LEVEL, MsgFormatter.format ("createSeekOffsetMap(): offset manager read from checkpoint: {0}", offsMgr));
             }
             if (!operatorName.equals (myOperatorNameInCkpt)) {
-                trace.warn (MessageFormat.format ("Operator name in checkpoint ({0}) differs from current operator name: {1}", myOperatorNameInCkpt, operatorName));
+                trace.warn (MsgFormatter.format ("Operator name in checkpoint ({0}) differs from current operator name: {1}", myOperatorNameInCkpt, operatorName));
             }
             if (!contributingOperators.contains (operatorName)) {
-                trace.error (MessageFormat.format ("This operator''s name ({0}) not found in contributing operator names: {1}",
+                trace.error (MsgFormatter.format ("This operator''s name ({0}) not found in contributing operator names: {1}",
                         operatorName, contributingOperators));
             }
-            trace.info (MessageFormat.format ("contributing {0} partition => offset mappings to the group''s checkpoint.", offsMgr.size()));
+            trace.info (MsgFormatter.format ("contributing {0} partition => offset mappings to the group''s checkpoint.", offsMgr.size()));
             // send checkpoint data to CrGroupCoordinator MXBean and wait for the notification
             // to fetch the group's complete checkpoint. Then, process the group's checkpoint.
             Map<CrConsumerGroupCoordinator.TP, Long> partialOffsetMap = new HashMap<>();
@@ -1010,7 +1010,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 partialOffsetMap.put (new TP (topic, partition), offset);
             }
 
-            trace.info (MessageFormat.format ("Merging my group''s checkpoint contribution: partialOffsetMap = {0}, myOperatorName = {1}",
+            trace.info (MsgFormatter.format ("Merging my group''s checkpoint contribution: partialOffsetMap = {0}, myOperatorName = {1}",
                     partialOffsetMap, operatorName));
             this.crGroupCoordinatorMxBean.mergeConsumerCheckpoint (chkptSeqId, resetAttempt, contributingOperators.size(), partialOffsetMap, operatorName);
 
@@ -1023,13 +1023,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             boolean waitTimeLeft = true;
             int nWaits = 0;
             long timeElapsed = 0;
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2,number,#} ms.",
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2,number,#} ms.",
                     CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, timeoutMillis));
             while (!jmxMergeCompletedNotifMap.containsKey (key) && waitTimeLeft) {
                 long remainingTime = timeoutMillis - timeElapsed;
                 waitTimeLeft = remainingTime > 0;
                 if (waitTimeLeft) {
-                    if (nWaits++ %50 == 0) trace.log (DEBUG_LEVEL, MessageFormat.format ("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2,number,#} of {3,number,#} ms",
+                    if (nWaits++ %50 == 0) trace.log (DEBUG_LEVEL, MsgFormatter.format ("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2,number,#} of {3,number,#} ms",
                             CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, remainingTime, timeoutMillis));
                     jmxNotificationCondition.await (100, TimeUnit.MILLISECONDS);
                 }
@@ -1037,13 +1037,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
             CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get (key);
             if (merge == null) {
-                final String msg = MessageFormat.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3,number,#} milliseconds.",
+                final String msg = MsgFormatter.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3,number,#} milliseconds.",
                         CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, crGroupCoordinatorMXBeanName, timeoutMillis);
                 trace.error (msg);
                 throw new KafkaOperatorResetFailedException (msg);
             }
             else {
-                trace.info (MessageFormat.format ("waiting for JMX notification for sequenceId {0} took {1} ms", key, timeElapsed));
+                trace.info (MsgFormatter.format ("waiting for JMX notification for sequenceId {0} took {1} ms", key, timeElapsed));
             }
 
             Map <TP, Long> mergedOffsetMap = merge.getConsolidatedOffsetMap();
@@ -1060,7 +1060,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         }
         catch (IOException | ClassNotFoundException e) {
             trace.error ("reset failed: " + e.getLocalizedMessage());
-            throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
+            throw new KafkaOperatorResetFailedException (MsgFormatter.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
         }
         finally {
             jmxNotificationConditionLock.unlock();
@@ -1094,13 +1094,13 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     protected void processCheckpointEvent (Checkpoint checkpoint) {
-        trace.info (MessageFormat.format ("processCheckpointEvent() [{0}] sequenceId = {1}", state, checkpoint.getSequenceId()));
+        trace.info (MsgFormatter.format ("processCheckpointEvent() [{0}] sequenceId = {1}", state, checkpoint.getSequenceId()));
         try {
             Set<String> registeredConsumers = this.crGroupCoordinatorMxBean.getRegisteredConsumerOperators();
             final String myOperatorName = getOperatorContext().getName();
             if (ENABLE_CHECK_REGISTERED_ON_CHECKPOINT) {
                 if (!registeredConsumers.contains (myOperatorName)) {
-                    trace.error (MessageFormat.format ("My operator name not registered in group MXBean: {0}", myOperatorName));
+                    trace.error (MsgFormatter.format ("My operator name not registered in group MXBean: {0}", myOperatorName));
                 }
             }
             ObjectOutputStream oStream = checkpoint.getOutputStream();
@@ -1152,10 +1152,10 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         int numRecords = records == null? 0: records.count();
         EnqueResult r = new EnqueResult (0);
         if (trace.isDebugEnabled()) {
-            trace.debug (MessageFormat.format ("consumer.poll took {0,number,#} ms, numRecords = {1,number,#}", (System.currentTimeMillis() - before), numRecords));
+            trace.debug (MsgFormatter.format ("consumer.poll took {0,number,#} ms, numRecords = {1,number,#}", (System.currentTimeMillis() - before), numRecords));
         }
         if (state == ClientState.CR_RESET_PENDING) {
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("pollAndEnqueue() [{0}]: Stop enqueuing fetched records", state));
             return r;
         }
         // add records to message queue
@@ -1163,7 +1163,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             // state transition
             if (state != ClientState.RECORDS_FETCHED) {
                 ClientState newState = ClientState.RECORDS_FETCHED;
-                trace.log (DEBUG_LEVEL, MessageFormat.format ("client state transition: {0} -> {1}", state, newState));
+                trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
                 state = newState;
             }
             r.setNumRecords (numRecords);
@@ -1171,7 +1171,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             final BlockingQueue<ConsumerRecord<?, ?>> messageQueue = getMessageQueue();
             records.forEach(cr -> {
                 if (trace.isTraceEnabled()) {
-                    trace.trace (MessageFormat.format ("consumed [{0}]: tp={1}, pt={2}, of={3,number,#}, ts={4,number,#}, ky={5}",
+                    trace.trace (MsgFormatter.format ("consumed [{0}]: tp={1}, pt={2}, of={3,number,#}, ts={4,number,#}, ky={5}",
                             state,  cr.topic(), cr.partition(), cr.offset(), cr.timestamp(), cr.key()));
                 }
                 final int vsz = cr.serializedValueSize();
@@ -1201,7 +1201,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
         if (startPollingRequired.getAndSet (false)) {
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("getNextRecord() [{0}] - Acquired permit - initiating polling for Kafka messages", state));
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("getNextRecord() [{0}] - Acquired permit - initiating polling for Kafka messages", state));
             sendStartPollingEvent();
         }
         return super.getNextRecord (timeout, timeUnit);
@@ -1241,7 +1241,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             try {
                 crGroupCoordinatorMxBean.deregisterConsumerOperator (getOperatorContext().getName());
             } catch (Exception e) {
-                trace.warn (MessageFormat.format ("deregister {0} operator from MXBean {1} failed: {2}",
+                trace.warn (MsgFormatter.format ("deregister {0} operator from MXBean {1} failed: {2}",
                         getOperatorContext().getName(), this.crGroupCoordinatorMXBeanName, e.toString()));
             }
         }

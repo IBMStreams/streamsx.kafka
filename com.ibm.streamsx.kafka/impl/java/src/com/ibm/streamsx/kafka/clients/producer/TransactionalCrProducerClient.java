@@ -3,7 +3,6 @@
  */
 package com.ibm.streamsx.kafka.clients.producer;
 
-import java.text.MessageFormat;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,6 +16,7 @@ import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
@@ -71,7 +71,7 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
             long propValue = Long.valueOf (kafkaProperties.getProperty (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG));
             if (propValue < minTransactionTimeout) {
                 this.kafkaProperties.setProperty (ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, "" + minTransactionTimeout);
-                trace.warn (MessageFormat.format ("producer config ''{0}'' has been increased from {1} to {2}.",
+                trace.warn (MsgFormatter.format ("producer config ''{0}'' has been increased from {1} to {2}.",
                         ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, propValue, minTransactionTimeout));
             }
         }
@@ -87,7 +87,7 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
         if (kafkaProperties.containsKey (ProducerConfig.ACKS_CONFIG)) {
             final String acks =  kafkaProperties.getProperty (ProducerConfig.ACKS_CONFIG);
             if (!(acks.equals("all") || acks.equals("-1"))) {
-                trace.warn (MessageFormat.format ("producer config ''{0}'' has been changed from {1} to {2} for enable.idempotence=true.",
+                trace.warn (MsgFormatter.format ("producer config ''{0}'' has been changed from {1} to {2} for enable.idempotence=true.",
                         ProducerConfig.ACKS_CONFIG, acks, "all"));
                 this.kafkaProperties.setProperty (ProducerConfig.ACKS_CONFIG, "all");
             }
@@ -96,7 +96,7 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
         if (kafkaProperties.containsKey (ProducerConfig.RETRIES_CONFIG)) {
             final long retries =  Long.parseLong (kafkaProperties.getProperty (ProducerConfig.RETRIES_CONFIG).trim());
             if (retries < 1l) {
-                trace.warn (MessageFormat.format ("producer config ''{0}'' has been changed from {1} to {2} for enable.idempotence=true.",
+                trace.warn (MsgFormatter.format ("producer config ''{0}'' has been changed from {1} to {2} for enable.idempotence=true.",
                         ProducerConfig.RETRIES_CONFIG, retries, "1"));
                 this.kafkaProperties.setProperty (ProducerConfig.RETRIES_CONFIG, "1");
             }
@@ -109,12 +109,12 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
                 // we ensured that retries is > 0 for idempotence.
                 // max.in.flight.requests.per.connection must be 1 to guarantee record sequence
                 final String val = "1";
-                trace.warn (MessageFormat.format ("producer config ''{0}'' has been reduced from {1} to {2} for for guaranteed retention of record order per topic partition when retries > 0.",
+                trace.warn (MsgFormatter.format ("producer config ''{0}'' has been reduced from {1} to {2} for for guaranteed retention of record order per topic partition when retries > 0.",
                         ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, val));
                 this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, val);
             } else if (maxInFlightRequests > 5l) {
                 final String val = "5";
-                trace.warn (MessageFormat.format ("producer config ''{0}'' has been reduced from {1} to {2} for enable.idempotence=true.",
+                trace.warn (MsgFormatter.format ("producer config ''{0}'' has been reduced from {1} to {2} for enable.idempotence=true.",
                         ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, val));
                 this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, val);
             }

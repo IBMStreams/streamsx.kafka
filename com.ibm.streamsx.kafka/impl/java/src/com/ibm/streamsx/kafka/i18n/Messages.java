@@ -1,17 +1,18 @@
 package com.ibm.streamsx.kafka.i18n;
 
-import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+
+import com.ibm.streamsx.kafka.MsgFormatter;
 
 public class Messages {
     private static final String BUNDLE_NAME = "com.ibm.streamsx.kafka.i18n.KafkaMessages"; //$NON-NLS-1$
@@ -34,7 +35,7 @@ public class Messages {
         try {
             String msg = getRawMsg (key);
             if (args == null) return msg;
-            return MessageFormat.format (msg, args);
+            return MsgFormatter.format (msg, args);
         } catch (MissingResourceException e) {
             return '!' + key + '!';
         }
@@ -69,7 +70,7 @@ public class Messages {
             while (k.length() < maxKeyLen) k += ' ';
             String ns = "" + ++n;
             while (ns.length() < 3) ns += ' ';
-            System.out.println (MessageFormat.format("{0} {1} {2}", ns, k, msg.getValue()));
+            System.out.println (MsgFormatter.format("{0} {1} {2}", ns, k, msg.getValue()));
         }
     }
 

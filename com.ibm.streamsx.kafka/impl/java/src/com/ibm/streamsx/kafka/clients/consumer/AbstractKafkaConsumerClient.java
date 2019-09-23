@@ -3,7 +3,6 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +46,7 @@ import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaMetricException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.UnknownTopicException;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
@@ -373,7 +373,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             if (event == null) {
                 continue;
             }
-            logger.log (DEBUG_LEVEL, MessageFormat.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
+            logger.log (DEBUG_LEVEL, MsgFormatter.format ("runEventLoop() - processing event: {0}", event.getEventType().name()));
             switch (event.getEventType()) {
             case START_POLLING:
                 if (isSubscribedOrAssigned()) {
@@ -650,13 +650,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.debug ("drainMessageQueueToBuffer(): trying to acquire lock");
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
-                logger.warn (MessageFormat.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Num records in buffer = {0,number,#}", drainBuffer.size()));
+                logger.warn (MsgFormatter.format ("drainMessageQueueToBuffer(): buffer is NOT empty. Num records in buffer = {0,number,#}", drainBuffer.size()));
             }
             nRecords = messageQueue.drainTo (drainBuffer);
             bufSize = drainBuffer.size();
         }
         qSize = messageQueue.size();
-        logger.debug (MessageFormat.format ("drainMessageQueueToBuffer(): {0,number,#} consumer records drained to buffer. bufSz = {1,number,#}, queueSz = {2,number,#}.",
+        logger.debug (MsgFormatter.format ("drainMessageQueueToBuffer(): {0,number,#} consumer records drained to buffer. bufSz = {1,number,#}, queueSz = {2,number,#}.",
                 nRecords, bufSize, qSize));
         return nRecords;
     }
@@ -711,11 +711,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     protected void runPollLoop (long pollTimeout, long throttleSleepMillis) throws InterruptedException {
         if (throttleSleepMillis > 0l) {
-            logger.log (DEBUG_LEVEL, MessageFormat.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
+            logger.log (DEBUG_LEVEL, MsgFormatter.format ("Initiating throttled polling (sleep time = {0} ms); maxPollRecords = {1}",
                     throttleSleepMillis, getMaxPollRecords()));
         }
         else {
-            logger.log (DEBUG_LEVEL, MessageFormat.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
+            logger.log (DEBUG_LEVEL, MsgFormatter.format ("Initiating polling; maxPollRecords = {0}", getMaxPollRecords()));
         }
         synchronized (drainBuffer) {
             if (!drainBuffer.isEmpty()) {
@@ -723,7 +723,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 final int capacity = messageQueue.remainingCapacity();
                 // restore records that have been put aside to the drain buffer
                 if (capacity < bufSz) {
-                    String msg = MessageFormat.format ("drain buffer size {0} > capacity of message queue {1}", bufSz, capacity);
+                    String msg = MsgFormatter.format ("drain buffer size {0} > capacity of message queue {1}", bufSz, capacity);
                     logger.error ("runPollLoop() - " + msg);
                     // must restart operator.
                     throw new RuntimeException (msg);
@@ -731,7 +731,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 messageQueue.addAll (drainBuffer);
                 final int qSize = messageQueue.size();
                 drainBuffer.clear();
-                logger.log (DEBUG_LEVEL, MessageFormat.format ("runPollLoop(): {0,number,#} consumer records added from drain buffer to the message queue. Message queue size is {1,number,#} now.", bufSz, qSize));
+                logger.log (DEBUG_LEVEL, MsgFormatter.format ("runPollLoop(): {0,number,#} consumer records added from drain buffer to the message queue. Message queue size is {1,number,#} now.", bufSz, qSize));
             }
         }
         // continue polling for messages until a new event
@@ -770,7 +770,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     final Level l = Level.DEBUG;
 //                    final Level l = DEBUG_LEVEL;
                     if (logger.isEnabledFor (l) && nMessages > 0) {
-                        logger.log (l, MessageFormat.format ("{0,number,#} records with total {1,number,#}/{2,number,#}/{3,number,#} bytes (key/value/sum) fetched and enqueued",
+                        logger.log (l, MsgFormatter.format ("{0,number,#} records with total {1,number,#}/{2,number,#}/{3,number,#} bytes (key/value/sum) fetched and enqueued",
                                 nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));
                     }
                     tryAdjustMinFreeMemory (nQueuedBytes, nMessages);
@@ -820,7 +820,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (newMinAlloc <= this.minAllocatableMemoryAdjusted)
             return;
         
-        logger.warn (MessageFormat.format ("adjusting the minimum allocatable memory from {0} to {1} to fetch new Kafka messages", this.minAllocatableMemoryAdjusted, newMinAlloc));
+        logger.warn (MsgFormatter.format ("adjusting the minimum allocatable memory from {0} to {1} to fetch new Kafka messages", this.minAllocatableMemoryAdjusted, newMinAlloc));
         //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
         // now let's see if this would be possible
         Runtime rt = Runtime.getRuntime();
@@ -828,7 +828,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         final long totalMemory = rt.totalMemory();
         final long freeMemory =  rt.freeMemory();
         if ((maxMemory - totalMemory + freeMemory) < newMinAlloc) {
-            logger.warn (MessageFormat.format ("The operator is short of memory for large message batches with potentially big messages. "
+            logger.warn (MsgFormatter.format ("The operator is short of memory for large message batches with potentially big messages. "
                     + "The last inserted batch contained {0} messages with total {1} bytes after de-compression. "
                     + "You should decrease the ''{2}'' consumer configuration from {3} to a value smaller than {4} and/or "
                     + "increase the maximum memory for the Java VM by using the ''vmArg: \"-Xmx<MAX_MEM>\"'' operator parameter.",
@@ -900,9 +900,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         if (!space) {
             if (logger.isEnabledFor (DEBUG_LEVEL)) {
                 if (lowMemory) {
-                    logger.log (DEBUG_LEVEL, MessageFormat.format ("low memory detected: messages queued ({0,number,#}).", mqSize));
+                    logger.log (DEBUG_LEVEL, MsgFormatter.format ("low memory detected: messages queued ({0,number,#}).", mqSize));
                 } else {
-                    logger.log (DEBUG_LEVEL, MessageFormat.format ("remaining capacity in message queue ({0,number,#}) < max.poll.records ({1,number,#}).",
+                    logger.log (DEBUG_LEVEL, MsgFormatter.format ("remaining capacity in message queue ({0,number,#}) < max.poll.records ({1,number,#}).",
                             remainingCapacity, maxPollRecords));
                 }
             }
@@ -982,9 +982,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param event the event
      */
     protected void sendEvent (Event event) {
-        logger.debug (MessageFormat.format("Sending event: {0}", event));
+        logger.debug (MsgFormatter.format("Sending event: {0}", event));
         eventQueue.add (event);
-        logger.debug(MessageFormat.format("Event {0} inserted into queue, q={1}", event, eventQueue));
+        logger.debug(MsgFormatter.format("Event {0} inserted into queue, q={1}", event, eventQueue));
         synchronized (throttledPollWaitMonitor) {
             throttledPollWaitMonitor.notifyAll();
         }
@@ -1019,7 +1019,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     public void sendStartThrottledPollingEvent (long throttlePauseMillis) {
         Event event = new Event (EventType.START_POLLING, new StartPollingEventParameters (0, throttlePauseMillis), false);
-        logger.debug (MessageFormat.format("Sending event: {0}; throttled", event));
+        logger.debug (MsgFormatter.format("Sending event: {0}; throttled", event));
         sendEvent (event);
     }
 
@@ -1148,7 +1148,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         // Low memory if free memory at less than 10% of max.
         final boolean isLow = freeMemory < (maxMemory * MEM_FREE_TOTAL_RATIO) || unallocated + freeMemory < minAlloctable;
         if (isLow && logger.isEnabledFor (DEBUG_LEVEL)) {
-            logger.log (DEBUG_LEVEL, MessageFormat.format ("lowMemory: maxMemory = {0}, totalMemory = {1}, freeMemory = {2}, minAlloc = {3}",
+            logger.log (DEBUG_LEVEL, MsgFormatter.format ("lowMemory: maxMemory = {0}, totalMemory = {1}, freeMemory = {2}, minAlloc = {3}",
                     maxMemory, totalMemory, freeMemory, minAlloctable));
         }
         return isLow;
@@ -1223,7 +1223,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
      */
     protected void seekToPosition(Collection<TopicPartition> topicPartitions, StartPosition startPosition) {
-        logger.info (MessageFormat.format ("seekToPosition() - {0}  -->  {1}", topicPartitions, startPosition));
+        logger.info (MsgFormatter.format ("seekToPosition() - {0}  -->  {1}", topicPartitions, startPosition));
         switch (startPosition) {
         case Beginning:
             consumer.seekToBeginning(topicPartitions);
@@ -1245,7 +1245,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param startPosition one of `StartPosition.End` or `StartPosition.Beginning`. `StartPosition.Default` is silently ignored.
      */
     protected void seekToPosition (TopicPartition tp, StartPosition startPosition) {
-        logger.info (MessageFormat.format ("seekToPosition() - {0}  -->  {1}", tp, startPosition));
+        logger.info (MsgFormatter.format ("seekToPosition() - {0}  -->  {1}", tp, startPosition));
         switch (startPosition) {
         case Beginning:
             consumer.seekToBeginning (Collections.nCopies (1, tp));
@@ -1267,7 +1267,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param topicPartitionTimestampMap mapping from topic partition to timestamp in milliseconds since epoch
      */
     protected void seekToTimestamp (Map<TopicPartition, Long> topicPartitionTimestampMap) {
-        logger.info (MessageFormat.format ("seekToTimestamp() - {0}", topicPartitionTimestampMap));
+        logger.info (MsgFormatter.format ("seekToTimestamp() - {0}", topicPartitionTimestampMap));
         Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes(topicPartitionTimestampMap);
         logger.debug("offsetsForTimes=" + offsetsForTimes);
         for (TopicPartition tp: topicPartitionTimestampMap.keySet()) {
@@ -1288,7 +1288,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param timestamp the timestamp in milliseconds since epoch
      */
     protected void seekToTimestamp (TopicPartition tp, long timestamp) {
-        logger.info (MessageFormat.format ("seekToTimestamp() - {0}  --> {1,number,#}", tp, timestamp));
+        logger.info (MsgFormatter.format ("seekToTimestamp() - {0}  --> {1,number,#}", tp, timestamp));
         Map <TopicPartition, Long> topicPartitionTimestampMap = new HashMap<>(1);
         topicPartitionTimestampMap.put (tp, new Long(timestamp));
         Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = consumer.offsetsForTimes (topicPartitionTimestampMap);
@@ -1311,7 +1311,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Otherwise, seek to the specified offset
      */
     private void seekToOffset (Map<TopicPartition, Long> topicPartitionOffsetMap) {
-        logger.info (MessageFormat.format ("seekToOffset() - {0}", topicPartitionOffsetMap));
+        logger.info (MsgFormatter.format ("seekToOffset() - {0}", topicPartitionOffsetMap));
         topicPartitionOffsetMap.forEach((tp, offset) -> {
             final long offs = offset.longValue();
             if (offs == OffsetConstants.SEEK_END) {

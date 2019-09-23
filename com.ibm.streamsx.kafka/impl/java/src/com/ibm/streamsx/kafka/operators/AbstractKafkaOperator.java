@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -33,6 +32,7 @@ import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.DataGovernanceUtil;
 import com.ibm.streamsx.kafka.IGovernanceConstants;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.ToolkitInfoReader;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -230,7 +230,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
                 return o1.compareToIgnoreCase(o2);
             }
         });
-        for (String key: sortedKeys) logger.info (MessageFormat.format("{0} = {1}",  key, props.getProperty(key)));
+        for (String key: sortedKeys) logger.info (MsgFormatter.format("{0} = {1}",  key, props.getProperty(key)));
     }
 
     protected void loadFromAppConfig() throws Exception {

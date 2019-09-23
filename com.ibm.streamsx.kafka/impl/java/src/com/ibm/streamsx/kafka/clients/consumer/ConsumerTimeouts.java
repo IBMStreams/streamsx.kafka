@@ -3,13 +3,12 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-import java.text.MessageFormat;
-
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
@@ -135,13 +134,13 @@ public class ConsumerTimeouts {
         if (kafkaProperties.containsKey (propertyName)) {
             long propValue = Long.valueOf (kafkaProperties.getProperty (propertyName));
             if (propValue < minValue) {
-                trace.warn (MessageFormat.format ("consumer config ''{0}'' has been increased from {1} to {2}.",
+                trace.warn (MsgFormatter.format ("consumer config ''{0}'' has been increased from {1} to {2}.",
                         propertyName, propValue, minValue));
                 setProp = true;
             }
         }
         else {
-            trace.info (MessageFormat.format ("consumer config ''{0}'' has been set to {1}.",
+            trace.info (MsgFormatter.format ("consumer config ''{0}'' has been set to {1}.",
                     propertyName, minValue));
             setProp = true;
         }
@@ -162,13 +161,13 @@ public class ConsumerTimeouts {
         if (kafkaProperties.containsKey (propertyName)) {
             long propValue = Long.valueOf (kafkaProperties.getProperty (propertyName));
             if (propValue > maxValue) {
-                trace.warn (MessageFormat.format ("consumer config ''{0}'' has been decreased from {1} to {2}.",
+                trace.warn (MsgFormatter.format ("consumer config ''{0}'' has been decreased from {1} to {2}.",
                         propertyName, propValue, maxValue));
                 setProp = true;
             }
         }
         else {
-            trace.info (MessageFormat.format ("consumer config ''{0}'' has been set to {1}.",
+            trace.info (MsgFormatter.format ("consumer config ''{0}'' has been set to {1}.",
                     propertyName, maxValue));
             setProp = true;
         }

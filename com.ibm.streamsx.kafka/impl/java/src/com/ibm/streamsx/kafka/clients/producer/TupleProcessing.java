@@ -3,7 +3,6 @@
  */
 package com.ibm.streamsx.kafka.clients.producer;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -20,6 +19,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.Tuple;
+import com.ibm.streamsx.kafka.MsgFormatter;
 
 /**
  * This class represents a pending tuple which is being processed.
@@ -118,11 +118,11 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
     public void onRecordProduceException (long seqNo, TopicPartition tp, Exception e, int nProducerGenerations) {
         final boolean excRecoverable = isRecoverable(e);
         final boolean recordFinallyFailed = !excRecoverable || nProducerGenerations > maxProducerGenerationsPerRecord;
-        trace.warn (MessageFormat.format ("Producer record {0,number,#} could not be produced for topic partition ''{1}'' with {2,number,#} producer generations: {3}",
+        trace.warn (MsgFormatter.format ("Producer record {0,number,#} could not be produced for topic partition ''{1}'' with {2,number,#} producer generations: {3}",
                 seqNo, tp, nProducerGenerations, e));
         boolean tupleDone = false;
         if (recordFinallyFailed) {
-            trace.error (MessageFormat.format ("Producer record {0,number,#} could finally not be produced for topic partition ''{1}'' with {2,number,#} producer generations: {3}",
+            trace.error (MsgFormatter.format ("Producer record {0,number,#} could finally not be produced for topic partition ''{1}'' with {2,number,#} producer generations: {3}",
                     seqNo, tp, nProducerGenerations, e));
             synchronized (this) {
                 RecordProduceAttempt r = producerRecordAttempts.remove (seqNo);
@@ -137,7 +137,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
             }
         }
         if (trace.isEnabledFor(DEBUG_LEVEL)) 
-            trace.log (DEBUG_LEVEL, MessageFormat.format ("nProducerGenerations = {0,number,#}; maxProducerGenerationsPerRecord = {1,number,#}; "
+            trace.log (DEBUG_LEVEL, MsgFormatter.format ("nProducerGenerations = {0,number,#}; maxProducerGenerationsPerRecord = {1,number,#}; "
                     + "isRecoverable = {2}; finalFail = {3}; producerRecordAttempts.size = {4,number,#}",
                     nProducerGenerations, maxProducerGenerationsPerRecord, isRecoverable(e), recordFinallyFailed, producerRecordAttempts.size()));
         if (recordFinallyFailed) {
@@ -166,17 +166,17 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
             }
             ++nProducedRecords;
             if (trace.isEnabledFor(DEBUG_LEVEL))
-                trace.log (DEBUG_LEVEL, MessageFormat.format ("record # {0,number,#} produced @tuple # {1,number,#}. nProducedRecords = {2,number,#}",
+                trace.log (DEBUG_LEVEL, MsgFormatter.format ("record # {0,number,#} produced @tuple # {1,number,#}. nProducedRecords = {2,number,#}",
                         seqNo, this.seqNumber, nProducedRecords));
             tupleDone = producerRecordAttempts.isEmpty();
             if (tupleDone) {
                 success = nProducedRecords == initialNumRecords;
                 if (trace.isEnabledFor(DEBUG_LEVEL)) {
                     if (success) {
-                        trace.log (DEBUG_LEVEL, MessageFormat.format ("tuple # {0,number,#} succesfully DONE. Invoking client.tupleProcessed()...", this.seqNumber));
+                        trace.log (DEBUG_LEVEL, MsgFormatter.format ("tuple # {0,number,#} succesfully DONE. Invoking client.tupleProcessed()...", this.seqNumber));
                     }
                     else {
-                        trace.log (DEBUG_LEVEL, MessageFormat.format ("tuple # {0,number,#} DONE with failed records. Invoking client.tupleFailedFinally()...", this.seqNumber));
+                        trace.log (DEBUG_LEVEL, MsgFormatter.format ("tuple # {0,number,#} DONE with failed records. Invoking client.tupleFailedFinally()...", this.seqNumber));
                     }
                 }
             }

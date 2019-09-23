@@ -3,7 +3,6 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -21,6 +20,7 @@ import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
@@ -54,7 +54,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {
             String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
             kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            trace.info (MessageFormat.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+            trace.info (MsgFormatter.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
         }
         if (getInitialStartPosition() != StartPosition.Default && getJcpContext() == null) {
             throw new KafkaOperatorException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", getInitialStartPosition()));
@@ -67,7 +67,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopicsWithTimestamp: pattern = {0}, timestamp = {1}",
+        trace.info (MsgFormatter.format ("subscribeToTopicsWithTimestamp: pattern = {0}, timestamp = {1}",
         pattern == null? "null": pattern.pattern(), timestamp));
         assert getInitialStartPosition() == StartPosition.Time;
         this.initialStartTimestamp = timestamp;
@@ -86,7 +86,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public void subscribeToTopics (Pattern pattern, StartPosition startPosition) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopics: pattern = {0}, startPosition = {1}",
+        trace.info (MsgFormatter.format ("subscribeToTopics: pattern = {0}, startPosition = {1}",
                 pattern == null? "null": pattern.pattern(), startPosition));
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
         assert getInitialStartPosition() == startPosition;
@@ -109,7 +109,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public void subscribeToTopics (Collection<String> topics, Collection<Integer> partitions, StartPosition startPosition) throws Exception {
-        trace.info (MessageFormat.format ("subscribeToTopics: topics = {0}, partitions = {1}, startPosition = {2}",
+        trace.info (MsgFormatter.format ("subscribeToTopics: topics = {0}, partitions = {1}, startPosition = {2}",
                 topics, partitions, startPosition));
         assert startPosition != StartPosition.Time && startPosition != StartPosition.Offset;
         assert getInitialStartPosition() == startPosition;
@@ -260,7 +260,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                     break;
                 default:
                     // unsupported start position, like 'Offset',  is already treated by initialization checks
-                    final String msg = MessageFormat.format("onPartitionsAssigned(): {0} does not support startPosition {1}.", getThisClassName(), getInitialStartPosition());
+                    final String msg = MsgFormatter.format("onPartitionsAssigned(): {0} does not support startPosition {1}.", getThisClassName(), getInitialStartPosition());
                     trace.error (msg);
                     throw new RuntimeException (msg);
                 }

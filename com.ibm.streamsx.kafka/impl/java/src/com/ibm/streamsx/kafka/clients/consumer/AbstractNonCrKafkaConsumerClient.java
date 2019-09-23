@@ -5,7 +5,6 @@ package com.ibm.streamsx.kafka.clients.consumer;
 
 
 import java.io.IOException;
-import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,6 +33,7 @@ import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.operators.AbstractKafkaConsumerOperator;
@@ -158,7 +158,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         }
 
         final boolean result = cv.sync().getValue();
-        trace.info (MessageFormat.format ("partition {0} previously committed: {1}", tp, result));
+        trace.info (MsgFormatter.format ("partition {0} previously committed: {1}", tp, result));
         return result;
     }
 
@@ -187,7 +187,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         previous = cv.getValue();
         if (!previous) {
             cv.setValue (true);
-            trace.info (MessageFormat.format ("partition {0} marked as committed", tp));
+            trace.info (MsgFormatter.format ("partition {0} marked as committed", tp));
         }
         return previous;
     }
@@ -489,7 +489,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      */
     protected void testForJobControlPlaneOrThrow (long connectTimeoutMillis, StartPosition startPos) throws MissingJobControlPlaneException {
         if (!tryConnectJobControlPlane (connectTimeoutMillis)) {
-            trace.error (MessageFormat.format ("Could not connect to the JobControlPlane "
+            trace.error (MsgFormatter.format ("Could not connect to the JobControlPlane "
                     + "within {0} milliseconds. Make sure that the operator graph contains "
                     + "a JobControlPlane operator to support startPosition {1}.", connectTimeoutMillis, startPos));
             throw new MissingJobControlPlaneException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", startPos));

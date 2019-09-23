@@ -3,7 +3,6 @@
  */
 package com.ibm.streamsx.kafka.clients.producer;
 
-import java.text.MessageFormat;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,6 +13,8 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+
+import com.ibm.streamsx.kafka.MsgFormatter;
 
 /**
  * This class represents a produce attempt for a producer record. It is associated with one ProducerRecord,
@@ -55,7 +56,7 @@ public class RecordProduceAttempt {
                 exceptionHandler.onRecordProduceException (producerRecordSeqNumber, tp, exception, nProducerGenerations);
             }
             else {
-                trace.log (DEBUG_LEVEL, MessageFormat.format ("skipping exception handler. producer generation of callback = {0,number,#}. "
+                trace.log (DEBUG_LEVEL, MsgFormatter.format ("skipping exception handler. producer generation of callback = {0,number,#}. "
                         + "producer generation of pending record = {1,number,#}.", 
                         this.producerGeneration, RecordProduceAttempt.this.producerGeneration.get()));
             }

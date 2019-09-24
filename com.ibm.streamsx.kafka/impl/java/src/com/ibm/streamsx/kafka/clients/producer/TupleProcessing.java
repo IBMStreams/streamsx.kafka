@@ -41,6 +41,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
     private int nProducedRecords = 0;
     private final long seqNumber;
     private final int maxProducerGenerationsPerRecord;
+    private boolean recoverableExcOccurred = false;
     private Exception lastException = null;
     private Set<String> failedTopics = new HashSet<>();
 
@@ -125,6 +126,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
             trace.error (MsgFormatter.format ("Producer record {0,number,#} could finally not be produced for topic partition ''{1}'' with {2,number,#} producer generations: {3}",
                     seqNo, tp, nProducerGenerations, e));
             synchronized (this) {
+                this.recoverableExcOccurred |= excRecoverable;
                 RecordProduceAttempt r = producerRecordAttempts.remove (seqNo);
                 tupleDone = producerRecordAttempts.isEmpty();
                 if (r == null) { 
@@ -142,7 +144,8 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
                     nProducerGenerations, maxProducerGenerationsPerRecord, isRecoverable(e), recordFinallyFailed, producerRecordAttempts.size()));
         if (recordFinallyFailed) {
             if (tupleDone) {
-                client.tupleFailedFinally (this.seqNumber, failedTopics, e, excRecoverable);
+                final boolean tryRecover = this.recoverableExcOccurred && maxProducerGenerationsPerRecord == 1;
+                client.tupleFailedFinally (this.seqNumber, failedTopics, e, tryRecover);
             }
         }
         else {
@@ -156,7 +159,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
      */
     @Override
     public void onRecordProduced (long seqNo, ProducerRecord<?, ?> record, RecordMetadata metadata) {
-        boolean success = false;
+        boolean allRecordsSucceeded = false;
         boolean tupleDone = false;
         synchronized (this) {
             if (producerRecordAttempts.remove (seqNo) == null) {
@@ -170,9 +173,9 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
                         seqNo, this.seqNumber, nProducedRecords));
             tupleDone = producerRecordAttempts.isEmpty();
             if (tupleDone) {
-                success = nProducedRecords == initialNumRecords;
+                allRecordsSucceeded = nProducedRecords == initialNumRecords;
                 if (trace.isEnabledFor(DEBUG_LEVEL)) {
-                    if (success) {
+                    if (allRecordsSucceeded) {
                         trace.log (DEBUG_LEVEL, MsgFormatter.format ("tuple # {0,number,#} succesfully DONE. Invoking client.tupleProcessed()...", this.seqNumber));
                     }
                     else {
@@ -182,10 +185,13 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
             }
         }
         if (tupleDone) {
-            if (success)
+            if (allRecordsSucceeded) {
                 client.tupleProcessed (this.seqNumber);
-            else
-                client.tupleFailedFinally (this.seqNumber, this.failedTopics, this.lastException, false);
+            }
+            else {
+                final boolean tryRecover = this.recoverableExcOccurred && maxProducerGenerationsPerRecord == 1;
+                client.tupleFailedFinally (this.seqNumber, this.failedTopics, this.lastException, tryRecover);
+            }
         }
     }
 

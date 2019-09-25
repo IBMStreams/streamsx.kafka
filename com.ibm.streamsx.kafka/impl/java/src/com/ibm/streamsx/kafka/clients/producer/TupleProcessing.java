@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streamsx.kafka.MsgFormatter;
+import com.ibm.streamsx.kafka.clients.producer.ErrorCategorizer.ErrCategory;
 
 /**
  * This class represents a pending tuple which is being processed.
@@ -44,21 +45,23 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
     private boolean recoverableExcOccurred = false;
     private Exception lastException = null;
     private Set<String> failedTopics = new HashSet<>();
+    private final ErrorCategorizer errorCategorizer;
 
-    private TupleProcessing (final Tuple tuple, int nRecords, ClientCallback client, int maxProducerGenerations) {
+    private TupleProcessing (final Tuple tuple, int nRecords, ClientCallback client, int maxProducerGenerations, final ErrorCategorizer c) {
         this.client = client;
         this.tuple = tuple;
         this.maxProducerGenerationsPerRecord = maxProducerGenerations;
         this.initialNumRecords = nRecords;
         this.seqNumber = nextSeqNumber.incrementAndGet();
         this.producerRecordAttempts = new HashMap<> (nRecords);
+        this.errorCategorizer = c == null? new RecoverAllErrors(): c;
     }
 
     /**
      * Creates a new instance with 1-to-N relation between tuple and producer records.
      */
-    public TupleProcessing (final Tuple tuple, List<ProducerRecord<?, ?>> records, int producerGeneration, int maxGenerations, ClientCallback client) {
-        this (tuple, records.size(), client, maxGenerations);
+    public TupleProcessing (final Tuple tuple, List<ProducerRecord<?, ?>> records, int producerGeneration, int maxGenerations, ClientCallback client, ErrorCategorizer cat) {
+        this (tuple, records.size(), client, maxGenerations, cat);
         for (ProducerRecord<?, ?> r: records) {
             RecordProduceAttempt p = new RecordProduceAttempt (r, producerGeneration/*, tuple*/);
             p.setProducedHandler (this);
@@ -70,8 +73,8 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
     /**
      * Creates a new instance with 1-to-1 relation between tuple and producer records.
      */
-    public TupleProcessing (final Tuple tuple, ProducerRecord<?, ?> record, int producerGeneration, int maxGenerations, ClientCallback client) {
-        this (tuple, 1, client, maxGenerations);
+    public TupleProcessing (final Tuple tuple, ProducerRecord<?, ?> record, int producerGeneration, int maxGenerations, ClientCallback client, ErrorCategorizer cat) {
+        this (tuple, 1, client, maxGenerations, cat);
         RecordProduceAttempt p = new RecordProduceAttempt (record, producerGeneration/*, tuple*/);
         p.setProducedHandler (this);
         p.setExceptionHandler (this);
@@ -108,16 +111,16 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
      * @param e the exception
      * @return true for all exceptions of runtime class org.apache.kafka.common.errors.RetriableException, false otherwise
      */
-    private static boolean isRecoverable (Exception e) {
-        return e instanceof org.apache.kafka.common.errors.RetriableException;
-    }
+//    private static boolean isRecoverable (Exception e) {
+//        return e instanceof org.apache.kafka.common.errors.RetriableException;
+//    }
 
     /**
      * @see com.ibm.streamsx.kafka.clients.producer.RecordProduceExceptionHandler#onRecordProduceException(long, TopicPartition, Exception, int)
      */
     @Override
     public void onRecordProduceException (long seqNo, TopicPartition tp, Exception e, int nProducerGenerations) {
-        final boolean excRecoverable = isRecoverable(e);
+        final boolean excRecoverable = errorCategorizer.isRecoverable(e) == ErrCategory.RECOVERABLE;
         final boolean recordFinallyFailed = !excRecoverable || nProducerGenerations > maxProducerGenerationsPerRecord;
         trace.warn (MsgFormatter.format ("Producer record {0,number,#} could not be produced for topic partition ''{1}'' with {2,number,#} producer generations: {3}",
                 seqNo, tp, nProducerGenerations, e));
@@ -141,7 +144,7 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
         if (trace.isEnabledFor(DEBUG_LEVEL)) 
             trace.log (DEBUG_LEVEL, MsgFormatter.format ("nProducerGenerations = {0,number,#}; maxProducerGenerationsPerRecord = {1,number,#}; "
                     + "isRecoverable = {2}; finalFail = {3}; producerRecordAttempts.size = {4,number,#}",
-                    nProducerGenerations, maxProducerGenerationsPerRecord, isRecoverable(e), recordFinallyFailed, producerRecordAttempts.size()));
+                    nProducerGenerations, maxProducerGenerationsPerRecord, excRecoverable, recordFinallyFailed, producerRecordAttempts.size()));
         if (recordFinallyFailed) {
             if (tupleDone) {
                 final boolean tryRecover = this.recoverableExcOccurred && maxProducerGenerationsPerRecord == 1;

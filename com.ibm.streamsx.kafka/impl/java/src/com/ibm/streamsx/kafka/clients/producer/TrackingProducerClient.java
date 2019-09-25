@@ -59,6 +59,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     private AtomicBoolean resetInitiatedOnce = new AtomicBoolean (false);
     private final boolean inConsistentRegion;
     private TupleProcessedHook tupleProcessedHook = null;
+    private final ErrorCategorizer errorCategorizer;
 
     /**
      * @param operatorContext
@@ -74,7 +75,22 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
         trace.info ("constructing " + getThisClassName());
         this.crContext = operatorContext.getOptionalContext (ConsistentRegionContext.class);
         this.inConsistentRegion = this.crContext != null;
-        if (!inConsistentRegion) {
+        if (inConsistentRegion) {
+            // we are in consistent region mode
+            // when in consistent region, ALL exceptions are recovered by resetting the region when there is no error port.
+            // when there is an error output port, the retriable exceptions lead to reset of the region.
+            // The non-retriable exceptions are reported o the error output port
+            if (operatorContext.getNumberOfStreamingOutputs() == 0) {
+                this.errorCategorizer = new RecoverAllErrors();
+            } else {
+                this.errorCategorizer = new RecoverRetriable();
+            }
+        }
+        else {
+            // when not in CR, the producer is re-created (client recovered) on retriable exceptions only.
+            // non-retriable Kafka exceptions are treated as final failure - they get reported to
+            // error output port immediately when present
+            this.errorCategorizer = new RecoverRetriable();
             this.recoveryThread = operatorContext.getThreadFactory().newThread (new Runnable() {
                 @Override
                 public void run() {
@@ -249,7 +265,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
             // This instance does not process any tuples anymore.
             return;
         }
-        TupleProcessing pt = new TupleProcessing (associatedTuple, producerRecord, producerGeneration, maxProducerGenerations, this);
+        TupleProcessing pt = new TupleProcessing (associatedTuple, producerRecord, producerGeneration, maxProducerGenerations, this, this.errorCategorizer);
         try {
             waitForPermissionAndSendRecords (pt);
         } catch (InterruptedException ie) {
@@ -270,7 +286,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
             // This instance does not process any tuples anymore.
             return;
         }
-        TupleProcessing pt = new TupleProcessing (associatedTuple, records, producerGeneration, maxProducerGenerations, this);
+        TupleProcessing pt = new TupleProcessing (associatedTuple, records, producerGeneration, maxProducerGenerations, this, this.errorCategorizer);
         try {
             waitForPermissionAndSendRecords (pt);
         } catch (InterruptedException ie) {
@@ -415,6 +431,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
                 trace.info ("waiting to get all pending tuples processed; #tuples = " + sz);
                 pendingTuplesMonitor.wait (10000L);
             }
+            trace.debug ("all pending tuples processed");
         }
     }
 

@@ -124,15 +124,11 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             description = "If set to true, the operator guarantees that the order of records within "
                     + "a topic partition is the same as the order of processed tuples when it comes "
                     + "to retries. This implies that the operator sets the "
-                    + "`max.in.flight.requests.per.connection` producer property automatically to 1 "
-                    + "if retries are enabled, i.e. when the `retries` property is unequal 0, what "
-                    + "is the operator default value.\\n"
+                    + "`enable.idempotence` producer config automatically to `true`, `acks` to `all`, "
+                    + "enables retries, and adjusts `max.in.flight.requests.per.connection` to an upper limit of 5.\\n"
                     + "\\n"
                     + "If unset, the default value of this parameter is `false`, which means that the "
-                    + "order can change due to retries. Please be aware that setting " 
-                    + GUARANTEE_ORDERING_PARAM_NAME
-                    + " to `true` degrades the producer throughput as only one PRODUCE request per topic partition "
-                    + "is active at any time.")
+                    + "order can change due to retries.")
     public void setGuaranteeOrdering (boolean guaranteeOrdering) {
         this.guaranteeOrdering = guaranteeOrdering;
     }

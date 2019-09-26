@@ -25,7 +25,7 @@ This is an overview of changes for major and minor version upgrades. For details
 
 ++ What's new in version 2.2.0
 
-* The `KafkaProducer` operator supports an optional output port for failed tuples
+* The `KafkaProducer` operator supports an optional output port, configurable via the new **outputErrorsOnly** operator parameter
 * Exception handling in autonomous region changed. The operator does not abort its PE anymore; it recovers internally instead.
 * new custom metrics `nFailedTuples`, `nPendingTuples`, and `nQueueFullPause`
 

@@ -111,31 +111,21 @@ public class TransactionalCrProducerClient extends TrackingProducerClient {
                 this.kafkaProperties.setProperty (ProducerConfig.RETRIES_CONFIG, "1");
             }
         }
-        // we have enabled retries for idempotence.
-        // This requires max.in.flight.requests.per.connection = 1 when guaranteeOrdering is true.
+
+        // eanble.idempotence requires max.in.flight.requests.per.connection <= 5
+        final long maxInFlightRequestsForIdempotence = 5L;
         if (kafkaProperties.containsKey (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION)) {
             final long maxInFlightRequests = Long.parseLong (kafkaProperties.getProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION).trim());
-            if (guaranteeOrdering && maxInFlightRequests > 1) {
-                // we ensured that retries is > 0 for idempotence.
-                // max.in.flight.requests.per.connection must be 1 to guarantee record sequence
-                final String val = "1";
-                trace.warn (MsgFormatter.format ("producer config ''{0}'' has been reduced from {1} to {2} for for guaranteed retention of record order per topic partition when retries > 0.",
-                        ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, val));
-                this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, val);
-            } else if (maxInFlightRequests > 5l) {
-                final String val = "5";
+            if (maxInFlightRequests > maxInFlightRequestsForIdempotence) {
+                final String val = "" + maxInFlightRequestsForIdempotence;
                 trace.warn (MsgFormatter.format ("producer config ''{0}'' has been reduced from {1} to {2} for enable.idempotence=true.",
                         ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, val));
                 this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, val);
             }
         }
         else {
-            // property not set:
-            if (guaranteeOrdering) {
-                // we ensured that retries is > 0 for idempotence.
-                // max.in.flight.requests.per.connection must be 1 to guarantee record sequence
-                this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
-            }
+            // config not set:
+            this.kafkaProperties.setProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "" + maxInFlightRequestsForIdempotence);
         }
         // --- end adjustment for enable.idempotence = true
         // The "transactional.id" property is mandatory in order to support transactions.

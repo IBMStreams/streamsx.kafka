@@ -122,6 +122,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
             });
             this.recoveryThread.start();
         }
+        trace.info ("using error categorizer: " + this.errorCategorizer.getClass().getName());
         this.nPendingTuples = operatorContext.getMetrics().getCustomMetric ("nPendingTuples");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric ("nQueueFullPause");
         this.nFailedTuples = operatorContext.getMetrics().getCustomMetric ("nFailedTuples");

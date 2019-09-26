@@ -65,6 +65,12 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
     protected static final String CONSISTENT_REGION_POLICY_PARAM_NAME = "consistentRegionPolicy";
     protected static final String FLUSH_PARAM_NAME = "flush";
+    protected static final String OUTPUT_ERRORS_ONLY_PARM_NAME = "outputErrorsOnly";
+
+    protected static final int I_PORT_MAX_PENDING_TUPLES = 5000;
+    protected static final int O_PORT_DEFAULT_QUEUE_CAPACITY = 5000;
+    protected static final long O_PORT_QUEUE_OFFER_TIMEOUT_MS = 15000;
+    protected static final boolean O_PORT_SUBMIT_ONLY_ERRORS = true;
 
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
@@ -84,8 +90,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     private boolean guaranteeOrdering = false;
+    private boolean outputErrorsOnly = O_PORT_SUBMIT_ONLY_ERRORS;
     private int flush = 0;
-    private ErrorPortSubmitter errorPortSubmitter = null;
+    private OutputPortSubmitter errorPortSubmitter = null;
 
     @Parameter (optional = true, name = FLUSH_PARAM_NAME,
             description = "Specifies the number of tuples, after which the producer is flushed. When not specified, "
@@ -146,6 +153,16 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         this.guaranteeOrdering = guaranteeOrdering;
     }
 
+    @Parameter(optional = true, name = OUTPUT_ERRORS_ONLY_PARM_NAME,
+            description = "If set to `true`, the operator submits tuples to the optional output port only "
+                    + "for the tuples that failed to produce completely. "
+                    + "If set to `false`, the operator submits also tuples for the successfully produced input tuples.\\n"
+                    + "\\n"
+                    + "If unset, the default value of this parameter is " + O_PORT_SUBMIT_ONLY_ERRORS + ". "
+                    + "This parameter is ignored when the operator is not configured with an output port.")
+    public void setOutputErrorsOnly (boolean errsOnly) {
+        this.outputErrorsOnly = errsOnly;
+    }
 
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
             description="Specifies the input attribute that contains "
@@ -213,10 +230,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "producerGeneration", description = "The producer generation. When a new producer is created, a new generation is created.")
     public void setnMalformedMessages (Metric producerGeneration) { }
 
-    @CustomMetric (kind = Metric.Kind.GAUGE, name = "nPendingTuples", description = "Number of tuples not yet produced")
+    @CustomMetric (kind = Metric.Kind.GAUGE, name = "nPendingTuples", description = "Number of input tuples not yet produced (acknowledged from Kafka)")
     public void setnPendingTuples (Metric nPendingTuples) { }
 
-    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nQueueFullPause", description = "Number times tuple processing was paused due to full tuple queue of pending tuples.")
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nQueueFullPause", description = "Number times the input tuple processing was paused due to full tuple queue of pending tuples.")
     public void setnQueueFullPause (Metric nQueueFullPause) { }
 
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "nFailedTuples", description = "Number of tuples that could not be produced for all topics")
@@ -427,7 +444,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // is not conflicting with RESET processing, for which this flag is used.
         isResetting = new AtomicBoolean (crContext != null && context.getPE().getRelaunchCount() > 0);
         if (getOperatorContext().getNumberOfStreamingOutputs() > 0) {
-            this.errorPortSubmitter = new ErrorPortSubmitter (getOperatorContext());
+            this.errorPortSubmitter = new OutputPortSubmitter (context, 
+                    O_PORT_DEFAULT_QUEUE_CAPACITY, 
+                    O_PORT_QUEUE_OFFER_TIMEOUT_MS,
+                    outputErrorsOnly);
         }
         initProducer();
         final boolean registerAsInput = false;
@@ -457,8 +477,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
         // when we want a hook for produced or failed tuples, we must set a TupleProcessedHook implementation.
         pClient.setTupleProcessedHook (this.errorPortSubmitter);
-        //        pClient.setMaxPendingTuples (2000);
-        pClient.setMaxProducerGenerations (2);
+        pClient.setMaxPendingTuples (I_PORT_MAX_PENDING_TUPLES);
+        pClient.setMaxProducerGenerations (2);  // retry tuples only once
         producer = pClient;
         producer.setFlushAfter (flush);
         logger.info ("producer client " + producer.getThisClassName() + " created");

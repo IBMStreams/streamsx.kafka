@@ -28,17 +28,23 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             cardinality = 1, optional = false)})
 
 @OutputPorts({
-    @OutputPortSet(description = "This port is an optional error output port. It produces tuples for input tuples that failed to "
-            + "get published on one or all of the specified topics. The error output port is asynchronous to the input port "
-            + "of the operator. The sequence of the produced tuples may also differ from the sequence of the input tuples. "
-            + "\\n\\n"
+    @OutputPortSet(description = "This port is an optional output port. Dependent on the "
+            + "**" + AbstractKafkaProducerOperator.OUTPUT_ERRORS_ONLY_PARM_NAME + "** attribute, "
+            + "the output stream includes only tuples for input tuples that failed to get published on one or all "
+            + "of the specified topics, or it contains tuples corresponding to *all* input tuples, successfully produced "
+            + "ones and failed tuples.\\n"
+            + "\\n"
+            + "The output port is asynchronous to the input port of the operator. The sequence of the submitted tuples "
+            + "may also differ from the sequence of the input tuples. Window punctuations from the input stream are not forwarded.\\n"
+            + "\\n"
             + "The schema of the output port must consist of one optional attribute of tuple type with the same schema "
-            + "as the input port and one optional attribute of type rstring or ustring, that takes a JSON formatted description "
-            + "of the occured error. Both attributes can have any names and can occure in any sequence.\\n"
+            + "as the input port and one optional attribute of type `rstring` or `ustring`, that takes a JSON formatted description "
+            + "of the occured error, or remains empty (zero length) for successfully produced tuples. "
+            + "Both attributes can have any names and can be declared in any sequence in the schema.\\n"
             + "\\n"
-            + "**Example for declaring the output stream:**\\n"
+            + "**Example for declaring the output stream as error output:**\\n"
             + "\\n"
-            + "    stream <I failedTuple, rstring failure> Errors = KafkaProducer (Data as I) {\\n"
+            + "    stream <Inp failedTuple, rstring failure> Errors = KafkaProducer (Data as Inp) {\\n"
             + "        ...\\n"
             + "    }\\n"
             + ""
@@ -51,7 +57,17 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
             + "    }\\n"
             + ""
             + "Please note that the generated JSON dows not contain line breaks as in the example above, where the JSON has "
-            + "been broken into multiple lines to better show its structure.",
+            + "been broken into multiple lines to better show its structure.\\n"
+            + "\\n"
+            + "**Example for declaring the output stream for both successfully produced input tuples and failures:**\\n"
+            + "\\n"
+            + "    // 'failure' attribute will have zero length for successfully produced input tuples\\n"
+            + "    stream <Inp inTuple, rstring failure> ProduceStatus = KafkaProducer (Data as Inp) {\\n"
+            + "        param\\n"
+            + "            outputErrorsOnly: false;\\n"
+            + "        ...\\n"
+            + "    }\\n"
+            + "",
             cardinality = 1, optional = true, windowPunctuationOutputMode = WindowPunctuationOutputMode.Free)})
 
 @Icons(location16 = "icons/KafkaProducer_16.gif", location32 = "icons/KafkaProducer_32.gif")
@@ -114,14 +130,14 @@ public class KafkaProducerOperator extends AbstractKafkaProducerOperator {
             + "\\n"
             + "When the operator is not used within a consistent region, the operator tries to recover internally "
             + "by instantiating a new Kafka producer within the operator and resending all producer records, which are not yet acknowledged. "
-            + "Records that fail three producer generations are considered being finally failed. The corresponding tuple is counted in the "
+            + "Records that fail two producer generations are considered being finally failed. The corresponding tuple is counted in the "
             + "custom metric `nFailedTuples`, and, if the operator is configured with an output port, an output tuple is submitted.\\n"
             + "\\n"
             + "In the event that Kafka throws a **non-retriable exception**, the tuple that caused the exception is counted in the "
             + "custom metric `nFailedTuples`, and, if the operator is configured with an output port, an output tuple is submitted.\\n"
             + "\\n"
             + "Some exceptions can be "
-            + "retried by Kafka itself, such as those that occur due to network error. It is not recommended "
+            + "retried by Kafka itself, such as those that occur due to network error. Therefore, it is not recommended "
             + "to set the KafkaProducer `retries` property to 0 to disable the producer's "
             + "retry mechanism.";
 }

@@ -39,16 +39,17 @@ import com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook;
  * This class represents a Hook that submits tuples to an output port.
  * @author The IBM Kafka toolkit team
  */
-public class ErrorPortSubmitter implements TupleProcessedHook {
+public class OutputPortSubmitter implements TupleProcessedHook {
 
-    private static final long OUT_QUEUE_OFFER_TIMEOUT_MS = 5000;
-    private static final int OUTPUT_QUEUE_CAPACITY = 5000;
-    private static final Logger trace = Logger.getLogger (ErrorPortSubmitter.class);
+    private static final Logger trace = Logger.getLogger (OutputPortSubmitter.class);
 
     private final StreamingOutput<OutputTuple> out;
+    private final boolean submitOnlyErrors;
     private final Gson gson;
     private int tupleAttrIndex = -1;
     private int stringAttrIndex = -1;
+    private final int outQueueCapacity;
+    private final long outQueueOfferTimeoutMillis;
     private final BlockingQueue<OutputTuple> outQueue;
     private boolean isRunning = false;
     private Thread tupleSubmitter;
@@ -92,16 +93,20 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     /**
      * Constructs a new ErrorPortSubmitter.
      * @param opContext the operator context
-     * @param tupleAttrIndex  the attribute index of the input tuple attribute. If there is no such index, specify -1.
-     * @param stringAttrIndex the attribute index of the JSON error description rstring attribute. If there is no such index, specify -1.
+     * @param outQueueCapacity the capacity of the output queue.
+     * @param outQueueOfferTimeoutMs the timeout in milliseconds for placing output tuples into the queue when the queue is full.
      * @throws KafkaOperatorException unsupported output port schema
      */
-    public ErrorPortSubmitter (OperatorContext opContext /* int tupleAttrIndex, int stringAttrIndex*/) throws KafkaOperatorException {
+    public OutputPortSubmitter (OperatorContext opContext, int outQueueCapacity, long outQueueOfferTimeoutMs, boolean submitOnlyErrors) throws KafkaOperatorException {
+        if (opContext.getNumberOfStreamingOutputs() == 0) {
+            throw new KafkaOperatorException ("Missing output port for operator " + opContext.getKind());
+        }
+        this.submitOnlyErrors = submitOnlyErrors;
+        this.outQueueOfferTimeoutMillis = outQueueOfferTimeoutMs;
+        this.outQueueCapacity = outQueueCapacity;
         this.out = opContext.getStreamingOutputs().get(0);
         this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
-        //        this.tupleAttrIndex = tupleAttrIndex;
-        //        this.stringAttrIndex = stringAttrIndex;
-        this.outQueue = new LinkedBlockingQueue<> (OUTPUT_QUEUE_CAPACITY);
+        this.outQueue = new LinkedBlockingQueue<> (outQueueCapacity);
         this.opCtxt = opContext;
         StreamSchema inPortSchema = opContext.getStreamingInputs().get(0).getStreamSchema();
         StreamSchema outSchema = out.getStreamSchema();
@@ -151,11 +156,26 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     }
 
     /**
-     * Empty implementation.
      * @see com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook#onTupleProduced(com.ibm.streams.operator.Tuple)
      */
     @Override
-    public void onTupleProduced (Tuple tuple) { }
+    public void onTupleProduced (Tuple tuple) {
+        if (submitOnlyErrors) return;
+        enqueueOTuple (tuple, "");
+    }
+
+    /**
+     * Creates the error output tuple and places it into a queue.
+     * 
+     * @see com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook#onTupleFailed(com.ibm.streams.operator.Tuple, com.ibm.streamsx.kafka.clients.producer.FailureDescription)
+     */
+    @Override
+    public void onTupleFailed (Tuple inTuple, FailureDescription failure) {
+        if (stringAttrIndex >= 0)
+            enqueueOTuple (inTuple, gson.toJson (failure));
+        else
+            enqueueOTuple (inTuple, null);
+    }
 
     /**
      * ensure that the hook has processed everything
@@ -180,22 +200,21 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
     }
 
     /**
-     * Creates the error output tuple and places it into a queue.
-     * 
-     * @see com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook#onTupleFailed(com.ibm.streams.operator.Tuple, com.ibm.streamsx.kafka.clients.producer.FailureDescription)
+     * Creates an output tuple and offers it to the output queue
+     * @param inTuple
+     * @param failure
      */
-    @Override
-    public void onTupleFailed (Tuple inTuple, FailureDescription failure) {
-        final String failureJson = gson.toJson (failure);
+    private void enqueueOTuple (Tuple inTuple, String stringAttrVal) {
         OutputTuple outTuple = out.newTuple();
         if (tupleAttrIndex >= 0)
             outTuple.assignTuple (tupleAttrIndex, inTuple);
         if (stringAttrIndex >= 0)
-            outTuple.setString (stringAttrIndex, failureJson);
+            outTuple.setString (stringAttrIndex, stringAttrVal);
         try {
             this.nQt.incrementAndGet();
-            if (!outQueue.offer (outTuple, OUT_QUEUE_OFFER_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                trace.error ("Output port queue congested (size = " + OUTPUT_QUEUE_CAPACITY + "). Output tuple discarded.");
+            if (!outQueue.offer (outTuple, outQueueOfferTimeoutMillis, TimeUnit.MILLISECONDS)) {
+                trace.error ("Output port queue congested (size = " + outQueueCapacity + "). Output tuple discarded.");
+                // tuple NOT offered. revert the previous increment
                 if (this.nQt.decrementAndGet() == 0) {
                     synchronized (queueMonitor) {
                         queueMonitor.notifyAll();
@@ -203,7 +222,7 @@ public class ErrorPortSubmitter implements TupleProcessedHook {
                 }
             }
         } catch (InterruptedException e) {
-            trace.info ("Interrupted inserting tuple into output queue. Output tuple discarded.");
+            trace.info ("Interrupted inserting output tuple into output queue. Output tuple discarded.");
         }
     }
 }

@@ -266,52 +266,20 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
         if (!kafkaProperties.containsKey (ProducerConfig.LINGER_MS_CONFIG)) {
             this.kafkaProperties.put (ProducerConfig.LINGER_MS_CONFIG, "100");
         }
-
-        // when record order is to be kept, use the idempotent producer
-        if (guaranteeOrdering) {
-            kafkaProperties.setProperty (ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
-            logger.info ("producer config '" + ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG + "' has been set to 'true' to guarantee record ordering. Adjusting also 'acks' to 'all' and 'retries' to be > 0.");
-        }
-        final boolean enableIdempotence = Boolean.parseBoolean (kafkaProperties.getProperty (ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "false").trim());
-        if (enableIdempotence) {
-            // --- begin adjustment for enable.idempotence = true
-            // Note that enabling idempotence requires max.in.flight.requests.per.connection 
-            // to be less than or equal to 5, retries to be greater than 0 and acks must be 'all'.
-            if (kafkaProperties.containsKey (ProducerConfig.ACKS_CONFIG)) {
-                final String acks =  kafkaProperties.getProperty (ProducerConfig.ACKS_CONFIG);
-                if (!(acks.equals("all") || acks.equals("-1"))) {
-                    logger.warn (MsgFormatter.format ("producer config ''{0}'' has been changed from {1} to {2} for enable.idempotence=true.",
-                            ProducerConfig.ACKS_CONFIG, acks, "all"));
-                    kafkaProperties.setProperty (ProducerConfig.ACKS_CONFIG, "all");
-                }
-            }
-            else this.kafkaProperties.setProperty (ProducerConfig.ACKS_CONFIG, "all");
-            if (kafkaProperties.containsKey (ProducerConfig.RETRIES_CONFIG)) {
-                final long retries =  Long.parseLong (kafkaProperties.getProperty (ProducerConfig.RETRIES_CONFIG).trim());
-                if (retries < 1L) {
-                    final String retriesAdjustGreaterThan0 = "1";
-                    logger.warn (MsgFormatter.format ("producer config ''{0}'' has been changed from {1,number,#} to {2} for enable.idempotence=true.",
-                            ProducerConfig.RETRIES_CONFIG, retries, retriesAdjustGreaterThan0));
-                    this.kafkaProperties.setProperty (ProducerConfig.RETRIES_CONFIG, retriesAdjustGreaterThan0);
-                }
-            }
-        }
-
-        final long maxInFlightRequestsPerConWhenUnset = enableIdempotence? 5L: 10L;
+        // max.in.flight.requests.per.connection
+        // when record order is to be kept and retries are enabled, max.in.flight.requests.per.connection must be 1
+        final long retries = kafkaProperties.containsKey (ProducerConfig.RETRIES_CONFIG)? Long.parseLong (this.kafkaProperties.getProperty (ProducerConfig.RETRIES_CONFIG).trim()): Integer.MAX_VALUE;
+        final String maxInFlightRequestsPerConWhenUnset = guaranteeOrdering && retries > 0l? "1": "10";
         if (!kafkaProperties.containsKey (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION)) {
-            // config unset
-            this.kafkaProperties.put (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "" + maxInFlightRequestsPerConWhenUnset);
+            this.kafkaProperties.put (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequestsPerConWhenUnset);
         }
         else {
-            // config set; adjust when too high for enable.idempotence=true 
             final long maxInFlightRequests = Long.parseLong (this.kafkaProperties.getProperty (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION).trim());
-            if (enableIdempotence && maxInFlightRequests > maxInFlightRequestsPerConWhenUnset) {
-                this.kafkaProperties.put (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "" + maxInFlightRequestsPerConWhenUnset);
-                logger.warn (MsgFormatter.format ("producer config ''{0}'' has been turned from ''{1,number,#}'' to ''{2,number,#}'' for ''{3}''=true for guaranteed retention of record order per topic partition.",
-                        ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests, maxInFlightRequestsPerConWhenUnset, ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG));
+            if (guaranteeOrdering && maxInFlightRequests > 1l && retries > 0l) {
+                this.kafkaProperties.put (ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+                logger.warn("producer config '" + ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION + "' has been turned to '1' for guaranteed retention of record order per topic partition.");
             }
         }
-
         // batch.size
         if (!kafkaProperties.containsKey (ProducerConfig.BATCH_SIZE_CONFIG)) {
             this.kafkaProperties.put (ProducerConfig.BATCH_SIZE_CONFIG, "32768");

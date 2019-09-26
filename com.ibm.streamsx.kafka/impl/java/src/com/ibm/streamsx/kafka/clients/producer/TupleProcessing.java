@@ -117,15 +117,6 @@ public class TupleProcessing implements RecordProducedHandler, RecordProduceExce
 
 
     /**
-     * decides if an exception passed in a KafkaCallback is worth a recovery retry or not.
-     * @param e the exception
-     * @return true for all exceptions of runtime class org.apache.kafka.common.errors.RetriableException, false otherwise
-     */
-//    private static boolean isRecoverable (Exception e) {
-//        return e instanceof org.apache.kafka.common.errors.RetriableException;
-//    }
-
-    /**
      * @see com.ibm.streamsx.kafka.clients.producer.RecordProduceExceptionHandler#onRecordProduceException(long, TopicPartition, Exception, int)
      */
     @Override

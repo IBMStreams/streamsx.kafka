@@ -402,7 +402,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "**NOTE:** Although properties are adjusted, users can override any of the above properties by explicitly setting "
             + "the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be "
-            + "specified for the Kafka producer version 2.1, are supported by all Broker versions. An example for is the Zstandard "
+            + "specified for the Kafka producer version 2.2, are supported by all Broker versions. An example for is the Zstandard "
             + "compression algorithm, which is supported with broker version 2.1 and above.\\n"
             ;
 

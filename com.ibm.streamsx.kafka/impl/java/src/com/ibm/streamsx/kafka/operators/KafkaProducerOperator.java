@@ -29,7 +29,7 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
 
 @OutputPorts({
     @OutputPortSet(description = "This port is an optional output port. Dependent on the "
-            + "**" + AbstractKafkaProducerOperator.OUTPUT_ERRORS_ONLY_PARM_NAME + "** attribute, "
+            + "**" + AbstractKafkaProducerOperator.OUTPUT_ERRORS_ONLY_PARM_NAME + "** parameter, "
             + "the output stream includes only tuples for input tuples that failed to get published on one or all "
             + "of the specified topics, or it contains tuples corresponding to *all* input tuples, successfully produced "
             + "ones and failed tuples.\\n"

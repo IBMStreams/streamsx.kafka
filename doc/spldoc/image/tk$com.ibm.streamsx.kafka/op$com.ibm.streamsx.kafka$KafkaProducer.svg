@@ -76,6 +76,15 @@ IqIM/yVAAv83MMza8P/HXKACggEFAMWr7LzeVvysAAAAAElFTkSuQmCC"
       /><path style="stroke:none;" d="M17.25 34.0781 L18.8281 34.0781 L18.8281 39 L17.25 39 L17.25 34.0781 ZM17.25 32.1562 L18.8281 32.1562 L18.8281 33.4375 L17.25 33.4375 L17.25 32.1562 Z"
     /></g
     ><rect width="16.0" x="10.0" height="12.0" id="sdt3" y="30.0" style="stroke-opacity:0; fill-opacity:0;"
+    /><g style="fill:rgb(236,131,101); font-size:9; font-weight:bold; font-family:sans-serif; stroke:rgb(236,131,101);"
+    ><rect x="146" y="42" width="16" style="stroke:none;" rx="1" ry="1" height="16"
+      /><rect x="148" y="44" width="12" style="fill:gray; stroke:none;" rx="0.75" ry="0.75" height="12"
+    /></g
+    ><g style="font-family:sans-serif;"
+    ><path style="stroke:none;" d="M151.4844 54 L153.4219 54 L153.4219 47.3281 L151.3125 47.75 L151.3125 46.6719 L153.4062 46.25 L154.5938 46.25 L154.5938 54 L156.5312 54 L156.5312 55 L151.4844 55 L151.4844 54 Z"
+      /><path style="stroke:none;" d="M153.25 34.0781 L154.8281 34.0781 L154.8281 39 L153.25 39 L153.25 34.0781 ZM153.25 32.1562 L154.8281 32.1562 L154.8281 33.4375 L153.25 33.4375 L153.25 32.1562 Z"
+    /></g
+    ><rect width="16.0" x="146.0" height="12.0" id="sdt4" y="30.0" style="stroke-opacity:0; fill-opacity:0;"
     /><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"
     ><rect x="40.8" y="1.0" width="98.45999" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="17.0"
       /><text x="41.8" y="14.0"
@@ -89,15 +98,17 @@ IqIM/yVAAv83MMza8P/HXKACggEFAMWr7LzeVvysAAAAAElFTkSuQmCC"
       ><set attributeName="visibility" from="hidden" end="sdt1.mouseout" to="visible" begin="sdt1.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"
-    ><rect x="47.65" y="45.0" width="427.05997" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="62.0"
-      /><text x="48.65" y="58.0"
+    ><rect x="47.65" y="30.0" width="394.19998" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="77.0"
+      /><text x="48.65" y="43.0"
       >Optional: appConfigName, clientId, consistentRegionPolicy, </text
-      ><text x="48.65" y="73.0"
+      ><text x="48.65" y="58.0"
       >flush, guaranteeOrdering, keyAttribute, messageAttribute, </text
+      ><text x="48.65" y="73.0"
+      >outputErrorsOnly, partitionAttribute, propertiesFile, </text
       ><text x="48.65" y="88.0"
-      >partitionAttribute, propertiesFile, sslDebug, timestampAttribute, </text
+      >sslDebug, timestampAttribute, topicAttribute, topic, </text
       ><text x="48.65" y="103.0"
-      >topicAttribute, topic, userLib</text
+      >userLib</text
       ><set attributeName="visibility" from="hidden" end="sdt2.mouseout" to="visible" begin="sdt2.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"
@@ -105,6 +116,12 @@ IqIM/yVAAv83MMza8P/HXKACggEFAMWr7LzeVvysAAAAAElFTkSuQmCC"
       /><text x="29.0" y="44.0"
       >immutable</text
       ><set attributeName="visibility" from="hidden" end="sdt3.mouseout" to="visible" begin="sdt3.mouseover"
+    /></g
+    ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"
+    ><rect x="164.0" y="31.0" width="70.899994" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="17.0"
+      /><text x="165.0" y="44.0"
+      >immutable</text
+      ><set attributeName="visibility" from="hidden" end="sdt4.mouseout" to="visible" begin="sdt4.mouseover"
     /></g
   ></g
 ></svg

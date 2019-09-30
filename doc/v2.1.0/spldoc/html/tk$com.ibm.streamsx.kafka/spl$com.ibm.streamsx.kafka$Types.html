@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="SPL File Types.spl"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_compilationunit"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>SPL File Types.spl</title>
+</head>
+<body id="spldoc_compilationunit">
+
+
+<h1 class="title topictitle1">SPL File <tt class="ph tt">Types.spl</tt></h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.1.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Types.spl</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Content</h2>
+  
+  <dl class="dl">
+    <dt class="dt dlterm"/>
+<dd class="dd"/>
+
+    
+      <dt class="dt dlterm splhead-2">Types</dt>
+
+      <dd class="dd">
+<ul class="sl simple">
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartition">Control.TopicPartition</a></strong>: Tuple type for a topic partition to be added or removed 
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__Control.TopicPartitionOffset">Control.TopicPartitionOffset</a></strong>: Tuple type for a topic partition with offset to be added 
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.BlobMessage">MessageType.BlobMessage</a></strong>: This type represents a message with <tt class="ph tt">message</tt> attribute of type <tt class="ph tt">blob</tt> and <tt class="ph tt">key</tt> attribute with SPL type <tt class="ph tt">rstring</tt>.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.ConsumerMessageMetadata">MessageType.ConsumerMessageMetadata</a></strong>: This type represents the meta data of a received message.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.StringMessage">MessageType.StringMessage</a></strong>: This type represents a message with <tt class="ph tt">message</tt> and <tt class="ph tt">key</tt> attribute, both being <tt class="ph tt">rstring</tt>.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Types.html#spldoc_compilationunit__composite_type__MessageType.TopicPartition">MessageType.TopicPartition</a></strong>: This type represents a topic and a partition number.
+</li>
+
+</ul>
+
+      </dd>
+
+    
+  </dl>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle splhead-1">Composites</h2>
+  
+</div>
+
+<div class="section" id="spldoc_compilationunit__composite_operator__MessageType"><h2 class="title sectiontitle splpart">composite MessageType</h2>
+  
+</div>
+
+<div class="section">
+
+<p class="p">Defines Message types with default attribute names and types. 
+</p>
+
+</div>
+
+<div class="section">
+</div>
+
+<div class="section">
+</div>
+
+<div class="section">
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Static Types</h2>
+  
+</div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__MessageType.BlobMessage">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">MessageType.BlobMessage = blob message, rstring key;</dt>
+
+         <dd class="dd">
+<p class="p">This type represents a message with <tt class="ph tt">message</tt> attribute of type <tt class="ph tt">blob</tt> and <tt class="ph tt">key</tt> attribute with SPL type <tt class="ph tt">rstring</tt>. The type can be used for consumed messages or messages to be produced.
+</p>
+
+<p class="p">Example use:
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+// messages get de-serialized into blob
+stream &lt;MessageType.BlobMessage&gt; ReceivedMessages = KafkaConsumer() {
+    param
+        topic: "myTopic";
+        groupId: "consumerGroup1";
+        propertiesFile: "etc/consumer.properties";
+}
+</pre>
+
+
+</div>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__MessageType.ConsumerMessageMetadata">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">MessageType.ConsumerMessageMetadata = rstring topic, int32 partition, int64 offset, int64 messageTimestamp;</dt>
+
+         <dd class="dd">
+<p class="p">This type represents the meta data of a received message.
+</p>
+
+<div class="p">It consists of following attributes:
+<ul class="ul">
+<li class="li"> topic (rstring)</li>
+
+<li class="li"> partition (int32)</li>
+
+<li class="li"> offset (int64)</li>
+
+<li class="li"> messageTimestamp (int64) - milliseconds since Unix Epoch</li>
+
+</ul>
+
+</div>
+
+<p class="p">Example Use:
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+stream &lt;MessageType.BlobMessage, MessageType.ConsumerMessageMetadata&gt; ReceivedMessages = KafkaConsumer() {
+    param
+        topic: "myTopic";
+        groupId: "consumerGroup1";
+        propertiesFile: "etc/consumer.properties";
+}
+</pre>
+
+
+</div>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__MessageType.StringMessage">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">MessageType.StringMessage = rstring message, rstring key;</dt>
+
+         <dd class="dd">
+<p class="p">This type represents a message with <tt class="ph tt">message</tt> and <tt class="ph tt">key</tt> attribute, both being <tt class="ph tt">rstring</tt>. The type can be used for consumed messages and messages to be produced.
+</p>
+
+<div class="p">Example use:
+<pre class="pre codeblock">
+// messages get de-serialized into rstring
+stream &lt;MessageType.StringMessage&gt; ReceivedMessages = KafkaConsumer() {
+    param
+        topic: "myTopic";
+        groupId: "consumerGroup1";
+        propertiesFile: "etc/consumer.properties";
+}
+</pre>
+
+
+</div>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__MessageType.TopicPartition">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">MessageType.TopicPartition = rstring topic, int32 partition;</dt>
+
+         <dd class="dd">
+<p class="p">This type represents a topic and a partition number. It can be used to store meta data of received messages and to specify the topic and partition number of messages to be published (produced). 
+</p>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+<div class="section" id="spldoc_compilationunit__composite_operator__Control"><h2 class="title sectiontitle splpart">composite Control</h2>
+  
+</div>
+
+<div class="section">
+
+<p class="p">Defines types for the JSON generator functions for the control port. 
+</p>
+
+</div>
+
+<div class="section">
+</div>
+
+<div class="section">
+</div>
+
+<div class="section">
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Static Types</h2>
+  
+</div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__Control.TopicPartition">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">Control.TopicPartition = rstring topic, int32 partition;</dt>
+
+         <dd class="dd">
+<p class="p">Tuple type for a topic partition to be added or removed
+</p>
+
+<p class="p">Example Use:
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+mutable list &lt;Control.TopicPartition&gt; partitionsToAdd = [];
+appendM (partitionsToAdd, {topic = 'topic1', partition = 0});
+appendM (partitionsToAdd, {topic = 'topic1', partition = 1});
+submit ({controlMsg = createMessageAddTopicPartition (partitionsToAdd)}, ControlMessages);
+</pre>
+
+
+</div>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+   <div class="section" id="spldoc_compilationunit__composite_type__Control.TopicPartitionOffset">
+     <dl class="dl">
+       
+         <dt class="dt dlterm">Control.TopicPartitionOffset = rstring topic, int32 partition, int64 offset;</dt>
+
+         <dd class="dd">
+<p class="p">Tuple type for a topic partition with offset to be added
+</p>
+
+<p class="p">Example Use:
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+mutable list &lt;Control.TopicPartitionOffset&gt; partitionsWithOffsetsToAdd = [];
+appendM (partitionsWithOffsetsToAdd, {topic = 'topic1', partition = 0, offset = -2l});
+appendM (partitionsWithOffsetsToAdd, {topic = 'topic1', partition = 1, offset = 345678l});
+submit ({controlMsg = createMessageAddTopicPartition (partitionsWithOffsetsToAdd)}, ControlMessages);
+</pre>
+
+
+</div>
+</dd>
+
+       
+     </dl>
+
+   </div>
+
+</div>
+
+
+</body>
+</html>

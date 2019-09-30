@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.1.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
 
 </div>
 
@@ -369,7 +369,7 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 </div>
 
-<p class="p"><strong class="ph b">NOTE:</strong> Although properties are adjusted, users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be specified for the Kafka producer version 2.1, are supported by all Broker versions. An example for is the Zstandard compression algorithm, which is supported with broker version 2.1 and above.
+<p class="p"><strong class="ph b">NOTE:</strong> Although properties are adjusted, users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be specified for the Kafka producer version 2.2, are supported by all Broker versions. An example for is the Zstandard compression algorithm, which is supported with broker version 2.1 and above.
 </p>
 
 </div>
@@ -897,13 +897,16 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 <div class="section"><h2 class="title sectiontitle">Error Handling
 </h2>
 
-<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafka throws an exception, the operator's PE will be stopped when not in a consistent region. The Streams Runtime will re-launch the PE if the PE is restartable.
+<p class="p">Many exceptions thrown by the underlying Kafka API are considered fatal. In the event that Kafka throws a <strong class="ph b">retriable exception</strong>, the operator behaves different when used in consistent region or not. When used in a consistent region, the operator initiates a reset of the consistent region. The reset processing will instantiate a new Kafka producer within the operator.
 </p>
 
-<p class="p">When the operator is used in a consistent region, the producer is re-initialized, and the region is reset. When draining the operator fails, the PE fails and is re-launched.
+<p class="p">When the operator is not used within a consistent region, the operator tries to recover internally by instantiating a new Kafka producer within the operator and resending all producer records, which are not yet acknowledged. Records that fail two producer generations are considered being finally failed. The corresponding tuple is counted in the custom metric <tt class="ph tt">nFailedTuples</tt>, and, if the operator is configured with an output port, an output tuple is submitted.
 </p>
 
-<p class="p">Some exceptions can be retried, such as those that occur due to network error. It is not recommended to set the KafkaProducer <tt class="ph tt">retries</tt> property to 0 to disable the producer's retry mechanism.
+<p class="p">In the event that Kafka throws a <strong class="ph b">non-retriable exception</strong>, the tuple that caused the exception is counted in the custom metric <tt class="ph tt">nFailedTuples</tt>, and, if the operator is configured with an output port, an output tuple is submitted.
+</p>
+
+<p class="p">Some exceptions can be retried by Kafka itself, such as those that occur due to network error. Therefore, it is not recommended to set the KafkaProducer <tt class="ph tt">retries</tt> property to 0 to disable the producer's retry mechanism.
 </p>
 
 </div>
@@ -914,7 +917,7 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
  
   <dt class="dt dlterm">Ports</dt>
 
-  <dd class="dd">This operator has 1 input port and 0 output ports.</dd>
+  <dd class="dd">This operator has 1 input port and 1 output port.</dd>
 
  
  
@@ -926,9 +929,9 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
  
   <dt class="dt dlterm">Parameters</dt>
 
-  <dd class="dd">This operator supports 14 parameters.
+  <dd class="dd">This operator supports 15 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__flush">flush</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__sslDebug">sslDebug</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__flush">flush</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__outputErrorsOnly">outputErrorsOnly</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__sslDebug">sslDebug</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 </dd>
@@ -937,7 +940,7 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
  
   <dt class="dt dlterm">Metrics</dt>
 
-  <dd class="dd">This operator does not report any metrics.</dd>
+  <dd class="dd">This operator reports 4 metrics.</dd>
 
  
 </dl>
@@ -999,10 +1002,111 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </div>
 
 <div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set">Output Ports</a></strong></p>
+<dl class="dl">
+  
+     <dt class="dt dlterm">Assignments</dt>
+
+       <dd class="dd">Java operators do not support output assignments.
+       </dd>
+
+  
+</dl>
+
+<dl class="dl">
+  
+   <dt class="dt dlterm">Ports (0)</dt>
+
+   <dd class="dd">
+
+<p class="p">This port is an optional output port. Dependent on the <strong class="ph b">outputErrorsOnly</strong> parameter, the output stream includes only tuples for input tuples that failed to get published on one or all of the specified topics, or it contains tuples corresponding to <em class="ph i">all</em> input tuples, successfully produced ones and failed tuples.
+</p>
+
+<p class="p">The output port is asynchronous to the input port of the operator. The sequence of the submitted tuples may also differ from the sequence of the input tuples. Window punctuations from the input stream are not forwarded.
+</p>
+
+<p class="p">The schema of the output port must consist of one optional attribute of tuple type with the same schema as the input port and one optional attribute of type <tt class="ph tt">rstring</tt> or <tt class="ph tt">ustring</tt>, that takes a JSON formatted description of the occured error, or remains empty (zero length) for successfully produced tuples. Both attributes can have any names and can be declared in any sequence in the schema.
+</p>
+
+<p class="p"><strong class="ph b">Example for declaring the output stream as error output:</strong>
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+stream &lt;Inp failedTuple, rstring failure&gt; Errors = KafkaProducer (Data as Inp) {
+    ...
+}
+</pre>
+
+<strong class="ph b">Example of the failure description</strong>, which would go into the <em class="ph i">failure</em> attribute above:
+</div>
+
+<div class="p">
+<pre class="pre codeblock">
+{
+    "failedTopics":["topic1"],
+    "lastExceptionType":"org.apache.kafka.common.errors.TopicAuthorizationException",
+    "lastFailure":"Not authorized to access topics: [topic1]"
+}
+</pre>
+
+Please note that the generated JSON dows not contain line breaks as in the example above, where the JSON has been broken into multiple lines to better show its structure.
+</div>
+
+<p class="p"><strong class="ph b">Example for declaring the output stream for both successfully produced input tuples and failures:</strong>
+</p>
+
+<div class="p">
+<pre class="pre codeblock">
+// 'failure' attribute will have zero length for successfully produced input tuples
+stream &lt;Inp inTuple, rstring failure&gt; ProduceStatus = KafkaProducer (Data as Inp) {
+    param
+        outputErrorsOnly: false;
+    ...
+}
+</pre>
+
+
+</div>
+
+<p class="p"/>
+
+   <dl class="dl">
+    
+      <dt class="dt dlterm">Properties</dt>
+
+      <dd class="dd">
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set__optional">Optional</a>: true
+     </li>
+
+   </ul>
+
+   <ul class="sl simple">
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__output_port_set__windowpunctuationoutputmode">WindowPunctuationOutputMode</a>: Free
+     </li>
+
+   </ul>
+
+      </dd>
+
+    
+   </dl>
+
+   <p class="p"/>
+
+   </dd>
+
+  
+</dl>
+
+</div>
+
+<div class="section">
 <p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters">Parameters</a></strong></p>
-This operator supports 14 parameters.
+This operator supports 15 parameters.
 <p class="p"> Optional: 
-<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__flush">flush</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__sslDebug">sslDebug</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
+<a class="xref" href="#spldoc_operator__parameter__appConfigName">appConfigName</a>, <a class="xref" href="#spldoc_operator__parameter__clientId">clientId</a>, <a class="xref" href="#spldoc_operator__parameter__consistentRegionPolicy">consistentRegionPolicy</a>, <a class="xref" href="#spldoc_operator__parameter__flush">flush</a>, <a class="xref" href="#spldoc_operator__parameter__guaranteeOrdering">guaranteeOrdering</a>, <a class="xref" href="#spldoc_operator__parameter__keyAttribute">keyAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__messageAttribute">messageAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__outputErrorsOnly">outputErrorsOnly</a>, <a class="xref" href="#spldoc_operator__parameter__partitionAttribute">partitionAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__propertiesFile">propertiesFile</a>, <a class="xref" href="#spldoc_operator__parameter__sslDebug">sslDebug</a>, <a class="xref" href="#spldoc_operator__parameter__timestampAttribute">timestampAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__topic">topic</a>, <a class="xref" href="#spldoc_operator__parameter__topicAttribute">topicAttribute</a>, <a class="xref" href="#spldoc_operator__parameter__userLib">userLib</a>
 
 </p>
 <dl class="dl">
@@ -1254,6 +1358,40 @@ This operator supports 14 parameters.
 
 
 
+<dt class="dt dlterm"><a name="spldoc_operator__parameter__outputErrorsOnly"><!-- --></a><tt class="ph tt">outputErrorsOnly</tt></dt>
+
+<dd class="dd">
+<p class="p">If set to <tt class="ph tt">true</tt>, the operator submits tuples to the optional output port only for the tuples that failed to produce completely. If set to <tt class="ph tt">false</tt>, the operator submits also tuples for the successfully produced input tuples.
+</p>
+
+<p class="p">If unset, the default value of this parameter is true. This parameter is ignored when the operator is not configured with an output port.
+</p>
+<dl class="dl">
+
+ <dt class="dt dlterm">Properties </dt>
+
+ <dd class="dd">
+  <ul class="sl simple">
+  <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__type">Type</a>: boolean
+  </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__cardinality">Cardinality</a>: 1
+     </li>
+
+     <li class="sli"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__parameters__parameter__optional">Optional</a>: true
+     </li>
+
+  </ul>
+
+ </dd>
+
+
+</dl>
+
+</dd>
+
+
+
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__partitionAttribute"><!-- --></a><tt class="ph tt">partitionAttribute</tt></dt>
 
 <dd class="dd">
@@ -1473,6 +1611,65 @@ This operator supports 14 parameters.
 </dd>
 
 
+</dl>
+
+</div>
+
+<div class="section">
+<p class="p splhead-1"><strong class="ph b"><a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics">Metrics</a></strong></p>
+<dl class="dl">
+  
+    <dt class="dt dlterm"><tt class="ph tt">nFailedTuples</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number of tuples that could not be produced for all topics
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nPendingTuples</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_gauge">Gauge</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number of input tuples not yet produced (acknowledged from Kafka)
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">nQueueFullPause</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
+
+    <dd class="dd">
+
+<p class="p">Number times the input tuple processing was paused due to full tuple queue of pending tuples.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
+  
+    <dt class="dt dlterm"><tt class="ph tt">producerGeneration</tt> - <a class="xref" href="../references/OperatorModel.html#spldoc_reference_operator_model__context__metrics_kind_counter">Counter</a></dt>
+
+    <dd class="dd">
+
+<p class="p">The producer generation. When a new producer is created, a new generation is created.
+</p>
+
+     <p class="p"/>
+
+     </dd>
+
+  
 </dl>
 
 </div>

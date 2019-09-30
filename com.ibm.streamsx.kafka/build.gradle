@@ -2,6 +2,15 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 apply from: "../common.gradle"
 
+allprojects { // Projects
+   gradle.projectsEvaluated {
+      tasks.withType(JavaCompile) {
+         options.encoding = 'UTF-8'
+         options.compilerArgs << "-Xlint:all"
+      }
+   }
+}
+
 eclipse {
     classpath {
         downloadSources=true

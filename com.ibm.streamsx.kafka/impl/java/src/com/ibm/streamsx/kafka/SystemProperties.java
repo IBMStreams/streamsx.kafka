@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ibm.streamsx.kafka;
 
 import org.apache.log4j.Level;
@@ -89,7 +102,7 @@ public class SystemProperties {
     /**
      * The factor by which 'max.poll.records' is multiplied as a threshold for memory check before fetch
      * @param defaultValue the default value returned when the property {@value #KAFKA_MEM_CHECK_THRESHOLD} is not set or the property cannot be parsed to a positive integer.
-     * @return
+     * @return the number, by which 'max.poll.records' is multiplied as threshold
      */
     public static int getMemoryCheckThresholdMultiplier (int defaultValue) {
         final String prop = System.getProperty (KAFKA_MEM_CHECK_THRESHOLD);

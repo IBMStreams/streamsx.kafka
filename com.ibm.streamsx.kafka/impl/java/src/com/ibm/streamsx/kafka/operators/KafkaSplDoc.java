@@ -1,5 +1,15 @@
-/**
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.ibm.streamsx.kafka.operators;
 
@@ -392,7 +402,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "**NOTE:** Although properties are adjusted, users can override any of the above properties by explicitly setting "
             + "the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be "
-            + "specified for the Kafka producer version 2.1, are supported by all Broker versions. An example for is the Zstandard "
+            + "specified for the Kafka producer version 2.2, are supported by all Broker versions. An example for is the Zstandard "
             + "compression algorithm, which is supported with broker version 2.1 and above.\\n"
             ;
 

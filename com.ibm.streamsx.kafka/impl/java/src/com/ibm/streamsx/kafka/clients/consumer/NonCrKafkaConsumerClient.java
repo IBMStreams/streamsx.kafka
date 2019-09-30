@@ -1,11 +1,20 @@
-/**
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +33,7 @@ import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -42,7 +52,6 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
      * @param operatorContext the operator context
      * @param keyClass the key class for Kafka messages
      * @param valueClass the value class for Kafka messages
-     * @param commitCount the tuple count after which offsets are committed. This parameter is ignored when auto-commit is explicitly enabled.
      * @param kafkaProperties Kafka properties
      * @throws KafkaOperatorException 
      */
@@ -227,7 +236,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             assign (partitions);
         } catch (IllegalStateException | ClassNotFoundException | IOException e) {
             trace.error ("reset failed: " + e.getLocalizedMessage());
-            throw new KafkaOperatorResetFailedException (MessageFormat.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
+            throw new KafkaOperatorResetFailedException (MsgFormatter.format ("resetting operator {0} to checkpoint sequence ID {1,number,#} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
         }
     }
 

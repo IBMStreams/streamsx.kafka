@@ -1,7 +1,23 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ibm.streamsx.kafka.operators;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -18,15 +34,18 @@ import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.meta.TupleType;
+import com.ibm.streams.operator.metrics.Metric;
+import com.ibm.streams.operator.model.CustomMetric;
 import com.ibm.streams.operator.model.DefaultAttribute;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
-import com.ibm.streamsx.kafka.clients.producer.AtLeastOnceKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
-import com.ibm.streamsx.kafka.clients.producer.TransactionalKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.TrackingProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.TransactionalCrProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -46,6 +65,12 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected static final String TIMESTAMPATTR_PARAM_NAME = "timestampAttribute"; //$NON-NLS-1$
     protected static final String CONSISTENT_REGION_POLICY_PARAM_NAME = "consistentRegionPolicy";
     protected static final String FLUSH_PARAM_NAME = "flush";
+    protected static final String OUTPUT_ERRORS_ONLY_PARM_NAME = "outputErrorsOnly";
+
+    protected static final int I_PORT_MAX_PENDING_TUPLES = 5000;
+    protected static final int O_PORT_DEFAULT_QUEUE_CAPACITY = 5000;
+    protected static final long O_PORT_QUEUE_OFFER_TIMEOUT_MS = 15000;
+    protected static final boolean O_PORT_SUBMIT_ONLY_ERRORS = true;
 
     private static final Logger logger = Logger.getLogger(KafkaProducerOperator.class);
 
@@ -65,7 +90,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     private boolean guaranteeOrdering = false;
+    private boolean outputErrorsOnly = O_PORT_SUBMIT_ONLY_ERRORS;
     private int flush = 0;
+    private OutputPortSubmitter errorPortSubmitter = null;
 
     @Parameter (optional = true, name = FLUSH_PARAM_NAME,
             description = "Specifies the number of tuples, after which the producer is flushed. When not specified, "
@@ -130,6 +157,16 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         this.guaranteeOrdering = guaranteeOrdering;
     }
 
+    @Parameter(optional = true, name = OUTPUT_ERRORS_ONLY_PARM_NAME,
+            description = "If set to `true`, the operator submits tuples to the optional output port only "
+                    + "for the tuples that failed to produce completely. "
+                    + "If set to `false`, the operator submits also tuples for the successfully produced input tuples.\\n"
+                    + "\\n"
+                    + "If unset, the default value of this parameter is " + O_PORT_SUBMIT_ONLY_ERRORS + ". "
+                    + "This parameter is ignored when the operator is not configured with an output port.")
+    public void setOutputErrorsOnly (boolean errsOnly) {
+        this.outputErrorsOnly = errsOnly;
+    }
 
     @Parameter(optional = true, name=KEYATTR_PARAM_NAME, 
             description="Specifies the input attribute that contains "
@@ -194,7 +231,19 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         this.partitionAttr = partitionAttr;
     }
 
-    /*
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "producerGeneration", description = "The producer generation. When a new producer is created, a new generation is created.")
+    public void setnMalformedMessages (Metric producerGeneration) { }
+
+    @CustomMetric (kind = Metric.Kind.GAUGE, name = "nPendingTuples", description = "Number of input tuples not yet produced (acknowledged from Kafka)")
+    public void setnPendingTuples (Metric nPendingTuples) { }
+
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nQueueFullPause", description = "Number times the input tuple processing was paused due to full tuple queue of pending tuples.")
+    public void setnQueueFullPause (Metric nQueueFullPause) { }
+
+    @CustomMetric (kind = Metric.Kind.COUNTER, name = "nFailedTuples", description = "Number of tuples that could not be produced for all topics")
+    public void setnFailedTuples (Metric nFailedTuples) { }
+
+    /**
      * Retrieving the value of a TupleAttribute parameter via OperatorContext.getParameterValues()
      * returns a string in the form "InputPortName.AttributeName". However, this ends up being the
      * C++ equivalent String, which looks like: "iport$0.get_myAttr()". 
@@ -206,7 +255,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         return attrString.split("_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
     }
 
-    /*
+    /**
      * If the `partitionAttribute` is not defined, then the operator will look
      * for an input attribute called "partition". Here, we need to check that this
      * input attribute is of type "int32". 
@@ -224,6 +273,44 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
     }
 
+
+    @ContextCheck(compile = true)
+    public static void checkErrorPortSchema (OperatorContextChecker checker) {
+        final OperatorContext opCtx = checker.getOperatorContext();
+        final int nOPorts = opCtx.getNumberOfStreamingOutputs();
+        if (nOPorts == 0) return;
+
+        StreamSchema inPortSchema = opCtx.getStreamingInputs().get(0).getStreamSchema();
+        StreamSchema outSchema = opCtx.getStreamingOutputs().get(0).getStreamSchema();
+        if (outSchema.getAttributeCount() > 2) {
+            checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+        }
+        // check attribute types
+        int nTupleAttrs = 0;
+        int nStringAttrs = 0;
+        for (String outAttrName: outSchema.getAttributeNames()) {
+            Attribute attr = outSchema.getAttribute (outAttrName);
+            MetaType metaType = attr.getType().getMetaType();
+            switch (metaType) {
+            case TUPLE:
+                ++nTupleAttrs;
+                TupleType tupleType = (TupleType) attr.getType();
+                StreamSchema tupleSchema = tupleType.getTupleSchema();
+                if (!tupleSchema.equals (inPortSchema)) {
+                    checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+                }
+                break;
+            case RSTRING:
+            case USTRING:
+                ++nStringAttrs;
+                break;
+            default:
+                checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+            }
+        }
+        if (nTupleAttrs > 1 || nStringAttrs > 1)
+            checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+    }
 
     @ContextCheck(runtime = true, compile = false)
     public static void checkAttributes(OperatorContextChecker checker) {
@@ -281,9 +368,16 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                     // "topic" input attribute does not exist...set invalid context
                     checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
                 }
+                Set<MetaType> allowedTopicMTypes = new HashSet<>(Arrays.asList(
+                        MetaType.RSTRING, MetaType.BSTRING, MetaType.USTRING
+                        ));
+                if (!allowedTopicMTypes.contains (topicAttribute.getType().getMetaType())) {
+                    checker.setInvalidContext(Messages.getString("TOPIC_ATTRIBUTE_NOT_STRING"), new Object[0]);
+                }
             }
         }
     }
+
 
     @ContextCheck(compile = true)
     public static void checkConsistentRegion(OperatorContextChecker checker) {
@@ -353,7 +447,12 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // When not in consistent region, reset happens _before_ allPortsReady(), so that tuple processing 
         // is not conflicting with RESET processing, for which this flag is used.
         isResetting = new AtomicBoolean (crContext != null && context.getPE().getRelaunchCount() > 0);
-
+        if (getOperatorContext().getNumberOfStreamingOutputs() > 0) {
+            this.errorPortSubmitter = new OutputPortSubmitter (context, 
+                    O_PORT_DEFAULT_QUEUE_CAPACITY, 
+                    O_PORT_QUEUE_OFFER_TIMEOUT_MS,
+                    outputErrorsOnly);
+        }
         initProducer();
         final boolean registerAsInput = false;
         registerForDataGovernance(context, topics, registerAsInput);
@@ -364,24 +463,27 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private void initProducer() throws Exception {
         // configure producer
         KafkaOperatorProperties props = getKafkaProperties();
+        TrackingProducerClient pClient;
         if(crContext == null) {
-            logger.info ("Creating KafkaProducerClient ...");
-            producer = new KafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+            pClient = new TrackingProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
         } else {
             switch(consistentRegionPolicy) {
             case AtLeastOnce:
             case NonTransactional:
-                logger.info("Creating AtLeastOnceKafkaProducerClient...");
-                producer = new AtLeastOnceKafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+                pClient = new TrackingProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
                 break;
             case Transactional:
-                logger.info("Creating TransactionalKafkaProducerClient...");
-                producer = new TransactionalKafkaProducerClient (getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
+                pClient = new TransactionalCrProducerClient(getOperatorContext(), keyType, messageType, guaranteeOrdering, props);
                 break;
             default:
                 throw new RuntimeException("Unrecognized ConsistentRegionPolicy: " + consistentRegionPolicy);
             }
         }
+        // when we want a hook for produced or failed tuples, we must set a TupleProcessedHook implementation.
+        pClient.setTupleProcessedHook (this.errorPortSubmitter);
+        pClient.setMaxPendingTuples (I_PORT_MAX_PENDING_TUPLES);
+        pClient.setMaxProducerGenerations (2);  // retry tuples only once
+        producer = pClient;
         producer.setFlushAfter (flush);
         logger.info ("producer client " + producer.getThisClassName() + " created");
     }
@@ -398,7 +500,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         OperatorContext context = getOperatorContext();
         logger.trace("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
                 + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
-
+        if (this.errorPortSubmitter != null) this.errorPortSubmitter.start();
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -416,8 +518,14 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         Long timestamp = (timestampAttributeName) != null ? tuple.getLong(timestampAttributeName) : null;
 
         // send message to all topics
-        for (String topic : topicList)
-            producer.processTuple(new ProducerRecord(topic, partition, timestamp, key, value));
+        if (topicList.size() == 1) {
+            producer.processRecord (new ProducerRecord (topicList.get(0), partition, timestamp, key, value), tuple);
+        }
+        else {
+            List<ProducerRecord<?, ?>> records = new ArrayList<> (topicList.size());
+            for (String topic : topicList) records.add (new ProducerRecord (topic, partition, timestamp, key, value));
+            producer.processRecords (records, tuple);
+        }
     }
 
     private List<String> getTopics(Tuple tuple) {
@@ -450,6 +558,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
         producer.flush();
         producer.close (KafkaProducerClient.CLOSE_TIMEOUT_MS);
+        if (this.errorPortSubmitter != null) this.errorPortSubmitter.stop();
 
         // Must call super.shutdown()
         super.shutdown();
@@ -465,6 +574,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         // will be thrown and the
         // region will be reset
         producer.drain();
+        // flush also the hook as it queues tuples
+        if (this.errorPortSubmitter != null) {
+            this.errorPortSubmitter.flush();
+        }
     }
 
     @Override
@@ -482,6 +595,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.reset (checkpoint);
         producer.close (0L);
+        if (errorPortSubmitter != null) {
+            errorPortSubmitter.reset();
+        }
         producer = null;
         initProducer();
         isResetting.set(false);
@@ -495,6 +611,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         producer.tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
         producer.reset (null);
         producer.close(0L);
+        if (errorPortSubmitter != null) {
+            errorPortSubmitter.reset();
+        }
         producer = null;
         initProducer();
         isResetting.set(false);

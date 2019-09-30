@@ -1,7 +1,19 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.io.IOException;
-import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,6 +23,7 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.control.ControlPlaneContext;
 import com.ibm.streams.operator.control.variable.ControlVariableAccessor;
+import com.ibm.streamsx.kafka.MsgFormatter;
 
 /**
  * This class contains the initial offsets for topic partitions.
@@ -53,7 +66,7 @@ public class CVOffsetAccessor {
      * @return the concatenation of {@value #CV_NAME_PREFIX}-'GID'groupId-'T'topic-'P'partition#
      */
     private String createControlVariableName (final TopicPartition tp) {
-        return MessageFormat.format ("{0}-GID{1}-T{2}-P{3}", CV_NAME_PREFIX, groupId, tp.topic(), tp.partition());
+        return MsgFormatter.format ("{0}-GID{1}-T{2}-P{3,number,#}", CV_NAME_PREFIX, groupId, tp.topic(), tp.partition());
     }
 
     /**
@@ -68,7 +81,7 @@ public class CVOffsetAccessor {
      *     If it is not -1, cache the offset for the partition and return true.
      *     if the read value is -1, the CV could be successfully created. Return false
      * </ul>
-     * @see #saveOffset(TopicPartition, long)
+     * @see #saveOffset(TopicPartition, long, boolean)
      * @param tp the topic partition
      * @return true, if there is an initial offset for the partition, false otherwise
      * @throws InterruptedException Thread interrupted syncing the CV 
@@ -84,7 +97,7 @@ public class CVOffsetAccessor {
         }
         final long result = cv.sync().getValue().longValue() - OFFSET_WORKAROUND_ZERO;
         final boolean hasOffset = result != NO_OFFSET;
-        trace.info (MessageFormat.format ("offset from CV for partition {0}: {1}", tp, (hasOffset? "" + result: "NO_OFFSET")));
+        trace.info (MsgFormatter.format ("offset from CV for partition {0}: {1}", tp, (hasOffset? "" + result: "NO_OFFSET")));
         if (hasOffset) {
             // offset present, cache value
             cache.put (tp, new Long (result));
@@ -104,12 +117,12 @@ public class CVOffsetAccessor {
      * @throws IllegalArgumentException offset < 0
      */
     public synchronized long saveOffset (final TopicPartition tp, final long offset, final boolean overwriteValidOffset) throws InterruptedException, IOException {
-        trace.info (MessageFormat.format ("saveOffset: {0}, {1}, {2}", tp, offset, overwriteValidOffset));
+        trace.info (MsgFormatter.format ("saveOffset: {0}, {1,number,#}, {2}", tp, offset, overwriteValidOffset));
         if (offset < 0) throw new IllegalArgumentException ("offset == " + offset);
         ControlVariableAccessor <Long> cv = cvMap.get (tp);
         if (cv == null) {
             final String cvName = createControlVariableName (tp);
-            trace.info (MessageFormat.format ("trying to create control variable {0} for offset {1}", cvName, offset));
+            trace.info (MsgFormatter.format ("trying to create control variable {0} for offset {1,number,#}", cvName, offset));
             cv = jcpContext.createLongControlVariable (cvName, true, offset + OFFSET_WORKAROUND_ZERO);
             this.cvMap.put (tp, cv);
         }
@@ -123,7 +136,7 @@ public class CVOffsetAccessor {
                 // write the new value into cache and CV
                 cv.setValue (new Long (offset + OFFSET_WORKAROUND_ZERO));
                 cache.put (tp, new Long (offset));
-                trace.info (MessageFormat.format ("offset {0} saved in CV {1} and cached for TP {2}", offset, cv.getName(), tp));
+                trace.info (MsgFormatter.format ("offset {0,number,#} saved in CV {1} and cached for TP {2}", offset, cv.getName(), tp));
             }
             else {
                 // old value was not NO_OFFSET and overwriting is not allowed.
@@ -142,10 +155,10 @@ public class CVOffsetAccessor {
      * @throws InterruptedException Thread interrupted syncing the CV
      */
     public synchronized long getOffset (final TopicPartition tp) throws InterruptedException, IOException {
-        trace.info (MessageFormat.format ("getOffset: {0}", tp));
+        trace.info (MsgFormatter.format ("getOffset: {0}", tp));
         Long offs = cache.get (tp);
         if (offs != null) {
-            trace.info (MessageFormat.format ("offset for {0} cached: {1}", tp, offs));
+            trace.info (MsgFormatter.format ("offset for {0} cached: {1,number,#}", tp, offs));
             return offs.longValue();
         }
 
@@ -158,7 +171,7 @@ public class CVOffsetAccessor {
         }
         long offsCv = cv.sync().getValue().longValue() - OFFSET_WORKAROUND_ZERO;
         cache.put (tp, new Long (offsCv));
-        trace.info (MessageFormat.format ("offset for {0} read from CV: {1}", tp, (offsCv == NO_OFFSET? "NO_OFFSET": "" + offsCv)));
+        trace.info (MsgFormatter.format ("offset for {0} read from CV: {1}", tp, (offsCv == NO_OFFSET? "NO_OFFSET": "" + offsCv)));
         return offsCv;
     }
 

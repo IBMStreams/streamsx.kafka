@@ -1,11 +1,20 @@
-/**
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
 
 import java.io.IOException;
-import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,6 +43,7 @@ import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.MissingJobControlPlaneException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.operators.AbstractKafkaConsumerOperator;
@@ -158,7 +168,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         }
 
         final boolean result = cv.sync().getValue();
-        trace.info (MessageFormat.format ("partition {0} previously committed: {1}", tp, result));
+        trace.info (MsgFormatter.format ("partition {0} previously committed: {1}", tp, result));
         return result;
     }
 
@@ -187,7 +197,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         previous = cv.getValue();
         if (!previous) {
             cv.setValue (true);
-            trace.info (MessageFormat.format ("partition {0} marked as committed", tp));
+            trace.info (MsgFormatter.format ("partition {0} marked as committed", tp));
         }
         return previous;
     }
@@ -489,7 +499,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
      */
     protected void testForJobControlPlaneOrThrow (long connectTimeoutMillis, StartPosition startPos) throws MissingJobControlPlaneException {
         if (!tryConnectJobControlPlane (connectTimeoutMillis)) {
-            trace.error (MessageFormat.format ("Could not connect to the JobControlPlane "
+            trace.error (MsgFormatter.format ("Could not connect to the JobControlPlane "
                     + "within {0} milliseconds. Make sure that the operator graph contains "
                     + "a JobControlPlane operator to support startPosition {1}.", connectTimeoutMillis, startPos));
             throw new MissingJobControlPlaneException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", startPos));
@@ -499,7 +509,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
 
     /**
      * Checks if a JobControlPlane can be used after {@link #tryConnectJobControlPlane(long)} has been invoked.
-     * @return 
+     * @return true, when the JobControlPlain could be connected, false otherwise.
      */
     protected boolean canUseJobControlPlane() {
         return jcpConnected.get();

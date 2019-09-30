@@ -1,11 +1,25 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ibm.streamsx.kafka.clients.producer;
 
-import java.text.MessageFormat;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -15,8 +29,10 @@ import org.apache.kafka.common.MetricName;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
+import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaMetricException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.metrics.CustomMetricUpdateListener;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsFetcher;
@@ -24,18 +40,15 @@ import com.ibm.streamsx.kafka.clients.metrics.MetricsProvider;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
-public class KafkaProducerClient extends AbstractKafkaClient {
+public abstract class KafkaProducerClient extends AbstractKafkaClient {
 
     private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
     public static final int CLOSE_TIMEOUT_MS = 5000;
 
     protected KafkaProducer<?, ?> producer;
-    protected ProducerCallback callback;
-    protected Exception sendException;
     protected KafkaOperatorProperties kafkaProperties;
-    protected Class<?> keyClass;
-    protected Class<?> valueClass;
-    protected OperatorContext operatorContext;
+    private Class<?> keyClass;
+    private Class<?> valueClass;
     private MetricsFetcher metricsFetcher;
     protected final boolean guaranteeOrdering;
 
@@ -50,12 +63,14 @@ public class KafkaProducerClient extends AbstractKafkaClient {
     private AtomicReference<MetricName> outGoingByteRateMName = new AtomicReference<>();
     private AtomicReference<MetricName> recordQueueTimeMaxMName = new AtomicReference<>();
     private int flushAfter = 0;
+    private boolean closed = false;
     private long nRecords = 0l;
     private long bufferUseThreshold = -1;
     private double expSmoothedFlushDurationMs = 0.0;
     private final long bufferSize;
     private final long maxBufSizeThresh;
     private boolean compressionEnabled;
+    private final com.ibm.streams.operator.metrics.Metric producerGenerationMetric;
 
     /** monitors operator metrics by logging them on update **/
     private class MetricsMonitor implements MetricsUpdatedListener {
@@ -87,7 +102,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         public void afterCustomMetricsUpdated() {
             final long now = System.currentTimeMillis();
             if (logger.isEnabledFor (DEBUG_LEVEL_METRICS)) {
-                logger.log (DEBUG_LEVEL_METRICS, MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotalNanos= {7}",
+                logger.log (DEBUG_LEVEL_METRICS, MsgFormatter.format ("QTimeMax= {0,number,#} ,QTimeAvg= {1,number,#} ,oByteRate= {2,number,#} ,reqRate= {3,number,#} ,recsPerReqAvg= {4,number,#} ,batchSzAvg= {5,number,#} ,bufAvail= {6,number,#} ,bufPoolWaitTimeTotalNanos= {7,number,#}",
                         recordQueueTimeMax,
                         recordQueueTimeAvg,
                         outgoingByteRate,
@@ -101,7 +116,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
             else {
                 // trace every 10 minutes at INFO severity
                 if (now - lastTraceMs >= 600_000L) {
-                    logger.info (MessageFormat.format ("QTimeMax= {0} ,QTimeAvg= {1} ,oByteRate= {2} ,reqRate= {3} ,recsPerReqAvg= {4} ,batchSzAvg= {5} ,bufAvail= {6} ,bufPoolWaitTimeTotalNanos= {7}",
+                    logger.info (MsgFormatter.format ("QTimeMax= {0,number,#} ,QTimeAvg= {1,number,#} ,oByteRate= {2,number,#} ,reqRate= {3,number,#} ,recsPerReqAvg= {4,number,#} ,batchSzAvg= {5,number,#} ,bufAvail= {6,number,#} ,bufPoolWaitTimeTotalNanos= {7,number,#}",
                             recordQueueTimeMax,
                             recordQueueTimeAvg,
                             outgoingByteRate,
@@ -124,7 +139,6 @@ public class KafkaProducerClient extends AbstractKafkaClient {
             KafkaOperatorProperties kafkaProperties) throws Exception {
         super (operatorContext, kafkaProperties, false);
         this.kafkaProperties = kafkaProperties;
-        this.operatorContext = operatorContext;
         this.keyClass = keyClass;
         this.valueClass = valueClass;
         this.guaranteeOrdering = guaranteeRecordOrder;
@@ -133,17 +147,29 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         bufferSize = this.kafkaProperties.getBufferMemory();
         maxBufSizeThresh = 100 * bufferSize / 90;
         compressionEnabled = !this.kafkaProperties.getProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "none").trim().equalsIgnoreCase("none");
+        producerGenerationMetric = operatorContext.getMetrics().getCustomMetric("producerGeneration");
         createProducer();
     }
 
-    protected void createProducer() {
+    /**
+     * Returns true, when {@link #close(long)} has been called.
+     * The true state can be returned before close() has finished.
+     * @return true, when the producer client has been closed, false otherwise.
+     */
+    public final boolean isClosed() {
+        return closed;
+    }
+
+    protected final synchronized void createProducer() {
         producer = new KafkaProducer<>(this.kafkaProperties);
-        callback = new ProducerCallback(this);
+        producerGenerationMetric.increment();
         if (metricsFetcher == null) {
             metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
                 @Override
                 public Map<MetricName, ? extends Metric> getMetrics() {
-                    return producer.metrics();
+                    synchronized (KafkaProducerClient.this) {
+                        return producer.metrics();
+                    }
                 }
                 @Override
                 public String createCustomMetricName (MetricName metricName)  throws KafkaMetricException {
@@ -275,8 +301,16 @@ public class KafkaProducerClient extends AbstractKafkaClient {
         }
     }
 
+
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public Future<RecordMetadata> send(ProducerRecord record) throws Exception {
+    /**
+     * Sends a producer record with callback
+     * @param record the producer record
+     * @param cb     the callback for the send.
+     * @return the Future
+     * @throws Exception
+     */
+    protected Future<RecordMetadata> send (ProducerRecord record, Callback cb) throws Exception {
         synchronized (flushLock) {
             if (flushAfter > 0) {
                 // non-adaptive flush 
@@ -291,7 +325,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         final double weightHistory = 0.5;   // must be between 0 and 1 for exponential smoothing
                         final long dur = System.currentTimeMillis() - before;
                         expSmoothedFlushDurationMs = weightHistory * expSmoothedFlushDurationMs + (1.0 - weightHistory) * dur;
-                        logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, dur, expSmoothedFlushDurationMs));
+                        logger.log (DEBUG_LEVEL, MsgFormatter.format ("producer flush after {0,number,#} records took {1,number,#} ms; smoothed flushtime = {2,number,#.#}", nRecords, dur, expSmoothedFlushDurationMs));
                     }
                     nRecords = 0l;
                 }
@@ -314,7 +348,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         if (bufferUseThreshold > maxBufSizeThresh)
                             bufferUseThreshold = maxBufSizeThresh;
                         if (logger.isEnabledFor (DEBUG_LEVEL)) {
-                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold initialized with {0}", bufferUseThreshold));
+                            logger.log (DEBUG_LEVEL, MsgFormatter.format ("producer flush threshold initialized with {0,number,#}", bufferUseThreshold));
                         }
                     }
                     long bufferUsed = bufferSize - metricsFetcher.getCurrentValue (bufferAvailMName.get());
@@ -325,7 +359,7 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         final double weightHistory = 0.5;   // must be between 0 and 1 for exponential smoothing
                         expSmoothedFlushDurationMs = weightHistory * expSmoothedFlushDurationMs + (1.0 - weightHistory) * dur;
                         if (logger.isEnabledFor (DEBUG_LEVEL)) {
-                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush after {0} records took {1} ms; smoothed flushtime = {2}", nRecords, dur, expSmoothedFlushDurationMs));
+                            logger.log (DEBUG_LEVEL, MsgFormatter.format ("producer flush after {0,number,#} records took {1,number,#} ms; smoothed flushtime = {2,number,#.#}", nRecords, dur, expSmoothedFlushDurationMs));
                         }
                         nRecords = 0;
                         // time spent for flush() is approximately the maximum queue time for the last appended record.
@@ -341,46 +375,58 @@ public class KafkaProducerClient extends AbstractKafkaClient {
                         else if (bufferUseThreshold < 1024)
                             bufferUseThreshold = 1024;
                         if (logger.isEnabledFor (DEBUG_LEVEL)) {
-                            logger.log (DEBUG_LEVEL, MessageFormat.format ("producer flush threshold adjusted from {0} to {1}", oldThreshold, bufferUseThreshold));
+                            logger.log (DEBUG_LEVEL, MsgFormatter.format ("producer flush threshold adjusted from {0,number,#} to {1,number,#}", oldThreshold, bufferUseThreshold));
                         }
                     }
                 }
             }
         }
-        return producer.send (record, callback);
+        return producer.send (record, cb);
     }
 
     /**
      * Makes all buffered records immediately available to send and blocks until completion of the associated requests.
-     * The post-conditioin is, that all Futures are in done state.
+     * The post-condition is, that all Futures are in done state.
      * 
      * @throws InterruptedException. If flush is interrupted, an InterruptedException is thrown.
      */
     public void flush() {
-        logger.trace("Flushing..."); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL))
+            logger.log (DEBUG_LEVEL, "Flushing ..."); //$NON-NLS-1$
         synchronized (flushLock) {
             producer.flush();
         }
     }
 
+    /**
+     * closes the KafkaProducer, so that it releases all resources and stops the metrics fetcher.
+     * @param timeoutMillis
+     */
     public void close (long timeoutMillis) {
-        logger.trace("Closing..."); //$NON-NLS-1$
+        if (logger.isEnabledFor (DEBUG_LEVEL))
+            logger.log (DEBUG_LEVEL, "Closing ..."); //$NON-NLS-1$
+        closed = true;
         this.metricsFetcher.stop();
         producer.close (Duration.ofMillis (timeoutMillis));
     }
 
-    public void handleSendException (Exception e) {
-        this.sendException = e;
-        producer.close (Duration.ofMillis(0L));
-        // kill the PE - eventually it gets re-launched by the Streams Runtime
-        System.exit (1);
-    }
 
-    @SuppressWarnings("rawtypes")
-    public boolean processTuple(ProducerRecord producerRecord) throws Exception {
-        send(producerRecord);
-        return true;
-    }
+    /**
+     * Processes a Producer record.
+     * 
+     * @param producerRecord  the producer record
+     * @param associatedTuple a reference to the the associated Tuple from which the producer record was created.
+     * @throws Exception
+     */
+    public abstract void processRecord (ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception;
+
+    /**
+     * processes multiple producer records associated with a single tuple.
+     * @param records  the list of records
+     * @param associatedTuple reference to the the associated Tuple from which the producer records were created.
+     * @throws Exception
+     */
+    public abstract void processRecords (List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception;
 
     /**
      * Tries to cancel all send requests that are not yet done. 
@@ -388,19 +434,11 @@ public class KafkaProducerClient extends AbstractKafkaClient {
      * @param mayInterruptIfRunning - true if the thread executing this task send request should be interrupted;
      *                              otherwise, in-progress tasks are allowed to complete
      */
-    public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning);
 
-    public void drain() throws Exception {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void drain() throws Exception; 
 
-    public void checkpoint(Checkpoint checkpoint) throws Exception {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void checkpoint (Checkpoint checkpoint) throws Exception;
 
-    public void reset(Checkpoint checkpoint) throws Exception {
-        // no implementation because this class is instantiated only when operator is not in a Consistent Region
-    }
+    public abstract void reset (Checkpoint checkpoint) throws Exception;
 }

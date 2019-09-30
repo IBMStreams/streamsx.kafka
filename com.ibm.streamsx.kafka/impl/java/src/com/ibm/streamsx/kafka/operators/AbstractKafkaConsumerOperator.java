@@ -1,6 +1,18 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ibm.streamsx.kafka.operators;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +46,7 @@ import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
 import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
@@ -673,17 +686,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
         if (this.groupIdSpecified && !groupManagementEnabled) {
             if (hasInputPorts) {
-                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
                         + "will NOT participate in a consumer group because the operator is configured with an input port.",
                         gid, context.getName()));
             }
             if (this.partitions != null && !this.partitions.isEmpty()) {
-                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
                         + "will NOT participate in a consumer group because partitions to consume are specified.",
                         gid, context.getName()));
             }
             if (startPosition != StartPosition.Default && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION && crContext == null) {
-                logger.warn (MessageFormat.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
                         + "will NOT participate in a consumer group because startPosition != Default is configured.",
                         gid, context.getName()));
             }
@@ -760,7 +773,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 consumer = builder.build();
             }
         }
-        logger.info (MessageFormat.format ("consumer client {0} created", consumer.getClass().getName()));
+        logger.info (MsgFormatter.format ("consumer client {0} created", consumer.getClass().getName()));
         try {
             consumer.startConsumer();
         }
@@ -1092,7 +1105,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public void reset(Checkpoint checkpoint) throws Exception {
         final int attempt = crContext == null? -1: crContext.getResetAttempt();
         final long sequenceId = checkpoint.getSequenceId();
-        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET (ckpt id/attempt={0}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
+        logger.log (DEBUG_LEVEL, MsgFormatter.format(">>> RESET (ckpt id/attempt={0,number,#}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
         final long before = System.currentTimeMillis();
         try {
             if (consumer.isProcessing()) {
@@ -1110,14 +1123,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (resettingLatch != null) resettingLatch.countDown();
             final long after = System.currentTimeMillis();
             final long duration = after - before;
-            logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET took {0} ms (ckpt id/attempt={1}/{2})", duration, sequenceId, attempt));
+            logger.log (DEBUG_LEVEL, MsgFormatter.format(">>> RESET took {0,number,#} ms (ckpt id/attempt={1,number,#}/{2,number,#})", duration, sequenceId, attempt));
         }
     }
 
     @Override
     public void resetToInitialState() throws Exception {
         final int attempt = crContext == null? -1: crContext.getResetAttempt();
-        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT (attempt={0})", attempt));
+        logger.log (DEBUG_LEVEL, MsgFormatter.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
         if (consumer.isProcessing()) {
             // it is up to the consumer client implementation to stop polling.
@@ -1128,6 +1141,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         if (resettingLatch != null) resettingLatch.countDown();
         final long after = System.currentTimeMillis();
         final long duration = after - before;
-        logger.log (DEBUG_LEVEL, MessageFormat.format(">>> RESET TO INIT took {0} ms (attempt={1})", duration, attempt));
+        logger.log (DEBUG_LEVEL, MsgFormatter.format(">>> RESET TO INIT took {0,number,#} ms (attempt={1})", duration, attempt));
     }
 }

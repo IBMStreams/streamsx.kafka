@@ -13,6 +13,7 @@
  */
 package com.ibm.streamsx.kafka.operators;
 
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +30,11 @@ import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingOutput;
 import com.ibm.streams.operator.Tuple;
+import com.ibm.streams.operator.Type;
 import com.ibm.streams.operator.Type.MetaType;
+import com.ibm.streams.operator.meta.OptionalType;
 import com.ibm.streams.operator.meta.TupleType;
+import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.clients.producer.FailureDescription;
 import com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook;
@@ -48,6 +52,8 @@ public class OutputPortSubmitter implements TupleProcessedHook {
     private final Gson gson;
     private int tupleAttrIndex = -1;
     private int stringAttrIndex = -1;
+    private boolean stringAttrIsOptional = false;
+    private MetaType optionalMeta = null;
     private final int outQueueCapacity;
     private final long outQueueOfferTimeoutMillis;
     private final BlockingQueue<OutputTuple> outQueue;
@@ -115,12 +121,12 @@ public class OutputPortSubmitter implements TupleProcessedHook {
         int nStringAttrs = 0;
         for (String outAttrName: outSchema.getAttributeNames()) {
             Attribute attr = outSchema.getAttribute (outAttrName);
-            MetaType metaType = attr.getType().getMetaType();
+            final Type attrType = attr.getType();
+            final MetaType metaType = attrType.getMetaType();
             switch (metaType) {
             case TUPLE:
                 ++nTupleAttrs;
-                TupleType tupleType = (TupleType) attr.getType();
-                StreamSchema tupleSchema = tupleType.getTupleSchema();
+                final StreamSchema tupleSchema = ((TupleType)attrType).getTupleSchema();
                 if (tupleSchema.equals (inPortSchema)) {
                     tupleAttrIndex = attr.getIndex();
                 }
@@ -129,6 +135,20 @@ public class OutputPortSubmitter implements TupleProcessedHook {
             case USTRING:
                 ++nStringAttrs;
                 stringAttrIndex = attr.getIndex();
+                break;
+            case OPTIONAL:
+                final MetaType optionalValueMeta = ((OptionalType)attrType).getValueType().getMetaType();
+                switch (optionalValueMeta) {
+                case RSTRING:
+                case USTRING:
+                    ++nStringAttrs;
+                    this.optionalMeta = optionalValueMeta;
+                    this.stringAttrIsOptional = true;
+                    this.stringAttrIndex = attr.getIndex();
+                    break;
+                default:
+                    trace.warn ("unsupported value type for optional attribute type in output port: " + optionalValueMeta + " for attribute '" + outAttrName + "'");
+                }
                 break;
             default:
                 trace.warn ("unsupported attribute type in output port: " + metaType + " for attribute '" + outAttrName + "'");
@@ -161,7 +181,7 @@ public class OutputPortSubmitter implements TupleProcessedHook {
     @Override
     public void onTupleProduced (Tuple tuple) {
         if (submitOnlyErrors) return;
-        enqueueOTuple (tuple, "");
+        enqueueOTuple (tuple, null);
     }
 
     /**
@@ -194,7 +214,7 @@ public class OutputPortSubmitter implements TupleProcessedHook {
 
     public void reset() {
         reset.set (true);
-        //        if (tupleSubmitter != null) tupleSubmitter.interrupt();
+        //if (tupleSubmitter != null) tupleSubmitter.interrupt();
         flush();
         reset.set (false);
     }
@@ -208,12 +228,30 @@ public class OutputPortSubmitter implements TupleProcessedHook {
         OutputTuple outTuple = out.newTuple();
         if (tupleAttrIndex >= 0)
             outTuple.assignTuple (tupleAttrIndex, inTuple);
-        if (stringAttrIndex >= 0)
-            outTuple.setString (stringAttrIndex, stringAttrVal);
+        if (stringAttrIndex >= 0) {
+            if (stringAttrIsOptional) {
+                if (stringAttrVal == null) {
+                    outTuple.setOptional (stringAttrIndex, Optional.empty());
+                } else switch (optionalMeta) {
+                case RSTRING:
+                    outTuple.setOptional (stringAttrIndex, Optional.of (new RString (stringAttrVal)));
+                    break;
+                case USTRING:
+                    outTuple.setOptional (stringAttrIndex, Optional.of (stringAttrVal));
+                    break;
+                default:
+                    trace.error ("unsupported meta type for optional values: " + optionalMeta);
+                    return;
+                }
+            }
+            else {
+                outTuple.setString (stringAttrIndex, stringAttrVal == null? "": stringAttrVal);
+            }
+        }
         try {
             this.nQt.incrementAndGet();
             if (!outQueue.offer (outTuple, outQueueOfferTimeoutMillis, TimeUnit.MILLISECONDS)) {
-                trace.error ("Output port queue congested (size = " + outQueueCapacity + "). Output tuple discarded.");
+                trace.error ("Output port queue congested (qsize = " + outQueueCapacity + "). Output tuple discarded.");
                 // tuple NOT offered. revert the previous increment
                 if (this.nQt.decrementAndGet() == 0) {
                     synchronized (queueMonitor) {

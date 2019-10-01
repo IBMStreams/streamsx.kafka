@@ -32,8 +32,10 @@ import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
+import com.ibm.streams.operator.Type;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.meta.OptionalType;
 import com.ibm.streams.operator.meta.TupleType;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
@@ -295,7 +297,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         int nStringAttrs = 0;
         for (String outAttrName: outSchema.getAttributeNames()) {
             Attribute attr = outSchema.getAttribute (outAttrName);
-            MetaType metaType = attr.getType().getMetaType();
+            Type attrType = attr.getType();
+            MetaType metaType = attrType.getMetaType();
             switch (metaType) {
             case TUPLE:
                 ++nTupleAttrs;
@@ -308,6 +311,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             case RSTRING:
             case USTRING:
                 ++nStringAttrs;
+                break;
+            case OPTIONAL:
+                MetaType optionalValueMeta = ((OptionalType)attrType).getValueType().getMetaType();
+                switch (optionalValueMeta) {
+                case RSTRING:
+                case USTRING:
+                    ++nStringAttrs;
+                    break;
+                default:
+                    checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+                }
                 break;
             default:
                 checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$

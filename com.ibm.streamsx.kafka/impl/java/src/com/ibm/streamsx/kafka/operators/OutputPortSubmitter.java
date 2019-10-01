@@ -13,7 +13,6 @@
  */
 package com.ibm.streamsx.kafka.operators;
 
-import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +33,6 @@ import com.ibm.streams.operator.Type;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.meta.OptionalType;
 import com.ibm.streams.operator.meta.TupleType;
-import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.clients.producer.FailureDescription;
 import com.ibm.streamsx.kafka.clients.producer.TupleProcessedHook;
@@ -53,7 +51,6 @@ public class OutputPortSubmitter implements TupleProcessedHook {
     private int tupleAttrIndex = -1;
     private int stringAttrIndex = -1;
     private boolean stringAttrIsOptional = false;
-    private MetaType optionalMeta = null;
     private final int outQueueCapacity;
     private final long outQueueOfferTimeoutMillis;
     private final BlockingQueue<OutputTuple> outQueue;
@@ -142,7 +139,6 @@ public class OutputPortSubmitter implements TupleProcessedHook {
                 case RSTRING:
                 case USTRING:
                     ++nStringAttrs;
-                    this.optionalMeta = optionalValueMeta;
                     this.stringAttrIsOptional = true;
                     this.stringAttrIndex = attr.getIndex();
                     break;
@@ -230,19 +226,7 @@ public class OutputPortSubmitter implements TupleProcessedHook {
             outTuple.assignTuple (tupleAttrIndex, inTuple);
         if (stringAttrIndex >= 0) {
             if (stringAttrIsOptional) {
-                if (stringAttrVal == null) {
-                    outTuple.setOptional (stringAttrIndex, Optional.empty());
-                } else switch (optionalMeta) {
-                case RSTRING:
-                    outTuple.setOptional (stringAttrIndex, Optional.of (new RString (stringAttrVal)));
-                    break;
-                case USTRING:
-                    outTuple.setOptional (stringAttrIndex, Optional.of (stringAttrVal));
-                    break;
-                default:
-                    trace.error ("unsupported meta type for optional values: " + optionalMeta);
-                    return;
-                }
+                outTuple.setString (stringAttrIndex, stringAttrVal);
             }
             else {
                 outTuple.setString (stringAttrIndex, stringAttrVal == null? "": stringAttrVal);

@@ -84,6 +84,9 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected TupleAttribute<Tuple, Long> timestampAttr;
     protected List<String> topics;
 
+    protected Class<?> messageType;
+    protected Class<?> keyType;
+
     private KafkaProducerClient producer;
     private AtomicBoolean isResetting;
     private String keyAttributeName = null;

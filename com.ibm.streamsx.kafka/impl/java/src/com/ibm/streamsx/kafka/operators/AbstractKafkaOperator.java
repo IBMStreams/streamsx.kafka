@@ -71,8 +71,6 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     protected String[] userLib;
     protected String clientId = null;
 
-    protected Class<?> messageType;
-    protected Class<?> keyType;
     protected ConsistentRegionContext crContext;
     protected CheckpointContext chkptContext;
 
@@ -271,6 +269,12 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         return this.kafkaProperties;
     }
 
+    /**
+     * converts an attribute object to the Java primitive object
+     * @param type    Not used
+     * @param attrObj the attribute value as object
+     * @return        The corresponding Java primitive
+     */
     protected Object toJavaPrimitveObject(Class<?> type, Object attrObj) {
         if(attrObj instanceof RString) {
             attrObj = ((RString)attrObj).getString();

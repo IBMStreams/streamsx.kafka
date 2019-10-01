@@ -23,6 +23,14 @@ Additional user documentation can be found in the
 
 This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
 
+++ What's new in version 3.0
+
+# Changes
+
+* The schema of the output port of the `KafkaProducer` operator supports optional types for the error description.
+* The toolkit requires at minimum Streams version 4.3.
+* The **guaranteeOrdering** parameter is incompatible with Kafka version 0.10.x when used with value `true`. There is a work-around.
+
 ++ What's new in version 2.2.0
 
 * The `KafkaProducer` operator supports an optional output port, configurable via the new **outputErrorsOnly** operator parameter
@@ -165,8 +173,8 @@ of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configu
 can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/|toolkit documentation].
 
    </info:description>
-   <info:version>2.2.0</info:version>
-   <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
+   <info:version>3.0.0._dev</info:version>
+   <info:requiredProductVersion>4.3.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>
 </info:toolkitInfoModel>

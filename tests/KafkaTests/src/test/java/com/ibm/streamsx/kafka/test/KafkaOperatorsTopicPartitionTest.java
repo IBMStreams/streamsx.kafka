@@ -39,11 +39,10 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaOperatorsTopicPartitionTest";
     private static final StreamSchema SCHEMA = com.ibm.streams.operator.Type.Factory.getStreamSchema("tuple<int32 key, rstring message>");
 
     public KafkaOperatorsTopicPartitionTest() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -74,9 +73,9 @@ public class KafkaOperatorsTopicPartitionTest extends AbstractKafkaTest {
         String[] expectedArr = {"A0", "B1", "C2", "A3", "B4", "C5", "A6", "B7", "C8"};
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), expectedArr);
         HashMap<String, Object> config = new HashMap<>();
-//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
-//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
-        
+        //        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results

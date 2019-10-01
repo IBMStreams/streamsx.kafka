@@ -33,14 +33,12 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsStartPositionTest extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaOperatorsStartPositionTest";
-
     public enum StartPosition {
         Beginning;
     }
 
     public KafkaOperatorsStartPositionTest() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -84,9 +82,9 @@ public class KafkaOperatorsStartPositionTest extends AbstractKafkaTest {
         Tester tester = topo.getTester();
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), Constants.STRING_DATA);
         HashMap<String, Object> config = new HashMap<>();
-//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
-//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
-        
+        //        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results

@@ -33,10 +33,8 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsMultipleTopics extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaOperatorsMultipleTopics";
-
     public KafkaOperatorsMultipleTopics() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -59,8 +57,8 @@ public class KafkaOperatorsMultipleTopics extends AbstractKafkaTest {
         String[] expectedArr = KafkaSPLStreamsUtils.duplicateArrayEntries(Constants.STRING_DATA, 3);
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), expectedArr);
         HashMap<String, Object> config = new HashMap<>();
-//      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
-//      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+        //      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
 
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 

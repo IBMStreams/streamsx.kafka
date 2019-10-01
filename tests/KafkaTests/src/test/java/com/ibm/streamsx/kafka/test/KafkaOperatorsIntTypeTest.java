@@ -35,11 +35,10 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsIntTypeTest extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaOperatorsIntTypeTest";
     private static final String[] DATA = {"10", "20", "30", "40", "50"};
 
     public KafkaOperatorsIntTypeTest() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -66,8 +65,8 @@ public class KafkaOperatorsIntTypeTest extends AbstractKafkaTest {
         Tester tester = topo.getTester();
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), DATA);
         HashMap<String, Object> config = new HashMap<>();
-//      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
-//      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+        //      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
 
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 

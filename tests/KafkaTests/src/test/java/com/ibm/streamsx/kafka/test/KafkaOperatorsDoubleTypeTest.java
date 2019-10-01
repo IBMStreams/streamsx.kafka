@@ -15,7 +15,6 @@ import com.ibm.streamsx.kafka.test.utils.Delay;
 import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
 import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
-import com.ibm.streamsx.topology.context.ContextProperties;
 import com.ibm.streamsx.topology.context.StreamsContext;
 import com.ibm.streamsx.topology.context.StreamsContext.Type;
 import com.ibm.streamsx.topology.context.StreamsContextFactory;
@@ -36,11 +35,10 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsDoubleTypeTest extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaOperatorsDoubleTypeTest";
     private static final String[] DATA = {"10.1", "20.2", "30.3", "40.4", "50.5"};
 
     public KafkaOperatorsDoubleTypeTest() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -64,8 +62,8 @@ public class KafkaOperatorsDoubleTypeTest extends AbstractKafkaTest {
         Tester tester = topo.getTester();
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), DATA);
         HashMap<String, Object> config = new HashMap<>();
-//        config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
-//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //        config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+        //        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
 
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 

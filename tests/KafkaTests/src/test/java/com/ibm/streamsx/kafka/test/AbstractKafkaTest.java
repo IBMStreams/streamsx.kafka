@@ -8,21 +8,41 @@ import com.ibm.streamsx.topology.spl.SPL;
 
 abstract class AbstractKafkaTest {
 
-    private Topology topo;
+    private final Topology topology;
+    private final String testName;
 
-    public AbstractKafkaTest(String testName) throws Exception {
-        topo = createTopology(testName);
+    public AbstractKafkaTest() throws Exception {
+        this.testName = this.getClass().getName().replace(this.getClass().getPackage().getName() + ".", "");
+        topology = createTopology (this.testName);
     }
 
-    protected Topology createTopology(String testName) throws Exception {
-        Topology t = new Topology(testName);
+    /**
+     * creates a Topology object with added toolkit and property file as file dependency.
+     * @param name the name of the topology
+     * @return the topology instance
+     * @throws Exception
+     */
+    protected Topology createTopology (String name) throws Exception {
+        Topology t = new Topology(name);
         t.addFileDependency(Constants.PROPERTIES_FILE_PATH, "etc");
         SPL.addToolkit(t, new File("../../com.ibm.streamsx.kafka"));
 
         return t;
     }
 
+    /**
+     * Gets the name of the test case. This is part of the Main composite name.
+     * @return the testName
+     */
+    public String getTestName() {
+        return testName;
+    }
+
+    /**
+     * Gets the Topology instance that is created for the test case
+     * @return the Topology instance
+     */
     public Topology getTopology() {
-        return topo;
+        return topology;
     }
 }

@@ -32,12 +32,11 @@ import com.ibm.streamsx.topology.tester.Tester;
  *  - topics other1 and other2 are created
  */
 public class KafkaConsumerPatternSubscribeTest extends AbstractKafkaTest {
-    private static final String TEST_NAME = "KafkaConsumerPatternSubscribeTest";
 
     public KafkaConsumerPatternSubscribeTest() throws Exception {
-        super(TEST_NAME);
+        super();
     }
-    
+
     @Test
     public void kafkaPatternSubscribeTest() throws Exception {
         Topology topo = getTopology();
@@ -58,8 +57,8 @@ public class KafkaConsumerPatternSubscribeTest extends AbstractKafkaTest {
         String[] expectedArr = KafkaSPLStreamsUtils.duplicateArrayEntries(Constants.STRING_DATA, 2);
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), expectedArr);
         HashMap<String, Object> config = new HashMap<>();
-//      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
-//      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //      config.put (ContextProperties.KEEP_ARTIFACTS, new Boolean (true));
+        //      config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
 
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
@@ -75,7 +74,7 @@ public class KafkaConsumerPatternSubscribeTest extends AbstractKafkaTest {
 
         return params;
     }
-    
+
     private Map<String, Object> getConsumerKafkaParams() {
         Map<String, Object> params = new HashMap<String, Object>();
         params.put("pattern", "other[12]{1}");

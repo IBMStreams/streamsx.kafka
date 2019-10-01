@@ -12,7 +12,6 @@ import com.ibm.streams.operator.OutputTuple;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streamsx.kafka.test.utils.Constants;
 import com.ibm.streamsx.kafka.test.utils.Delay;
-import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
 import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
 import com.ibm.streamsx.topology.context.StreamsContext;
@@ -35,7 +34,6 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaOperatorsAttrNameParamsTest";
     private static final String PROD_KEY_ATTR_NAME = "myProdKey";
     private static final String PROD_MSG_ATTR_NAME = "myProdMsg";
     private static final String PROD_TOPIC_ATTR_NAME = "myProdTopic";
@@ -49,7 +47,7 @@ public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
     private static final String MSG = "myMsg";
 
     public KafkaOperatorsAttrNameParamsTest() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -89,8 +87,8 @@ public class KafkaOperatorsAttrNameParamsTest extends AbstractKafkaTest {
         Tester tester = topo.getTester();
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), Constants.TOPIC_TEST + ":" + KEY + ":" + MSG);
         HashMap<String, Object> config = new HashMap<>();
-//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
-//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+        //        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results

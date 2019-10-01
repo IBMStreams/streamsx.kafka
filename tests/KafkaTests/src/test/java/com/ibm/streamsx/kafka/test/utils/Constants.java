@@ -10,8 +10,6 @@ public interface Constants {
 
     public static final String KafkaProducerOp = "com.ibm.streamsx.kafka::KafkaProducer";
     public static final String KafkaConsumerOp = "com.ibm.streamsx.kafka::KafkaConsumer";
-    public static final String MessageHubConsumerOp = "com.ibm.streamsx.kafka.messagehub::MessageHubConsumer";
-    public static final String MessageHubProducerOp = "com.ibm.streamsx.kafka.messagehub::MessageHubProducer";	
 
     public static final Long PRODUCER_DELAY = 5000l;
 

@@ -13,7 +13,6 @@ import com.ibm.streamsx.kafka.test.utils.Delay;
 import com.ibm.streamsx.kafka.test.utils.KafkaSPLStreamsUtils;
 import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
-import com.ibm.streamsx.topology.context.ContextProperties;
 import com.ibm.streamsx.topology.context.StreamsContext;
 import com.ibm.streamsx.topology.context.StreamsContext.Type;
 import com.ibm.streamsx.topology.context.StreamsContextFactory;
@@ -33,10 +32,8 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaOperatorsGreenThread extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaOperatorsGreenThread";
-
     public KafkaOperatorsGreenThread() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -57,8 +54,8 @@ public class KafkaOperatorsGreenThread extends AbstractKafkaTest {
         Tester tester = topo.getTester();
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), Constants.STRING_DATA);
         HashMap<String, Object> config = new HashMap<>();
-//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
-//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+        //        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results

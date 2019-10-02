@@ -76,7 +76,7 @@ The operator is capable of taking advantage of Kafka's group management function
 
  * A group-ID must be specified by the user. This can be done by using the **groupId** parameter or the `group.id` consumer property in an app option or property file.
  * None of the topics specified by the **topics** parameter can specify which partition to be assigned to, i.e. the **partition** parameter must not be used.
- * The **startPosition** parameter must be `Default` or not specified when the operator is *not* within a consistent region.
+ * The **startPosition** parameter must be `Default` or not specified when the operator is *not* within a consistent region for toolkit versions below 2.0.0.
  * When in consistent region, the toolkit version must be 1.5.0 or higher. Older toolkits do not support consumer groups when in consistent region.
 
 The custom metric **isGroupManagementActive** indicates whether the operator is part of a consumer group. Then the metric's value is 1.

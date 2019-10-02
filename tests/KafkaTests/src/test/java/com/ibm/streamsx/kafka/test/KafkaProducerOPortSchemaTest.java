@@ -39,9 +39,6 @@ import com.ibm.streamsx.topology.tester.Tester;
 
 /**
  * Test the optional output port of the KafkaProducer with different SPL schemas.
- * As we have problems with automatic FinalMarker forwarding, we
- * 1. throttle the input data to 1/s to give the tuples a chance to get processed
- * 2. test only for at least tuples as the FinalMarker can go into the tester prior to the last tuple(s).
  * 
  * Test requirements:
  *  - appConfig "kafka-test" be created on the domain
@@ -119,25 +116,24 @@ public class KafkaProducerOPortSchemaTest extends AbstractKafkaTest {
 
 
     protected void doTestWithSPLSchema (StreamSchema splOutSchema) throws Exception {
-        Topology topo = getTopology();
+        Topology topo = createTopology (getTestName());
 
         // data generator
         TStream<Message<Integer, String>> src = topo.limitedSource (new MySupplier(), NUM_TUPLES);
-        SPLStream outStream = SPLStreams.convertStream (src, new MessageConverter(), PRODUCER_IN_SCHEMA).throttle (1L, TimeUnit.SECONDS);
+        SPLStream outStream = SPLStreams.convertStream (src, new MessageConverter(), PRODUCER_IN_SCHEMA);
         // create producer
         SPLStream statusStream = SPL.invokeOperator ("Producer", Constants.KafkaProducerOp, outStream, splOutSchema, getKafkaProducerParams());
         StreamsContext<?> context = StreamsContextFactory.getStreamsContext (Type.DISTRIBUTED_TESTER);
         Tester tester = topo.getTester();
-        final long minNumExpectedTuples = NUM_TUPLES-3L;
-        Condition<Long> numStatusTuples = tester.atLeastTupleCount (statusStream, minNumExpectedTuples);
+        Condition<Long> numExpectedStatusTuples = tester.tupleCount (statusStream, NUM_TUPLES);
         HashMap<String, Object> config = new HashMap<>();
         // config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
         // config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
-        tester.complete (context, config, numStatusTuples, 60, TimeUnit.SECONDS);
+        tester.complete (context, config, numExpectedStatusTuples, 60, TimeUnit.SECONDS);
 
         // check the results
-        Assert.assertTrue (numStatusTuples.valid());
-        Assert.assertTrue (numStatusTuples.getResult() >= minNumExpectedTuples);
+        Assert.assertTrue (numExpectedStatusTuples.valid());
+        Assert.assertTrue (numExpectedStatusTuples.getResult() == NUM_TUPLES);
     }
 
 

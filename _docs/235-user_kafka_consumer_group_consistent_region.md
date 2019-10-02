@@ -122,7 +122,7 @@ The assigned partitions are seeked to the initial offsets, and the offset manage
 
 ### Reset processing to a previous state using a checkpoint
 
-When the operator resets to a previous state, each operator must have offsets of its currently assigned partitions and those partitons, which can be assigned later. The currently assigned partitions can be different from tha assigned partitions at checkpoint time. That's why the checkpoints of the consumer operators within a consumer group must be merged, so that all consumer operators have the same *merged checkpoint*.
+When the operator resets to a previous state, each operator must have offsets of its currently assigned partitions and those partitons, which can be assigned later. The currently assigned partitions can be different from the assigned partitions at checkpoint time. That's why the checkpoints of the consumer operators within a consumer group must be merged, so that all consumer operators have the same *merged checkpoint*.
 
 The checkpoint of each operator contains
 

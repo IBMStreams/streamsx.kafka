@@ -29,6 +29,7 @@ import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.StreamSchema;
+import com.ibm.streams.operator.StreamingData.Punctuation;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
@@ -528,6 +529,28 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
     }
 
+
+    /**
+     * Drop window markers, flush on final markers.
+     * @see com.ibm.streams.operator.AbstractOperator#processPunctuation(com.ibm.streams.operator.StreamingInput, com.ibm.streams.operator.StreamingData.Punctuation)
+     */
+    @Override
+    public void processPunctuation (StreamingInput<Tuple> stream, Punctuation mark) throws Exception {
+        if (logger.isDebugEnabled())
+            logger.debug ("punctuation received: " + mark);
+        switch (mark) {
+        case WINDOW_MARKER:
+            // suppress window markers
+            break;
+        case FINAL_MARKER:
+            drain0();
+            break;
+        default:
+            break;
+        }
+    }
+
+
     private List<String> getTopics(Tuple tuple) {
         List<String> topicList;
 
@@ -568,6 +591,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @Override
     public void drain() throws Exception {
         logger.debug(">>> DRAIN"); //$NON-NLS-1$
+        drain0();
+    }
+
+    /**
+     * @throws Exception
+     */
+    private void drain0() throws Exception {
         // flush all records from buffer...
         // if any messages fail to
         // be acknowledged, an exception

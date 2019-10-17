@@ -7,22 +7,22 @@
 <meta name="copyright" content="(C) Copyright 2005"/>
 <meta name="DC.rights.owner" content="(C) Copyright 2005"/>
 <meta name="DC.Type" content="reference"/>
-<meta name="DC.Title" content="What's new in version 1.8.0"/>
+<meta name="DC.Title" content="What's new in version 1.9.0"/>
 <meta name="DC.Format" content="XHTML"/>
 <meta name="DC.Identifier" content="spldoc_page"/>
 <link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
 <link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
-<title>What's new in version 1.8.0</title>
+<title>What's new in version 1.9.0</title>
 </head>
 <body id="spldoc_page">
 
 
-<h1 class="title topictitle1">What's new in version 1.8.0</h1>
+<h1 class="title topictitle1">What's new in version 1.9.0</h1>
 
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.0</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka$1.html">What's new and what has changed</a> &gt; What's new in version 1.8.0</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.1</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka$1.html">What's new and what has changed</a> &gt; What's new in version 1.9.0</p>
 
 </div>
 
@@ -30,25 +30,15 @@
 <div class="section">
 <div class="p">
 <ul class="ul">
-<li class="li"> The KafkaConsumer can subscribe dynamically to multiple topics by specifying a regular expression for the new <strong class="ph b">pattern</strong> parameter. Assignment of partitions happens for matching topics at the time of periodic check. When someone creates a new topic with a name that matches, a rebalance will happen almost immediately and the consumers will start consuming from the new topic.</li>
+<li class="li"> Upgrade of kafka-clients from version 1.0 to 2.1.1</li>
 
 <li class="li">
-<p class="p"> The control port of the KafkaConsumer allows assignment with default fetch position. New SPL functions to generate the JSON string for the control port have been added.
+<p class="p"> The KafkaProducer can now be flushed after a fixed number of tuples, new optional parameter <strong class="ph b">flush</strong>.
 </p>
 </li>
 
 <li class="li">
-<p class="p"> KafkaConsumer: Offsets can be committed after a <em class="ph i">time period</em>, not only when a tuple count is reached. The new <strong class="ph b">commitPeriod</strong> operator parameter lets you specify a time period in seconds for committing offsets of submitted tuples.
-</p>
-</li>
-
-<li class="li">
-<p class="p"> KafkaConsumer: The time policy for offset commit is now the default policy when not in consistent region. The time policy avoids too high commit request rates, which can occur with count based policy and high tuple rates. The default commit interval is 5 seconds.
-</p>
-</li>
-
-<li class="li">
-<p class="p"> The operators can now be configured with a <tt class="ph tt">config checkpoint</tt> clause when used in an autonomous region. The KafkaProducer operator simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions and resumes fetching at last committed offset.
+<p class="p"> Bug fix: KafkaConsumer can create invalid checkpoint when group management is active. When Kafka's group management is used in a consistent region, the <tt class="ph tt">maxConsecutiveResetAttempts</tt> should be increased (default value is 5).
 </p>
 </li>
 

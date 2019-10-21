@@ -27,6 +27,7 @@ This is an overview of changes for major and minor version upgrades. For details
 
 # Changes
 
+* The included Kafka client has been upgraded from version 2.2.1 to 2.3.0.
 * The schema of the output port of the `KafkaProducer` operator supports optional types for the error description.
 * The toolkit requires at minimum Streams version 4.3.
 * The **guaranteeOrdering** parameter is incompatible with Kafka version 0.10.x when used with value `true`. There is a work-around.

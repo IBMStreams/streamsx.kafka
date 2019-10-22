@@ -143,6 +143,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
         super (operatorContext, kafkaProperties, true);
         this.kafkaProperties = kafkaProperties;
+
+        // needed for brokers < v0.11, but breaks traditional behavior:
+        if (!kafkaProperties.containsKey (ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG)) {
+            this.kafkaProperties.put (ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
+        }
+
         if (!kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeserializer(keyClass));
         }
@@ -778,7 +784,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     final int nMessages = r.getNumRecords();
                     final long nQueuedBytes = r.getSumTotalSize();
                     final Level l = Level.DEBUG;
-//                    final Level l = DEBUG_LEVEL;
+                    //                    final Level l = DEBUG_LEVEL;
                     if (logger.isEnabledFor (l) && nMessages > 0) {
                         logger.log (l, MsgFormatter.format ("{0,number,#} records with total {1,number,#}/{2,number,#}/{3,number,#} bytes (key/value/sum) fetched and enqueued",
                                 nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));
@@ -829,7 +835,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         final long newMinAlloc = minAllocatableMemorySaveSetting (numBytes);
         if (newMinAlloc <= this.minAllocatableMemoryAdjusted)
             return;
-        
+
         logger.warn (MsgFormatter.format ("adjusting the minimum allocatable memory from {0} to {1} to fetch new Kafka messages", this.minAllocatableMemoryAdjusted, newMinAlloc));
         //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
         // now let's see if this would be possible

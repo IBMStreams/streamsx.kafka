@@ -65,6 +65,8 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| group.id | hash from domain-ID, instance-ID, job-ID, and operator name |\\n"
             + "|---|\\n"
+            + "| group.instance.id | when **staticGroupMember** parameter is `true`: hash from instance-ID, job-ID, and operator name |\\n"
+            + "|---|\\n"
             + "| key.deserializer | See **Automatic deserialization** section below |\\n"
             + "|---|\\n"
             + "| value.deserializer | See **Automatic deserialization** section below |\\n"
@@ -77,9 +79,9 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| metadata.max.age.ms | adjusted to a maximum of 2000 |\\n"
             + "|---|\\n"
-            + "| session.timeout.ms | adjusted to a maximum of 20000 |\\n"
+            + "| session.timeout.ms | when unset, set to 900000 when **staticGroupMember** parameter is `true`, to 20000 otherwise |\\n"
             + "|---|\\n"
-            + "| request.timeout.ms | adjusted to session.timeout.ms \\\\+ 5000 |\\n"
+            + "| request.timeout.ms | adjusted to 25000 when **staticGroupMember** parameter is `true`, to session.timeout.ms \\\\+ 5000 otherwise |\\n"
             + "|---|\\n"
             + "| metric.reporters | added to provided reporters: `com.ibm.streamsx.kafka.clients.consumer.ConsumerMetricsReporter` |\\n"
             + "|---|\\n"
@@ -329,6 +331,15 @@ public class KafkaSplDoc {
             + "\\n"
             ;
 
+    public static final String CONSUMER_STATIC_GROUP_MEMBERSHIP = ""
+            + "## Static Consumer Group Membership\\n"
+            + "\\n"
+            + "Since Kafka version 2.3, Kafka supports [https://kafka.apache.org/documentation/#static_membership|static group membership], "
+            + "more detailed in this [https://www.confluent.io/blog/kafka-rebalance-protocol-static-membership|confluent blog post].\\n"
+            + "\\n"
+            + "You can enable this feature by setting the **staticGroupMember** parameter to `true`."
+            + "";
+    
     public static final String PRODUCER_CHECKPOINTING_CONFIG = ""
             + "# Checkpointing behavior in an autonomous region\\n"
             + "\\n"

@@ -109,6 +109,8 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
             + "\\n"
             + KafkaSplDoc.CONSUMER_KAFKA_GROUP_MANAGEMENT
             + "\\n"
+            + KafkaSplDoc.CONSUMER_STATIC_GROUP_MEMBERSHIP
+            + "\\n"
             + KafkaSplDoc.CONSUMER_CHECKPOINTING_CONFIG
             + "\\n"
             + KafkaSplDoc.CONSUMER_RESTART_BEHAVIOUR

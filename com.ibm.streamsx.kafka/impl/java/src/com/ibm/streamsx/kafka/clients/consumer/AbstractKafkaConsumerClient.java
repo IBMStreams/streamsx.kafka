@@ -317,6 +317,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 }
                 catch (Exception e) {
                     initializationException = e;
+                    return;
                 }
                 finally {
                     consumerInitLatch.countDown();  // notify that consumer is ready
@@ -808,6 +809,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // catches also 'java.io.IOException: Broken pipe' when SSL is used
                     logger.warn ("Exception caugt: " + e, e);
                     if (++nConsecutiveRuntimeExc >= 50) {
+                        logger.error (e);
                         throw new KafkaOperatorRuntimeException ("Consecutive number of exceptions too high (50).", e);
                     }
                     logger.info ("Going to sleep for 100 ms before next poll ...");

@@ -26,6 +26,10 @@ sidebar:
 
 [Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v2.0.1/spldoc/html/)
 
+#### v1.9.5
+
+[Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.9.5/spldoc/html/)
+
 #### v1.9.4
 
 [Toolkit Documentation (SPLDoc)](/streamsx.kafka/doc/v1.9.4/spldoc/html/)

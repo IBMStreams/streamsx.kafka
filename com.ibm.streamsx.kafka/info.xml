@@ -19,6 +19,10 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 
 This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
 
+++ What's new in version 1.9.5
+
+* critical bug fix: Resetting from checkpoint will fail when sequence id is >1000, [https://github.com/IBMStreams/streamsx.kafka/issues/171]
+
 ++ What's new in version 1.9.4
 
 * Bug fix: Support for resetToInitialState when checkpointing in an autonomous region is configured
@@ -91,7 +95,7 @@ This is an overview of changes for major and minor version upgrades. For details
 * The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
 
    </info:description>
-   <info:version>1.9.4</info:version>
+   <info:version>1.9.5</info:version>
    <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

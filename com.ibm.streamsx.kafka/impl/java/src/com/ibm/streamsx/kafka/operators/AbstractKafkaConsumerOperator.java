@@ -237,13 +237,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @Parameter (optional = true, name = "staticGroupMember",
-            description = "Enables static Kafka group membership (sets `group.instance.id`) when set to `true`, "
-                    + "and sets a high default session timeout.\\n"
+            description = "Enables static Kafka group membership (generates and sets a `group.instance.id`) when set to `true`, "
+                    + "and sets a higher default session timeout.\\n"
                     + "\\n"
-                    + "This parameter is ignored when no group identifier is used or group management is not "
-                    + "active due to other reasons.\\n"
+                    + "This parameter is ignored when group management is not active.\\n"
                     + "\\n"
                     + "**Please note, that the Kafka server version must be at minimum 2.3 to use static group membership.** "
+                    + "With lower version, the operator will fail.\\n"
+                    + "\\n"
                     + "The default value of this parameter is `false`.")
     public void setStaticGroupMember (boolean staticGrpMember) {
         this.staticGroupMember  = staticGrpMember;
@@ -717,9 +718,20 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                         gid, context.getName()));
             }
         }
+        
         if (kafkaProperties.containsKey (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG)) {
-            kafkaProperties.remove (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG);
-            logger.warn ("removed group.instance.id from given Kafka properties");
+            if (groupManagementEnabled) {
+                // make the group.instance.id unique when in parallel region and not overwritten by generated id
+                if (isInParallelRegion() && !this.staticGroupMember) {
+                    final String groupInstanceId = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG) + "-" + context.getChannel();
+                    kafkaProperties.put (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
+                    logger.warn ("Operator in parallel region detected. Modified group.instance.id: " + groupInstanceId);
+                }
+            }
+            else {
+                kafkaProperties.remove (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG);
+                logger.warn (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG + " removed from consumer configuration (group management disabled)");
+            }
         }
         if (this.staticGroupMember) {
             if (!groupManagementEnabled) {
@@ -727,11 +739,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             } else {
                 // calculate a unique group.instance.id that is consistent accross operator restarts
                 final ProcessingElement pe = context.getPE();
-                final String jobIdStr = pe.getJobId().toString();
                 final int iidH = pe.getInstanceId().hashCode();
                 final int opnH = context.getName().hashCode();
-                final String groupInstanceId = MsgFormatter.format ("{0}-J{1}-{2}",
-                        (iidH < 0? "N" + (-iidH): "P" + iidH), jobIdStr, (opnH < 0? "N" + (-opnH): "P" + opnH));
+                final String groupInstanceId = MsgFormatter.format ("{0}-{1}",
+                        (iidH < 0? "N" + (-iidH): "P" + iidH), (opnH < 0? "N" + (-opnH): "P" + opnH));
                 logger.info ("Generated group.instance.id: " + groupInstanceId);
                 kafkaProperties.put (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
             }

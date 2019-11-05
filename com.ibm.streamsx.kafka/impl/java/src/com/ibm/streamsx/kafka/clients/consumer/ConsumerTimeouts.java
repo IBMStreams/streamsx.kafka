@@ -36,7 +36,8 @@ public class ConsumerTimeouts {
     // consumers while a consumer is restarted. When a consumer restarts (subscribes)
     // the partitions are re-assigned anyway.
     // When a consumer closes the client (graceful shutdown on stopPE) the group coordinator initializes re-balance immediately.
-    private static final long SESSION_TIMEOUT_MS = 20000;
+    private static final long SESSION_TIMEOUT_MS_DYNAMIC_GRP = 20000;
+    private static final long SESSION_TIMEOUT_MS_STATIC_GRP = 120000;
     private static final long METADATA_MAX_AGE_MS = 2000;
 
     @SuppressWarnings("unused")
@@ -84,13 +85,14 @@ public class ConsumerTimeouts {
      * @return the recommended value for session.timeout.ms
      */
     public long getSessionTimeoutMs () {
-        final String groupInstanceId = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "").trim();
-        if (groupInstanceId.isEmpty()) return SESSION_TIMEOUT_MS;
+        final boolean isDynamicGroupMember = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "").trim().isEmpty();
+        if (isDynamicGroupMember) return SESSION_TIMEOUT_MS_DYNAMIC_GRP;
 
         // default broker configs for maximum values:
         // group.max.session.timeout.ms = 300000 (5 min) for Kafka <= 2.2
         // group.max.session.timeout.ms = 1800000 (30 min) since Kafka 2.3
-        return 900000l; 
+        final long crResetTo12 = (long) (1.2 * crResetTimeoutMs);
+        return crResetTo12 > SESSION_TIMEOUT_MS_STATIC_GRP? crResetTo12: SESSION_TIMEOUT_MS_STATIC_GRP; 
     }
 
     /**
@@ -98,11 +100,11 @@ public class ConsumerTimeouts {
      * @return the recommended value for request.timeout.ms
      */
     public long getRequestTimeoutMs () {
-        long sessionTimeoutMs = SESSION_TIMEOUT_MS;
+        long sessionTimeoutMs = SESSION_TIMEOUT_MS_DYNAMIC_GRP;
         // when group.instance.id is set, the session timeout may have been set to a really high value.
         // In this case do NOT uses session.timeout.ms + 5s
-        final String groupInstanceId = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "").trim();
-        if (kafkaProperties.containsKey (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG) && groupInstanceId.isEmpty()) {
+        final boolean isDynamicGroupMember = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "").trim().isEmpty();
+        if (kafkaProperties.containsKey (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG) && isDynamicGroupMember) {
             sessionTimeoutMs = Long.valueOf (kafkaProperties.getProperty (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG));
         }
         return sessionTimeoutMs + 5000;

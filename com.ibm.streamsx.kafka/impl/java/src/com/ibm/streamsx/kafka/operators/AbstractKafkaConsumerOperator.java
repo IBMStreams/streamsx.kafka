@@ -29,6 +29,7 @@ import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.OutputTuple;
+import com.ibm.streams.operator.ProcessingElement;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingData.Punctuation;
 import com.ibm.streams.operator.StreamingInput;
@@ -62,7 +63,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerOperator.class);
-    
+
     private static final long DEFAULT_CONSUMER_TIMEOUT = 100l;
     private static final long SHUTDOWN_TIMEOUT = 15l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
@@ -113,6 +114,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private double commitPeriod = DEFAULT_COMMIT_PERIOD;
     private CommitMode commitMode = CommitMode.Time;
     private String groupId = null;
+    private boolean staticGroupMember = false;
     private boolean groupIdSpecified = false;
     private Long startTime = -1l;
 
@@ -129,6 +131,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private Metric nMalformedMessages;
     private Metric isGroupManagementActive;
     long maxDrainMillis = 0l;
+
 
     // Initialize the metrics
     @CustomMetric (kind = Metric.Kind.GAUGE, name = "isGroupManagementActive", description = "Shows the Kafka group management state of the operator. "
@@ -231,6 +234,20 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "must be given as an 'int64' type in milliseconds since Unix epoch.")
     public void setStartTime(Long startTime) {
         this.startTime = startTime;
+    }
+
+    @Parameter (optional = true, name = "staticGroupMember",
+            description = "Enables static Kafka group membership (generates and sets a `group.instance.id`) when set to `true`, "
+                    + "and sets a higher default session timeout.\\n"
+                    + "\\n"
+                    + "This parameter is ignored when group management is not active.\\n"
+                    + "\\n"
+                    + "**Please note, that the Kafka server version must be at minimum 2.3 to use static group membership.** "
+                    + "With lower version, the operator will fail.\\n"
+                    + "\\n"
+                    + "The default value of this parameter is `false`.")
+    public void setStaticGroupMember (boolean staticGrpMember) {
+        this.staticGroupMember  = staticGrpMember;
     }
 
     @Parameter(optional = true, name="groupId",
@@ -699,6 +716,35 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
                         + "will NOT participate in a consumer group because startPosition != Default is configured.",
                         gid, context.getName()));
+            }
+        }
+        
+        if (kafkaProperties.containsKey (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG)) {
+            if (groupManagementEnabled) {
+                // make the group.instance.id unique when in parallel region and not overwritten by generated id
+                if (isInParallelRegion() && !this.staticGroupMember) {
+                    final String groupInstanceId = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG) + "-" + context.getChannel();
+                    kafkaProperties.put (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
+                    logger.warn ("Operator in parallel region detected. Modified group.instance.id: " + groupInstanceId);
+                }
+            }
+            else {
+                kafkaProperties.remove (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG);
+                logger.warn (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG + " removed from consumer configuration (group management disabled)");
+            }
+        }
+        if (this.staticGroupMember) {
+            if (!groupManagementEnabled) {
+                logger.warn ("ignoring request for static consumer group membership as group management is disabled for this operator instance.");
+            } else {
+                // calculate a unique group.instance.id that is consistent accross operator restarts
+                final ProcessingElement pe = context.getPE();
+                final int iidH = pe.getInstanceId().hashCode();
+                final int opnH = context.getName().hashCode();
+                final String groupInstanceId = MsgFormatter.format ("{0}-{1}",
+                        (iidH < 0? "N" + (-iidH): "P" + iidH), (opnH < 0? "N" + (-opnH): "P" + opnH));
+                logger.info ("Generated group.instance.id: " + groupInstanceId);
+                kafkaProperties.put (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
             }
         }
         // when group management is disabled and no input port is configured, we must not subscribe with pattern

@@ -45,6 +45,7 @@ import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.DataGovernanceUtil;
 import com.ibm.streamsx.kafka.IGovernanceConstants;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.ToolkitInfoReader;
@@ -73,6 +74,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     protected ConsistentRegionContext crContext;
     protected CheckpointContext chkptContext;
+    private Boolean inParallelRegion = null;
 
     private KafkaOperatorProperties kafkaProperties;
 
@@ -138,6 +140,15 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         this.clientId = clientId;
     }
 
+    /**
+     * Determines if the operator is used within a parallel region.
+     * @return true, if the operator is used in a parallel region, false otherwise.
+     * @throws KafkaOperatorException The operator is not yet initialized.
+     */
+    public boolean isInParallelRegion() throws KafkaOperatorException {
+        if (inParallelRegion == null) throw new KafkaOperatorException ("operator must be initialized before");
+        return inParallelRegion.booleanValue();
+    }
 
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
@@ -149,6 +160,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         catch (Exception e) {
             logger.warn ("Could not determine toolkit name and version: " + e);
         }
+        this.inParallelRegion = new Boolean (context.getChannel() >= 0);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         chkptContext = context.getOptionalContext (CheckpointContext.class);
         // load the Kafka properties

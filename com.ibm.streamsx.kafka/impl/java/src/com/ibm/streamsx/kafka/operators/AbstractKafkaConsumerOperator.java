@@ -737,7 +737,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 final ProcessingElement pe = context.getPE();
                 final int iidH = pe.getInstanceId().hashCode();
                 final int opnH = context.getName().hashCode();
-                final String groupInstanceId = MsgFormatter.format ("{0}-{1}",
+                final String groupInstanceId = MsgFormatter.format ("i{0}-o{1}",
                         (iidH < 0? "N" + (-iidH): "P" + iidH), (opnH < 0? "N" + (-opnH): "P" + opnH));
                 logger.info ("Generated group.instance.id: " + groupInstanceId);
                 kafkaProperties.put (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);

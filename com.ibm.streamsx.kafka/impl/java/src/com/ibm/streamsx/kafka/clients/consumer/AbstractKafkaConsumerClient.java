@@ -163,9 +163,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             this.groupId = kafkaProperties.getProperty (ConsumerConfig.GROUP_ID_CONFIG);
         }
         else {
-            ProcessingElement pe = operatorContext.getPE();
-            this.groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
-                    + pe.getJobId() + operatorContext.getName().hashCode();
+            this.groupId = generateGroupId (operatorContext);
+            logger.info ("Generated group.id: " + this.groupId);
             this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, this.groupId);
             this.groupIdGenerated = true;
         }
@@ -210,6 +209,22 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric ("nQueueFullPause");
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric ("nAssignedPartitions");
         this.nConsumedTopics = operatorContext.getMetrics().getCustomMetric ("nConsumedTopics");
+    }
+
+    /**
+     * Generates a group identifier that is consistent accross PE relaunches, but not accross job submissions.
+     * @param operatorContext
+     * @return a group identifier
+     */
+    private String generateGroupId (final OperatorContext context) {
+        final ProcessingElement pe = context.getPE();
+        final int iidH = pe.getInstanceId().hashCode();
+        final int opnH = context.getName().hashCode();
+        final String id = MsgFormatter.format ("i{0}-j{1}-o{2}",
+                (iidH < 0? "N" + (-iidH): "P" + iidH),
+                "" + pe.getJobId(),
+                (opnH < 0? "N" + (-opnH): "P" + opnH));
+        return id;
     }
 
     /**

@@ -29,7 +29,6 @@ import org.apache.log4j.Logger;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.CheckpointContext.Kind;
-import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
@@ -110,17 +109,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         }
         assign (partsToAssign);
         if (getInitialStartPosition() != StartPosition.Default) {
-            if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-                testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
-                // JCP connected, seek when partition not yet committed
-                for (TopicPartition tp: partsToAssign) {
-                    if (!isCommittedForPartition (tp)) {
-                        seekToPosition (tp, startPosition);
-                    }
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
+            // JCP connected, seek when partition not yet committed
+            for (TopicPartition tp: partsToAssign) {
+                if (!isCommittedForPartition (tp)) {
+                    seekToPosition (tp, startPosition);
                 }
-            }
-            else {
-                seekToPosition (partsToAssign, startPosition);
             }
         }
         resetCommitPeriod (System.currentTimeMillis());
@@ -156,19 +150,13 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         final Set<TopicPartition> topicPartitions = topicPartitionTimestampMap.keySet();
 
         assign (topicPartitions);
-        
-        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
-            // JCP connected, seek when partition not yet committed
-            // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
-            for (TopicPartition tp: topicPartitions) {
-                if (!isCommittedForPartition (tp)) {
-                    seekToTimestamp (tp, timestamp);
-                }
+        testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
+        // JCP connected, seek when partition not yet committed
+        // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
+        for (TopicPartition tp: topicPartitions) {
+            if (!isCommittedForPartition (tp)) {
+                seekToTimestamp (tp, timestamp);
             }
-        }
-        else {
-            seekToTimestamp (topicPartitionTimestampMap);
         }
         resetCommitPeriod (System.currentTimeMillis());
     }
@@ -196,19 +184,14 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         for (int partitionNo: partitions) {
             topicPartitionOffsetMap.put (new TopicPartition (topic, partitionNo), startOffsets.get(i++));
         }
-        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
-            // JCP connected, seek when partition not yet committed
-            // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
-            assign (topicPartitionOffsetMap.keySet());
-            for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
-                if (!isCommittedForPartition (tp)) {
-                    getConsumer().seek (tp, topicPartitionOffsetMap.get (tp).longValue());
-                }
+        testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
+        // JCP connected, seek when partition not yet committed
+        // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
+        assign (topicPartitionOffsetMap.keySet());
+        for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
+            if (!isCommittedForPartition (tp)) {
+                getConsumer().seek (tp, topicPartitionOffsetMap.get (tp).longValue());
             }
-        }
-        else {
-            assignToPartitionsWithOffsets (topicPartitionOffsetMap);
         }
         resetCommitPeriod (System.currentTimeMillis());
     }
@@ -302,12 +285,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 // remove removed partitions from offset manager. We can't commit offsets for those partitions we are not assigned any more.
                 // the post-condition is, that all messages from the queue have submitted as 
                 // tuples and its offsets +1 are stored in OffsetManager.
-                
+
                 final boolean commitSync = true;
                 final boolean commitPartitionWise = false;
                 CommitInfo commitOffsets = new CommitInfo (commitSync, commitPartitionWise);
                 OffsetManager offsetManager = getOffsetManager();
-                
+
                 synchronized (offsetManager) {
                     update.getTopicPartitionOffsetMap().forEach ((tp, offsetIrrelevant) -> {
                         // make sure that we commit only partitions that are assigned 

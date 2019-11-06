@@ -44,7 +44,6 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
-import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.MsgFormatter;
@@ -471,9 +470,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     //    @ContextCheck (compile = true)
     public static void warnStartPositionParamRequiresJCP (OperatorContextChecker checker) {
-        if (!(Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION || Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART)) {
-            return;
-        }
         OperatorContext opCtx = checker.getOperatorContext();
         Set<String> paramNames = opCtx.getParameterNames();
         List<StreamingInput<Tuple>> inputPorts = opCtx.getStreamingInputs();
@@ -697,10 +693,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         boolean groupManagementEnabled;
 
-        if (crContext == null && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION)
-            groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty()) && startPosition == StartPosition.Default;
-        else 
-            groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
+        groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
         if (this.groupIdSpecified && !groupManagementEnabled) {
             if (hasInputPorts) {
                 logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
@@ -712,13 +705,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                         + "will NOT participate in a consumer group because partitions to consume are specified.",
                         gid, context.getName()));
             }
-            if (startPosition != StartPosition.Default && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION && crContext == null) {
-                logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group because startPosition != Default is configured.",
-                        gid, context.getName()));
-            }
         }
-        
+
         if (kafkaProperties.containsKey (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG)) {
             if (groupManagementEnabled) {
                 // make the group.instance.id unique when in parallel region and not overwritten by generated id

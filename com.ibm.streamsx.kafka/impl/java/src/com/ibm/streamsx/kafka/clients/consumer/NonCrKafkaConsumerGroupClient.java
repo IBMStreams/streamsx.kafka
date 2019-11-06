@@ -26,10 +26,8 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
-import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
-import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -78,14 +76,12 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
     @Override
     public void subscribeToTopicsWithTimestamp (Pattern pattern, long timestamp) throws Exception {
         trace.info (MsgFormatter.format ("subscribeToTopicsWithTimestamp: pattern = {0}, timestamp = {1}",
-        pattern == null? "null": pattern.pattern(), timestamp));
+                pattern == null? "null": pattern.pattern(), timestamp));
         assert getInitialStartPosition() == StartPosition.Time;
         this.initialStartTimestamp = timestamp;
         subscribe (pattern, this);
         // we seek in onPartitionsAssigned()
-        if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
-            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
-        }
+        testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
         resetCommitPeriod (System.currentTimeMillis());
     }
 
@@ -102,7 +98,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         assert getInitialStartPosition() == startPosition;
         subscribe (pattern, this);
         // we seek in onPartitionsAssigned()
-        if (startPosition != StartPosition.Default && Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+        if (startPosition != StartPosition.Default) {
             testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
         }
         resetCommitPeriod (System.currentTimeMillis());
@@ -133,7 +129,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         }
         subscribe (topics, this);
         // we seek in onPartitionsAssigned()
-        if (startPosition != StartPosition.Default && Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
+        if (startPosition != StartPosition.Default) {
             testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
         }
         resetCommitPeriod (System.currentTimeMillis());
@@ -164,9 +160,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         this.initialStartTimestamp = timestamp;
         subscribe (topics, this);
         // we seek in onPartitionsAssigned()
-        if (Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
-            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
-        }
+        testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, StartPosition.Time);
         resetCommitPeriod (System.currentTimeMillis());
     }
 
@@ -251,19 +245,11 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                     break;
                 case Beginning:
                 case End:
-                    if (!Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
-                        // here we must never end when the feature is not enabled
-                        throw new KafkaOperatorRuntimeException ("Illegal startposition for this consumer client implementation: " + startPos);
-                    }
                     if (!isCommittedForPartition (tp)) {
                         seekToPosition (tp, startPos);
                     }
                     break;
                 case Time:
-                    if (!Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION) {
-                        // here we must never end when the feature is not enabled
-                        throw new KafkaOperatorRuntimeException ("Illegal startposition for this consumer client implementation: " + startPos);
-                    }
                     if (!isCommittedForPartition (tp)) {
                         seekToTimestamp (tp, this.initialStartTimestamp);
                     }

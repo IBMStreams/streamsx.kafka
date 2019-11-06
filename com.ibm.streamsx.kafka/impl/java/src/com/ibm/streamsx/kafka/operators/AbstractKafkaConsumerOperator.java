@@ -44,6 +44,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
+import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.MsgFormatter;
@@ -236,8 +237,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @Parameter (optional = true, name = "staticGroupMember",
-            description = "Enables static Kafka group membership (generates and sets a `group.instance.id`) when set to `true`, "
-                    + "and sets a higher default session timeout.\\n"
+            description = "Enables static Kafka group membership (generates and sets a `group.instance.id` "
+                    + "overriding a potentially user provided group instance identifier) "
+                    + "and sets a higher default session timeout. "
+                    + "when set to `true`.\\n"
                     + "\\n"
                     + "This parameter is ignored when group management is not active.\\n"
                     + "\\n"
@@ -256,7 +259,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "Kafka property if specified. If this parameter is not "
                     + "specified and the `group.id` Kafka property is not "
                     + "specified, the operator will use a generated group ID, "
-                    + "and the group management feature is not active.")
+                    + "and be a single group member unless the **partition** "
+                    + "parameter is used or the control port is configured.")
     public void setGroupId (String groupId) {
         this.groupId = groupId;
     }
@@ -333,9 +337,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=TOPIC_PARAM,
             description="Specifies the topic or topics that the consumer should "
                     + "subscribe to. To assign the consumer to specific partitions, "
-                    + "use the **partitions** parameter. To specify multiple topics "
-                    + "from which the operator should consume, separate the the "
-                    + "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`.")
+                    + "use the **partitions** parameter in addition. To specify multiple topics "
+                    + "from which the operator should consume, separate the "
+                    + "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`. "
+                    + "To subscribe to multiple topics that match a regular expression, use the **pattern** parameter.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
@@ -353,10 +358,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "Dynamic subscription with a pattern implies group management. The parameter is therefore "
                     + "incompatible with all *operator configurations that disable group management*:\\n"
                     + "\\n"
-                    + "* no group identifier configured (neither via **groupId** parameter nor as `group.id` consumer configuration)\\n"
                     + "* presence of an input control port\\n"
                     + "* usage of the **partition** parameter\\n"
-                    + "* usage of **startPosition** parameter with a different value than `Default` (only when not in consistent region)\\n"
                     + "\\n"
                     + "The regular expression syntax follows the Perl 5 regular expressions with some differences. "
                     + "For details see [https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html|Regular Expressions in Java 8].")
@@ -688,12 +691,17 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
         final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
         final String gid = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
-        this.groupIdSpecified = gid != null && !gid.isEmpty();
+        this.groupIdSpecified = gid != null && !gid.trim().isEmpty();
         logger.log (DEBUG_LEVEL, "group-ID specified: " + this.groupIdSpecified);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         boolean groupManagementEnabled;
 
-        groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
+        if (Features.ENABLE_GROUP_MANAGEMENT_NO_USER_GROUP_ID) {
+            groupManagementEnabled = !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
+        } else {
+            // legacy (2.x) behavior
+            groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
+        }
         if (this.groupIdSpecified && !groupManagementEnabled) {
             if (hasInputPorts) {
                 logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "

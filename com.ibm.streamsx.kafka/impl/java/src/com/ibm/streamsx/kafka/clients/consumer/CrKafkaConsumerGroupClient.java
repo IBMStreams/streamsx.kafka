@@ -845,10 +845,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             trace.error (msg);
             throw new KafkaConfigurationException (msg);
         }
-        // test that group-ID is not the generated (random) value
-        if (isGroupIdGenerated()) {
-            throw new KafkaConfigurationException (getThisClassName() + " cannot be used without specifying the groupId parameter or a group.id consumer property");
-        }
         if (initialStartPosition == StartPosition.Offset) {
             throw new KafkaConfigurationException (getThisClassName() + " does not support startPosition = " + initialStartPosition);
         }

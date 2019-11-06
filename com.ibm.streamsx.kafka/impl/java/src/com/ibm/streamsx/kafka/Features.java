@@ -17,5 +17,9 @@ package com.ibm.streamsx.kafka;
  * @author IBM Kafka toolkit maintainers
  */
 public class Features {
-    // nothing for v3.x
+    /**
+     * When set to true, group management is also enabled when no group-ID is given, i.e. with generated group-ID.
+     * When set to false, group management is disabled without user specified group identifier.
+     */
+    public static boolean ENABLE_GROUP_MANAGEMENT_NO_USER_GROUP_ID = !SystemProperties.isLegacyBehavior();
 }

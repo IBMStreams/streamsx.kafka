@@ -16,7 +16,7 @@ package com.ibm.streamsx.kafka;
 /**
  * @author IBM Kafka toolkit maintainers
  */
-public class TopicPartitionUpdateParseException extends KafkaOperatorRuntimeException {
+public class ControlportJsonParseException extends KafkaOperatorRuntimeException {
 
     private static final long serialVersionUID = 1L;
 
@@ -39,21 +39,21 @@ public class TopicPartitionUpdateParseException extends KafkaOperatorRuntimeExce
     /**
      * 
      */
-    public TopicPartitionUpdateParseException() {
+    public ControlportJsonParseException() {
         super();
     }
 
     /**
      * @param message
      */
-    public TopicPartitionUpdateParseException (String message) {
+    public ControlportJsonParseException (String message) {
         super (message);
     }
 
     /**
      * @param cause
      */
-    public TopicPartitionUpdateParseException(Throwable cause) {
+    public ControlportJsonParseException(Throwable cause) {
         super(cause);
     }
 
@@ -61,7 +61,7 @@ public class TopicPartitionUpdateParseException extends KafkaOperatorRuntimeExce
      * @param message
      * @param cause
      */
-    public TopicPartitionUpdateParseException(String message, Throwable cause) {
+    public ControlportJsonParseException(String message, Throwable cause) {
         super(message, cause);
     }
 
@@ -71,7 +71,7 @@ public class TopicPartitionUpdateParseException extends KafkaOperatorRuntimeExce
      * @param enableSuppression
      * @param writableStackTrace
      */
-    public TopicPartitionUpdateParseException(String message, Throwable cause, boolean enableSuppression,
+    public ControlportJsonParseException(String message, Throwable cause, boolean enableSuppression,
             boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }

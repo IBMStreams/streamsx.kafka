@@ -32,6 +32,12 @@ public interface ConsumerClient {
     public static final String DRAIN_TIME_MILLIS_METRIC_NAME = "drainTimeMillis";
 
     /**
+     * Returns the implementation magic number.
+     * @return a hash number of the implementation of the runtime class.
+     */
+    public int getImplementationMagic();
+
+    /**
      * Returns the client-ID, which is the value of the Kafka consumer property client.id
      * @return the client-ID
      */
@@ -114,6 +120,14 @@ public interface ConsumerClient {
     boolean isSubscribedOrAssigned();
 
     /**
+     * Tests if a client supports an action triggered via control port.
+     * If an action is not supported, {@link #onTopicAssignmentUpdate(ControlPortAction)} should not be invoked.
+     * @param action The action
+     * @return true, if the client implementation supports the action, false otherwise
+     */
+    boolean supports (ControlPortAction action);
+
+    /**
      * Initiates start of polling for KafKa messages.
      * Implementations should ignore this event if the consumer is not subscribed or assigned to partitions.
      */
@@ -133,7 +147,7 @@ public interface ConsumerClient {
      * @param update The the partition update.
      * @throws InterruptedException The thread waiting for finished condition has been interruped.
      */
-    void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException;
+    void onTopicAssignmentUpdate (final ControlPortAction update) throws InterruptedException;
 
     /**
      * Action to be performed on consistent region drain.

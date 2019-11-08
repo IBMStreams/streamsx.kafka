@@ -1134,11 +1134,11 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * This method should not be called because operator control port and this client implementation are incompatible.
      * A context check should exist to detect this mis-configuration.
      * We only log the method call. 
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processUpdateAssignmentEvent (TopicPartitionUpdate update) {
-        trace.warn("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
+    protected void processControlPortActionEvent (ControlPortAction update) {
+        trace.warn("processControlPortActionEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
     }
 
 
@@ -1261,7 +1261,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     /**
      * The builder for the consumer client following the builder pattern.
      */
-    public static class Builder {
+    public static class Builder implements ConsumerClientBuilder {
 
         private OperatorContext operatorContext;
         private Class<?> keyClass;
@@ -1279,7 +1279,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         }
 
         public final Builder setKafkaProperties(KafkaOperatorProperties p) {
-            this.kafkaProperties = p;
+            this.kafkaProperties = new KafkaOperatorProperties();
+            this.kafkaProperties.putAll (p);
             return this;
         }
 
@@ -1330,13 +1331,21 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
          * @return A new ConsumerClient instance
          * @throws Exception
          */
+        @Override
         public ConsumerClient build() throws Exception {
-            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, singleTopic);
+            KafkaOperatorProperties p = new KafkaOperatorProperties();
+            p.putAll (this.kafkaProperties);
+            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, p, singleTopic);
             client.setPollTimeout (this.pollTimeout);
             client.setTriggerCount (this.triggerCount);
             client.setInitialStartPosition (this.initialStartPosition);
             client.setInitialStartTimestamp (this.initialStartTimestamp);
             return client;
+        }
+
+        @Override
+        public int getImplementationMagic() {
+            return CrKafkaConsumerGroupClient.class.getName().hashCode();
         }
     }
 }

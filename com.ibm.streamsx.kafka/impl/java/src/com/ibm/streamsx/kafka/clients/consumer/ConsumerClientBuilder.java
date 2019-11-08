@@ -13,12 +13,21 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-public enum TopicPartitionUpdateAction {
+/**
+ * Builds a consumer client implementation.
+ * @author The IBM Kafka toolkit maintainers
+ * @since 3.0
+ */
+public interface ConsumerClientBuilder {
+    /**
+     * Builds a Consumer client.
+     * @return the consumer client
+     */
+    ConsumerClient build() throws Exception;
 
-    NONE,
-    ADD_ASSIGNMENT,
-    REMOVE_ASSIGNMENT,
-    ADD_SUBSCRIPTION,
-    REMOVE_SUBSCRIPTION,
-    COMMIT_OFFSETS;
+    /**
+     * Returns the implementation magic number of the built clients.
+     * @return a hash number of the implementation of the runtime class.
+     */
+    public int getImplementationMagic();
 }

@@ -391,6 +391,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
+     * The default implementation returns false.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#supports(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
+     */
+    @Override
+    public boolean supports (ControlPortAction action) {
+        return false;
+    }
+
+    /**
      * Runs a loop and consumes the event queue until the processing flag is set to false.
      * @throws InterruptedException the thread has been interrupted
      */
@@ -417,10 +426,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 event.countDownLatch();  // indicates that polling has stopped
                 break;
             case UPDATE_ASSIGNMENT:
+                final ControlPortAction data = (ControlPortAction) event.getData();
                 try {
-                    processUpdateAssignmentEvent ((TopicPartitionUpdate) event.getData());
+                    processControlPortActionEvent (data);
                 } catch (Exception e) {
-                    logger.error("The assignment '" + (TopicPartitionUpdate) event.getData() + "' update failed: " + e.getLocalizedMessage());
+                    logger.error("The control processing '" + data + "' failed: " + e.getLocalizedMessage());
                 } finally {
                     event.countDownLatch();
                 }
@@ -611,7 +621,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param update the update increment/decrement
      * @throws Exception 
      */
-    protected abstract void processUpdateAssignmentEvent (TopicPartitionUpdate update);
+    protected abstract void processControlPortActionEvent (ControlPortAction update);
 
     /**
      * This method must be overwritten by concrete classes. 
@@ -1138,7 +1148,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException {
+    public void onTopicAssignmentUpdate (final ControlPortAction update) throws InterruptedException {
         Event event = new Event(EventType.UPDATE_ASSIGNMENT, update, true);
         sendEvent (event);
         event.await();
@@ -1154,6 +1164,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
+        if (!isProcessing()) return;
         Event event = new Event(EventType.SHUTDOWN, true);
         sendEvent (event);
         event.await (timeout, timeUnit);

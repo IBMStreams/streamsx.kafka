@@ -77,7 +77,7 @@ public abstract class AbstractKafkaClient {
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
         this.operatorContext = operatorContext;
-        logger.info ("instantiating client: " + getThisClassName());
+        logger.info ("instantiating client: " + getThisClassName() + " (magic " + getImplementationMagic() + ")");
         this.jcpContext = operatorContext.getOptionalContext (ControlPlaneContext.class);
         // Create a unique client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
         // This is important, otherwise running multiple consumers from the same
@@ -115,6 +115,13 @@ public abstract class AbstractKafkaClient {
         }
     }
 
+    /**
+     * Returns the implementation magic number.
+     * @return a hash number of the implementation of the runtime class name: <tt>getThisClassName().hashCode()</tt>
+     */
+    public int getImplementationMagic() {
+        return getThisClassName().hashCode();
+    }
 
     /**
      * returns the operator context.

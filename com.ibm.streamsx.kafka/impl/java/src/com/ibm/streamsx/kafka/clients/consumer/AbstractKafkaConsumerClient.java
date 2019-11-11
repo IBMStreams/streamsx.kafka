@@ -1113,10 +1113,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected void subscribe (Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
         logger.info("Subscribing. topics = " + topics); //$NON-NLS-1$
         if (topics == null) topics = Collections.emptyList();
+        if (!topics.isEmpty()) {
+            tryCreateCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+        }
         consumer.subscribe (topics, rebalanceListener);
-        try {
-            getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
-        } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
         this.subscriptionMode = topics.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.SUBSCRIBED;
     }
 
@@ -1132,10 +1132,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             consumer.unsubscribe();
         }
         else {
+            tryCreateCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
             consumer.subscribe (pattern, rebalanceListener);
-            try {
-                getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
-            } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
         }
         this.subscriptionMode = SubscriptionMode.SUBSCRIBED;
     }

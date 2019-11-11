@@ -32,6 +32,8 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
+import com.ibm.streams.operator.metrics.Metric;
+import com.ibm.streams.operator.metrics.OperatorMetrics;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -165,6 +167,22 @@ public abstract class AbstractKafkaClient {
      */
     public String getThisClassName() {
         return this.getClass().getName();
+    }
+
+
+    /**
+     * Tests existence of a custom metric and creates the metric if it does not yet exist.
+     * @param name  the name of the metric
+     * @param descr the description
+     * @param kind  the kind of the metric
+     * @return the Metric object.
+     */
+    protected Metric tryCreateCustomMetric (final String name, final String descr, final Metric.Kind kind) {
+        OperatorMetrics metrics = getOperatorContext().getMetrics();
+        Metric m = metrics.getCustomMetrics().get (name.trim());
+        if (m != null)
+            return m;
+        return metrics.createCustomMetric (name, descr, kind);
     }
 
 

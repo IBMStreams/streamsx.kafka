@@ -13,7 +13,7 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-public enum TopicPartitionUpdateAction {
+public enum ControlPortActionType {
 
     NONE,
     ADD_ASSIGNMENT,

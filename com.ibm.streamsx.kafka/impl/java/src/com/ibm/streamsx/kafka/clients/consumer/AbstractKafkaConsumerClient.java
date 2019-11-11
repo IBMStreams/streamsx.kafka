@@ -1146,7 +1146,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void onTopicAssignmentUpdate (final ControlPortAction update) throws InterruptedException {
+    public void onControlPortAction (final ControlPortAction update) throws InterruptedException {
         Event event = new Event(EventType.UPDATE_ASSIGNMENT, update, true);
         sendEvent (event);
         event.await();

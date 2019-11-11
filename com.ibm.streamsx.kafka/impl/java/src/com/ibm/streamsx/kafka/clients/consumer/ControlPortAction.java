@@ -36,13 +36,13 @@ public class ControlPortAction {
     private final static Gson gson = new Gson();
     // actions allowed in JSON:
     private static enum JsonAction {ADD, REMOVE};
-    private final TopicPartitionUpdateAction action;
+    private final ControlPortActionType action;
     private final Map<TopicPartition, Long /* offset */> topicPartitionOffsetMap;
     private final Set<String> topics;
     private final String json;
 
-    private ControlPortAction(String json, TopicPartitionUpdateAction action, Map<TopicPartition, Long> topicPartitionOffsetMap) {
-        if (!(action == TopicPartitionUpdateAction.ADD_ASSIGNMENT || action == TopicPartitionUpdateAction.REMOVE_ASSIGNMENT)) {
+    private ControlPortAction(String json, ControlPortActionType action, Map<TopicPartition, Long> topicPartitionOffsetMap) {
+        if (!(action == ControlPortActionType.ADD_ASSIGNMENT || action == ControlPortActionType.REMOVE_ASSIGNMENT)) {
             throw new IllegalArgumentException ("invalid action: " + action);
         }
         this.action = action;
@@ -51,8 +51,8 @@ public class ControlPortAction {
         this.json = json;
     }
 
-    private ControlPortAction(String json, TopicPartitionUpdateAction action, Set<String> topics) {
-        if (!(action == TopicPartitionUpdateAction.ADD_SUBSCRIPTION || action == TopicPartitionUpdateAction.REMOVE_SUBSCRIPTION)) {
+    private ControlPortAction(String json, ControlPortActionType action, Set<String> topics) {
+        if (!(action == ControlPortActionType.ADD_SUBSCRIPTION || action == ControlPortActionType.REMOVE_SUBSCRIPTION)) {
             throw new IllegalArgumentException ("invalid action: " + action);
         }
         this.action = action;
@@ -62,13 +62,13 @@ public class ControlPortAction {
     }
 
     private ControlPortAction (String json) {
-        this.action = TopicPartitionUpdateAction.NONE;
+        this.action = ControlPortActionType.NONE;
         this.topicPartitionOffsetMap = null;
         this.topics = null;
         this.json = json;
     }
 
-    public TopicPartitionUpdateAction getAction() {
+    public ControlPortActionType getActionType() {
         return action;
     }
 
@@ -124,7 +124,7 @@ public class ControlPortAction {
             throw exc;
         }
         final String jason = jsonObj.toString();
-        TopicPartitionUpdateAction a = null;
+        ControlPortActionType a = null;
         JsonAction action = null;
         if (jsonObj.has ("action")) { //$NON-NLS-1$
             try {
@@ -153,7 +153,7 @@ public class ControlPortAction {
         Map <TopicPartition, Long> topicPartitionOffsetMap = new HashMap<>();
         Set <String> topics = new HashSet<>();
         if (jsonObj.has ("topicPartitionOffsets")) { //$NON-NLS-1$
-            a = action == JsonAction.ADD? TopicPartitionUpdateAction.ADD_ASSIGNMENT: TopicPartitionUpdateAction.REMOVE_ASSIGNMENT;
+            a = action == JsonAction.ADD? ControlPortActionType.ADD_ASSIGNMENT: ControlPortActionType.REMOVE_ASSIGNMENT;
             JsonArray arr = jsonObj.get ("topicPartitionOffsets").getAsJsonArray(); //$NON-NLS-1$
             Iterator<JsonElement> it = arr.iterator();
             while (it.hasNext()) {
@@ -185,7 +185,7 @@ public class ControlPortAction {
             return new ControlPortAction (jason, a, topicPartitionOffsetMap);
         }
         if (jsonObj.has ("topics")) {
-            a = action == JsonAction.ADD? TopicPartitionUpdateAction.ADD_SUBSCRIPTION: TopicPartitionUpdateAction.REMOVE_SUBSCRIPTION;
+            a = action == JsonAction.ADD? ControlPortActionType.ADD_SUBSCRIPTION: ControlPortActionType.REMOVE_SUBSCRIPTION;
             JsonArray arr = jsonObj.get ("topics").getAsJsonArray(); //$NON-NLS-1$
             Iterator<JsonElement> it = arr.iterator();
             while (it.hasNext()) {
@@ -210,70 +210,4 @@ public class ControlPortAction {
         }
         return new ControlPortAction (jason);
     }
-
-//    public static void main(String[] args) {
-//        String json = "{"
-//                + " \"action\" : \"ADD\","
-////                + " \"action\" : \"REMOVE\","
-//                + " \"topicPartitionOffsets\" : ["
-//                + "   {"
-//                + "      \"topic\" : \"topic-name\","
-//                + "      \"partition\" : 32,"
-//                + "      \"offset\" : 3456"
-//                + "   },"
-//                + "   {"
-//                + "      \"topic\" : \"topic-name\","
-//                + "      \"partition\" : 323"
-////                + "      \"offset\" : 34567890"
-//                + "   }"
-//                + "]"
-//                + "}";
-//        
-//        String json2 = "{"
-////                + " \"action\" : \"ADD\","
-//                + " \"action\" : \"REMOVE\","
-//                + " \"topics\" : ["
-////                + "   {"
-////                + "      \"topic\" : \"topic-name\""
-////                + "   },"
-//                + "   {"
-//                + "      \"topicX\" : \"topic-name4\","
-//                + "      \"topic\" : \"topic-name2\""
-//                + "   }"
-//                + "],"
-//                + " \"topicPartitionOffsets\" : ["
-//                + "   {"
-//                + "      \"topic\" : \"topic-name\","
-//                + "      \"partition\" : 32,"
-//                + "      \"offset\" : 3456"
-//                + "   },"
-//                + "   {"
-//                + "      \"topic\" : \"topic-name\","
-//                + "      \"partition\" : 323"
-////                + "      \"offset\" : 34567890"
-//                + "   }"
-//                + "]"
-//                + "}";
-//        String json3 = "{"
-//                + " \"action\" : \"REMOVE\","
-//                + " \"topicPartitionOffset\" : ["
-//                + "   {"
-//                + "      \"topic\" : \"topic-name\","
-//                + "      \"partition\" : 32,"
-//                + "      \"offset\" : 3456"
-//                + "   },"
-//                + "   {"
-//                + "      \"topic\" : \"topic-name\","
-//                + "      \"partition\" : 323"
-////                + "      \"offset\" : 34567890"
-//                + "   }"
-//                + "]"
-//                + "}";
-//        
-//        ControlPortAction u = ControlPortAction.fromJSON(json3);
-//        System.out.println (u);
-//        System.out.println (u.getJson());
-//
-//    }
-
 }

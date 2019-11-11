@@ -126,10 +126,10 @@ public class DummyConsumerClient extends AbstractKafkaClient implements Consumer
 
     /**
      * Empty implementation
-     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onTopicAssignmentUpdate(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onControlPortAction(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    public void onTopicAssignmentUpdate (ControlPortAction update) throws InterruptedException {
+    public void onControlPortAction (ControlPortAction update) throws InterruptedException {
     }
 
     /**

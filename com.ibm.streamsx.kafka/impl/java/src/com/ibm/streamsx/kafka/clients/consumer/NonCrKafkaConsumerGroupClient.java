@@ -81,7 +81,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public boolean supports (ControlPortAction action) {
-        switch (action.getAction()) {
+        switch (action.getActionType()) {
         case ADD_SUBSCRIPTION:
         case REMOVE_SUBSCRIPTION:
             return true;
@@ -308,7 +308,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             Set<String> newSubscription = new HashSet<>(getConsumer().subscription());
             trace.info ("current topic subscription: " + newSubscription);
 
-            switch (update.getAction()) {
+            switch (update.getActionType()) {
             case ADD_SUBSCRIPTION:
                 update.getTopics().forEach (tpc -> {
                     newSubscription.add (tpc);
@@ -320,7 +320,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                 });
                 break;
             default:
-                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getAction());
+                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getActionType());
             }
             subscribe (newSubscription, this);
             // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN

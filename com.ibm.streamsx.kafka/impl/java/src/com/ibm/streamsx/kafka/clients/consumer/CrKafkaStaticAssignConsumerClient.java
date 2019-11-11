@@ -90,7 +90,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
      */
     @Override
     public boolean supports (ControlPortAction action) {
-        switch (action.getAction()) {
+        switch (action.getActionType()) {
         case ADD_ASSIGNMENT:
         case REMOVE_ASSIGNMENT:
             return true;
@@ -288,7 +288,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
 
-            switch (update.getAction()) {
+            switch (update.getActionType()) {
             case ADD_ASSIGNMENT:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     // offset can be -2, -1, or a valid offset o >= 0
@@ -322,7 +322,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                 }
                 break;
             default:
-                throw new Exception ("processControlPortActionEvent: unimplemented action: " + update.getAction());
+                throw new Exception ("processControlPortActionEvent: unimplemented action: " + update.getActionType());
             }
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);

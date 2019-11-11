@@ -242,7 +242,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
      */
     @Override
     public boolean supports (ControlPortAction action) {
-        switch (action.getAction()) {
+        switch (action.getActionType()) {
         case ADD_ASSIGNMENT:
         case REMOVE_ASSIGNMENT:
             return true;
@@ -263,7 +263,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
-            switch (update.getAction()) {
+            switch (update.getActionType()) {
             case ADD_ASSIGNMENT:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     // offset can be -2, -1, or a valid offset o >= 0
@@ -322,7 +322,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 trace.info ("assigned partitions after REMOVE: " + currentTopicPartitionOffsets);
                 break;
             default:
-                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getAction());
+                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getActionType());
             }
             // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
             if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {

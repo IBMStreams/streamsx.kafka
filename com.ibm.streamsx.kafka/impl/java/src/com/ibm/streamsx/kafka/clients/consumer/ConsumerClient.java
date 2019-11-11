@@ -121,7 +121,7 @@ public interface ConsumerClient {
 
     /**
      * Tests if a client supports an action triggered via control port.
-     * If an action is not supported, {@link #onTopicAssignmentUpdate(ControlPortAction)} should not be invoked.
+     * If an action is not supported, {@link #onControlPortAction(ControlPortAction)} should not be invoked.
      * @param action The action
      * @return true, if the client implementation supports the action, false otherwise
      */
@@ -141,13 +141,13 @@ public interface ConsumerClient {
     void sendStopPollingEvent() throws InterruptedException;
 
     /**
-     * Initiates topic partition assignment update. When this method is called, the consumer must be assigned to topic partitions.
-     * If the consumer is subscribed to topics, the request is ignored.
-     * Implementations ensure assignments have been updated when this method returns. 
+     * Initiates the action on control port event.
+     * If the consumer does not support the action, the behavior is upon the consumer implementation.
      * @param update The the partition update.
      * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @see #supports(ControlPortAction)
      */
-    void onTopicAssignmentUpdate (final ControlPortAction update) throws InterruptedException;
+    void onControlPortAction (final ControlPortAction update) throws InterruptedException;
 
     /**
      * Action to be performed on consistent region drain.

@@ -64,7 +64,7 @@ import com.ibm.streamsx.kafka.clients.consumer.DummyConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
-import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdateAction;
+import com.ibm.streamsx.kafka.clients.consumer.ControlPortActionType;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -1073,20 +1073,20 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 final ConsumerClient consumer = consumerRef.get();
                 logger.info ("current consumer implementation: " + consumer);
                 ControlPortAction actn = ControlPortAction.fromJSON (tuple.getString(0));
-                final TopicPartitionUpdateAction action = actn.getAction();
+                final ControlPortActionType action = actn.getActionType();
                 if (consumer.supports (actn)) {
                     logger.info ("consumer implementation supports " + action);
-                    consumer.onTopicAssignmentUpdate (actn);
+                    consumer.onControlPortAction (actn);
                 }
                 else {
-                    if ((consumer instanceof DummyConsumerClient) && (action == TopicPartitionUpdateAction.ADD_ASSIGNMENT || action == TopicPartitionUpdateAction.ADD_SUBSCRIPTION)) {
+                    if ((consumer instanceof DummyConsumerClient) && (action == ControlPortActionType.ADD_ASSIGNMENT || action == ControlPortActionType.ADD_SUBSCRIPTION)) {
                         logger.info ("replacing ConsumerClient by a version that supports " + action);
                         // we can change the client implementation
                         if (consumer.isProcessing()) {
                             consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
                         }
                         final ConsumerClientBuilder builder;
-                        if (action == TopicPartitionUpdateAction.ADD_SUBSCRIPTION) {
+                        if (action == ControlPortActionType.ADD_SUBSCRIPTION) {
                             if (crContext != null) {
                                 logger.error ("topic subscription via control port is not supported when the operator is used in a consistent region. Ignoring " + actn.getJson());
                                 nFailedControlTuples.increment();
@@ -1113,7 +1113,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                                 logger.info (MsgFormatter.format ("consumer client implementation {0} replaced by {1}",
                                         consumer.getClass().getName(),
                                         newClient.getClass().getName()));
-                                newClient.onTopicAssignmentUpdate (actn);
+                                newClient.onControlPortAction (actn);
                             }
                             else {
                                 logger.warn (MsgFormatter.format ("consumer client replacement failed"));

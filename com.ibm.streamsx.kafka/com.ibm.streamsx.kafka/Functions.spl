@@ -76,7 +76,7 @@ public rstring createMessageRemoveTopic (rstring topic) {
 }
 
 /**
- * Creates the JSON message to remove multiple topics to the operator's subscription.
+ * Creates the JSON message to remove multiple topics from the operator's subscription.
  * 
  * @param topics The topics to unsubscribe
  * 

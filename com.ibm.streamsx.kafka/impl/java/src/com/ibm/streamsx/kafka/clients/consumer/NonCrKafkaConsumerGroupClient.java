@@ -322,6 +322,38 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             default:
                 throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getActionType());
             }
+            if (newSubscription.isEmpty()) {
+                // no partition rebalance will happen, where we ususally commit offsets. Commit now.
+                // remove the content of the queue. It contains uncommitted messages.
+                getMessageQueue().clear();
+                OffsetManager offsetManager = getOffsetManager();
+                try {
+                    awaitMessageQueueProcessed();
+                    // the post-condition is, that all messages from the queue have submitted as 
+                    // tuples and its offsets +1 are stored in OffsetManager.
+                    final boolean commitSync = true;
+                    final boolean commitPartitionWise = false;
+                    CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
+                    synchronized (offsetManager) {
+                        Set <TopicPartition> partitionsInOffsetManager = offsetManager.getMappedTopicPartitions();
+                        Set <TopicPartition> currentAssignment = getAssignedPartitions();
+                        for (TopicPartition tp: partitionsInOffsetManager) {
+                            if (currentAssignment.contains (tp)) {
+                                offsets.put (tp, offsetManager.getOffset (tp.topic(), tp.partition()));
+                            }
+                        }
+                    }
+                    if (!offsets.isEmpty()) {
+                        commitOffsets (offsets);
+                    }
+                    // reset the counter for periodic commit
+                    resetCommitPeriod (System.currentTimeMillis());
+                }
+                catch (InterruptedException | RuntimeException e) {
+                    // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
+                }
+                offsetManager.clear();
+            }
             subscribe (newSubscription, this);
             // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
             if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {

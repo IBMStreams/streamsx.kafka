@@ -502,12 +502,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>(1);
             for (TopicPartition tp: offsetMap.keySet()) {
                 // do not commit for partitions we are not assigned
-                if (!currentAssignment.contains(tp)) continue;
+                if (!currentAssignment.contains (tp)) continue;
                 map.clear();
-                map.put(tp, offsetMap.get(tp));
+                map.put (tp, offsetMap.get (tp));
                 if (offsets.isCommitSynchronous()) {
                     try {
-                        consumer.commitSync(map);
+                        consumer.commitSync (map);
                         postOffsetCommit (map);
                     }
                     catch (CommitFailedException e) {
@@ -653,28 +653,31 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
-        ConsumerRecord<?,?> record = null;
         if (messageQueue.isEmpty()) {
             // assuming, that the queue is not filled concurrently...
+            msgQueueLock.lock();
             msgQueueProcessed.set (true);
-            try {
-                msgQueueLock.lock();
-                msgQueueEmptyCondition.signalAll();
-            } finally {
-                msgQueueLock.unlock();
-            }
+            msgQueueEmptyCondition.signalAll();
+            msgQueueLock.unlock();
         }
-        else msgQueueProcessed.set (false);
-        // if filling the queue is NOT stopped, we can, of cause,
-        // fetch a record now from the queue, even when we have seen an empty queue, shortly before... 
+        else {
+            msgQueueProcessed.set (false);
+        }
 
         preDeQueueForSubmit();
+        
+        // if filling the queue is NOT stopped, we can, of cause,
+        // fetch a record now from the queue, even when we have seen an empty queue, shortly before... 
         // messageQueue.poll throws InterruptedException
-        record = messageQueue.poll (timeout, timeUnit);
+        ConsumerRecord<?,?> record = messageQueue.poll (timeout, timeUnit);
         if (record == null) {
-            // no messages - queue is empty
+            // no messages - queue is empty, i.e. it was empty at the time we polled
             if (logger.isTraceEnabled()) logger.trace("getNextRecord(): message queue is empty");
             nPendingMessages.setValue (messageQueue.size());
+            msgQueueProcessed.set (true);
+        }
+        else {
+            msgQueueProcessed.set (false);
         }
         return record;
     }
@@ -724,14 +727,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The waiting thread has been interrupted waiting
      */
     protected void awaitMessageQueueProcessed() throws InterruptedException {
-        while (!(messageQueue.isEmpty() && msgQueueProcessed.get())) {
-            try {
-                msgQueueLock.lock();
+        msgQueueLock.lock();
+        try {
+            while (!(messageQueue.isEmpty() && msgQueueProcessed.get())) {
                 msgQueueEmptyCondition.await (100l, TimeUnit.MILLISECONDS);
             }
-            finally {
-                msgQueueLock.unlock();
-            }
+        }
+        finally {
+            msgQueueLock.unlock();
         }
     }
 
@@ -1113,7 +1116,11 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected void subscribe (Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
         logger.info("Subscribing. topics = " + topics); //$NON-NLS-1$
         if (topics == null) topics = Collections.emptyList();
-        if (!topics.isEmpty()) {
+        if (topics.isEmpty()) {
+            setConsumedTopics (null);
+            this.assignedPartitions = new HashSet<TopicPartition> ();
+            nAssignedPartitions.setValue (0L);
+        } else {
             tryCreateCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
         }
         consumer.subscribe (topics, rebalanceListener);

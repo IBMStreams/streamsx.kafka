@@ -2,7 +2,7 @@
  * This SPL namespace contains all functions and operators that are required to integrate with Kafka message brokers.
  *
  * + Compatibility
- * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x. This toolkit contains the Kafka client library version 2.3.0.
+ * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x. This toolkit contains the Kafka client library version 2.3.1.
  * Note, that Kafka transactions cannot be used when you connect to a Kafka broker that is below version 0.11, and that Zstandard
  * compression is incompatible with brokers below version 2.1.
  *

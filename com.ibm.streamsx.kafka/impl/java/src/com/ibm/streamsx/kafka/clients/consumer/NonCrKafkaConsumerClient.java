@@ -14,7 +14,7 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
@@ -205,15 +206,10 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     @Override
     @SuppressWarnings("unchecked")
     protected void processResetEvent (Checkpoint checkpoint) {
-        if (getOperatorContext().getNumberOfStreamingInputs() == 0) {
-            trace.debug ("processResetEvent() - ignored");
-            return;
-        }
         final long chkptSeqId = checkpoint.getSequenceId();
         trace.log (DEBUG_LEVEL, "processResetEvent() - entering. seq = " + chkptSeqId);
         try {
-            final ObjectInputStream inputStream = checkpoint.getInputStream();
-            final Set <TopicPartition> partitions = (Set <TopicPartition>) inputStream.readObject();
+            final Set <TopicPartition> partitions = (Set <TopicPartition>) checkpoint.getInputStream().readObject();
             trace.info ("topic partitions from checkpoint = " + partitions);
             // only assign, fetch offset is last committed offset.
             assign (partitions);
@@ -242,18 +238,33 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#supports(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processUpdateAssignmentEvent(TopicPartitionUpdate update) {
+    public boolean supports (ControlPortAction action) {
+        switch (action.getActionType()) {
+        case ADD_ASSIGNMENT:
+        case REMOVE_ASSIGNMENT:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
+     */
+    @Override
+    protected void processControlPortActionEvent(ControlPortAction update) {
         try {
             // create a map of current topic partitions and their fetch offsets for next record
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
 
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
-            switch (update.getAction()) {
-            case ADD:
+            switch (update.getActionType()) {
+            case ADD_ASSIGNMENT:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     // offset can be -2, -1, or a valid offset o >= 0
                     // -2 means 'seek to beginning', -1 means 'seek to end'
@@ -272,7 +283,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 commitOffsets (commits);
                 trace.info ("committed offsets of the added topic partitions: " + commits);
                 break;
-            case REMOVE:
+            case REMOVE_ASSIGNMENT:
                 // x 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
                 // x 2. wait that the queue gets processed - awaitMessageQueueProcessed();
                 // x 3. commit the offsets of the removed topic partitions
@@ -311,7 +322,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 trace.info ("assigned partitions after REMOVE: " + currentTopicPartitionOffsets);
                 break;
             default:
-                throw new Exception ("processUpdateAssignmentEvent(): unimplemented action: " + update.getAction());
+                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getActionType());
             }
             // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
             if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
@@ -339,10 +350,11 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
             try {
                 // do not send an event here. In case of operator driven checkpoint it will never be processed (deadlock)
-                checkpoint.getOutputStream().writeObject (getAssignedPartitions());
+                final ObjectOutputStream outputStream = checkpoint.getOutputStream();
+                outputStream.writeObject (getAssignedPartitions());
                 trace.info ("topic partitions written into checkpoint: " + getAssignedPartitions());
             } catch (IOException e) {
-                throw new RuntimeException (e.getLocalizedMessage(), e);
+                throw new RuntimeException (e.getMessage(), e);
             }
         }
         else {
@@ -373,12 +385,10 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     }
 
 
-
-
     /**
      * The builder for the consumer client following the builder pattern.
      */
-    public static class Builder {
+    public static class Builder implements ConsumerClientBuilder {
 
         private OperatorContext operatorContext;
         private Class<?> keyClass;
@@ -396,7 +406,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         }
 
         public final Builder setKafkaProperties(KafkaOperatorProperties p) {
-            this.kafkaProperties = p;
+            this.kafkaProperties = new KafkaOperatorProperties();
+            this.kafkaProperties.putAll (p);
             return this;
         }
 
@@ -435,14 +446,26 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             return this;
         }
 
+        @Override
         public ConsumerClient build() throws Exception {
-            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties);
+            KafkaOperatorProperties p = new KafkaOperatorProperties();
+            p.putAll (this.kafkaProperties);
+            if (p.containsKey (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG)) {
+                p.remove (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG);
+                trace.warn (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG + " removed from consumer configuration (group management disabled)");
+            }
+            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, p);
             client.setPollTimeout (pollTimeout);
             client.setCommitMode (commitMode);
             client.setCommitCount (commitCount);
             client.setCommitPeriodMillis (commitPeriodMillis); 
             client.setInitialStartPosition (initialStartPosition);
             return client;
+        }
+
+        @Override
+        public int getImplementationMagic() {
+            return NonCrKafkaConsumerClient.class.getName().hashCode();
         }
     }
 }

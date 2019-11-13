@@ -32,6 +32,12 @@ public interface ConsumerClient {
     public static final String DRAIN_TIME_MILLIS_METRIC_NAME = "drainTimeMillis";
 
     /**
+     * Returns the implementation magic number.
+     * @return a hash number of the implementation of the runtime class.
+     */
+    public int getImplementationMagic();
+
+    /**
      * Returns the client-ID, which is the value of the Kafka consumer property client.id
      * @return the client-ID
      */
@@ -114,6 +120,14 @@ public interface ConsumerClient {
     boolean isSubscribedOrAssigned();
 
     /**
+     * Tests if a client supports an action triggered via control port.
+     * If an action is not supported, {@link #onControlPortAction(ControlPortAction)} should not be invoked.
+     * @param action The action
+     * @return true, if the client implementation supports the action, false otherwise
+     */
+    boolean supports (ControlPortAction action);
+
+    /**
      * Initiates start of polling for KafKa messages.
      * Implementations should ignore this event if the consumer is not subscribed or assigned to partitions.
      */
@@ -127,13 +141,13 @@ public interface ConsumerClient {
     void sendStopPollingEvent() throws InterruptedException;
 
     /**
-     * Initiates topic partition assignment update. When this method is called, the consumer must be assigned to topic partitions.
-     * If the consumer is subscribed to topics, the request is ignored.
-     * Implementations ensure assignments have been updated when this method returns. 
+     * Initiates the action on control port event.
+     * If the consumer does not support the action, the behavior is upon the consumer implementation.
      * @param update The the partition update.
      * @throws InterruptedException The thread waiting for finished condition has been interruped.
+     * @see #supports(ControlPortAction)
      */
-    void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException;
+    void onControlPortAction (final ControlPortAction update) throws InterruptedException;
 
     /**
      * Action to be performed on consistent region drain.

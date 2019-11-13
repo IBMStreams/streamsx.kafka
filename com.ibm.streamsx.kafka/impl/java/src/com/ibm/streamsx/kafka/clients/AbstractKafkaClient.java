@@ -32,6 +32,8 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ControlPlaneContext;
+import com.ibm.streams.operator.metrics.Metric;
+import com.ibm.streams.operator.metrics.OperatorMetrics;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -77,7 +79,7 @@ public abstract class AbstractKafkaClient {
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
         this.operatorContext = operatorContext;
-        logger.info ("instantiating client: " + getThisClassName());
+        logger.info ("instantiating client: " + getThisClassName() + " (magic " + getImplementationMagic() + ")");
         this.jcpContext = operatorContext.getOptionalContext (ControlPlaneContext.class);
         // Create a unique client ID for the consumer if one is not specified or add the UDP channel when specified and in UDP
         // This is important, otherwise running multiple consumers from the same
@@ -115,6 +117,13 @@ public abstract class AbstractKafkaClient {
         }
     }
 
+    /**
+     * Returns the implementation magic number.
+     * @return a hash number of the implementation of the runtime class name: <tt>getThisClassName().hashCode()</tt>
+     */
+    public int getImplementationMagic() {
+        return getThisClassName().hashCode();
+    }
 
     /**
      * returns the operator context.
@@ -158,6 +167,22 @@ public abstract class AbstractKafkaClient {
      */
     public String getThisClassName() {
         return this.getClass().getName();
+    }
+
+
+    /**
+     * Tests existence of a custom metric and creates the metric if it does not yet exist.
+     * @param name  the name of the metric
+     * @param descr the description
+     * @param kind  the kind of the metric
+     * @return the Metric object.
+     */
+    protected Metric tryCreateCustomMetric (final String name, final String descr, final Metric.Kind kind) {
+        OperatorMetrics metrics = getOperatorContext().getMetrics();
+        Metric m = metrics.getCustomMetrics().get (name.trim());
+        if (m != null)
+            return m;
+        return metrics.createCustomMetric (name, descr, kind);
     }
 
 

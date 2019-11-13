@@ -19,6 +19,89 @@ rstring _createTopicPartitionOffsetObject (rstring topic, int32 partition) {
     ";
 }
 
+rstring _createTopicObject (rstring topic) {
+    return "
+        {
+           \"topic\" : \"" + topic + "\"
+        }
+    ";
+}
+
+/**
+ * Creates the JSON message to add a single topic to the operator's subscription to begin consuming from the default position.
+ * 
+ * @param topic The topic to subscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageAddTopic (rstring topic) {
+    return createMessageAddTopics ([topic]);
+}
+
+/**
+ * Creates the JSON message to add multiple topics to the operator's subscription to begin consuming from the default position.
+ * 
+ * @param topics The topics to subscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageAddTopics (list<rstring> topics) {
+
+    int32 listSize = size(topics);
+    mutable rstring toAdd = "";
+    for(int32 i in range(0, listSize)) {
+        toAdd += _createTopicObject (topics[i]);
+        
+        if(i+1 < listSize)
+            toAdd += ",";
+    }   
+    
+    return "{
+        \"action\" : \"ADD\",
+        \"topics\" : [" +
+            toAdd +
+        "]
+    }";
+}
+
+/**
+ * Creates the JSON message to remove a single topic from the operator's subscription.
+ * 
+ * @param topic The topic to unsubscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageRemoveTopic (rstring topic) {
+    return createMessageRemoveTopics ([topic]);
+}
+
+/**
+ * Creates the JSON message to remove multiple topics from the operator's subscription.
+ * 
+ * @param topics The topics to unsubscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageRemoveTopics (list<rstring> topics) {
+
+    int32 listSize = size(topics);
+    mutable rstring toRemove = "";
+    for(int32 i in range(0, listSize)) {
+        toRemove += _createTopicObject (topics[i]);
+        
+        if (i+1 < listSize)
+            toRemove += ",";
+    }   
+    
+    return "{
+        \"action\" : \"REMOVE\",
+        \"topics\" : [" +
+            toRemove +
+        "]
+    }";
+}
+
+
 /**
  * 
  * Creates the JSON message to remove multiple topic-partitions from the operator.

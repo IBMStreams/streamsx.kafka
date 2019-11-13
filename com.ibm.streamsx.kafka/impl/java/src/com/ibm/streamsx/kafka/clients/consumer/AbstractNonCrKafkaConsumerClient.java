@@ -348,7 +348,9 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
                     // assigned to the partition any more when building a consumer group.
                     // Then a different (or the same) consumer starts reading the records again creating duplicates within the application.
                     // This is normal Kafka methodology.
-                    sendStartPollingEvent();
+                    if (isSubscribedOrAssigned()) {
+                        sendStartPollingEvent();
+                    }
                 }
             } catch (InterruptedException e) {
                 // is not thrown when asynchronously committed; can be silently ignored.
@@ -370,7 +372,9 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
         // collect submitted offsets per topic partition for periodic commit.
         try {
             synchronized (offsetManager) {
-                offsetManager.savePosition(submittedRecord.topic(), submittedRecord.partition(), submittedRecord.offset() +1l, /*autoCreateTopci=*/true);
+                final String topic = submittedRecord.topic();
+                final int partition = submittedRecord.partition();
+                offsetManager.savePosition (topic, partition, submittedRecord.offset() +1l, /*autoCreateTopci=*/true);
             }
         } catch (Exception e) {
             // is not caught when autoCreateTopic is 'true'

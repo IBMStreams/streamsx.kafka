@@ -13,7 +13,10 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -26,8 +29,11 @@ import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
+import com.ibm.streams.operator.state.CheckpointContext.Kind;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
+import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -68,6 +74,22 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             throw new KafkaOperatorException (Messages.getString ("JCP_REQUIRED_NOCR_STARTPOS_NOT_DEFAULT", getInitialStartPosition()));
         }
     }
+
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#supports(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
+     */
+    @Override
+    public boolean supports (ControlPortAction action) {
+        switch (action.getActionType()) {
+        case ADD_SUBSCRIPTION:
+        case REMOVE_SUBSCRIPTION:
+            return true;
+        default:
+            return false;
+        }
+    }
+
 
     /**
      * Subscription with pattern not supported by this client implementation.
@@ -278,35 +300,143 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      * This method should not be called because operator control port and this client implementation are incompatible.
      * A context check should exist to detect this mis-configuration.
      * We only log the method call. 
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processUpdateAssignmentEvent (TopicPartitionUpdate update) {
-        trace.error("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
+    protected void processControlPortActionEvent (ControlPortAction update) {
+        try {
+            Set<String> newSubscription = new HashSet<>(getConsumer().subscription());
+            trace.info ("current topic subscription: " + newSubscription);
+
+            switch (update.getActionType()) {
+            case ADD_SUBSCRIPTION:
+                update.getTopics().forEach (tpc -> {
+                    newSubscription.add (tpc);
+                });
+                break;
+            case REMOVE_SUBSCRIPTION:
+                update.getTopics().forEach (tpc -> {
+                    newSubscription.remove (tpc);
+                });
+                break;
+            default:
+                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getActionType());
+            }
+            if (newSubscription.isEmpty()) {
+                // no partition rebalance will happen, where we ususally commit offsets. Commit now.
+                // remove the content of the queue. It contains uncommitted messages.
+                getMessageQueue().clear();
+                OffsetManager offsetManager = getOffsetManager();
+                try {
+                    awaitMessageQueueProcessed();
+                    // the post-condition is, that all messages from the queue have submitted as 
+                    // tuples and its offsets +1 are stored in OffsetManager.
+                    final boolean commitSync = true;
+                    final boolean commitPartitionWise = false;
+                    CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
+                    synchronized (offsetManager) {
+                        Set <TopicPartition> partitionsInOffsetManager = offsetManager.getMappedTopicPartitions();
+                        Set <TopicPartition> currentAssignment = getAssignedPartitions();
+                        for (TopicPartition tp: partitionsInOffsetManager) {
+                            if (currentAssignment.contains (tp)) {
+                                offsets.put (tp, offsetManager.getOffset (tp.topic(), tp.partition()));
+                            }
+                        }
+                    }
+                    if (!offsets.isEmpty()) {
+                        commitOffsets (offsets);
+                    }
+                    // reset the counter for periodic commit
+                    resetCommitPeriod (System.currentTimeMillis());
+                }
+                catch (InterruptedException | RuntimeException e) {
+                    // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
+                }
+                offsetManager.clear();
+            }
+            subscribe (newSubscription, this);
+            // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
+            if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
+                trace.info ("initiating checkpointing with current topic subscription");
+                // createCheckpoint() throws IOException
+                boolean result = getChkptContext().createCheckpoint();
+                trace.info ("createCheckpoint() result: " + result);
+            }
+        } catch (Exception e) {
+            trace.error(e.getLocalizedMessage(), e);
+            throw new KafkaOperatorRuntimeException (e.getMessage(), e);
+        }
     }
 
     /**
-     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * Checkpoints the current subscription of the consumer.
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onCheckpoint(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
     public void onCheckpoint (Checkpoint checkpoint) throws InterruptedException {
+        if (getOperatorContext().getNumberOfStreamingInputs() == 0 || !isCheckpointEnabled()) {
+            trace.debug ("onCheckpoint() - ignored");
+            return;
+        }
+        trace.log (DEBUG_LEVEL, "onCheckpoint() - entering. seq = " + checkpoint.getSequenceId());
+        if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
+            try {
+                // do not send an event here. In case of operator driven checkpoint it will never be processed (deadlock)
+                final ObjectOutputStream outputStream = checkpoint.getOutputStream();
+                final Set<String> subscription = getConsumer().subscription();
+                outputStream.writeObject (subscription);
+                trace.info ("topics written into checkpoint: " + subscription);
+            } catch (IOException e) {
+                throw new RuntimeException (e.getMessage(), e);
+            }
+        }
+        else {
+            // periodic checkpoint - create the checkpoint by the event thread
+            sendStopPollingEvent();
+            Event event = new Event (Event.EventType.CHECKPOINT, checkpoint, true);
+            sendEvent (event);
+            event.await();
+            if (isSubscribedOrAssigned()) sendStartPollingEvent();
+        }
     }
+
 
     /**
      * Empty default implementation which ensures that 'config checkpoint' is at least ignored
      * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#onReset(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
-    public void onReset(Checkpoint checkpoint) throws InterruptedException {
+    public void onReset (Checkpoint checkpoint) throws InterruptedException {
+        trace.info ("onReset() - entering. seq = " + checkpoint.getSequenceId());
+        if (getOperatorContext().getNumberOfStreamingInputs() == 0 || !isCheckpointEnabled()) {
+            trace.debug ("onReset() - ignored");
+            return;
+        }
+        sendStopPollingEvent();
+        Event event = new Event (Event.EventType.RESET, checkpoint, true);
+        sendEvent (event);
+        event.await();
+        // do not start polling; reset happens before allPortsReady(), which starts polling
     }
 
     /**
-     * Empty default implementation which ensures that 'config checkpoint' is at least ignored
+     * Resets the client by restoring the checkpointed subscription.
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processResetEvent(Checkpoint)
      */
     @Override
+    @SuppressWarnings("unchecked")
     protected void processResetEvent (Checkpoint checkpoint) {
+        final long chkptSeqId = checkpoint.getSequenceId();
+        trace.log (DEBUG_LEVEL, "processResetEvent() - entering. seq = " + chkptSeqId);
+        try {
+            final Set <String> topics = (Set <String>) checkpoint.getInputStream().readObject();
+            trace.info ("topics from checkpoint = " + topics);
+            // subscribe, fetch offset is last committed offset.
+            subscribe (topics, this);
+        } catch (IllegalStateException | ClassNotFoundException | IOException e) {
+            trace.error ("reset failed: " + e.getLocalizedMessage());
+            throw new KafkaOperatorResetFailedException (MsgFormatter.format ("resetting operator {0} to checkpoint sequence ID {1,number,#} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
+        }
     }
 
     /**
@@ -315,8 +445,14 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     protected void processCheckpointEvent (Checkpoint checkpoint) {
+        try {
+            final Set<String> subscription = getConsumer().subscription();
+            checkpoint.getOutputStream().writeObject (subscription);
+            trace.log (DEBUG_LEVEL, "topics written into checkpoint: " + subscription);
+        } catch (IOException e) {
+            throw new RuntimeException (e.getLocalizedMessage(), e);
+        }
     }
-
 
 
 
@@ -324,7 +460,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
     /**
      * The builder for the consumer client following the builder pattern.
      */
-    public static class Builder {
+    public static class Builder implements ConsumerClientBuilder {
 
         private OperatorContext operatorContext;
         private Class<?> keyClass;
@@ -342,8 +478,9 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             return this;
         }
 
-        public final Builder setKafkaProperties(KafkaOperatorProperties p) {
-            this.kafkaProperties = p;
+        public final Builder setKafkaProperties (KafkaOperatorProperties p) {
+            this.kafkaProperties = new KafkaOperatorProperties();
+            this.kafkaProperties.putAll (p);
             return this;
         }
 
@@ -387,14 +524,22 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             return this;
         }
 
+        @Override
         public ConsumerClient build() throws Exception {
-            NonCrKafkaConsumerGroupClient client = new NonCrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, singleTopic);
+            KafkaOperatorProperties p = new KafkaOperatorProperties();
+            p.putAll (this.kafkaProperties);
+            NonCrKafkaConsumerGroupClient client = new NonCrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, p, singleTopic);
             client.setPollTimeout (pollTimeout);
             client.setCommitMode (commitMode);
             client.setCommitCount (commitCount);
             client.setCommitPeriodMillis (commitPeriodMillis); 
             client.setInitialStartPosition (initialStartPosition);
             return client;
+        }
+
+        @Override
+        public int getImplementationMagic() {
+            return NonCrKafkaConsumerGroupClient.class.getName().hashCode();
         }
     }
 }

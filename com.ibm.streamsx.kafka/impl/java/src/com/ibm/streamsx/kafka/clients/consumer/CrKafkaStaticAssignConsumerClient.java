@@ -13,6 +13,7 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Collection;
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
@@ -82,6 +84,21 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     public void setTriggerCount (long triggerCount) {
         this.triggerCount = triggerCount;
     }
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#supports(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
+     */
+    @Override
+    public boolean supports (ControlPortAction action) {
+        switch (action.getActionType()) {
+        case ADD_ASSIGNMENT:
+        case REMOVE_ASSIGNMENT:
+            return true;
+        default:
+            return false;
+        }
+    }
+
 
     /**
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#validate()
@@ -258,12 +275,12 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processUpdateAssignmentEvent(TopicPartitionUpdate update) {
+    protected void processControlPortActionEvent(ControlPortAction update) {
         // trace with info. to see this method call is important, and it happens not frequently.
-        logger.info ("processUpdateAssignmentEvent(): update = " + update);
+        logger.info ("processControlPortActionEvent(): update = " + update);
         try {
             // create a map of current topic partitions and their offsets
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
@@ -271,8 +288,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
 
-            switch (update.getAction()) {
-            case ADD:
+            switch (update.getActionType()) {
+            case ADD_ASSIGNMENT:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     // offset can be -2, -1, or a valid offset o >= 0
                     // -2 means 'seek to beginning', -1 means 'seek to end'
@@ -287,7 +304,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                     createJcpCvFromOffsetManagerl();
                 }
                 break;
-            case REMOVE:
+            case REMOVE_ASSIGNMENT:
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     currentTopicPartitionOffsets.remove(tp);
                 });
@@ -305,7 +322,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                 }
                 break;
             default:
-                throw new Exception ("processUpdateAssignmentEvent: unimplemented action: " + update.getAction());
+                throw new Exception ("processControlPortActionEvent: unimplemented action: " + update.getActionType());
             }
         } catch (Exception e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
@@ -500,7 +517,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             if (logger.isEnabledFor (DEBUG_LEVEL)) {
                 logger.log (DEBUG_LEVEL, "offsetManager=" + offsetManager); //$NON-NLS-1$
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new RuntimeException (e.getLocalizedMessage(), e);
         }
         logger.log (DEBUG_LEVEL, "processCheckpointEvent() - exiting");
@@ -518,7 +535,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     /**
      * The builder for the consumer client following the builder pattern.
      */
-    public static class Builder {
+    public static class Builder implements ConsumerClientBuilder {
 
         private OperatorContext operatorContext;
         private Class<?> keyClass;
@@ -533,7 +550,8 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
         }
 
         public final Builder setKafkaProperties(KafkaOperatorProperties p) {
-            this.kafkaProperties = p;
+            this.kafkaProperties = new KafkaOperatorProperties();
+            this.kafkaProperties.putAll (p);
             return this;
         }
 
@@ -557,11 +575,23 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
             return this;
         }
 
+        @Override
         public ConsumerClient build() throws Exception {
-            CrKafkaStaticAssignConsumerClient client = new CrKafkaStaticAssignConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties);
+            KafkaOperatorProperties p = new KafkaOperatorProperties();
+            p.putAll (this.kafkaProperties);
+            if (p.containsKey (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG)) {
+                p.remove (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG);
+                logger.warn (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG + " removed from consumer configuration (group management disabled)");
+            }
+            CrKafkaStaticAssignConsumerClient client = new CrKafkaStaticAssignConsumerClient (operatorContext, keyClass, valueClass, p);
             client.setPollTimeout (pollTimeout);
             client.setTriggerCount (triggerCount);
             return client;
+        }
+
+        @Override
+        public int getImplementationMagic() {
+            return CrKafkaStaticAssignConsumerClient.class.getName().hashCode();
         }
     }
 }

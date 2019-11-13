@@ -653,6 +653,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
+        preDeQueueForSubmit();
         if (messageQueue.isEmpty()) {
             // assuming, that the queue is not filled concurrently...
             msgQueueLock.lock();
@@ -663,9 +664,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         else {
             msgQueueProcessed.set (false);
         }
-
-        preDeQueueForSubmit();
-        
         // if filling the queue is NOT stopped, we can, of cause,
         // fetch a record now from the queue, even when we have seen an empty queue, shortly before... 
         // messageQueue.poll throws InterruptedException

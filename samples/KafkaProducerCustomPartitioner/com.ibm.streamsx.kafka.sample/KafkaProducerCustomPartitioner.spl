@@ -40,7 +40,7 @@ composite KafkaProducerCustomPartitioner
             param
                 topic : "test" ;
                 propertiesFile : "etc/producer.properties";
-                userLib : getThisToolkitDir() + "/etc/custom-partitioner.jar";
+                userLib : "etc/custom-partitioner.jar";
         }
 
         (stream<Message> Beacon_4_out0) as Beacon_4 = Beacon()

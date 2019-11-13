@@ -25,7 +25,7 @@ import com.ibm.streams.operator.model.PrimitiveOperator;
 @InputPorts({
     @InputPortSet (description = ""
             + "This port is used to specify the topics or topic partitions that the consumer should begin reading messages from. When this "
-            + "port is specified, the operator will ignore the `topic`, `partition` and `startPosition` parameters. The operator will only begin "
+            + "port is specified, the `topic`, `partition` and `startPosition` parameters cannot be used. The operator will only begin "
             + "consuming messages once a tuple is received on this port, which specifies a partition assignment or a topic subscription.\\n"
             + "\\n"
             + "When the KafkaConsumer participates in a consistent region, only partition assignment via control port is supported. The support "

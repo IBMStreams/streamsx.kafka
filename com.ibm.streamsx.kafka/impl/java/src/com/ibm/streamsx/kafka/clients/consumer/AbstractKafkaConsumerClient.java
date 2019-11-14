@@ -725,6 +725,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The waiting thread has been interrupted waiting
      */
     protected void awaitMessageQueueProcessed() throws InterruptedException {
+        final long start = System.nanoTime(); 
         msgQueueLock.lock();
         try {
             while (!(messageQueue.isEmpty() && msgQueueProcessed.get())) {
@@ -733,6 +734,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         }
         finally {
             msgQueueLock.unlock();
+            final long stop = System.nanoTime();
+            logger.log (DEBUG_LEVEL, "waiting for message queue being processed took " + (stop-start)/1_000_000L + " ms.");
         }
     }
 

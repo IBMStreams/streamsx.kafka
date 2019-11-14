@@ -256,32 +256,44 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processControlPortActionEvent(ControlPortAction update) {
+    protected void processControlPortActionEvent(ControlPortAction action) {
         try {
+            final ControlPortActionType actionType = action.getActionType();
+            if (actionType == ControlPortActionType.ADD_ASSIGNMENT || actionType == ControlPortActionType.REMOVE_ASSIGNMENT) {
+                trace.info ("action: " + action);
+            } else if (trace.isDebugEnabled()) {
+                trace.debug ("action: " + action);
+            }
             // create a map of current topic partitions and their fetch offsets for next record
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
 
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
-            switch (update.getActionType()) {
+            boolean doNewAssign = false;
+            switch (actionType) {
             case ADD_ASSIGNMENT:
-                update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+                action.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     // offset can be -2, -1, or a valid offset o >= 0
                     // -2 means 'seek to beginning', -1 means 'seek to end'
                     currentTopicPartitionOffsets.put(tp, offset);
                 });
-                assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
-                trace.info ("assigned partitions after ADD: " + currentTopicPartitionOffsets);
-                // No need to update offset manager here, like adding topics, etc.
-                // Missing topics in the offset manager are auto-created
-                CommitInfo commits = new CommitInfo (true, false);
-                // Immediately commit the fetch offsets of _only_the_added_ topic partitions
-                update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
-                    // do not put 'offset' into the commits; 'offset' can be -1 or -2 for 'end' or 'begin'
-                    commits.put(tp, getConsumer().position (tp));
-                });
-                commitOffsets (commits);
-                trace.info ("committed offsets of the added topic partitions: " + commits);
+                doNewAssign = currentTopicPartitionOffsets.size() > 0;
+                if (!doNewAssign) {
+                    trace.info ("topic partition assignment unchanged: " + currentTopicPartitionOffsets);
+                } else {
+                    assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
+                    trace.info ("assigned partitions after ADD: " + currentTopicPartitionOffsets);
+                    // No need to update offset manager here, like adding topics, etc.
+                    // Missing topics in the offset manager are auto-created
+                    CommitInfo commits = new CommitInfo (true, false);
+                    // Immediately commit the fetch offsets of _only_the_added_ topic partitions
+                    action.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+                        // do not put 'offset' into the commits; 'offset' can be -1 or -2 for 'end' or 'begin'
+                        commits.put(tp, getConsumer().position (tp));
+                    });
+                    commitOffsets (commits);
+                    trace.info ("committed offsets of the added topic partitions: " + commits);
+                }
                 break;
             case REMOVE_ASSIGNMENT:
                 // x 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
@@ -290,7 +302,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 // x 4. remove the unassigned topic partitions from the offsetManager (or simply clear?)
                 // x 5. update the partition assignment in the consumer
                 // remove messages of removed topic partitions from the message queue
-                getMessageQueue().removeIf (record -> belongsToPartition (record, update.getTopicPartitionOffsetMap().keySet()));
+                getMessageQueue().removeIf (record -> belongsToPartition (record, action.getTopicPartitionOffsetMap().keySet()));
                 awaitMessageQueueProcessed();
                 // now the offset manager can be cleaned without the chance that the removed partition(s) re-appear after tuple submission
                 // remove removed partitions from offset manager. We can't commit offsets for those partitions we are not assigned any more.
@@ -303,29 +315,34 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 OffsetManager offsetManager = getOffsetManager();
 
                 synchronized (offsetManager) {
-                    update.getTopicPartitionOffsetMap().forEach ((tp, offsetIrrelevant) -> {
+                    for (TopicPartition tp: action.getTopicPartitionOffsetMap().keySet()) {
                         // make sure that we commit only partitions that are assigned 
                         if (currentTopicPartitionOffsets.containsKey (tp)) {
+                            doNewAssign = true;
                             long offset = offsetManager.getOffset (tp.topic(), tp.partition());
                             // offset is -1 if there is no mapping from topic partition to offset
                             if (offset >= 0) commitOffsets.put (tp, offset);
                             currentTopicPartitionOffsets.remove (tp);
                         }
                         offsetManager.remove (tp.topic(), tp.partition());
-                    });
+                    }
                 }
                 if (!commitOffsets.isEmpty()) {
                     commitOffsets (commitOffsets);
                 }
                 // we can end up here with an empty map after removal of assignments.
-                assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
-                trace.info ("assigned partitions after REMOVE: " + currentTopicPartitionOffsets);
+                if (doNewAssign) {
+                    assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
+                    trace.info ("assigned partitions after REMOVE: " + currentTopicPartitionOffsets);
+                } else {
+                    trace.info ("topic partition assignment unchanged: " + currentTopicPartitionOffsets);
+                }
                 break;
             default:
-                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getActionType());
+                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + actionType);
             }
             // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
-            if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
+            if (doNewAssign && getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
                 trace.info ("initiating checkpointing with current partition assignment");
                 // createCheckpoint() throws IOException
                 boolean result = getChkptContext().createCheckpoint();

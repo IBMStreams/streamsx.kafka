@@ -303,64 +303,77 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processControlPortActionEvent (ControlPortAction update) {
+    protected void processControlPortActionEvent (ControlPortAction action) {
         try {
-            Set<String> newSubscription = new HashSet<>(getConsumer().subscription());
-            trace.info ("current topic subscription: " + newSubscription);
+            final ControlPortActionType actionType = action.getActionType();
+            if (actionType == ControlPortActionType.ADD_SUBSCRIPTION || actionType == ControlPortActionType.REMOVE_SUBSCRIPTION) {
+                trace.info ("action: " + action);
+            } else if (trace.isDebugEnabled()) {
+                trace.debug ("action: " + action);
+            }
 
-            switch (update.getActionType()) {
+            final Set<String> oldSubscription = getConsumer().subscription();
+            final Set<String> newSubscription = new HashSet<>(oldSubscription);
+            trace.info ("current topic subscription: " + newSubscription);
+            boolean subscriptionChanged = false;
+            switch (actionType) {
             case ADD_SUBSCRIPTION:
-                update.getTopics().forEach (tpc -> {
+                action.getTopics().forEach (tpc -> {
                     newSubscription.add (tpc);
                 });
                 break;
             case REMOVE_SUBSCRIPTION:
-                update.getTopics().forEach (tpc -> {
+                action.getTopics().forEach (tpc -> {
                     newSubscription.remove (tpc);
                 });
                 break;
             default:
-                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + update.getActionType());
+                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + actionType);
             }
-            if (newSubscription.isEmpty()) {
-                // no partition rebalance will happen, where we ususally commit offsets. Commit now.
-                // remove the content of the queue. It contains uncommitted messages.
-                getMessageQueue().clear();
-                OffsetManager offsetManager = getOffsetManager();
-                try {
-                    awaitMessageQueueProcessed();
-                    // the post-condition is, that all messages from the queue have submitted as 
-                    // tuples and its offsets +1 are stored in OffsetManager.
-                    final boolean commitSync = true;
-                    final boolean commitPartitionWise = false;
-                    CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
-                    synchronized (offsetManager) {
-                        Set <TopicPartition> partitionsInOffsetManager = offsetManager.getMappedTopicPartitions();
-                        Set <TopicPartition> currentAssignment = getAssignedPartitions();
-                        for (TopicPartition tp: partitionsInOffsetManager) {
-                            if (currentAssignment.contains (tp)) {
-                                offsets.put (tp, offsetManager.getOffset (tp.topic(), tp.partition()));
+            subscriptionChanged = !newSubscription.equals (oldSubscription);
+            if (!subscriptionChanged) {
+                trace.info("subscriptiopn has not changed: " + newSubscription);
+            } else {
+                if (newSubscription.isEmpty()) {
+                    // no partition rebalance will happen, where we ususally commit offsets. Commit now.
+                    // remove the content of the queue. It contains uncommitted messages.
+                    getMessageQueue().clear();
+                    OffsetManager offsetManager = getOffsetManager();
+                    try {
+                        awaitMessageQueueProcessed();
+                        // the post-condition is, that all messages from the queue have submitted as 
+                        // tuples and its offsets +1 are stored in OffsetManager.
+                        final boolean commitSync = true;
+                        final boolean commitPartitionWise = false;
+                        CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
+                        synchronized (offsetManager) {
+                            Set <TopicPartition> partitionsInOffsetManager = offsetManager.getMappedTopicPartitions();
+                            Set <TopicPartition> currentAssignment = getAssignedPartitions();
+                            for (TopicPartition tp: partitionsInOffsetManager) {
+                                if (currentAssignment.contains (tp)) {
+                                    offsets.put (tp, offsetManager.getOffset (tp.topic(), tp.partition()));
+                                }
                             }
                         }
+                        if (!offsets.isEmpty()) {
+                            commitOffsets (offsets);
+                        }
+                        // reset the counter for periodic commit
+                        resetCommitPeriod (System.currentTimeMillis());
                     }
-                    if (!offsets.isEmpty()) {
-                        commitOffsets (offsets);
+                    catch (InterruptedException | RuntimeException e) {
+                        // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
                     }
-                    // reset the counter for periodic commit
-                    resetCommitPeriod (System.currentTimeMillis());
+                    offsetManager.clear();
                 }
-                catch (InterruptedException | RuntimeException e) {
-                    // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
+                subscribe (newSubscription, this);
+                // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
+                if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
+                    trace.info ("initiating checkpointing with current topic subscription");
+                    // createCheckpoint() throws IOException
+                    boolean result = getChkptContext().createCheckpoint();
+                    trace.info ("createCheckpoint() result: " + result);
                 }
-                offsetManager.clear();
-            }
-            subscribe (newSubscription, this);
-            // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
-            if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
-                trace.info ("initiating checkpointing with current topic subscription");
-                // createCheckpoint() throws IOException
-                boolean result = getChkptContext().createCheckpoint();
-                trace.info ("createCheckpoint() result: " + result);
             }
         } catch (Exception e) {
             trace.error(e.getLocalizedMessage(), e);

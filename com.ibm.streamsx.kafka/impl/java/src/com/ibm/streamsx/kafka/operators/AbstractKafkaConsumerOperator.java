@@ -449,6 +449,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @ContextCheck(compile = true)
+    public static void warnInputPortDeprecatedWithConsistentRegion (OperatorContextChecker checker) {
+        final OperatorContext operatorContext = checker.getOperatorContext();
+        if (operatorContext.getOptionalContext (ConsistentRegionContext.class) != null && operatorContext.getNumberOfStreamingInputs() > 0) {
+            System.err.println (Messages.getString ("WARN_CONTROLPORT_DEPRECATED_IN_CR", operatorContext.getKind()));
+        }
+    }
+
+    @ContextCheck(compile = true)
     public static void checkStartOffsetRequiresPartition(OperatorContextChecker checker) {
         // parameters startOffset and partition must have the same size - can be checked only at runtime.
         // This implies that partition parameter is required when startOffset is specified - can be checked at compile time.
@@ -471,9 +479,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (parameterNames.contains(COMMIT_PERIOD_PARAM)) {
                 System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_PERIOD_PARAM));
             }
-            if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
-                if (!parameterNames.contains(TRIGGER_COUNT_PARAM)) {
-                    checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
+            if (crContext.isStartOfRegion()) {
+                if (crContext.isTriggerOperator()) {
+                    // 'triggerCount' parameter required
+                    if (!parameterNames.contains (TRIGGER_COUNT_PARAM)) {
+                        checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
+                    }
+                }
+                else {
+                    // periodic CR; 'triggerCount' ignored
+                    if (parameterNames.contains (TRIGGER_COUNT_PARAM)) {
+                        System.err.println (Messages.getString ("PARAM_IGNORED_FOR_PERIODIC_CR", TRIGGER_COUNT_PARAM));
+                    }
                 }
             }
         }

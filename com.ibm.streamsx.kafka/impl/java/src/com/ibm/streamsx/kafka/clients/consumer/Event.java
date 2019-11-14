@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class Event {
 
     public static enum EventType {
-        START_POLLING, STOP_POLLING, CHECKPOINT, RESET, RESET_TO_INIT, SHUTDOWN, UPDATE_ASSIGNMENT, COMMIT_OFFSETS;
+        START_POLLING, STOP_POLLING, CHECKPOINT, RESET, RESET_TO_INIT, SHUTDOWN, CONTROLPORT_EVENT, COMMIT_OFFSETS;
     };
 
     private EventType eventType;

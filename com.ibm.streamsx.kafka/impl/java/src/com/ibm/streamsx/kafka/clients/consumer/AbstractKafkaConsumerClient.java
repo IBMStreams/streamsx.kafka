@@ -425,7 +425,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             case STOP_POLLING:
                 event.countDownLatch();  // indicates that polling has stopped
                 break;
-            case UPDATE_ASSIGNMENT:
+            case CONTROLPORT_EVENT:
                 final ControlPortAction data = (ControlPortAction) event.getData();
                 try {
                     processControlPortActionEvent (data);
@@ -1152,7 +1152,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public void onControlPortAction (final ControlPortAction update) throws InterruptedException {
-        Event event = new Event(EventType.UPDATE_ASSIGNMENT, update, true);
+        Event event = new Event(EventType.CONTROLPORT_EVENT, update, true);
         sendEvent (event);
         event.await();
     }

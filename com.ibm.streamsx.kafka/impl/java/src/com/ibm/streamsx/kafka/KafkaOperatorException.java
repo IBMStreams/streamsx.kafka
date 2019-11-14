@@ -24,20 +24,21 @@ public class KafkaOperatorException extends Exception {
      * Constructs a new KafkaOperatorException
      */
     public KafkaOperatorException() {
+        this ("", null);
     }
 
     /**
      * @param message
      */
     public KafkaOperatorException (String message) {
-        super(message);
+        this (message, null);
     }
 
     /**
      * @param rootCause
      */
     public KafkaOperatorException (Throwable rootCause) {
-        super(rootCause);
+        this ("", rootCause);
     }
 
     /**
@@ -45,9 +46,9 @@ public class KafkaOperatorException extends Exception {
      * @param rootCause
      */
     public KafkaOperatorException (String message, Throwable rootCause) {
-        super(message, rootCause);
+        super (message, rootCause);
     }
-    
+
     /**
      * gets the root cause of the exception
      * 

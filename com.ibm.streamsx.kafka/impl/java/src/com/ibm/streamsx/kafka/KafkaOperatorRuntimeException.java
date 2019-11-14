@@ -25,21 +25,21 @@ public class KafkaOperatorRuntimeException extends RuntimeException {
      * 
      */
     public KafkaOperatorRuntimeException() {
-        super ();
+        this ("", null);
     }
 
     /**
      * @param message
      */
     public KafkaOperatorRuntimeException(String message) {
-        super(message);
+        super(message, null);
     }
 
     /**
      * @param cause
      */
     public KafkaOperatorRuntimeException(Throwable cause) {
-        super(cause);
+        this("", cause);
     }
 
     /**
@@ -47,7 +47,7 @@ public class KafkaOperatorRuntimeException extends RuntimeException {
      * @param cause
      */
     public KafkaOperatorRuntimeException(String message, Throwable cause) {
-        super(message, cause);
+        this(message, cause, false, true);
     }
 
     /**
@@ -58,5 +58,20 @@ public class KafkaOperatorRuntimeException extends RuntimeException {
      */
     public KafkaOperatorRuntimeException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
+    }
+
+    /**
+     * gets the root cause of the exception
+     * 
+     * @return the root cause or `null` if there is none.
+     */
+    public Throwable getRootCause() {
+        Throwable rootCause = null;
+        Throwable cause = getCause();
+        while (cause != null) {
+            rootCause = cause;
+            cause = cause.getCause();
+        }
+        return rootCause;
     }
 }

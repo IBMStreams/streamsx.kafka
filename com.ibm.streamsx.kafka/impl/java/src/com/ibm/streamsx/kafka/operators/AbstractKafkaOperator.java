@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -160,6 +161,9 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         catch (Exception e) {
             logger.warn ("Could not determine toolkit name and version: " + e);
         }
+        List<String> paramNames = new LinkedList<String> (context.getParameterNames());
+        Collections.sort (paramNames);
+        logger.info ("Used operator parameters: " + paramNames);
         this.inParallelRegion = new Boolean (context.getChannel() >= 0);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         chkptContext = context.getOptionalContext (CheckpointContext.class);

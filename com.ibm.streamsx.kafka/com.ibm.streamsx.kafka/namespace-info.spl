@@ -2,9 +2,13 @@
  * This SPL namespace contains all functions and operators that are required to integrate with Kafka message brokers.
  *
  * + Compatibility
- * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x. This toolkit contains the Kafka client library version 2.3.1.
- * Note, that Kafka transactions cannot be used when you connect to a Kafka broker that is below version 0.11, and that Zstandard
- * compression is incompatible with brokers below version 2.1.
+ * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x.
+ * This toolkit contains the Kafka client library version 2.3.1.
+ * 
+ * * To use Kafka transactions with the `KafkaProducer`, the Kafka server must be at version 0.11 or higher.
+ * * To use Zstandard compression with the `KafkaProducer`, the Kafka server must be at version 2.1 or higher.
+ * * To use the `guaranteeOrdering: true;` parameter of the `KafkaProducer`, the Kafka server must be at version 0.11 or higher.
+ * * To configure the `KafkaConsumer` operator as a static consumer group member, the Kafka server must be at version 2.3 or higher.
  *
  * + Configuration
  *
@@ -15,20 +19,18 @@
  * [https://kafka.apache.org/documentation/#consumerconfigs|consumer configs section of the Apache Kafka 2.3 documentation].
  *
  * Properties can be specified in different ways:
- * * As an Application configuration
- *
- *   You must specify the name of the App Config in the **appConfigName** parameter.
- * * in a property file
- *
- *   You must specify the filename in the **propertiesFile** parameter.
- * * operator parameters **clientId** and **groupId** (KafkaConsumer operator only)
+ * 
+ * * as an Application configuration - you must specify the name of the App Config in the **appConfigName** parameter
+ * * in a property file - you must specify the filename in the **propertiesFile** parameter
+ * * operator parameters **clientId** and **groupId** (groupId for the KafkaConsumer operator only)
  *
  * Kafka properties can be specified by using these mechanisms simultaneously. The precedence is
+ * 
  * * parameter
  * * property file
- * * application configuration. Please note that an application configuration with instance scope takes precedence over a
- *   configuration with same name at domain level.
- *
+ * * application configuration. For Streams version 4.x users: Please note that an application configuration with 
+ *   instance scope takes precedence over a configuration with same name at domain level.
+ * 
  */
 
 namespace com.ibm.streamsx.kafka;

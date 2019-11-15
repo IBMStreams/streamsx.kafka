@@ -278,7 +278,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "specified and the `group.id` Kafka property is not "
                     + "specified, the operator will use a generated group ID, "
                     + "and be a single group member unless the **partition** "
-                    + "parameter is used or the control port is configured.")
+                    + "parameter is used.")
     public void setGroupId (String groupId) {
         this.groupId = groupId;
     }

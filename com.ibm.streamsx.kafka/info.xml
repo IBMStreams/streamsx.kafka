@@ -21,16 +21,39 @@ Additional user documentation can be found in the
 
 + What's new and what has changed
 
-This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
+This is an overview of changes for major and minor version upgrades.
+For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
 
 ++ What's new in version 3.0
 
-# Changes
+# New features
 
-* The included Kafka client has been upgraded from version 2.2.1 to 2.3.0.
+* The included Kafka client has been upgraded from version 2.2.1 to 2.3.1.
 * The schema of the output port of the `KafkaProducer` operator supports optional types for the error description.
+* The optional input port of the `KafkaConsumer` operator can be used to change the *topic subscription*, not only the *partition assignment*.
+* The **guaranteeOrdering** parameter now enables the idempotent producer when set to `true`, which allows a higher throughput by allowing more
+  in-flight requests per connection (requires Kafka server version 0.11 or higher).
+* The `KafkaConsumer` operator now enables and benefits from group management when the user does not specify a group identifier.
+* Checkpoint reset of the `KafkaConsumer` is optimized in consistent region when the consumer is the only group member.
+* The `KafkaConsumer` operator can be configured as a static consumer group member (requires Kafka server version 2.3 or higher).
+  See also the *Static Consumer Group Membership* chapter in the KafkaConsumer's documentation.
+
+# Deprecated features
+
+The use of the input control port has been deprecated when the `KafkaConsumer` is used in a consistent region.
+
+# Incompatible changes
+
 * The toolkit requires at minimum Streams version 4.3.
-* The **guaranteeOrdering** parameter is incompatible with Kafka version 0.10.x when used with value `true`. There is a work-around.
+* The **guaranteeOrdering** parameter of the `KafkaProducer` operator is incompatible with Kafka version 0.10.x when used with value `true`.
+  The work-around for Kafka 0.10.x is given in the parameter description.
+* When the `KafkaConsumer` operator is configured with input port, the **topic**, **pattern**, **partition**, and **startPosition** 
+  parameters used to be ignored in previous versions. Now an SPL compiler failure is raised when one of these parameters is used 
+  together with the input port.
+
+++ What's new in version 2.2.1
+
+* bug fix: KafkaProducer: Lost output tuples on FinalMarker reception
 
 ++ What's new in version 2.2.0
 

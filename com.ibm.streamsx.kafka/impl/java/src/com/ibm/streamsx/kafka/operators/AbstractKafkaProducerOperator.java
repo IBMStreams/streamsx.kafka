@@ -170,10 +170,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     @Parameter(optional = true, name = OUTPUT_ERRORS_ONLY_PARM_NAME,
             description = "If set to `true`, the operator submits tuples to the optional output port only "
-                    + "for the tuples that failed to produce completely. "
+                    + "for the tuples that failed to produce. "
                     + "If set to `false`, the operator submits also tuples for the successfully produced input tuples.\\n"
                     + "\\n"
-                    + "If unset, the default value of this parameter is " + O_PORT_SUBMIT_ONLY_ERRORS + ". "
+                    + "If unset, the default value of this parameter is `" + O_PORT_SUBMIT_ONLY_ERRORS + "`. "
                     + "This parameter is ignored when the operator is not configured with an output port.")
     public void setOutputErrorsOnly (boolean errsOnly) {
         this.outputErrorsOnly = errsOnly;

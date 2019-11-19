@@ -62,8 +62,6 @@ public class KafkaSplDoc {
             + "---\\n"
             + "| Property Name | Default Value |\\n"
             + "|===|\\n"
-            + "| allow.auto.create.topics | `false`, ensures compatibility with Kafka 0.10.x |\\n"
-            + "|---|\\n"
             + "| auto.commit.enable | adjusted to `false` |\\n"
             + "|---|\\n"
             + "| client.id | Generated ID in the form: `C-J<JobId>-<operator name>` when not user provided, when user provided and used in parallel region, the parallel channel number is added. |\\n"

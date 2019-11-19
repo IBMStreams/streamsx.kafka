@@ -144,11 +144,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         super (operatorContext, kafkaProperties, true);
         this.kafkaProperties = kafkaProperties;
 
-        // needed for brokers < v0.11, but breaks traditional behavior:
-        if (!kafkaProperties.containsKey (ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG)) {
-            this.kafkaProperties.put (ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
-        }
-
         if (!kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeserializer(keyClass));
         }

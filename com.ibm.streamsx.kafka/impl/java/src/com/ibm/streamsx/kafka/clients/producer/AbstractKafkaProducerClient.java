@@ -40,9 +40,9 @@ import com.ibm.streamsx.kafka.clients.metrics.MetricsProvider;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsUpdatedListener;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
-public abstract class KafkaProducerClient extends AbstractKafkaClient {
+public abstract class AbstractKafkaProducerClient extends AbstractKafkaClient {
 
-    private static final Logger logger = Logger.getLogger(KafkaProducerClient.class);
+    private static final Logger logger = Logger.getLogger(AbstractKafkaProducerClient.class);
     public static final int CLOSE_TIMEOUT_MS = 5000;
 
     protected KafkaProducer<?, ?> producer;
@@ -134,7 +134,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
         public void beforeCustomMetricsUpdated() { }
     }
 
-    public <K, V> KafkaProducerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
+    public <K, V> AbstractKafkaProducerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             boolean guaranteeRecordOrder,
             KafkaOperatorProperties kafkaProperties) throws Exception {
         super (operatorContext, kafkaProperties, false);
@@ -167,7 +167,7 @@ public abstract class KafkaProducerClient extends AbstractKafkaClient {
             metricsFetcher = new MetricsFetcher (getOperatorContext(), new MetricsProvider() {
                 @Override
                 public Map<MetricName, ? extends Metric> getMetrics() {
-                    synchronized (KafkaProducerClient.this) {
+                    synchronized (AbstractKafkaProducerClient.this) {
                         return producer.metrics();
                     }
                 }

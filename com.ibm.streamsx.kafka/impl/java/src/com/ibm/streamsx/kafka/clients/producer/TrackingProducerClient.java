@@ -47,7 +47,7 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  * @author IBM Kafka toolkit team
  * @since toolkit version 2.2
  */
-public class TrackingProducerClient extends KafkaProducerClient implements ClientCallback {
+public class TrackingProducerClient extends AbstractKafkaProducerClient implements ClientCallback {
 
     private static class RecoveryEvent {}
     private static final Logger trace = Logger.getLogger (TrackingProducerClient.class);
@@ -130,7 +130,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#close(long)
+     * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#close(long)
      */
     @Override
     public void close(long timeoutMillis) {
@@ -268,7 +268,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#processRecord(ProducerRecord, Tuple)
+     * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#processRecord(ProducerRecord, Tuple)
      */
     @Override
     public void processRecord (ProducerRecord<?, ?> producerRecord, Tuple associatedTuple) throws Exception {
@@ -289,7 +289,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#processRecords(List, Tuple)
+     * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#processRecords(List, Tuple)
      */
     @Override
     public void processRecords (List<ProducerRecord<?, ?>> records, Tuple associatedTuple) throws Exception {
@@ -409,7 +409,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     /**
      * Tries to cancel all send requests that are not yet done.
      * 
-     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#tryCancelOutstandingSendRequests(boolean)
+     * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#tryCancelOutstandingSendRequests(boolean)
      */
     @Override
     public void tryCancelOutstandingSendRequests (boolean mayInterruptIfRunning) {
@@ -427,7 +427,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#drain()
+     * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#drain()
      */
     @Override
     public void drain() throws Exception {
@@ -450,7 +450,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
     }
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#checkpoint(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#checkpoint(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
@@ -459,7 +459,7 @@ public class TrackingProducerClient extends KafkaProducerClient implements Clien
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient#reset(com.ibm.streams.operator.state.Checkpoint)
+     * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#reset(com.ibm.streams.operator.state.Checkpoint)
      */
     @Override
     public void reset (Checkpoint checkpoint) throws Exception {

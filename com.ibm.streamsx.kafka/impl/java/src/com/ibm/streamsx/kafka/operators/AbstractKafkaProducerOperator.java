@@ -46,7 +46,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
-import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.TrackingProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.TransactionalCrProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -88,7 +88,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected Class<?> messageType;
     protected Class<?> keyType;
 
-    private KafkaProducerClient producer;
+    private AbstractKafkaProducerClient producer;
     private AtomicBoolean isResetting;
     private String keyAttributeName = null;
     private String partitionAttributeName = null;
@@ -602,7 +602,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                 + context.getPE().getPEId() + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
 
         producer.flush();
-        producer.close (KafkaProducerClient.CLOSE_TIMEOUT_MS);
+        producer.close (AbstractKafkaProducerClient.CLOSE_TIMEOUT_MS);
         if (this.errorPortSubmitter != null) this.errorPortSubmitter.stop();
 
         // Must call super.shutdown()

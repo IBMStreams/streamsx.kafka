@@ -37,6 +37,10 @@ For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Relea
 * Checkpoint reset of the `KafkaConsumer` is optimized in consistent region when the consumer is the only group member.
 * The `KafkaConsumer` operator can be configured as a static consumer group member (requires Kafka server version 2.3 or higher).
   See also the *Static Consumer Group Membership* chapter in the KafkaConsumer's documentation.
+* The `KafkaConsumer` operator now uses `read_committed` as the `isolation.level` configuration unless the user has specified a different value. 
+  In `read_committed` mode, the consumer will read only those transactional messages which have been successfully committed. 
+  Messages of aborted transactions are now skipped. The consumer will continue to read non-transactional messages as before. 
+  This new default setting is incompatible with Kafka 0.10.2.
 
 # Deprecated features
 
@@ -50,6 +54,8 @@ The use of the input control port has been deprecated when the `KafkaConsumer` i
 * When the `KafkaConsumer` operator is configured with input port, the **topic**, **pattern**, **partition**, and **startPosition** 
   parameters used to be ignored in previous versions. Now an SPL compiler failure is raised when one of these parameters is used 
   together with the input port.
+* The default `isolation.level` configuration of the `KafkaConsumer` operator is incompatible with Kafka broker version 0.10.x 
+  When connecting with Kafka 0.10.x, `isolation.level=read_uncommitted` must be used for the consumer configuration.
 
 ++ What's new in version 2.2.1
 

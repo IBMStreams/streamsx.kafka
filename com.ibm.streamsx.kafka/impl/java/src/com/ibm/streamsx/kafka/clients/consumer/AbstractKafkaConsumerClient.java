@@ -148,6 +148,10 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             this.kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeserializer(keyClass));
         }
 
+        if (!kafkaProperties.containsKey(ConsumerConfig.ISOLATION_LEVEL_CONFIG)) {
+            this.kafkaProperties.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        }
+
         if (!kafkaProperties.containsKey(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, getDeserializer(valueClass));
         }

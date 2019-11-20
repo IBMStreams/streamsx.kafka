@@ -70,6 +70,8 @@ public class KafkaSplDoc {
             + "|---|\\n"
             + "| group.instance.id | when **staticGroupMember** parameter is `true`: hashes from instance-ID and operator name. When user provided and used in a parallel region, the parallel channel number is added. |\\n"
             + "|---|\\n"
+            + "| isolation.level | `read_committed` |\\n"
+            + "|---|\\n"
             + "| key.deserializer | See **Automatic deserialization** section below |\\n"
             + "|---|\\n"
             + "| value.deserializer | See **Automatic deserialization** section below |\\n"

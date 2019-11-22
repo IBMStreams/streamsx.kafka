@@ -1155,7 +1155,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     protected void processControlPortActionEvent (ControlPortAction update) {
-        trace.warn("processControlPortActionEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
+        trace.warn("processControlPortActionEvent(): update = " + update + "; update of assignments/subscription not supported by this client: " + getThisClassName());
+        nFailedControlTuples.increment();
     }
 
 

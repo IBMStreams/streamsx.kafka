@@ -116,6 +116,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nQueueFullPause;
     private final Metric nConsumedTopics;
     protected final Metric nAssignedPartitions;
+protected final Metric nFailedControlTuples;
 
     // Lock/condition for when we pause processing due to
     // no space on the queue or low memory.
@@ -207,6 +208,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric ("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric ("nQueueFullPause");
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric ("nAssignedPartitions");
+        this.nFailedControlTuples = operatorContext.getMetrics().getCustomMetric ("nFailedControlTuples");
         this.nConsumedTopics = operatorContext.getMetrics().getCustomMetric ("nConsumedTopics");
     }
 
@@ -429,6 +431,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 try {
                     processControlPortActionEvent (data);
                 } catch (Exception e) {
+                    nFailedControlTuples.increment();
                     logger.error("The control processing '" + data + "' failed: " + e.getLocalizedMessage());
                 } finally {
                     event.countDownLatch();

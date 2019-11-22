@@ -98,6 +98,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
     public static final String COMMIT_PERIOD_PARAM = "commitPeriod"; //$NON-NLS-1$
     public static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
+    public static final String GROUP_ID_PARAM = "groupId";
+    public static final String STATIC_GROUP_MEMBER_PARAM = "staticGroupMember";
 
     private static final double DEFAULT_COMMIT_PERIOD = 5.0;
 
@@ -219,7 +221,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.outputPartitionAttrName = outputPartitionAttrName;
     }
 
-    @Parameter(optional = true, name="startOffset",
+    @Parameter(optional = true, name=START_OFFSET_PARAM,
             description="This parameter indicates the start offset that the operator should begin consuming "
                     + "messages from. In order for this parameter's values to take affect, the **startPosition** "
                     + "parameter must be set to `Offset`. Furthermore, the specific partition(s) that the operator "
@@ -241,7 +243,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
     }
 
-    @Parameter(optional = true, name="startTime",
+    @Parameter(optional = true, name=START_TIME_PARAM,
             description="This parameter is only used when the **startPosition** parameter is set to `Time`. "
                     + "Then the operator will begin "
                     + "reading records from the earliest offset whose timestamp is greater than or "
@@ -253,7 +255,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.startTime = startTime;
     }
 
-    @Parameter (optional = true, name = "staticGroupMember",
+    @Parameter (optional = true, name = STATIC_GROUP_MEMBER_PARAM,
             description = "Enables static Kafka group membership (generates and sets a `group.instance.id` "
                     + "overriding a potentially user provided group instance identifier) "
                     + "and sets a higher default session timeout. "
@@ -269,7 +271,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.staticGroupMember  = staticGrpMember;
     }
 
-    @Parameter(optional = true, name="groupId",
+    @Parameter(optional = true, name=GROUP_ID_PARAM,
             description="Specifies the group ID that should be used "
                     + "when connecting to the Kafka cluster. The value "
                     + "specified by this parameter will override the `group.id` "
@@ -282,7 +284,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.groupId = groupId;
     }
 
-    @Parameter(optional = true, name="startPosition", 
+    @Parameter(optional = true, name=START_POSITION_PARAM, 
             description="Specifies where the operator should start "
                     + "reading from topics. Valid options include: `Beginning`, `End`, `Default`, `Time`, and `Offset`.\\n"
                     + "* `Beginning`: The consumer starts reading from the beginning of the data in the Kafka topics. "

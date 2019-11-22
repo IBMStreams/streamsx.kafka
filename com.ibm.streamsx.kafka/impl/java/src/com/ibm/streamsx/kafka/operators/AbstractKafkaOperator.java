@@ -56,6 +56,10 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 @Libraries({ "opt/downloaded/*", "impl/lib/*" })
 public abstract class AbstractKafkaOperator extends AbstractOperator implements StateHandler {
 
+    public static final String CLIENT_ID_PARAM = "clientId";
+    public static final String USER_LIB_PARAM = "userLib";
+    public static final String APP_CONFIG_NAME_PARAM = "appConfigName";
+    public static final String PROPERTIES_FILE_PARAM = "propertiesFile";
     public static final String SSL_DEBUG_PARAM = "sslDebug";
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaOperator.class);
@@ -79,7 +83,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     private KafkaOperatorProperties kafkaProperties;
 
-    @Parameter(optional = true, name="propertiesFile", 
+    @Parameter(optional = true, name=PROPERTIES_FILE_PARAM, 
             description="Specifies the name of the properties file "
                     + "containing Kafka properties. A relative path is always "
                     + "interpreted as relative to the *application directory* of the "
@@ -88,7 +92,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         this.propertiesFile = propertiesFile;
     }
 
-    @Parameter(optional = true, name="appConfigName",
+    @Parameter(optional = true, name=APP_CONFIG_NAME_PARAM,
             description="Specifies the name of the application configuration "
                     + "containing Kafka properties.")
     public void setAppConfigName(String appConfigName) {
@@ -110,7 +114,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         }
     }
 
-    @Parameter(optional = true, name="userLib",
+    @Parameter(optional = true, name=USER_LIB_PARAM,
             description="Allows the user to specify paths to JAR files that should "
                     + "be loaded into the operators classpath. This is useful if "
                     + "the user wants to be able to specify their own partitioners. "
@@ -122,7 +126,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         this.userLib = userLib;
     }
 
-    @Parameter(optional = true, name="clientId",
+    @Parameter(optional = true, name=CLIENT_ID_PARAM,
             description="Specifies the client ID that should be used "
                     + "when connecting to the Kafka cluster. The value "
                     + "specified by this parameter will override the `client.id` "
@@ -266,7 +270,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
         Map<String, String> appConfig = getOperatorContext().getPE().getApplicationConfiguration(appConfigName);
         if (appConfig.isEmpty()) {
-            logger.warn(Messages.getString("APPLICATION_CONFIG_NOT_FOUND", appConfigName)); //$NON-NLS-1$
+            logger.warn(Messages.getString("APPLICATION_CONFIGURATION_NOT_FOUND", appConfigName)); //$NON-NLS-1$
             return;
         }
 

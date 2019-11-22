@@ -6,7 +6,8 @@
    <info:description>
 The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be used with following broker versions:
 
-* 0.10.2
+* 0.10.2 (with restrictions: `isolation.level=read_uncommitted` must be set for 
+  the `KafkaConsumer`, and the **guaranteeOrdering** parameter of the `KafkaProducer` cannot be used)
 * 0.11
 * 1.0
 * 1.1
@@ -14,6 +15,8 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 * 2.1
 * 2.2
 * 2.3
+
+All Kafka versions below 2.3 do not support the **staticGroupMember** parameter of the `KafkaConsumer` operator.
 
 # Additional information
 Additional user documentation can be found in the 
@@ -37,7 +40,7 @@ For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Relea
 * Checkpoint reset of the `KafkaConsumer` is optimized in consistent region when the consumer is the only group member.
 * The `KafkaConsumer` operator can be configured as a static consumer group member (requires Kafka server version 2.3 or higher).
   See also the *Static Consumer Group Membership* chapter in the KafkaConsumer's documentation.
-* The `KafkaConsumer` operator now uses `read_committed` as the `isolation.level` configuration unless the user has specified a different value. 
+* The `KafkaConsumer` operator now uses `read_committed` as the default `isolation.level` configuration unless the user has specified a different value. 
   In `read_committed` mode, the consumer will read only those transactional messages which have been successfully committed. 
   Messages of aborted transactions are now skipped. The consumer will continue to read non-transactional messages as before. 
   This new default setting is incompatible with Kafka 0.10.2.

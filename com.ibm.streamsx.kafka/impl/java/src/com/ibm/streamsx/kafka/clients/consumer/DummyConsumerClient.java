@@ -13,8 +13,6 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -38,9 +36,11 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 public class DummyConsumerClient extends AbstractKafkaClient implements ConsumerClient {
 
     private boolean processing = false;
-    
+
+
     public DummyConsumerClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties) {
         super (operatorContext, kafkaProperties, true);
+        operatorContext.getMetrics().getCustomMetric ("isGroupManagementActive").setValue (0L);
     }
 
     /**
@@ -49,7 +49,7 @@ public class DummyConsumerClient extends AbstractKafkaClient implements Consumer
     @Override
     public void startConsumer() throws InterruptedException, KafkaClientInitializationException {
         processing = true;
-        }
+    }
 
     /**
      * Empty implementation

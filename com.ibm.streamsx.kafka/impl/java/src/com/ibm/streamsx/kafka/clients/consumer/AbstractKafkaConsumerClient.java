@@ -116,7 +116,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nQueueFullPause;
     private final Metric nConsumedTopics;
     protected final Metric nAssignedPartitions;
-protected final Metric nFailedControlTuples;
+    protected final Metric nFailedControlTuples;
+    protected final Metric isGroupManagementActive;
 
     // Lock/condition for when we pause processing due to
     // no space on the queue or low memory.
@@ -210,6 +211,7 @@ protected final Metric nFailedControlTuples;
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric ("nAssignedPartitions");
         this.nFailedControlTuples = operatorContext.getMetrics().getCustomMetric ("nFailedControlTuples");
         this.nConsumedTopics = operatorContext.getMetrics().getCustomMetric ("nConsumedTopics");
+        this.isGroupManagementActive = operatorContext.getMetrics().getCustomMetric ("isGroupManagementActive");
     }
 
     /**

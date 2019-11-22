@@ -158,6 +158,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         }
         trace.info (MsgFormatter.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
+        isGroupManagementActive.setValue (1L);
         trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
     }
@@ -1059,7 +1060,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                     }
                     timeElapsed = System.currentTimeMillis() - waitStartTime;
                 }
-                
+
                 CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get (key);
                 jmxNotificationConditionLock.unlock();
                 if (merge == null) {

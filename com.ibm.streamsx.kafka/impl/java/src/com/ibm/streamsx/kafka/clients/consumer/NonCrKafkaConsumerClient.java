@@ -58,6 +58,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     private <K, V> NonCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws KafkaOperatorException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
+        isGroupManagementActive.setValue (0L);
     }
 
 

@@ -63,6 +63,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
     private <K, V> NonCrKafkaConsumerGroupClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties, boolean singleTopic) throws KafkaOperatorException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
+        isGroupManagementActive.setValue (1L);
 
         // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed
         if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {

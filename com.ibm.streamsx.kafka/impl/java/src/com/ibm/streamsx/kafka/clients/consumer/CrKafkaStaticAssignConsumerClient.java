@@ -63,6 +63,7 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
 
         super (operatorContext, keyClass, valueClass, kafkaProperties);
         offsetManager = new OffsetManager();
+        isGroupManagementActive.setValue (0L);
     }
 
     /**

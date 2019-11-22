@@ -48,23 +48,23 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
+import com.ibm.streamsx.kafka.ControlportJsonParseException;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.MsgFormatter;
-import com.ibm.streamsx.kafka.ControlportJsonParseException;
 import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClientBuilder;
 import com.ibm.streamsx.kafka.clients.consumer.ControlPortAction;
+import com.ibm.streamsx.kafka.clients.consumer.ControlPortActionType;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaStaticAssignConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.DummyConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
-import com.ibm.streamsx.kafka.clients.consumer.ControlPortActionType;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -141,7 +141,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     // The number of messages in which the value was malformed and could not be deserialized
     private Metric nMalformedMessages;
-    private Metric isGroupManagementActive;
     private Metric nFailedControlTuples;
     long maxDrainMillis = 0l;
 
@@ -150,7 +149,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @CustomMetric (kind = Metric.Kind.GAUGE, name = "isGroupManagementActive", description = "Shows the Kafka group management state of the operator. "
             + "When the metric shows 1, group management is active. When the metric is 0, group management is not in place.")
     public void setIsGroupManagementActive (Metric isGroupManagementActive) {
-        this.isGroupManagementActive = isGroupManagementActive;
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }
 
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages")
@@ -836,7 +835,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     throw new KafkaConfigurationException (msg);
                 }
                 builder = groupManagementEnabled? this.groupEnabledClientBuilder: this.staticAssignClientBuilder;
-                this.isGroupManagementActive.setValue (groupManagementEnabled? 1: 0);
             }
 
             ConsumerClient client = builder.build();
@@ -1125,7 +1123,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                             }
                             builder = this.staticAssignClientBuilder;
                         }
-                        this.isGroupManagementActive.setValue (builder == this.groupEnabledClientBuilder? 1L: 0L);
 
                         logger.info("Using client builder: " + builder);
                         final ConsumerClient newClient = builder.build();
@@ -1281,7 +1278,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                         logger.info (MsgFormatter.format ("consumer client implementation {0} replaced by {1}",
                                 consumer.getClass().getName(),
                                 newClient.getClass().getName()));
-                        this.isGroupManagementActive.setValue (builder == this.groupEnabledClientBuilder? 1L: 0L);
                     }
                     catch (KafkaClientInitializationException e) {
                         logger.error(e.getLocalizedMessage(), e);

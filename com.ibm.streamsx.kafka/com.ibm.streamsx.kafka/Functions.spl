@@ -134,7 +134,7 @@ public rstring createMessageRemoveTopicPartition (list<Control.TopicPartition> t
  * 
  *  * To begin consuming from the **end** of a topic partition, set the offset value to `-1`
  *  * To begin consuming from the **beginning** of a topic partition, set the offset value to `-2`
- *  * To begin consuming from the **default** position, set the offset value to `-3`, equivalent to `rstring createMessageAddTopicPartition (list<Control.TopicPartition> topicPartitionsToAdd)`
+ *  * To begin consuming from the **default** position, set the offset value to `-3`, what is effectively equivalent to `rstring createMessageAddTopicPartition (list<Control.TopicPartition> topicPartitionsToAdd)`
  * 
  * @param topicPartitionsToAdd A list of topic partitions to assign to along with the corresponding offset number to begin consuming from.
  * 
@@ -203,7 +203,7 @@ public rstring createMessageRemoveTopicPartition (rstring topic, int32 partition
  * 
  *  * To begin consuming from the **end** of a topic partition, set the offset value to `-1`
  *  * To begin consuming from the **beginning** of a topic partition, set the offset value to `-2`
- *  * To begin consuming from the **default** position, set the offset value to `-3`, equivalent to `rstring createMessageAddTopicPartition (rstring topic, int32 partition)`
+ *  * To begin consuming from the **default** position, set the offset value to `-3`, what is effectively equivalent to `rstring createMessageAddTopicPartition (rstring topic, int32 partition)`
  * 
  * @param topic The topic to which the partition belongs to
  * @param partition The partition number of the topic to assign to

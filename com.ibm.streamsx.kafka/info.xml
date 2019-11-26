@@ -57,7 +57,7 @@ The use of the input control port has been deprecated when the `KafkaConsumer` i
 * When the `KafkaConsumer` operator is configured with input port, the **topic**, **pattern**, **partition**, and **startPosition** 
   parameters used to be ignored in previous versions. Now an SPL compiler failure is raised when one of these parameters is used 
   together with the input port.
-* The default `isolation.level` configuration of the `KafkaConsumer` operator is incompatible with Kafka broker version 0.10.x 
+* The default `isolation.level` configuration of the `KafkaConsumer` operator is incompatible with Kafka broker version 0.10.x. 
   When connecting with Kafka 0.10.x, `isolation.level=read_uncommitted` must be used for the consumer configuration.
 
 ++ What's new in version 2.2.1

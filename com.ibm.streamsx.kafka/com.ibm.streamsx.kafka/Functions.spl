@@ -19,9 +19,92 @@ rstring _createTopicPartitionOffsetObject (rstring topic, int32 partition) {
     ";
 }
 
+rstring _createTopicObject (rstring topic) {
+    return "
+        {
+           \"topic\" : \"" + topic + "\"
+        }
+    ";
+}
+
+/**
+ * Creates the JSON message to add a single topic to the operator's subscription to begin consuming from the default position.
+ * 
+ * @param topic The topic to subscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageAddTopic (rstring topic) {
+    return createMessageAddTopics ([topic]);
+}
+
+/**
+ * Creates the JSON message to add multiple topics to the operator's subscription to begin consuming from the default position.
+ * 
+ * @param topics The topics to subscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageAddTopics (list<rstring> topics) {
+
+    int32 listSize = size(topics);
+    mutable rstring toAdd = "";
+    for(int32 i in range(0, listSize)) {
+        toAdd += _createTopicObject (topics[i]);
+        
+        if(i+1 < listSize)
+            toAdd += ",";
+    }   
+    
+    return "{
+        \"action\" : \"ADD\",
+        \"topics\" : [" +
+            toAdd +
+        "]
+    }";
+}
+
+/**
+ * Creates the JSON message to remove a single topic from the operator's subscription.
+ * 
+ * @param topic The topic to unsubscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageRemoveTopic (rstring topic) {
+    return createMessageRemoveTopics ([topic]);
+}
+
+/**
+ * Creates the JSON message to remove multiple topics from the operator's subscription.
+ * 
+ * @param topics The topics to unsubscribe
+ * 
+ * @return A JSON string to be submitted to the KafkaConsumer input port
+ */
+public rstring createMessageRemoveTopics (list<rstring> topics) {
+
+    int32 listSize = size(topics);
+    mutable rstring toRemove = "";
+    for(int32 i in range(0, listSize)) {
+        toRemove += _createTopicObject (topics[i]);
+        
+        if (i+1 < listSize)
+            toRemove += ",";
+    }   
+    
+    return "{
+        \"action\" : \"REMOVE\",
+        \"topics\" : [" +
+            toRemove +
+        "]
+    }";
+}
+
+
 /**
  * 
- * Creates the JSON message to remove multiple topic-partitions from the operator.
+ * Creates the JSON message to remove multiple topic partitions from the operator's partition assignment.
  * 
  * @param topicPartitionsToRemove specifies a list of topic partitions to remove
  * 
@@ -46,14 +129,14 @@ public rstring createMessageRemoveTopicPartition (list<Control.TopicPartition> t
 }
 
 /**
- * Creates the JSON message to add multiple topic-partitions to the operator.
- * The operator will begin consuming from the topic-partitions at their specified offset.
+ * Creates the JSON message to add multiple topic partitions to the operator's partition assignment.
+ * The operator will begin consuming from the topic partitions at their specified offset.
  * 
- *  * To begin consuming from the **end** of a topic-partition, set the offset value to `-1`
- *  * To begin consuming from the **beginning** of a topic-partition, set the offset value to `-2`
- *  * To begin consuming from the **default** position, set the offset value to `-3`
+ *  * To begin consuming from the **end** of a topic partition, set the offset value to `-1`
+ *  * To begin consuming from the **beginning** of a topic partition, set the offset value to `-2`
+ *  * To begin consuming from the **default** position, set the offset value to `-3`, what is effectively equivalent to `rstring createMessageAddTopicPartition (list<Control.TopicPartition> topicPartitionsToAdd)`
  * 
- * @param topicPartitionsToAdd A list of topic-partitions to subscribe to along with the corresponding offset number to begin consuming from.
+ * @param topicPartitionsToAdd A list of topic partitions to assign to along with the corresponding offset number to begin consuming from.
  * 
  * @return A JSON string to be submitted to the KafkaConsumer input port
  */
@@ -76,10 +159,10 @@ public rstring createMessageAddTopicPartition (list<Control.TopicPartitionOffset
 }
 
 /**
- * Creates the JSON message to add multiple topic-partitions to the operator.
+ * Creates the JSON message to add multiple topic partitions to the operator's partition assignment.
  * The operator will begin consuming all partitions from the default positions.
  * 
- * @param topicPartitionsToAdd A list of topic-partitions to assign.
+ * @param topicPartitionsToAdd A list of topic partitions to assign.
  * 
  * @return A JSON string to be submitted to the KafkaConsumer input port
  */
@@ -103,10 +186,10 @@ public rstring createMessageAddTopicPartition (list<Control.TopicPartition> topi
 
 
 /**
- * Creates the JSON message to remove a single topic-partition from the operator.
+ * Creates the JSON message to remove a single topic partition from the operator's partition assignment.
  * 
- * @param topic The topic to unsubscribe from
- * @param partition The partition to unsubscribe from 
+ * @param topic The topic to which the partition belongs to
+ * @param partition The partition number of the topic to unassign
  * 
  * @return A JSON string to be submitted to the KafkaConsumer input port
  */
@@ -115,15 +198,16 @@ public rstring createMessageRemoveTopicPartition (rstring topic, int32 partition
 }
 
 /**
- * Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the specified offset.
+ * Creates the JSON message to add a single topic partition to the operator's partition assignment 
+ * and to begin consuming at the specified offset.
  * 
- *  * To begin consuming from the **end** of a topic-partition, set the offset value to `-1`
- *  * To begin consuming from the **beginning** of a topic-partition, set the offset value to `-2`
- *  * To begin consuming from the **default** position, set the offset value to `-3`
+ *  * To begin consuming from the **end** of a topic partition, set the offset value to `-1`
+ *  * To begin consuming from the **beginning** of a topic partition, set the offset value to `-2`
+ *  * To begin consuming from the **default** position, set the offset value to `-3`, what is effectively equivalent to `rstring createMessageAddTopicPartition (rstring topic, int32 partition)`
  * 
- * @param topic The topic to subscribe to
- * @param partition The partition number to assign to
- * @param offset The offset of the topic-partition to begin consuming from
+ * @param topic The topic to which the partition belongs to
+ * @param partition The partition number of the topic to assign to
+ * @param offset The offset of the topic partition to begin consuming from
  * 
  * @return A JSON string to be submitted to the KafkaConsumer input port
  */
@@ -132,10 +216,11 @@ public rstring createMessageAddTopicPartition (rstring topic, int32 partition, i
 }
 
 /**
- * Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the default position.
+ * Creates the JSON message to add a single topic partition to the operator's partition assignment and 
+ * to begin consuming at the default position.
  * 
- * @param topic The topic to subscribe to
- * @param partition The partition number to assign to
+ * @param topic The topic to which the partition belongs to
+ * @param partition The partition number of the topic to assign to
  * 
  * @return A JSON string to be submitted to the KafkaConsumer input port
  */

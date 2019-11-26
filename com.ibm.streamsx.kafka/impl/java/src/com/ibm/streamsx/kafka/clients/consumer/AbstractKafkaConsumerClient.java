@@ -116,6 +116,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nQueueFullPause;
     private final Metric nConsumedTopics;
     protected final Metric nAssignedPartitions;
+    protected final Metric nFailedControlTuples;
+    protected final Metric isGroupManagementActive;
 
     // Lock/condition for when we pause processing due to
     // no space on the queue or low memory.
@@ -143,8 +145,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
         super (operatorContext, kafkaProperties, true);
         this.kafkaProperties = kafkaProperties;
+
         if (!kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
             this.kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeserializer(keyClass));
+        }
+
+        if (!kafkaProperties.containsKey(ConsumerConfig.ISOLATION_LEVEL_CONFIG)) {
+            this.kafkaProperties.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         }
 
         if (!kafkaProperties.containsKey(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)) {
@@ -157,9 +164,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             this.groupId = kafkaProperties.getProperty (ConsumerConfig.GROUP_ID_CONFIG);
         }
         else {
-            ProcessingElement pe = operatorContext.getPE();
-            this.groupId = "D" + pe.getDomainId().hashCode() + pe.getInstanceId().hashCode()
-                    + pe.getJobId() + operatorContext.getName().hashCode();
+            this.groupId = generateGroupId (operatorContext);
+            logger.info ("Generated group.id: " + this.groupId);
             this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, this.groupId);
             this.groupIdGenerated = true;
         }
@@ -203,7 +209,25 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         this.nLowMemoryPause = operatorContext.getMetrics().getCustomMetric ("nLowMemoryPause");
         this.nQueueFullPause = operatorContext.getMetrics().getCustomMetric ("nQueueFullPause");
         this.nAssignedPartitions = operatorContext.getMetrics().getCustomMetric ("nAssignedPartitions");
+        this.nFailedControlTuples = operatorContext.getMetrics().getCustomMetric ("nFailedControlTuples");
         this.nConsumedTopics = operatorContext.getMetrics().getCustomMetric ("nConsumedTopics");
+        this.isGroupManagementActive = operatorContext.getMetrics().getCustomMetric ("isGroupManagementActive");
+    }
+
+    /**
+     * Generates a group identifier that is consistent accross PE relaunches, but not accross job submissions.
+     * @param operatorContext
+     * @return a group identifier
+     */
+    private String generateGroupId (final OperatorContext context) {
+        final ProcessingElement pe = context.getPE();
+        final int iidH = pe.getInstanceId().hashCode();
+        final int opnH = context.getName().hashCode();
+        final String id = MsgFormatter.format ("i{0}-j{1}-o{2}",
+                (iidH < 0? "N" + (-iidH): "P" + iidH),
+                "" + pe.getJobId(),
+                (opnH < 0? "N" + (-opnH): "P" + opnH));
+        return id;
     }
 
     /**
@@ -311,6 +335,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                 }
                 catch (Exception e) {
                     initializationException = e;
+                    return;
                 }
                 finally {
                     consumerInitLatch.countDown();  // notify that consumer is ready
@@ -369,6 +394,15 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
+     * The default implementation returns false.
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#supports(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
+     */
+    @Override
+    public boolean supports (ControlPortAction action) {
+        return false;
+    }
+
+    /**
      * Runs a loop and consumes the event queue until the processing flag is set to false.
      * @throws InterruptedException the thread has been interrupted
      */
@@ -394,11 +428,13 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             case STOP_POLLING:
                 event.countDownLatch();  // indicates that polling has stopped
                 break;
-            case UPDATE_ASSIGNMENT:
+            case CONTROLPORT_EVENT:
+                final ControlPortAction data = (ControlPortAction) event.getData();
                 try {
-                    processUpdateAssignmentEvent ((TopicPartitionUpdate) event.getData());
+                    processControlPortActionEvent (data);
                 } catch (Exception e) {
-                    logger.error("The assignment '" + (TopicPartitionUpdate) event.getData() + "' update failed: " + e.getLocalizedMessage());
+                    nFailedControlTuples.increment();
+                    logger.error("The control processing '" + data + "' failed: " + e.getLocalizedMessage());
                 } finally {
                     event.countDownLatch();
                 }
@@ -470,12 +506,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>(1);
             for (TopicPartition tp: offsetMap.keySet()) {
                 // do not commit for partitions we are not assigned
-                if (!currentAssignment.contains(tp)) continue;
+                if (!currentAssignment.contains (tp)) continue;
                 map.clear();
-                map.put(tp, offsetMap.get(tp));
+                map.put (tp, offsetMap.get (tp));
                 if (offsets.isCommitSynchronous()) {
                     try {
-                        consumer.commitSync(map);
+                        consumer.commitSync (map);
                         postOffsetCommit (map);
                     }
                     catch (CommitFailedException e) {
@@ -589,7 +625,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @param update the update increment/decrement
      * @throws Exception 
      */
-    protected abstract void processUpdateAssignmentEvent (TopicPartitionUpdate update);
+    protected abstract void processControlPortActionEvent (ControlPortAction update);
 
     /**
      * This method must be overwritten by concrete classes. 
@@ -621,28 +657,29 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public ConsumerRecord<?, ?> getNextRecord (long timeout, TimeUnit timeUnit) throws InterruptedException {
-        ConsumerRecord<?,?> record = null;
+        preDeQueueForSubmit();
         if (messageQueue.isEmpty()) {
             // assuming, that the queue is not filled concurrently...
+            msgQueueLock.lock();
             msgQueueProcessed.set (true);
-            try {
-                msgQueueLock.lock();
-                msgQueueEmptyCondition.signalAll();
-            } finally {
-                msgQueueLock.unlock();
-            }
+            msgQueueEmptyCondition.signalAll();
+            msgQueueLock.unlock();
         }
-        else msgQueueProcessed.set (false);
+        else {
+            msgQueueProcessed.set (false);
+        }
         // if filling the queue is NOT stopped, we can, of cause,
         // fetch a record now from the queue, even when we have seen an empty queue, shortly before... 
-
-        preDeQueueForSubmit();
         // messageQueue.poll throws InterruptedException
-        record = messageQueue.poll (timeout, timeUnit);
+        ConsumerRecord<?,?> record = messageQueue.poll (timeout, timeUnit);
         if (record == null) {
-            // no messages - queue is empty
+            // no messages - queue is empty, i.e. it was empty at the time we polled
             if (logger.isTraceEnabled()) logger.trace("getNextRecord(): message queue is empty");
             nPendingMessages.setValue (messageQueue.size());
+            msgQueueProcessed.set (true);
+        }
+        else {
+            msgQueueProcessed.set (false);
         }
         return record;
     }
@@ -692,14 +729,17 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The waiting thread has been interrupted waiting
      */
     protected void awaitMessageQueueProcessed() throws InterruptedException {
-        while (!(messageQueue.isEmpty() && msgQueueProcessed.get())) {
-            try {
-                msgQueueLock.lock();
+        final long start = System.nanoTime(); 
+        msgQueueLock.lock();
+        try {
+            while (!(messageQueue.isEmpty() && msgQueueProcessed.get())) {
                 msgQueueEmptyCondition.await (100l, TimeUnit.MILLISECONDS);
             }
-            finally {
-                msgQueueLock.unlock();
-            }
+        }
+        finally {
+            msgQueueLock.unlock();
+            final long stop = System.nanoTime();
+            logger.log (DEBUG_LEVEL, "waiting for message queue being processed took " + (stop-start)/1_000_000L + " ms.");
         }
     }
 
@@ -778,7 +818,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     final int nMessages = r.getNumRecords();
                     final long nQueuedBytes = r.getSumTotalSize();
                     final Level l = Level.DEBUG;
-//                    final Level l = DEBUG_LEVEL;
+                    //                    final Level l = DEBUG_LEVEL;
                     if (logger.isEnabledFor (l) && nMessages > 0) {
                         logger.log (l, MsgFormatter.format ("{0,number,#} records with total {1,number,#}/{2,number,#}/{3,number,#} bytes (key/value/sum) fetched and enqueued",
                                 nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));
@@ -802,6 +842,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // catches also 'java.io.IOException: Broken pipe' when SSL is used
                     logger.warn ("Exception caugt: " + e, e);
                     if (++nConsecutiveRuntimeExc >= 50) {
+                        logger.error (e);
                         throw new KafkaOperatorRuntimeException ("Consecutive number of exceptions too high (50).", e);
                     }
                     logger.info ("Going to sleep for 100 ms before next poll ...");
@@ -829,7 +870,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         final long newMinAlloc = minAllocatableMemorySaveSetting (numBytes);
         if (newMinAlloc <= this.minAllocatableMemoryAdjusted)
             return;
-        
+
         logger.warn (MsgFormatter.format ("adjusting the minimum allocatable memory from {0} to {1} to fetch new Kafka messages", this.minAllocatableMemoryAdjusted, newMinAlloc));
         //Example: max = 536,870,912, total = 413,073,408, free = 7,680,336
         // now let's see if this would be possible
@@ -1080,10 +1121,14 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     protected void subscribe (Collection<String> topics, ConsumerRebalanceListener rebalanceListener) {
         logger.info("Subscribing. topics = " + topics); //$NON-NLS-1$
         if (topics == null) topics = Collections.emptyList();
+        if (topics.isEmpty()) {
+            setConsumedTopics (null);
+            this.assignedPartitions = new HashSet<TopicPartition> ();
+            nAssignedPartitions.setValue (0L);
+        } else {
+            tryCreateCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
+        }
         consumer.subscribe (topics, rebalanceListener);
-        try {
-            getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
-        } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
         this.subscriptionMode = topics.isEmpty()? SubscriptionMode.NONE: SubscriptionMode.SUBSCRIBED;
     }
 
@@ -1099,10 +1144,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             consumer.unsubscribe();
         }
         else {
+            tryCreateCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
             consumer.subscribe (pattern, rebalanceListener);
-            try {
-                getOperatorContext().getMetrics().createCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);
-            } catch (IllegalArgumentException metricExits) { /* really nothing to be done */ }
         }
         this.subscriptionMode = SubscriptionMode.SUBSCRIBED;
     }
@@ -1115,8 +1158,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * @throws InterruptedException The thread waiting for finished condition has been interrupted.
      */
     @Override
-    public void onTopicAssignmentUpdate (final TopicPartitionUpdate update) throws InterruptedException {
-        Event event = new Event(EventType.UPDATE_ASSIGNMENT, update, true);
+    public void onControlPortAction (final ControlPortAction update) throws InterruptedException {
+        Event event = new Event(EventType.CONTROLPORT_EVENT, update, true);
         sendEvent (event);
         event.await();
     }
@@ -1131,6 +1174,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      */
     @Override
     public void onShutdown (long timeout, TimeUnit timeUnit) throws InterruptedException {
+        if (!isProcessing()) return;
         Event event = new Event(EventType.SHUTDOWN, true);
         sendEvent (event);
         event.await (timeout, timeUnit);

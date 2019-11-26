@@ -18,16 +18,8 @@ package com.ibm.streamsx.kafka;
  */
 public class Features {
     /**
-     * When set to true, consumer groups outside a consistent region with startPosition != Default are enabled.
-     * When set to false, group management is automatically disabled when startPosition != Default and not in a CR. 
-     * This feature requires a JobControlPlane.
+     * When set to true, group management is also enabled when no group-ID is given, i.e. with generated group-ID.
+     * When set to false, group management is disabled without user specified group identifier.
      */
-    public static boolean ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION = !SystemProperties.isLegacyBehavior();
-
-    /**
-     * When set to true, the consumer does not seek to initial startPosition when not in consistent region.
-     * When false, the consumer seeks to what startPosition is after every restart.
-     * This feature requires a JobControlPlane.
-     */
-    public static boolean ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART = !SystemProperties.isLegacyBehavior();
+    public static boolean ENABLE_GROUP_MANAGEMENT_NO_USER_GROUP_ID = !SystemProperties.isLegacyBehavior();
 }

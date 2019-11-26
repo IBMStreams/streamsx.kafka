@@ -33,8 +33,10 @@ import com.ibm.streams.operator.StreamingData.Punctuation;
 import com.ibm.streams.operator.StreamingInput;
 import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.TupleAttribute;
+import com.ibm.streams.operator.Type;
 import com.ibm.streams.operator.Type.MetaType;
 import com.ibm.streams.operator.compile.OperatorContextChecker;
+import com.ibm.streams.operator.meta.OptionalType;
 import com.ibm.streams.operator.meta.TupleType;
 import com.ibm.streams.operator.metrics.Metric;
 import com.ibm.streams.operator.model.CustomMetric;
@@ -44,7 +46,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
-import com.ibm.streamsx.kafka.clients.producer.KafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.TrackingProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.TransactionalCrProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -83,7 +85,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     protected TupleAttribute<Tuple, Long> timestampAttr;
     protected List<String> topics;
 
-    private KafkaProducerClient producer;
+    protected Class<?> messageType;
+    protected Class<?> keyType;
+
+    private AbstractKafkaProducerClient producer;
     private AtomicBoolean isResetting;
     private String keyAttributeName = null;
     private String partitionAttributeName = null;
@@ -145,25 +150,30 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             description = "If set to true, the operator guarantees that the order of records within "
                     + "a topic partition is the same as the order of processed tuples when it comes "
                     + "to retries. This implies that the operator sets the "
-                    + "`max.in.flight.requests.per.connection` producer property automatically to 1 "
-                    + "if retries are enabled, i.e. when the `retries` property is unequal 0, what "
-                    + "is the operator default value.\\n"
+                    + "`enable.idempotence` producer config automatically to `true`, `acks` to `all`, "
+                    + "enables retries, and adjusts `max.in.flight.requests.per.connection` to an upper limit of 5.\\n"
                     + "\\n"
                     + "If unset, the default value of this parameter is `false`, which means that the "
-                    + "order can change due to retries. Please be aware that setting " 
+                    + "order can change due to retries as long as the producer configuration "
+                    + "`max.in.flight.requests.per.connection` is greater than 1.\\n"
+                    + "\\n"
+                    + "**Note for users of Kafka 0.10.x:**\\n"
+                    + "\\n"
+                    + "The idempotent producer is not supported for Kafka versions < 0.11. "
+                    + "When guaranteed record order is required with older Kafka servers, users must set the producer config "
+                    + "`max.in.flight.requests.per.connection=1` instead of setting **"
                     + GUARANTEE_ORDERING_PARAM_NAME
-                    + " to `true` degrades the producer throughput as only one PRODUCE request per topic partition "
-                    + "is active at any time.")
+                    + "** to `true`.")
     public void setGuaranteeOrdering (boolean guaranteeOrdering) {
         this.guaranteeOrdering = guaranteeOrdering;
     }
 
     @Parameter(optional = true, name = OUTPUT_ERRORS_ONLY_PARM_NAME,
             description = "If set to `true`, the operator submits tuples to the optional output port only "
-                    + "for the tuples that failed to produce completely. "
+                    + "for the tuples that failed to produce. "
                     + "If set to `false`, the operator submits also tuples for the successfully produced input tuples.\\n"
                     + "\\n"
-                    + "If unset, the default value of this parameter is " + O_PORT_SUBMIT_ONLY_ERRORS + ". "
+                    + "If unset, the default value of this parameter is `" + O_PORT_SUBMIT_ONLY_ERRORS + "`. "
                     + "This parameter is ignored when the operator is not configured with an output port.")
     public void setOutputErrorsOnly (boolean errsOnly) {
         this.outputErrorsOnly = errsOnly;
@@ -291,7 +301,8 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         int nStringAttrs = 0;
         for (String outAttrName: outSchema.getAttributeNames()) {
             Attribute attr = outSchema.getAttribute (outAttrName);
-            MetaType metaType = attr.getType().getMetaType();
+            Type attrType = attr.getType();
+            MetaType metaType = attrType.getMetaType();
             switch (metaType) {
             case TUPLE:
                 ++nTupleAttrs;
@@ -304,6 +315,17 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             case RSTRING:
             case USTRING:
                 ++nStringAttrs;
+                break;
+            case OPTIONAL:
+                MetaType optionalValueMeta = ((OptionalType)attrType).getValueType().getMetaType();
+                switch (optionalValueMeta) {
+                case RSTRING:
+                case USTRING:
+                    ++nStringAttrs;
+                    break;
+                default:
+                    checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
+                }
                 break;
             default:
                 checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
@@ -580,7 +602,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                 + context.getPE().getPEId() + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
 
         producer.flush();
-        producer.close (KafkaProducerClient.CLOSE_TIMEOUT_MS);
+        producer.close (AbstractKafkaProducerClient.CLOSE_TIMEOUT_MS);
         if (this.errorPortSubmitter != null) this.errorPortSubmitter.stop();
 
         // Must call super.shutdown()

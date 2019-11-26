@@ -14,7 +14,7 @@
 package com.ibm.streamsx.kafka.clients.consumer;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,13 +23,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.CheckpointContext.Kind;
-import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
@@ -58,6 +58,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     private <K, V> NonCrKafkaConsumerClient (OperatorContext operatorContext, Class<K> keyClass, Class<V> valueClass,
             KafkaOperatorProperties kafkaProperties) throws KafkaOperatorException {
         super (operatorContext, keyClass, valueClass, kafkaProperties);
+        isGroupManagementActive.setValue (0L);
     }
 
 
@@ -110,17 +111,12 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         }
         assign (partsToAssign);
         if (getInitialStartPosition() != StartPosition.Default) {
-            if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-                testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
-                // JCP connected, seek when partition not yet committed
-                for (TopicPartition tp: partsToAssign) {
-                    if (!isCommittedForPartition (tp)) {
-                        seekToPosition (tp, startPosition);
-                    }
+            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, startPosition);
+            // JCP connected, seek when partition not yet committed
+            for (TopicPartition tp: partsToAssign) {
+                if (!isCommittedForPartition (tp)) {
+                    seekToPosition (tp, startPosition);
                 }
-            }
-            else {
-                seekToPosition (partsToAssign, startPosition);
             }
         }
         resetCommitPeriod (System.currentTimeMillis());
@@ -156,19 +152,13 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         final Set<TopicPartition> topicPartitions = topicPartitionTimestampMap.keySet();
 
         assign (topicPartitions);
-        
-        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
-            // JCP connected, seek when partition not yet committed
-            // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
-            for (TopicPartition tp: topicPartitions) {
-                if (!isCommittedForPartition (tp)) {
-                    seekToTimestamp (tp, timestamp);
-                }
+        testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
+        // JCP connected, seek when partition not yet committed
+        // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
+        for (TopicPartition tp: topicPartitions) {
+            if (!isCommittedForPartition (tp)) {
+                seekToTimestamp (tp, timestamp);
             }
-        }
-        else {
-            seekToTimestamp (topicPartitionTimestampMap);
         }
         resetCommitPeriod (System.currentTimeMillis());
     }
@@ -196,19 +186,14 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         for (int partitionNo: partitions) {
             topicPartitionOffsetMap.put (new TopicPartition (topic, partitionNo), startOffsets.get(i++));
         }
-        if (Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART) {
-            testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
-            // JCP connected, seek when partition not yet committed
-            // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
-            assign (topicPartitionOffsetMap.keySet());
-            for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
-                if (!isCommittedForPartition (tp)) {
-                    getConsumer().seek (tp, topicPartitionOffsetMap.get (tp).longValue());
-                }
+        testForJobControlPlaneOrThrow (JCP_CONNECT_TIMEOUT_MILLIS, getInitialStartPosition());
+        // JCP connected, seek when partition not yet committed
+        // do not evaluate PE.getRelaunchCount() to decide seek. It is 0 when the width of a parallel region has changed.
+        assign (topicPartitionOffsetMap.keySet());
+        for (TopicPartition tp: topicPartitionOffsetMap.keySet()) {
+            if (!isCommittedForPartition (tp)) {
+                getConsumer().seek (tp, topicPartitionOffsetMap.get (tp).longValue());
             }
-        }
-        else {
-            assignToPartitionsWithOffsets (topicPartitionOffsetMap);
         }
         resetCommitPeriod (System.currentTimeMillis());
     }
@@ -222,15 +207,10 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     @Override
     @SuppressWarnings("unchecked")
     protected void processResetEvent (Checkpoint checkpoint) {
-        if (getOperatorContext().getNumberOfStreamingInputs() == 0) {
-            trace.debug ("processResetEvent() - ignored");
-            return;
-        }
         final long chkptSeqId = checkpoint.getSequenceId();
         trace.log (DEBUG_LEVEL, "processResetEvent() - entering. seq = " + chkptSeqId);
         try {
-            final ObjectInputStream inputStream = checkpoint.getInputStream();
-            final Set <TopicPartition> partitions = (Set <TopicPartition>) inputStream.readObject();
+            final Set <TopicPartition> partitions = (Set <TopicPartition>) checkpoint.getInputStream().readObject();
             trace.info ("topic partitions from checkpoint = " + partitions);
             // only assign, fetch offset is last committed offset.
             assign (partitions);
@@ -259,79 +239,111 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
 
 
     /**
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.ConsumerClient#supports(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processUpdateAssignmentEvent(TopicPartitionUpdate update) {
+    public boolean supports (ControlPortAction action) {
+        switch (action.getActionType()) {
+        case ADD_ASSIGNMENT:
+        case REMOVE_ASSIGNMENT:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+
+    /**
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
+     */
+    @Override
+    protected void processControlPortActionEvent(ControlPortAction action) {
         try {
+            final ControlPortActionType actionType = action.getActionType();
+            if (actionType == ControlPortActionType.ADD_ASSIGNMENT || actionType == ControlPortActionType.REMOVE_ASSIGNMENT) {
+                trace.info ("action: " + action);
+            } else if (trace.isDebugEnabled()) {
+                trace.debug ("action: " + action);
+            }
             // create a map of current topic partitions and their fetch offsets for next record
             Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
 
             Set<TopicPartition> topicPartitions = getConsumer().assignment();
             topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
-            switch (update.getAction()) {
-            case ADD:
-                update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+            boolean doNewAssign = false;
+            switch (actionType) {
+            case ADD_ASSIGNMENT:
+                action.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     // offset can be -2, -1, or a valid offset o >= 0
                     // -2 means 'seek to beginning', -1 means 'seek to end'
                     currentTopicPartitionOffsets.put(tp, offset);
                 });
-                assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
-                trace.info ("assigned partitions after ADD: " + currentTopicPartitionOffsets);
-                // No need to update offset manager here, like adding topics, etc.
-                // Missing topics in the offset manager are auto-created
-                CommitInfo commits = new CommitInfo (true, false);
-                // Immediately commit the fetch offsets of _only_the_added_ topic partitions
-                update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
-                    // do not put 'offset' into the commits; 'offset' can be -1 or -2 for 'end' or 'begin'
-                    commits.put(tp, getConsumer().position (tp));
-                });
-                commitOffsets (commits);
-                trace.info ("committed offsets of the added topic partitions: " + commits);
+                doNewAssign = currentTopicPartitionOffsets.size() > 0;
+                if (!doNewAssign) {
+                    trace.info ("topic partition assignment unchanged: " + currentTopicPartitionOffsets);
+                } else {
+                    assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
+                    trace.info ("assigned partitions after ADD: " + currentTopicPartitionOffsets);
+                    // No need to update offset manager here, like adding topics, etc.
+                    // Missing topics in the offset manager are auto-created
+                    CommitInfo commits = new CommitInfo (true, false);
+                    // Immediately commit the fetch offsets of _only_the_added_ topic partitions
+                    action.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
+                        // do not put 'offset' into the commits; 'offset' can be -1 or -2 for 'end' or 'begin'
+                        commits.put(tp, getConsumer().position (tp));
+                    });
+                    commitOffsets (commits);
+                    trace.info ("committed offsets of the added topic partitions: " + commits);
+                }
                 break;
-            case REMOVE:
+            case REMOVE_ASSIGNMENT:
                 // x 1. remove messages of the removed topic partitions from the queue - they are all uncommitted
                 // x 2. wait that the queue gets processed - awaitMessageQueueProcessed();
                 // x 3. commit the offsets of the removed topic partitions
                 // x 4. remove the unassigned topic partitions from the offsetManager (or simply clear?)
                 // x 5. update the partition assignment in the consumer
                 // remove messages of removed topic partitions from the message queue
-                getMessageQueue().removeIf (record -> belongsToPartition (record, update.getTopicPartitionOffsetMap().keySet()));
+                getMessageQueue().removeIf (record -> belongsToPartition (record, action.getTopicPartitionOffsetMap().keySet()));
                 awaitMessageQueueProcessed();
                 // now the offset manager can be cleaned without the chance that the removed partition(s) re-appear after tuple submission
                 // remove removed partitions from offset manager. We can't commit offsets for those partitions we are not assigned any more.
                 // the post-condition is, that all messages from the queue have submitted as 
                 // tuples and its offsets +1 are stored in OffsetManager.
-                
+
                 final boolean commitSync = true;
                 final boolean commitPartitionWise = false;
                 CommitInfo commitOffsets = new CommitInfo (commitSync, commitPartitionWise);
                 OffsetManager offsetManager = getOffsetManager();
-                
+
                 synchronized (offsetManager) {
-                    update.getTopicPartitionOffsetMap().forEach ((tp, offsetIrrelevant) -> {
+                    for (TopicPartition tp: action.getTopicPartitionOffsetMap().keySet()) {
                         // make sure that we commit only partitions that are assigned 
                         if (currentTopicPartitionOffsets.containsKey (tp)) {
+                            doNewAssign = true;
                             long offset = offsetManager.getOffset (tp.topic(), tp.partition());
                             // offset is -1 if there is no mapping from topic partition to offset
                             if (offset >= 0) commitOffsets.put (tp, offset);
                             currentTopicPartitionOffsets.remove (tp);
                         }
                         offsetManager.remove (tp.topic(), tp.partition());
-                    });
+                    }
                 }
                 if (!commitOffsets.isEmpty()) {
                     commitOffsets (commitOffsets);
                 }
                 // we can end up here with an empty map after removal of assignments.
-                assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
-                trace.info ("assigned partitions after REMOVE: " + currentTopicPartitionOffsets);
+                if (doNewAssign) {
+                    assignToPartitionsWithOffsets (currentTopicPartitionOffsets);
+                    trace.info ("assigned partitions after REMOVE: " + currentTopicPartitionOffsets);
+                } else {
+                    trace.info ("topic partition assignment unchanged: " + currentTopicPartitionOffsets);
+                }
                 break;
             default:
-                throw new Exception ("processUpdateAssignmentEvent(): unimplemented action: " + update.getAction());
+                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + actionType);
             }
             // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
-            if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
+            if (doNewAssign && getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
                 trace.info ("initiating checkpointing with current partition assignment");
                 // createCheckpoint() throws IOException
                 boolean result = getChkptContext().createCheckpoint();
@@ -356,10 +368,11 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         if (getCheckpointKind() == Kind.OPERATOR_DRIVEN) {
             try {
                 // do not send an event here. In case of operator driven checkpoint it will never be processed (deadlock)
-                checkpoint.getOutputStream().writeObject (getAssignedPartitions());
+                final ObjectOutputStream outputStream = checkpoint.getOutputStream();
+                outputStream.writeObject (getAssignedPartitions());
                 trace.info ("topic partitions written into checkpoint: " + getAssignedPartitions());
             } catch (IOException e) {
-                throw new RuntimeException (e.getLocalizedMessage(), e);
+                throw new RuntimeException (e.getMessage(), e);
             }
         }
         else {
@@ -390,12 +403,10 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
     }
 
 
-
-
     /**
      * The builder for the consumer client following the builder pattern.
      */
-    public static class Builder {
+    public static class Builder implements ConsumerClientBuilder {
 
         private OperatorContext operatorContext;
         private Class<?> keyClass;
@@ -413,7 +424,8 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
         }
 
         public final Builder setKafkaProperties(KafkaOperatorProperties p) {
-            this.kafkaProperties = p;
+            this.kafkaProperties = new KafkaOperatorProperties();
+            this.kafkaProperties.putAll (p);
             return this;
         }
 
@@ -452,14 +464,26 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
             return this;
         }
 
+        @Override
         public ConsumerClient build() throws Exception {
-            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, kafkaProperties);
+            KafkaOperatorProperties p = new KafkaOperatorProperties();
+            p.putAll (this.kafkaProperties);
+            if (p.containsKey (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG)) {
+                p.remove (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG);
+                trace.warn (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG + " removed from consumer configuration (group management disabled)");
+            }
+            NonCrKafkaConsumerClient client = new NonCrKafkaConsumerClient (operatorContext, keyClass, valueClass, p);
             client.setPollTimeout (pollTimeout);
             client.setCommitMode (commitMode);
             client.setCommitCount (commitCount);
             client.setCommitPeriodMillis (commitPeriodMillis); 
             client.setInitialStartPosition (initialStartPosition);
             return client;
+        }
+
+        @Override
+        public int getImplementationMagic() {
+            return NonCrKafkaConsumerClient.class.getName().hashCode();
         }
     }
 }

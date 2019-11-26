@@ -13,12 +13,16 @@
  */
 package com.ibm.streamsx.kafka.operators;
 
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -29,6 +33,7 @@ import com.ibm.streams.operator.Attribute;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.OperatorContext.ContextCheck;
 import com.ibm.streams.operator.OutputTuple;
+import com.ibm.streams.operator.ProcessingElement;
 import com.ibm.streams.operator.StreamSchema;
 import com.ibm.streams.operator.StreamingData.Punctuation;
 import com.ibm.streams.operator.StreamingInput;
@@ -43,26 +48,30 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
+import com.ibm.streamsx.kafka.ControlportJsonParseException;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.MsgFormatter;
-import com.ibm.streamsx.kafka.TopicPartitionUpdateParseException;
 import com.ibm.streamsx.kafka.clients.consumer.CommitMode;
 import com.ibm.streamsx.kafka.clients.consumer.ConsumerClient;
+import com.ibm.streamsx.kafka.clients.consumer.ConsumerClientBuilder;
+import com.ibm.streamsx.kafka.clients.consumer.ControlPortAction;
+import com.ibm.streamsx.kafka.clients.consumer.ControlPortActionType;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.CrKafkaStaticAssignConsumerClient;
+import com.ibm.streamsx.kafka.clients.consumer.DummyConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerClient;
 import com.ibm.streamsx.kafka.clients.consumer.NonCrKafkaConsumerGroupClient;
 import com.ibm.streamsx.kafka.clients.consumer.StartPosition;
-import com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperator {	
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaConsumerOperator.class);
-    
+
     private static final long DEFAULT_CONSUMER_TIMEOUT = 100l;
     private static final long SHUTDOWN_TIMEOUT = 15l;
     private static final TimeUnit SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
@@ -89,11 +98,16 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
     public static final String COMMIT_PERIOD_PARAM = "commitPeriod"; //$NON-NLS-1$
     public static final String START_OFFSET_PARAM = "startOffset"; //$NON-NLS-1$
+    public static final String GROUP_ID_PARAM = "groupId";
+    public static final String STATIC_GROUP_MEMBER_PARAM = "staticGroupMember";
 
     private static final double DEFAULT_COMMIT_PERIOD = 5.0;
 
     private Thread processThread;
-    private ConsumerClient consumer;
+    private ConsumerClientBuilder groupEnabledClientBuilder;
+    private ConsumerClientBuilder staticAssignClientBuilder;
+    private Map<Integer, ConsumerClientBuilder> magics = new HashMap<>();
+    private AtomicReference<ConsumerClient> consumerRef;
     private AtomicBoolean shutdown;
 
     /* Parameters */
@@ -113,12 +127,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private double commitPeriod = DEFAULT_COMMIT_PERIOD;
     private CommitMode commitMode = CommitMode.Time;
     private String groupId = null;
+    private boolean staticGroupMember = false;
     private boolean groupIdSpecified = false;
     private Long startTime = -1l;
 
     private long consumerPollTimeout = DEFAULT_CONSUMER_TIMEOUT;
     private CountDownLatch resettingLatch;
     private CountDownLatch processThreadEndedLatch;
+    private Object monitor = new Object();
     private boolean hasOutputTopic;
     private boolean hasOutputKey;
     private boolean hasOutputOffset;
@@ -127,14 +143,15 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     // The number of messages in which the value was malformed and could not be deserialized
     private Metric nMalformedMessages;
-    private Metric isGroupManagementActive;
+    private Metric nFailedControlTuples;
     long maxDrainMillis = 0l;
+
 
     // Initialize the metrics
     @CustomMetric (kind = Metric.Kind.GAUGE, name = "isGroupManagementActive", description = "Shows the Kafka group management state of the operator. "
             + "When the metric shows 1, group management is active. When the metric is 0, group management is not in place.")
     public void setIsGroupManagementActive (Metric isGroupManagementActive) {
-        this.isGroupManagementActive = isGroupManagementActive;
+        // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
     }
 
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "nDroppedMalformedMessages", description = "Number of dropped malformed messages")
@@ -145,6 +162,11 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @CustomMetric (kind = Metric.Kind.GAUGE, description = "Number of pending messages to be submitted as tuples.")
     public void setnPendingMessages(Metric nPendingMessages) {
         // No need to do anything here. The annotation injects the metric into the operator context, from where it can be retrieved.
+    }
+
+    @CustomMetric (kind = Metric.Kind.COUNTER, description = "Number of failed tuples received on control port", name = "nFailedControlTuples")
+    public void setnFailedControlTuples (Metric m) {
+        this.nFailedControlTuples = m;
     }
 
     @CustomMetric (kind = Metric.Kind.COUNTER, description = "Number times message fetching was paused due to low memory.")
@@ -199,7 +221,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.outputPartitionAttrName = outputPartitionAttrName;
     }
 
-    @Parameter(optional = true, name="startOffset",
+    @Parameter(optional = true, name=START_OFFSET_PARAM,
             description="This parameter indicates the start offset that the operator should begin consuming "
                     + "messages from. In order for this parameter's values to take affect, the **startPosition** "
                     + "parameter must be set to `Offset`. Furthermore, the specific partition(s) that the operator "
@@ -221,7 +243,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
     }
 
-    @Parameter(optional = true, name="startTime",
+    @Parameter(optional = true, name=START_TIME_PARAM,
             description="This parameter is only used when the **startPosition** parameter is set to `Time`. "
                     + "Then the operator will begin "
                     + "reading records from the earliest offset whose timestamp is greater than or "
@@ -233,19 +255,36 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         this.startTime = startTime;
     }
 
-    @Parameter(optional = true, name="groupId",
+    @Parameter (optional = true, name = STATIC_GROUP_MEMBER_PARAM,
+            description = "Enables static Kafka group membership (generates and sets a `group.instance.id` "
+                    + "overriding a potentially user provided group instance identifier) "
+                    + "and sets a higher default session timeout. "
+                    + "when set to `true`.\\n"
+                    + "\\n"
+                    + "This parameter is ignored when group management is not active.\\n"
+                    + "\\n"
+                    + "**Please note, that the Kafka server version must be at minimum 2.3 to use static group membership.** "
+                    + "With lower version, the operator will fail.\\n"
+                    + "\\n"
+                    + "The default value of this parameter is `false`.")
+    public void setStaticGroupMember (boolean staticGrpMember) {
+        this.staticGroupMember  = staticGrpMember;
+    }
+
+    @Parameter(optional = true, name=GROUP_ID_PARAM,
             description="Specifies the group ID that should be used "
                     + "when connecting to the Kafka cluster. The value "
                     + "specified by this parameter will override the `group.id` "
                     + "Kafka property if specified. If this parameter is not "
                     + "specified and the `group.id` Kafka property is not "
                     + "specified, the operator will use a generated group ID, "
-                    + "and the group management feature is not active.")
+                    + "and be a single group member unless the **partition** "
+                    + "parameter is used.")
     public void setGroupId (String groupId) {
         this.groupId = groupId;
     }
 
-    @Parameter(optional = true, name="startPosition", 
+    @Parameter(optional = true, name=START_POSITION_PARAM, 
             description="Specifies where the operator should start "
                     + "reading from topics. Valid options include: `Beginning`, `End`, `Default`, `Time`, and `Offset`.\\n"
                     + "* `Beginning`: The consumer starts reading from the beginning of the data in the Kafka topics. "
@@ -277,7 +316,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "**topic** parameter, and the operator cannot participate in a consumer group.\\n"
                     + "\\n"
                     + "\\n"
-                    + "If this parameter is not specified, the start position is `Default`.\\n"
+                    + "If this parameter is not specified, the start position is `Default`. "
+                    + "This parameter is incompatible with the optional input port.\\n"
                     + "\\n"
                     + "\\n"
                     + "Note, that using a startPosition other than `Default` requires the application always to have a **JobControlPlane** "
@@ -305,7 +345,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "* When using this parameter, the consumer will *assign* the "
                     + "consumer to the specified topics partitions, rather than *subscribe* "
                     + "to the topics. This implies that the consumer will not use Kafka's "
-                    + "group management feature.")
+                    + "group management feature.\\n"
+                    + "* This parameter is incompatible with the optional input port.\\n")
     public void setPartitions(int[] partitions) {
         if (partitions != null) {
             this.partitions = new ArrayList<>(partitions.length);
@@ -317,9 +358,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Parameter(optional = true, name=TOPIC_PARAM,
             description="Specifies the topic or topics that the consumer should "
                     + "subscribe to. To assign the consumer to specific partitions, "
-                    + "use the **partitions** parameter. To specify multiple topics "
-                    + "from which the operator should consume, separate the the "
-                    + "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`.")
+                    + "use the **partitions** parameter in addition. To specify multiple topics "
+                    + "from which the operator should consume, separate the "
+                    + "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`. "
+                    + "To subscribe to multiple topics that match a regular expression, use the **pattern** parameter.\\n"
+                    + "\\n"
+                    + "This parameter is incompatible with the optional input port.")
     public void setTopics(List<String> topics) {
         this.topics = topics;
     }
@@ -333,14 +377,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "* `pattern: \\\"myTopic.\\\\*\\\";` subscribes to `myTopic` and all topics that begin with `myTopic`\\n"
                     + "* `pattern: \\\".\\\\*Topic\\\";` subscribes to `Topic` and all topics that end at `Topic`\\n"
                     + "\\n"
-                    + "This parameter is incompatible with the **topic** and the **partition** parameter. "
-                    + "Dynamic subscription with a pattern implies group management. The parameter is therefore "
-                    + "incompatible with all *operator configurations that disable group management*:\\n"
-                    + "\\n"
-                    + "* no group identifier configured (neither via **groupId** parameter nor as `group.id` consumer configuration)\\n"
-                    + "* presence of an input control port\\n"
-                    + "* usage of the **partition** parameter\\n"
-                    + "* usage of **startPosition** parameter with a different value than `Default` (only when not in consistent region)\\n"
+                    + "This parameter is incompatible with the **topic** and the **partition** parameters, and with the optional input port.\\n"
                     + "\\n"
                     + "The regular expression syntax follows the Perl 5 regular expressions with some differences. "
                     + "For details see [https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html|Regular Expressions in Java 8].")
@@ -413,6 +450,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     }
 
     @ContextCheck(compile = true)
+    public static void warnInputPortDeprecatedWithConsistentRegion (OperatorContextChecker checker) {
+        final OperatorContext operatorContext = checker.getOperatorContext();
+        if (operatorContext.getOptionalContext (ConsistentRegionContext.class) != null && operatorContext.getNumberOfStreamingInputs() > 0) {
+            System.err.println (Messages.getString ("WARN_CONTROLPORT_DEPRECATED_IN_CR", operatorContext.getKind()));
+        }
+    }
+
+    @ContextCheck(compile = true)
     public static void checkStartOffsetRequiresPartition(OperatorContextChecker checker) {
         // parameters startOffset and partition must have the same size - can be checked only at runtime.
         // This implies that partition parameter is required when startOffset is specified - can be checked at compile time.
@@ -435,9 +480,18 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             if (parameterNames.contains(COMMIT_PERIOD_PARAM)) {
                 System.err.println (Messages.getString ("PARAM_IGNORED_IN_CONSITENT_REGION", COMMIT_PERIOD_PARAM));
             }
-            if (crContext.isStartOfRegion() && crContext.isTriggerOperator()) {
-                if (!parameterNames.contains(TRIGGER_COUNT_PARAM)) {
-                    checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
+            if (crContext.isStartOfRegion()) {
+                if (crContext.isTriggerOperator()) {
+                    // 'triggerCount' parameter required
+                    if (!parameterNames.contains (TRIGGER_COUNT_PARAM)) {
+                        checker.setInvalidContext(Messages.getString("TRIGGER_PARAM_MISSING"), new Object[0]); //$NON-NLS-1$
+                    }
+                }
+                else {
+                    // periodic CR; 'triggerCount' ignored
+                    if (parameterNames.contains (TRIGGER_COUNT_PARAM)) {
+                        System.err.println (Messages.getString ("PARAM_IGNORED_FOR_PERIODIC_CR", TRIGGER_COUNT_PARAM));
+                    }
                 }
             }
         }
@@ -454,9 +508,6 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     //    @ContextCheck (compile = true)
     public static void warnStartPositionParamRequiresJCP (OperatorContextChecker checker) {
-        if (!(Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION || Features.ENABLE_NOCR_NO_CONSUMER_SEEK_AFTER_RESTART)) {
-            return;
-        }
         OperatorContext opCtx = checker.getOperatorContext();
         Set<String> paramNames = opCtx.getParameterNames();
         List<StreamingInput<Tuple>> inputPorts = opCtx.getStreamingInputs();
@@ -470,7 +521,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     @ContextCheck (compile = true)
     public static void checkPatternParamCompatibility (OperatorContextChecker checker) {
-        // when input port is configured, topic, pattern, partition, and startPosition are ignored
+        // when input port is configured, topic, pattern, partition, and startPosition go into compile error
         // Do the checks only when no input port is configured
         OperatorContext opCtx = checker.getOperatorContext();
         if (opCtx.getNumberOfStreamingInputs() == 0) {
@@ -492,7 +543,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         Set<String> paramNames = checker.getOperatorContext().getParameterNames();
         if(inputPorts.size() > 0) {
             /*
-             * optional input port is present, thus need to ignore the following parameters:
+             * optional input port is present, following parameters go into compiler error:
              *  * topic
              *  * pattern
              *  * partition
@@ -502,7 +553,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     || paramNames.contains(PATTERN_PARAM)
                     || paramNames.contains(PARTITION_PARAM) 
                     || paramNames.contains(START_POSITION_PARAM)) {
-                System.err.println(Messages.getString("PARAMS_IGNORED_WITH_INPUT_PORT")); //$NON-NLS-1$
+                checker.setInvalidContext (Messages.getString("PARAMS_INCOMPATIBLE_WITH_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
             }
 
             StreamingInput<Tuple> inputPort = inputPorts.get(0);
@@ -623,10 +674,10 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
         Attribute attr = null;
         if (paramNames.contains(paramNameToCheck)) {
-            String topicAttrName = checker.getOperatorContext().getParameterValues(paramNameToCheck).get(0);
-            attr = streamSchema.getAttribute(topicAttrName);
+            String attrName = checker.getOperatorContext().getParameterValues(paramNameToCheck).get(0);
+            attr = streamSchema.getAttribute(attrName);
             if(attr == null) {
-                checker.setInvalidContext(Messages.getString("OUTPUT_ATTRIBUTE_NOT_FOUND", attr), //$NON-NLS-1$
+                checker.setInvalidContext(Messages.getString("OUTPUT_ATTRIBUTE_NOT_FOUND", attrName), //$NON-NLS-1$
                         new Object[0]);
             }
         }
@@ -650,208 +701,228 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
 
     @Override
-    public synchronized void initialize(OperatorContext context) throws Exception {
-        // Must call super.initialize(context) to correctly setup an operator.
-        super.initialize (context);
-        logger.info ("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-                + context.getPE().getJobId());
-        shutdown = new AtomicBoolean(false);
+    public void initialize(OperatorContext context) throws Exception {
+        synchronized (monitor) {
+            // Must call super.initialize(context) to correctly setup an operator.
+            super.initialize (context);
+            logger.info ("Operator " + context.getName() + " initializing in PE: " + context.getPE().getPEId() + " in Job: " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+                    + context.getPE().getJobId());
+            shutdown = new AtomicBoolean(false);
 
-        StreamSchema outputSchema = context.getStreamingOutputs().get(0).getStreamSchema();
-        hasOutputKey = outputSchema.getAttribute(outputKeyAttrName) != null;
-        hasOutputTopic = outputSchema.getAttribute(outputTopicAttrName) != null;
-        hasOutputTimetamp = outputSchema.getAttribute(outputMessageTimestampAttrName) != null;
-        hasOutputPartition = outputSchema.getAttribute(outputPartitionAttrName) != null;
-        hasOutputOffset = outputSchema.getAttribute(outputOffsetAttrName) != null;
+            StreamSchema outputSchema = context.getStreamingOutputs().get(0).getStreamSchema();
+            hasOutputKey = outputSchema.getAttribute(outputKeyAttrName) != null;
+            hasOutputTopic = outputSchema.getAttribute(outputTopicAttrName) != null;
+            hasOutputTimetamp = outputSchema.getAttribute(outputMessageTimestampAttrName) != null;
+            hasOutputPartition = outputSchema.getAttribute(outputPartitionAttrName) != null;
+            hasOutputOffset = outputSchema.getAttribute(outputOffsetAttrName) != null;
 
-        Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
-                : String.class; // default to String.class for key type
-        Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
-        KafkaOperatorProperties kafkaProperties = getKafkaProperties();
+            Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
+                    : String.class; // default to String.class for key type
+            Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
+            KafkaOperatorProperties kafkaProperties = getKafkaProperties();
 
-        // set the group ID property if the groupId parameter is specified
-        if (groupId != null && !groupId.isEmpty()) {
-            kafkaProperties.setProperty (ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        }
-        final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
-        final String gid = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
-        this.groupIdSpecified = gid != null && !gid.isEmpty();
-        logger.log (DEBUG_LEVEL, "group-ID specified: " + this.groupIdSpecified);
-        crContext = context.getOptionalContext (ConsistentRegionContext.class);
-        boolean groupManagementEnabled;
+            // set the group ID property if the groupId parameter is specified
+            if (groupId != null && !groupId.isEmpty()) {
+                kafkaProperties.setProperty (ConsumerConfig.GROUP_ID_CONFIG, groupId);
+            }
+            final boolean hasInputPorts = context.getStreamingInputs().size() > 0;
+            final String gid = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
+            this.groupIdSpecified = gid != null && !gid.trim().isEmpty();
+            logger.log (DEBUG_LEVEL, "group-ID specified: " + this.groupIdSpecified);
 
-        if (crContext == null && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION)
-            groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty()) && startPosition == StartPosition.Default;
-        else 
-            groupManagementEnabled = this.groupIdSpecified && !hasInputPorts && (this.partitions == null || this.partitions.isEmpty());
-        if (this.groupIdSpecified && !groupManagementEnabled) {
+            if (crContext != null) {
+                commitMode = CommitMode.ConsistentRegionDrain;
+            }
+            else {
+                final Set <String> parameterNames = context.getParameterNames();
+                commitMode = parameterNames.contains (COMMIT_COUNT_PARAM)? CommitMode.TupleCount: CommitMode.Time;
+            }
+
+            if (this.staticGroupMember) {
+                // calculate a unique group.instance.id that is consistent accross operator restarts
+                final ProcessingElement pe = context.getPE();
+                final int iidH = pe.getInstanceId().hashCode();
+                final int opnH = context.getName().hashCode();
+                final String groupInstanceId = MsgFormatter.format ("i{0}-o{1}",
+                        (iidH < 0? "N" + (-iidH): "P" + iidH), (opnH < 0? "N" + (-opnH): "P" + opnH));
+                logger.info ("Generated group.instance.id: " + groupInstanceId);
+                kafkaProperties.put (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
+            }
+            // create the builders for the consumer clients
+            if (crContext == null) {
+                this.groupEnabledClientBuilder = new NonCrKafkaConsumerGroupClient.Builder()
+                        .setOperatorContext(context)
+                        .setKafkaProperties(kafkaProperties)
+                        .setKeyClass(keyClass)
+                        .setValueClass(valueClass)
+                        .setSingleTopic (this.topics != null && this.topics.size() == 1)
+                        .setPollTimeout(this.consumerPollTimeout)
+                        .setInitialStartPosition (this.startPosition)
+                        .setCommitMode (commitMode)
+                        .setCommitPeriod (commitPeriod)
+                        .setCommitCount(commitCount);
+
+                this.staticAssignClientBuilder = new NonCrKafkaConsumerClient.Builder()
+                        .setOperatorContext(context)
+                        .setKafkaProperties(kafkaProperties)
+                        .setKeyClass(keyClass)
+                        .setValueClass(valueClass)
+                        .setPollTimeout(this.consumerPollTimeout)
+                        .setInitialStartPosition (this.startPosition)
+                        .setCommitMode (commitMode)
+                        .setCommitPeriod (commitPeriod)
+                        .setCommitCount(commitCount);
+            }
+            else {
+                // CR
+                this.groupEnabledClientBuilder = new CrKafkaConsumerGroupClient.Builder()
+                        .setOperatorContext(context)
+                        .setKafkaProperties(kafkaProperties)
+                        .setKeyClass (keyClass)
+                        .setValueClass (valueClass)
+                        .setPollTimeout (this.consumerPollTimeout)
+                        .setSingleTopic (this.topics != null && this.topics.size() == 1)
+                        .setTriggerCount (this.triggerCount)
+                        .setInitialStartPosition (this.startPosition)
+                        .setInitialStartTimestamp (this.startTime);
+
+                this.staticAssignClientBuilder = new CrKafkaStaticAssignConsumerClient.Builder()
+                        .setOperatorContext(context)
+                        .setKafkaProperties(kafkaProperties)
+                        .setKeyClass(keyClass)
+                        .setValueClass(valueClass)
+                        .setPollTimeout(this.consumerPollTimeout)
+                        .setTriggerCount(this.triggerCount);
+            }
+            magics.put (this.staticAssignClientBuilder.getImplementationMagic(), this.staticAssignClientBuilder);
+            magics.put (this.groupEnabledClientBuilder.getImplementationMagic(), this.groupEnabledClientBuilder);
+            final ConsumerClientBuilder builder;
             if (hasInputPorts) {
-                logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group because the operator is configured with an input port.",
-                        gid, context.getName()));
-            }
-            if (this.partitions != null && !this.partitions.isEmpty()) {
-                logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group because partitions to consume are specified.",
-                        gid, context.getName()));
-            }
-            if (startPosition != StartPosition.Default && !Features.ENABLE_NOCR_CONSUMER_GRP_WITH_STARTPOSITION && crContext == null) {
-                logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
-                        + "will NOT participate in a consumer group because startPosition != Default is configured.",
-                        gid, context.getName()));
-            }
-        }
-        // when group management is disabled and no input port is configured, we must not subscribe with pattern
-        // When we are here it is already guaranteed that we have one of the 'topic' or 'pattern' parameter
-        final boolean p = this.pattern != null;
-        final boolean t = this.topics != null;
-        assert ((p && !t) || (t && !p));
-        if (!groupManagementEnabled && !hasInputPorts && p) {
-            final String msg = Messages.getString ("PATTERN_SUBSCRIPTION_REQUIRES_GROUP_MGT", PATTERN_PARAM, context.getName(), context.getKind());
-            logger.error (msg);
-            throw new KafkaConfigurationException (msg);
-        }
-        if (crContext != null) {
-            commitMode = CommitMode.ConsistentRegionDrain;
-        }
-        else {
-            final Set <String> parameterNames = context.getParameterNames();
-            commitMode = parameterNames.contains (COMMIT_COUNT_PARAM)? CommitMode.TupleCount: CommitMode.Time;
-        }
-        this.isGroupManagementActive.setValue (groupManagementEnabled? 1: 0);
-        if (crContext == null) {
-            if (groupManagementEnabled) {
-                NonCrKafkaConsumerGroupClient.Builder builder = new NonCrKafkaConsumerGroupClient.Builder();
-                builder.setOperatorContext(context)
-                .setKafkaProperties(kafkaProperties)
-                .setKeyClass(keyClass)
-                .setValueClass(valueClass)
-                .setSingleTopic (this.topics != null && this.topics.size() == 1)
-                .setPollTimeout(this.consumerPollTimeout)
-                .setInitialStartPosition (this.startPosition)
-                .setCommitMode (commitMode)
-                .setCommitPeriod (commitPeriod)
-                .setCommitCount(commitCount);
-                consumer = builder.build();
-            }
-            else {
-                NonCrKafkaConsumerClient.Builder builder = new NonCrKafkaConsumerClient.Builder();
-                builder.setOperatorContext(context)
-                .setKafkaProperties(kafkaProperties)
-                .setKeyClass(keyClass)
-                .setValueClass(valueClass)
-                .setPollTimeout(this.consumerPollTimeout)
-                .setInitialStartPosition (this.startPosition)
-                .setCommitMode (commitMode)
-                .setCommitPeriod (commitPeriod)
-                .setCommitCount(commitCount);
-                consumer = builder.build();
-            }
-        } 
-        else {
-            if (groupManagementEnabled) {
-                CrKafkaConsumerGroupClient.Builder builder = new CrKafkaConsumerGroupClient.Builder();
-                builder.setOperatorContext(context)
-                .setKafkaProperties(kafkaProperties)
-                .setKeyClass (keyClass)
-                .setValueClass (valueClass)
-                .setPollTimeout (this.consumerPollTimeout)
-                .setSingleTopic (this.topics != null && this.topics.size() == 1)
-                .setTriggerCount (this.triggerCount)
-                .setInitialStartPosition (this.startPosition)
-                .setInitialStartTimestamp (this.startTime);
-                consumer = builder.build();
-            }
-            else {
-                CrKafkaStaticAssignConsumerClient.Builder builder = new CrKafkaStaticAssignConsumerClient.Builder();
-                builder.setOperatorContext(context)
-                .setKafkaProperties(kafkaProperties)
-                .setKeyClass(keyClass)
-                .setValueClass(valueClass)
-                .setPollTimeout(this.consumerPollTimeout)
-                .setTriggerCount(this.triggerCount);
-                consumer = builder.build();
-            }
-        }
-        logger.info (MsgFormatter.format ("consumer client {0} created", consumer.getClass().getName()));
-        try {
-            consumer.startConsumer();
-        }
-        catch (KafkaClientInitializationException e) {
-
-            e.printStackTrace();
-            logger.error(e.getLocalizedMessage(), e);
-            logger.error("root cause: " + e.getRootCause());
-            throw e;
-        }
-
-        // input port not used, so topic or pattern must be defined
-        if (!hasInputPorts) {
-            if (t) {  // topics != null
-                final boolean registerAsInput = true;
-                registerForDataGovernance(context, topics, registerAsInput);
-                switch (startPosition) {
-                case Time:
-                    consumer.subscribeToTopicsWithTimestamp (topics, partitions, startTime);
-                    break;
-                case Offset:
-                    consumer.subscribeToTopicsWithOffsets (topics.get(0), partitions, startOffsets);
-                    break;
-                default:
-                    consumer.subscribeToTopics (topics, partitions, startPosition);
+                if (crContext != null) {
+                    // in CR, we do not groupManagement with input port:
+                    builder = this.staticAssignClientBuilder;
+                }
+                else {
+                    // not in CR: select the right builder in checkpoint reset or on first partition/topic addition
+                    builder = new DummyConsumerClient.Builder()
+                            .setOperatorContext (context)
+                            .setKafkaProperties (kafkaProperties);
+                    magics.put (builder.getImplementationMagic(), builder);
                 }
             }
             else {
-                switch (startPosition) {
-                case Time:
-                    consumer.subscribeToTopicsWithTimestamp (pattern, startTime);
-                    break;
-                case Beginning:
-                case End:
-                case Default:
-                    consumer.subscribeToTopics (pattern, startPosition);
-                    break;
-                default:
-                    throw new KafkaClientInitializationException ("Illegal 'startPosition' value for subscription with pattern: " + startPosition);
+                boolean groupManagementEnabled;
+                if (Features.ENABLE_GROUP_MANAGEMENT_NO_USER_GROUP_ID) {
+                    groupManagementEnabled = this.partitions == null || this.partitions.isEmpty();
+                } else {
+                    // legacy (2.x) behavior
+                    groupManagementEnabled = this.groupIdSpecified && (this.partitions == null || this.partitions.isEmpty());
+                }
+                if (this.groupIdSpecified && !groupManagementEnabled) {
+                    if (this.partitions != null && !this.partitions.isEmpty()) {
+                        logger.warn (MsgFormatter.format ("The group.id ''{0}'' is specified. The ''{1}'' operator "
+                                + "will NOT participate in a consumer group because partitions to consume are specified.",
+                                gid, context.getName()));
+                    }
+                }
+
+                // when group management is disabled and no input port is configured, we must not subscribe with pattern
+                // When we are here it is already guaranteed that we have one of the 'topic' or 'pattern' parameter
+                final boolean p = this.pattern != null;
+                final boolean t = this.topics != null;
+                assert ((p && !t) || (t && !p));
+                if (!groupManagementEnabled && p) {
+                    final String msg = Messages.getString ("PATTERN_SUBSCRIPTION_REQUIRES_GROUP_MGT", PATTERN_PARAM, context.getName(), context.getKind());
+                    logger.error (msg);
+                    throw new KafkaConfigurationException (msg);
+                }
+                builder = groupManagementEnabled? this.groupEnabledClientBuilder: this.staticAssignClientBuilder;
+            }
+
+            ConsumerClient client = builder.build();
+            consumerRef = new AtomicReference<>(client);
+            logger.info (MsgFormatter.format ("consumer client {0} created", client.getClass().getName()));
+            try {
+                client.startConsumer();
+            }
+            catch (KafkaClientInitializationException e) {
+
+                e.printStackTrace();
+                logger.error(e.getLocalizedMessage(), e);
+                logger.error("root cause: " + e.getRootCause());
+                throw e;
+            }
+
+            // input port not used, so topic or pattern must be defined
+            if (!hasInputPorts) {
+                if (this.topics != null) {
+                    final boolean registerAsInput = true;
+                    registerForDataGovernance(context, topics, registerAsInput);
+                    switch (startPosition) {
+                    case Time:
+                        client.subscribeToTopicsWithTimestamp (topics, partitions, startTime);
+                        break;
+                    case Offset:
+                        client.subscribeToTopicsWithOffsets (topics.get(0), partitions, startOffsets);
+                        break;
+                    default:
+                        client.subscribeToTopics (topics, partitions, startPosition);
+                    }
+                }
+                else {
+                    switch (startPosition) {
+                    case Time:
+                        client.subscribeToTopicsWithTimestamp (pattern, startTime);
+                        break;
+                    case Beginning:
+                    case End:
+                    case Default:
+                        client.subscribeToTopics (pattern, startPosition);
+                        break;
+                    default:
+                        throw new KafkaClientInitializationException ("Illegal 'startPosition' value for subscription with pattern: " + startPosition);
+                    }
                 }
             }
-        }
 
-        if (crContext != null && context.getPE().getRelaunchCount() > 0) {
-            resettingLatch = new CountDownLatch(1);
-        }
-
-        processThread = getOperatorContext().getThreadFactory().newThread(new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    processThreadEndedLatch = new CountDownLatch (1);
-                    // initiates start polling if assigned or subscribed by sending an event
-                    produceTuples();
-                } catch (Exception e) {
-                    Logger.getLogger (this.getClass()).error("Operator error", e); //$NON-NLS-1$
-                    // Propagate all exceptions to the runtime to make the PE fail and possibly restart.
-                    // Otherwise this thread terminates leaving the PE in a healthy state without being healthy.
-                    throw new RuntimeException (e.getLocalizedMessage(), e);
-                } finally {
-                    if (processThreadEndedLatch != null) processThreadEndedLatch.countDown();
-                    logger.info ("process thread (tid = " +  Thread.currentThread().getId() + ") ended.");
-                }
+            if (crContext != null && context.getPE().getRelaunchCount() > 0) {
+                resettingLatch = new CountDownLatch(1);
             }
-        });
 
-        processThread.setDaemon(false);
+            processThread = getOperatorContext().getThreadFactory().newThread(new Runnable() {
+
+                @Override
+                public void run() {
+                    try {
+                        processThreadEndedLatch = new CountDownLatch (1);
+                        // initiates start polling if assigned or subscribed by sending an event
+                        produceTuples();
+                    } catch (Exception e) {
+                        Logger.getLogger (this.getClass()).error("Operator error", e); //$NON-NLS-1$
+                        // Propagate all exceptions to the runtime to make the PE fail and possibly restart.
+                        // Otherwise this thread terminates leaving the PE in a healthy state without being healthy.
+                        throw new RuntimeException (e.getLocalizedMessage(), e);
+                    } finally {
+                        if (processThreadEndedLatch != null) processThreadEndedLatch.countDown();
+                        logger.info ("process thread (tid = " +  Thread.currentThread().getId() + ") ended.");
+                    }
+                }
+            });
+
+            processThread.setDaemon(false);
+        }
     }
 
     @Override
-    public synchronized void allPortsReady() throws Exception {
-        OperatorContext context = getOperatorContext();
-        logger.info ("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
-                + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
-        // start the thread that produces the tuples out of the message queue. The thread runs the produceTuples() method.
-        if (processThread != null) {
-            processThread.start();
+    public void allPortsReady() throws Exception {
+        synchronized (monitor) {
+            OperatorContext context = getOperatorContext();
+            logger.info ("Operator " + context.getName() + " all ports are ready in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
+                    + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
+            // start the thread that produces the tuples out of the message queue. The thread runs the produceTuples() method.
+            if (processThread != null) {
+                processThread.start();
+            }
         }
     }
 
@@ -866,9 +937,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 return;
             }
         }
-
-        if(consumer.isSubscribedOrAssigned()) {
-            consumer.sendStartPollingEvent();
+        final ConsumerClient consumerInitial = consumerRef.get();
+        if(consumerInitial.isSubscribedOrAssigned()) {
+            consumerInitial.sendStartPollingEvent();
         }
         /*
          * Shutdown implementation:
@@ -890,6 +961,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                 }
             }
             try {
+                ConsumerClient consumer = consumerRef.get();
                 // Any exceptions except InterruptedException thrown here are propagated to the caller
                 // Make timeout for 'getNextRecord' not too high as it influences the granularity of time based offset commit
                 ConsumerRecord<?, ?> record = consumer.getNextRecord (100, TimeUnit.MILLISECONDS);
@@ -910,7 +982,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
         }
         try {
-            consumer.sendStopPollingEvent();
+            consumerRef.get().sendStopPollingEvent();
         }
         catch (InterruptedException ie) {
             // interrupted during shutdown
@@ -999,38 +1071,111 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void processPunctuation (StreamingInput<Tuple> stream, Punctuation mark) throws Exception {
         if (mark == Punctuation.FINAL_MARKER) {
-            logger.fatal ("Final Marker received at input port. Tuple submission is stopped. Stop fetching records.");
-            // make the processThread - the thread that submits tuples and initiates offset commit - terminate
-            shutdown.set (true);
-            if (processThreadEndedLatch != null) {
-                processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-                processThreadEndedLatch = null;
+            synchronized (monitor) {
+                logger.fatal ("Final Marker received at input port. Tuple submission is stopped. Stop fetching records.");
+                // make the processThread - the thread that submits tuples and initiates offset commit - terminate
+                shutdown.set (true);
+                if (processThreadEndedLatch != null) {
+                    processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+                    processThreadEndedLatch = null;
+                }
+                final ConsumerClient consumer = consumerRef.get();
+                consumer.sendStopPollingEvent();
+                consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
             }
-            consumer.sendStopPollingEvent();
-            consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
         }
     }
 
     @Override
     public void process (StreamingInput<Tuple> stream, Tuple tuple) throws Exception {
+        synchronized (monitor) {
+            logger.info ("process >>> ENTRY");
+            boolean interrupted = false;
+            try {
+                final ConsumerClient consumer = consumerRef.get();
+                logger.info ("current consumer implementation: " + consumer);
+                ControlPortAction actn = ControlPortAction.fromJSON (tuple.getString(0));
+                final ControlPortActionType action = actn.getActionType();
+                if (consumer.supports (actn)) {
+                    logger.info ("consumer implementation supports " + action);
+                    consumer.onControlPortAction (actn);
+                }
+                else {
+                    if ((consumer instanceof DummyConsumerClient) && (action == ControlPortActionType.ADD_ASSIGNMENT || action == ControlPortActionType.ADD_SUBSCRIPTION)) {
+                        logger.info ("replacing ConsumerClient by a version that supports " + action);
+                        // we can change the client implementation
+                        if (consumer.isProcessing()) {
+                            consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+                        }
+                        final ConsumerClientBuilder builder;
+                        if (action == ControlPortActionType.ADD_SUBSCRIPTION) {
+                            if (crContext != null) {
+                                logger.error ("topic subscription via control port is not supported when the operator is used in a consistent region. Ignoring " + actn.getJson());
+                                nFailedControlTuples.increment();
+                                logger.info ("process <<< EXIT");
+                                return;
+                            }
+                            builder = this.groupEnabledClientBuilder;
+                        }
+                        else {
+                            if (this.groupIdSpecified) {
+                                logger.warn (MsgFormatter.format ("A group.id is specified. The ''{0}'' operator "
+                                        + "will NOT participate in a consumer group because the operator assigns partitions.",
+                                        getOperatorContext().getName()));
+                            }
+                            builder = this.staticAssignClientBuilder;
+                        }
 
-        boolean interrupted = false;
-        try {
-            TopicPartitionUpdate updt = TopicPartitionUpdate.fromJSON (tuple.getString(0));
-            consumer.onTopicAssignmentUpdate (updt);
-        } catch (TopicPartitionUpdateParseException e) {
-            logger.error("Could not process control tuple. Parsing JSON '" + e.getJson() + "' failed.");
-            logger.error (e.getMessage(), e);
-        } catch (InterruptedException e) {
-            // interrupted during shutdown
-            interrupted = true;
-        } catch (Exception e) {
-            logger.error("Could not process control tuple: '" + tuple + "'");
-            logger.error(e.getMessage(), e);
-        } finally {
-            if (!interrupted && consumer.isSubscribedOrAssigned()) {
-                logger.info ("sendStartPollingEvent ...");
-                consumer.sendStartPollingEvent();
+                        logger.info("Using client builder: " + builder);
+                        final ConsumerClient newClient = builder.build();
+                        logger.info (MsgFormatter.format ("consumer client {0} created", newClient.getClass().getName()));
+                        try {
+                            newClient.startConsumer();
+                            if (consumerRef.compareAndSet (consumer, newClient)) {
+                                logger.info (MsgFormatter.format ("consumer client implementation {0} replaced by {1}",
+                                        consumer.getClass().getName(),
+                                        newClient.getClass().getName()));
+                                newClient.onControlPortAction (actn);
+                            }
+                            else {
+                                logger.warn (MsgFormatter.format ("consumer client replacement failed"));
+                                newClient.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+                                nFailedControlTuples.increment();
+                            }
+                        }
+                        catch (KafkaClientInitializationException e) {
+                            logger.error(e.getLocalizedMessage(), e);
+                            logger.error("root cause: " + e.getRootCause());
+                            nFailedControlTuples.increment();
+                            throw e;
+                        }
+                    }
+                    else {
+                        // unsupported action
+                        logger.error ("Could not process control tuple. Action " + action + " is not supported by the '" + consumer.getClass().getName() + "' ConsumerClient implementation. Tuple: '" + tuple + "'");
+                        nFailedControlTuples.increment();
+                    }
+                }
+            } catch (ControlportJsonParseException e) {
+                logger.error("Could not process control tuple. Parsing JSON '" + e.getJson() + "' failed.");
+                logger.error (e.getLocalizedMessage(), e);
+                nFailedControlTuples.increment();
+            } catch (InterruptedException e) {
+                // interrupted during shutdown
+                interrupted = true;
+                nFailedControlTuples.increment();
+            } catch (Exception e) {
+                e.printStackTrace();
+                logger.error("Could not process control tuple: '" + tuple + "':" + e);
+                logger.error (e.getLocalizedMessage(), e);
+                nFailedControlTuples.increment();
+            } finally {
+                final ConsumerClient consumer = consumerRef.get();
+                if (!interrupted && consumer.isSubscribedOrAssigned()) {
+                    logger.info ("sendStartPollingEvent ...");
+                    consumer.sendStartPollingEvent();
+                }
+                logger.info ("process <<< EXIT");
             }
         }
     }
@@ -1042,27 +1187,31 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
      * @throws Exception
      *             Operator failure, will cause the enclosing PE to terminate.
      */
-    public synchronized void shutdown() throws Exception {
-        final OperatorContext context = getOperatorContext();
-        logger.info ("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
-                + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
-        shutdown.set (true);
-        if (processThreadEndedLatch != null) {
-            processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-            processThreadEndedLatch = null;
+    public void shutdown() throws Exception {
+        synchronized (monitor) {
+            final OperatorContext context = getOperatorContext();
+            logger.info ("Operator " + context.getName() + " shutting down in PE: " + context.getPE().getPEId() //$NON-NLS-1$ //$NON-NLS-2$
+                    + " in Job: " + context.getPE().getJobId()); //$NON-NLS-1$
+            shutdown.set (true);
+            if (processThreadEndedLatch != null) {
+                processThreadEndedLatch.await (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+                processThreadEndedLatch = null;
+            }
+            final ConsumerClient consumer = consumerRef.get();
+            if (consumer.isProcessing()) {
+                consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+            }
+            logger.info ("Operator " + context.getName() + ": shutdown done");
+            // Must call super.shutdown()
+            super.shutdown();
         }
-        if (consumer.isProcessing()) {
-            consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
-        }
-        logger.info ("Operator " + context.getName() + ": shutdown done");
-        // Must call super.shutdown()
-        super.shutdown();
     }
 
     @Override
     public void drain() throws Exception {
         logger.log (DEBUG_LEVEL, ">>> DRAIN"); //$NON-NLS-1$
         long before = System.currentTimeMillis();
+        final ConsumerClient consumer = consumerRef.get();
         if (consumer.isProcessing()) {
             consumer.onDrain();
         }
@@ -1088,6 +1237,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void retireCheckpoint (long id) throws Exception {
         logger.debug(">>> RETIRE CHECKPOINT (ckpt id=" + id + ")");
+        final ConsumerClient consumer = consumerRef.get();
         if (consumer.isProcessing()) {
             consumer.onCheckpointRetire (id);
         }
@@ -1096,6 +1246,8 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     @Override
     public void checkpoint(Checkpoint checkpoint) throws Exception {
         logger.log (DEBUG_LEVEL, ">>> CHECKPOINT (ckpt id=" + checkpoint.getSequenceId() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+        final ConsumerClient consumer = consumerRef.get();
+        checkpoint.getOutputStream().writeInt (consumer.getImplementationMagic());
         if (consumer.isProcessing()) {
             consumer.onCheckpoint (checkpoint);
         }
@@ -1108,6 +1260,42 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         logger.log (DEBUG_LEVEL, MsgFormatter.format(">>> RESET (ckpt id/attempt={0,number,#}/{1})", sequenceId, (crContext == null? "-": "" + attempt)));
         final long before = System.currentTimeMillis();
         try {
+            final ObjectInputStream inputStream = checkpoint.getInputStream();
+            final int chkptMagic = inputStream.readInt();
+            logger.info ("magic read from checkpoint: " + chkptMagic);
+            ConsumerClient consumer = consumerRef.get();
+            if (chkptMagic == consumer.getImplementationMagic()) {
+                logger.info ("checkpoint fits current ConsumerClient implementation.");
+            }
+            else {
+                logger.info ("checkpoint does not fit current ConsumerClient implementation. Building matching client ...");
+                if (consumer.isProcessing()) {
+                    consumer.onShutdown (SHUTDOWN_TIMEOUT, SHUTDOWN_TIMEOUT_TIMEUNIT);
+                }
+                final ConsumerClientBuilder builder = magics.get (chkptMagic);
+                final ConsumerClient newClient = builder.build();
+                if (consumerRef.compareAndSet (consumer, newClient)) {
+                    try {
+                        newClient.startConsumer();
+                        logger.info (MsgFormatter.format ("consumer client implementation {0} replaced by {1}",
+                                consumer.getClass().getName(),
+                                newClient.getClass().getName()));
+                    }
+                    catch (KafkaClientInitializationException e) {
+                        logger.error(e.getLocalizedMessage(), e);
+                        logger.error("root cause: " + e.getRootCause());
+                        throw new KafkaOperatorResetFailedException ("consumer client replacement failed", e);
+                    }
+                }
+                else {
+                    if (consumerRef.get().getImplementationMagic() != chkptMagic) {
+                        logger.warn (MsgFormatter.format ("consumer client replacement failed"));
+                        throw new KafkaOperatorResetFailedException ("consumer client replacement failed");
+                    }
+                }
+            }
+
+            consumer = consumerRef.get();
             if (consumer.isProcessing()) {
                 // it is up to the consumer client implementation to stop polling.
                 consumer.onReset (checkpoint);
@@ -1132,6 +1320,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         final int attempt = crContext == null? -1: crContext.getResetAttempt();
         logger.log (DEBUG_LEVEL, MsgFormatter.format(">>> RESET TO INIT (attempt={0})", attempt));
         final long before = System.currentTimeMillis();
+        final ConsumerClient consumer = consumerRef.get();
         if (consumer.isProcessing()) {
             // it is up to the consumer client implementation to stop polling.
             consumer.onResetToInitialState();

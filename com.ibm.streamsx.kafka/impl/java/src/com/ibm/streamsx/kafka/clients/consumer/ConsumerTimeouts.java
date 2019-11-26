@@ -36,21 +36,9 @@ public class ConsumerTimeouts {
     // consumers while a consumer is restarted. When a consumer restarts (subscribes)
     // the partitions are re-assigned anyway.
     // When a consumer closes the client (graceful shutdown on stopPE) the group coordinator initializes re-balance immediately.
-    private static final long SESSION_TIMEOUT_MS = 20000;
+    private static final long SESSION_TIMEOUT_MS_DYNAMIC_GRP = 20000;
+    private static final long SESSION_TIMEOUT_MS_STATIC_GRP = 120000;
     private static final long METADATA_MAX_AGE_MS = 2000;
-//    auto.commit.interval.ms = 5000     -
-//    connections.max.idle.ms = 540000   
-//    fetch.max.wait.ms = 500            
-//    heartbeat.interval.ms = 3000       
-//    max.poll.interval.ms = 540000      x
-//    metadata.max.age.ms = 300000       
-//    metrics.sample.window.ms = 30000   
-//    reconnect.backoff.max.ms = 1000    
-//    reconnect.backoff.ms = 50          
-//    request.timeout.ms = 125000        x
-//    retry.backoff.ms = 100             
-//    session.timeout.ms = 120000        x
-
 
     @SuppressWarnings("unused")
     private final OperatorContext opContext;
@@ -75,7 +63,9 @@ public class ConsumerTimeouts {
             crResetTimeoutMs = 0;
             crDrainTimeoutMs = 0;
         }
-        this.kafkaProperties = kafkaProperties;
+        // clone the Kafka properties to avoid they being changed when properties are setup.
+        this.kafkaProperties = new KafkaOperatorProperties();
+        this.kafkaProperties.putAll (kafkaProperties);
     }
 
     /**
@@ -90,11 +80,19 @@ public class ConsumerTimeouts {
     }
 
     /**
-     * Returns the minimum timeout for session.timeout.ms in milliseconds, which should be higher than the PE restart + reset time of an operator. 
+     * Returns the minimum timeout for session.timeout.ms in milliseconds, which should be higher than the PE restart + reset time of an operator.
+     * With set group.instance.id, the value is 900000, 15 minutes. 
      * @return the recommended value for session.timeout.ms
      */
     public long getSessionTimeoutMs () {
-        return SESSION_TIMEOUT_MS;
+        final boolean isDynamicGroupMember = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "").trim().isEmpty();
+        if (isDynamicGroupMember) return SESSION_TIMEOUT_MS_DYNAMIC_GRP;
+
+        // default broker configs for maximum values:
+        // group.max.session.timeout.ms = 300000 (5 min) for Kafka <= 2.2
+        // group.max.session.timeout.ms = 1800000 (30 min) since Kafka 2.3
+        final long crResetTo12 = (long) (1.2 * crResetTimeoutMs);
+        return crResetTo12 > SESSION_TIMEOUT_MS_STATIC_GRP? crResetTo12: SESSION_TIMEOUT_MS_STATIC_GRP; 
     }
 
     /**
@@ -102,8 +100,11 @@ public class ConsumerTimeouts {
      * @return the recommended value for request.timeout.ms
      */
     public long getRequestTimeoutMs () {
-        long sessionTimeoutMs = SESSION_TIMEOUT_MS;
-        if (kafkaProperties.containsKey (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG)) {
+        long sessionTimeoutMs = SESSION_TIMEOUT_MS_DYNAMIC_GRP;
+        // when group.instance.id is set, the session timeout may have been set to a really high value.
+        // In this case do NOT uses session.timeout.ms + 5s
+        final boolean isDynamicGroupMember = kafkaProperties.getProperty (ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "").trim().isEmpty();
+        if (kafkaProperties.containsKey (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG) && isDynamicGroupMember) {
             sessionTimeoutMs = Long.valueOf (kafkaProperties.getProperty (ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG));
         }
         return sessionTimeoutMs + 5000;
@@ -127,9 +128,22 @@ public class ConsumerTimeouts {
      */
     public void adjust (KafkaOperatorProperties kafkaProperties) {
         adjustPropertyToMin (kafkaProperties, ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, getMaxPollIntervalMs());
-        adjustPropertyToMax (kafkaProperties, ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, getSessionTimeoutMs());
+        setPropertyIfUnset  (kafkaProperties, ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "" + getSessionTimeoutMs());
         adjustPropertyToMin (kafkaProperties, ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, getRequestTimeoutMs());
         adjustPropertyToMax (kafkaProperties, ConsumerConfig.METADATA_MAX_AGE_CONFIG, METADATA_MAX_AGE_MS);
+    }
+
+    /**
+     * Sets a property value if the key is not yet existing in given kafkaProperties
+     * @param kafkaProperties  The kafka properties that get mutated
+     * @param propertyName     the property name
+     * @param value            the property value to set
+     */
+    private void setPropertyIfUnset (KafkaOperatorProperties kafkaProperties, final String propertyName, final String value) {
+        if (!kafkaProperties.containsKey (propertyName)) {
+            kafkaProperties.put (propertyName, value);
+            trace.info (MsgFormatter.format ("consumer config ''{0}'' has been set to {1}.", propertyName, value));
+        }
     }
 
     /**

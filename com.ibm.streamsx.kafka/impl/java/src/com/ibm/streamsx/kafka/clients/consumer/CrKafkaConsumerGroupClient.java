@@ -69,6 +69,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
+import com.ibm.streamsx.kafka.KafkaOperatorNotRegisteredException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.MsgFormatter;
@@ -157,6 +158,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         }
         trace.info (MsgFormatter.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
+        isGroupManagementActive.setValue (1L);
         trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
     }
@@ -845,10 +847,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             trace.error (msg);
             throw new KafkaConfigurationException (msg);
         }
-        // test that group-ID is not the generated (random) value
-        if (isGroupIdGenerated()) {
-            throw new KafkaConfigurationException (getThisClassName() + " cannot be used without specifying the groupId parameter or a group.id consumer property");
-        }
         if (initialStartPosition == StartPosition.Offset) {
             throw new KafkaConfigurationException (getThisClassName() + " does not support startPosition = " + initialStartPosition);
         }
@@ -1009,63 +1007,80 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 trace.warn (MsgFormatter.format ("Operator name in checkpoint ({0}) differs from current operator name: {1}", myOperatorNameInCkpt, operatorName));
             }
             if (!contributingOperators.contains (operatorName)) {
-                trace.error (MsgFormatter.format ("This operator''s name ({0}) not found in contributing operator names: {1}",
-                        operatorName, contributingOperators));
-            }
-            trace.info (MsgFormatter.format ("contributing {0} partition => offset mappings to the group''s checkpoint.", offsMgr.size()));
-            // send checkpoint data to CrGroupCoordinator MXBean and wait for the notification
-            // to fetch the group's complete checkpoint. Then, process the group's checkpoint.
-            Map<CrConsumerGroupCoordinator.TP, Long> partialOffsetMap = new HashMap<>();
-            for (TopicPartition tp: offsMgr.getMappedTopicPartitions()) {
-                final String topic = tp.topic();
-                final int partition = tp.partition();
-                final Long offset = offsMgr.getOffset (topic, partition);
-                partialOffsetMap.put (new TP (topic, partition), offset);
-            }
-
-            trace.info (MsgFormatter.format ("Merging my group''s checkpoint contribution: partialOffsetMap = {0}, myOperatorName = {1}",
-                    partialOffsetMap, operatorName));
-            this.crGroupCoordinatorMxBean.mergeConsumerCheckpoint (chkptSeqId, resetAttempt, contributingOperators.size(), partialOffsetMap, operatorName);
-
-            // check JMX notification and wait for notification
-            jmxNotificationConditionLock.lock();
-            long waitStartTime= System.currentTimeMillis();
-            // increase timeout exponentially with every reset attempt by 20%
-            // long timeoutMillis = (long)(Math.pow (1.2, resetAttempt) * (double)timeouts.getJmxResetNotificationTimeout());
-            long timeoutMillis = timeouts.getJmxResetNotificationTimeout();
-            boolean waitTimeLeft = true;
-            int nWaits = 0;
-            long timeElapsed = 0;
-            trace.log (DEBUG_LEVEL, MsgFormatter.format ("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2,number,#} ms.",
-                    CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, timeoutMillis));
-            while (!jmxMergeCompletedNotifMap.containsKey (key) && waitTimeLeft) {
-                long remainingTime = timeoutMillis - timeElapsed;
-                waitTimeLeft = remainingTime > 0;
-                if (waitTimeLeft) {
-                    if (nWaits++ %50 == 0) trace.log (DEBUG_LEVEL, MsgFormatter.format ("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2,number,#} of {3,number,#} ms",
-                            CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, remainingTime, timeoutMillis));
-                    jmxNotificationCondition.await (100, TimeUnit.MILLISECONDS);
-                }
-                timeElapsed = System.currentTimeMillis() - waitStartTime;
-            }
-            CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get (key);
-            if (merge == null) {
-                final String msg = MsgFormatter.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3,number,#} milliseconds.",
-                        CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, crGroupCoordinatorMXBeanName, timeoutMillis);
+                final String msg = MsgFormatter.format ("This operator''s name ({0}) not found in contributing operator names: {1}",
+                        operatorName, contributingOperators);
                 trace.error (msg);
                 throw new KafkaOperatorResetFailedException (msg);
             }
-            else {
-                trace.info (MsgFormatter.format ("waiting for JMX notification for sequenceId {0} took {1} ms", key, timeElapsed));
+            trace.info (MsgFormatter.format ("contributing {0} partition => offset mappings to the group''s checkpoint.", offsMgr.size()));
+            if (contributingOperators.size() == 1) {
+                trace.info ("this single operator participated in consumer group at checkpoint time. Checkpoint merge and distribution via MXBean disabled.");
+                assert (contributingOperators.contains (operatorName));
+                initSeekOffsetMap();
+                for (TopicPartition tp: offsMgr.getMappedTopicPartitions()) {
+                    final String topic = tp.topic();
+                    final int partition = tp.partition();
+                    final Long offset = offsMgr.getOffset (topic, partition);
+                    this.seekOffsetMap.put (tp, offset);
+                }
             }
+            else {
+                // send checkpoint data to CrGroupCoordinator MXBean and wait for the notification
+                // to fetch the group's complete checkpoint. Then, process the group's checkpoint.
+                Map<CrConsumerGroupCoordinator.TP, Long> partialOffsetMap = new HashMap<>();
+                for (TopicPartition tp: offsMgr.getMappedTopicPartitions()) {
+                    final String topic = tp.topic();
+                    final int partition = tp.partition();
+                    final Long offset = offsMgr.getOffset (topic, partition);
+                    partialOffsetMap.put (new TP (topic, partition), offset);
+                }
 
-            Map <TP, Long> mergedOffsetMap = merge.getConsolidatedOffsetMap();
-            trace.info ("reset offsets (group's checkpoint) received from MXBean: " + mergedOffsetMap);
+                trace.info (MsgFormatter.format ("Merging my group''s checkpoint contribution: partialOffsetMap = {0}, myOperatorName = {1}",
+                        partialOffsetMap, operatorName));
+                this.crGroupCoordinatorMxBean.mergeConsumerCheckpoint (chkptSeqId, resetAttempt, contributingOperators.size(), partialOffsetMap, operatorName);
 
-            initSeekOffsetMap();
-            mergedOffsetMap.forEach ((tp, offset) -> {
-                this.seekOffsetMap.put (new TopicPartition (tp.getTopic(), tp.getPartition()), offset);
-            });
+                // check JMX notification and wait for notification
+                jmxNotificationConditionLock.lock();
+                long waitStartTime= System.currentTimeMillis();
+                // increase timeout exponentially with every reset attempt by 20%
+                // long timeoutMillis = (long)(Math.pow (1.2, resetAttempt) * (double)timeouts.getJmxResetNotificationTimeout());
+                long timeoutMillis = timeouts.getJmxResetNotificationTimeout();
+                boolean waitTimeLeft = true;
+                int nWaits = 0;
+                long timeElapsed = 0;
+                trace.log (DEBUG_LEVEL, MsgFormatter.format ("checking receiption of JMX notification {0} for sequenceId {1}. timeout = {2,number,#} ms.",
+                        CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, timeoutMillis));
+                while (!jmxMergeCompletedNotifMap.containsKey (key) && waitTimeLeft) {
+                    long remainingTime = timeoutMillis - timeElapsed;
+                    waitTimeLeft = remainingTime > 0;
+                    if (waitTimeLeft) {
+                        if (nWaits++ %50 == 0) trace.log (DEBUG_LEVEL, MsgFormatter.format ("waiting for JMX notification {0} for sequenceId {1}. Remaining time = {2,number,#} of {3,number,#} ms",
+                                CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, remainingTime, timeoutMillis));
+                        jmxNotificationCondition.await (100, TimeUnit.MILLISECONDS);
+                    }
+                    timeElapsed = System.currentTimeMillis() - waitStartTime;
+                }
+
+                CrConsumerGroupCoordinator.CheckpointMerge merge = jmxMergeCompletedNotifMap.get (key);
+                jmxNotificationConditionLock.unlock();
+                if (merge == null) {
+                    final String msg = MsgFormatter.format ("timeout receiving {0} JMX notification for {1} from MXBean {2} in JCP. Current timeout is {3,number,#} milliseconds.",
+                            CrConsumerGroupCoordinatorMXBean.MERGE_COMPLETE_NTF_TYPE, key, crGroupCoordinatorMXBeanName, timeoutMillis);
+                    trace.error (msg);
+                    throw new KafkaOperatorResetFailedException (msg);
+                }
+                else {
+                    trace.info (MsgFormatter.format ("waiting for JMX notification for sequenceId {0} took {1} ms", key, timeElapsed));
+                }
+
+                Map <TP, Long> mergedOffsetMap = merge.getConsolidatedOffsetMap();
+                trace.info ("reset offsets (group's checkpoint) received from MXBean: " + mergedOffsetMap);
+
+                initSeekOffsetMap();
+                mergedOffsetMap.forEach ((tp, offset) -> {
+                    this.seekOffsetMap.put (new TopicPartition (tp.getTopic(), tp.getPartition()), offset);
+                });
+            }
         }
         catch (InterruptedException e) {
             trace.log (DEBUG_LEVEL, "createSeekOffsetMap(): interrupted waiting for the JMX notification");
@@ -1074,9 +1089,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         catch (IOException | ClassNotFoundException e) {
             trace.error ("reset failed: " + e.getLocalizedMessage());
             throw new KafkaOperatorResetFailedException (MsgFormatter.format ("resetting operator {0} to checkpoint sequence ID {1} failed: {2}", getOperatorContext().getName(), chkptSeqId, e.getLocalizedMessage()), e);
-        }
-        finally {
-            jmxNotificationConditionLock.unlock();
         }
         trace.log (DEBUG_LEVEL, "createSeekOffsetMap(): seekOffsetMap = " + this.seekOffsetMap);
     }
@@ -1113,7 +1125,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             final String myOperatorName = getOperatorContext().getName();
             if (ENABLE_CHECK_REGISTERED_ON_CHECKPOINT) {
                 if (!registeredConsumers.contains (myOperatorName)) {
-                    trace.error (MsgFormatter.format ("My operator name not registered in group MXBean: {0}", myOperatorName));
+                    final String msg = MsgFormatter.format ("My operator name not registered in group MXBean: {0}", myOperatorName);
+                    trace.error (msg);
+                    throw new KafkaOperatorNotRegisteredException(msg);
                 }
             }
             ObjectOutputStream oStream = checkpoint.getOutputStream();
@@ -1126,7 +1140,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 trace.log (DEBUG_LEVEL, "data written to checkpoint: assignedPartitionsOffsetManager = " + this.assignedPartitionsOffsetManager);
             }
         } catch (Exception e) {
-            throw new RuntimeException (e.getLocalizedMessage(), e);
+            throw new KafkaOperatorRuntimeException(e.getMessage(), e);
         }
         trace.log (DEBUG_LEVEL, "processCheckpointEvent() - exiting.");
     }
@@ -1138,11 +1152,12 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * This method should not be called because operator control port and this client implementation are incompatible.
      * A context check should exist to detect this mis-configuration.
      * We only log the method call. 
-     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processUpdateAssignmentEvent(com.ibm.streamsx.kafka.clients.consumer.TopicPartitionUpdate)
+     * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
-    protected void processUpdateAssignmentEvent (TopicPartitionUpdate update) {
-        trace.warn("processUpdateAssignmentEvent(): update = " + update + "; update of assignments not supported by this client: " + getThisClassName());
+    protected void processControlPortActionEvent (ControlPortAction update) {
+        trace.warn("processControlPortActionEvent(): update = " + update + "; update of assignments/subscription not supported by this client: " + getThisClassName());
+        nFailedControlTuples.increment();
     }
 
 
@@ -1265,7 +1280,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     /**
      * The builder for the consumer client following the builder pattern.
      */
-    public static class Builder {
+    public static class Builder implements ConsumerClientBuilder {
 
         private OperatorContext operatorContext;
         private Class<?> keyClass;
@@ -1283,7 +1298,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         }
 
         public final Builder setKafkaProperties(KafkaOperatorProperties p) {
-            this.kafkaProperties = p;
+            this.kafkaProperties = new KafkaOperatorProperties();
+            this.kafkaProperties.putAll (p);
             return this;
         }
 
@@ -1334,13 +1350,21 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
          * @return A new ConsumerClient instance
          * @throws Exception
          */
+        @Override
         public ConsumerClient build() throws Exception {
-            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, kafkaProperties, singleTopic);
+            KafkaOperatorProperties p = new KafkaOperatorProperties();
+            p.putAll (this.kafkaProperties);
+            CrKafkaConsumerGroupClient client = new CrKafkaConsumerGroupClient (operatorContext, keyClass, valueClass, p, singleTopic);
             client.setPollTimeout (this.pollTimeout);
             client.setTriggerCount (this.triggerCount);
             client.setInitialStartPosition (this.initialStartPosition);
             client.setInitialStartTimestamp (this.initialStartTimestamp);
             return client;
+        }
+
+        @Override
+        public int getImplementationMagic() {
+            return CrKafkaConsumerGroupClient.class.getName().hashCode();
         }
     }
 }

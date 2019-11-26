@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ibm.streamsx.kafka.test;
 
 import java.util.HashMap;
@@ -36,14 +49,13 @@ import com.ibm.streamsx.topology.tester.Tester;
  */
 public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
 
-    private static final String TEST_NAME = "KafkaProducerPartitionAttrTest";
     private static final StreamSchema CONSUMER_SCHEMA = com.ibm.streams.operator.Type.Factory.getStreamSchema("tuple<int32 key, rstring message>");
     private static final StreamSchema PRODUCER_SCHEMA = com.ibm.streams.operator.Type.Factory.getStreamSchema("tuple<int32 key, rstring message, int32 partition>");
 
     private static final Integer PARTITION_NUM = 1;
 
     public KafkaProducerPartitionAttrTest() throws Exception {
-        super(TEST_NAME);
+        super();
     }
 
     @Test
@@ -69,9 +81,9 @@ public class KafkaProducerPartitionAttrTest extends AbstractKafkaTest {
         String[] expectedArr = {"A0", "B1", "C2", "A3", "B4", "C5", "A6", "B7", "C8"};
         Condition<List<String>> stringContentsUnordered = tester.stringContentsUnordered (msgStream.toStringStream(), expectedArr);
         HashMap<String, Object> config = new HashMap<>();
-//        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
-//        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
-        
+        //        config.put (ContextProperties.TRACING_LEVEL, java.util.logging.Level.FINE);
+        //        config.put(ContextProperties.KEEP_ARTIFACTS,  new Boolean(true));
+
         tester.complete(context, config, stringContentsUnordered, 60, TimeUnit.SECONDS);
 
         // check the results

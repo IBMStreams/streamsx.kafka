@@ -1,0 +1,87 @@
+namespace com.ibm.streamsx.kafka.sample ;
+
+use com.ibm.streamsx.kafka::* ;
+
+composite KafkaConsumerGroupInputPortSample {
+
+    graph
+        // ================ producers that continuously populate the topics t1 and t2
+        stream <MessageType.StringMessage> Data1 = Beacon() {
+            param
+                period: 0.1;
+                initDelay: 40.0;
+                iterations: 2000;
+            output Data1: key = "key-" + (rstring)random(), message = "t1 message no. " + (rstring)IterationCount();
+        }
+
+        () as ProducerT1 = KafkaProducer (Data1) {
+            param
+                propertiesFile: "etc/consumer.properties" ;
+                topic: "t1";
+        }
+
+        stream <MessageType.StringMessage> Data2 = Beacon() {
+            param
+                period: 0.1;
+                initDelay: 40.0;
+                iterations: 2000;
+            output Data2: key = "key-" + (rstring)random(), message = "t2 message no. " + (rstring)IterationCount();
+        }
+
+        () as ProducerT2 = KafkaProducer (Data2) {
+            param
+                propertiesFile: "etc/consumer.properties" ;
+                topic: "t2";
+        }
+        
+        // ================= control stream for the consumer
+        (stream<rstring jsonString> TopicSubscriptions) as
+            TopicUpdater = Custom() {
+            logic
+                onProcess: {
+                    block(50f);
+
+                    // subscribe to topic t1
+                    rstring subscribeTopic_t1 = createMessageAddTopic("t1");
+                    submit({ jsonString = subscribeTopic_t1 }, TopicSubscriptions);
+                    block(5f);
+
+                    // subscribe also topic t2
+                    rstring subscribeTopic_t2 = createMessageAddTopic ("t2");
+                    submit({ jsonString = subscribeTopic_t2 }, TopicSubscriptions);
+                    block(60f);
+
+                    // unsubscribe both topics
+                    rstring unsubscribe_t1_t2 = createMessageRemoveTopics(["t1", "t2"]);
+                    submit({ jsonString = unsubscribe_t1_t2 }, TopicSubscriptions);
+
+                    block(15.0);
+                    // subscribe again to topic t2
+                    submit({ jsonString = subscribeTopic_t2 }, TopicSubscriptions);
+
+                    // now nothing is consumed anymore; avoid sending final marker.
+                    while(!isShutdown()) {
+                        block (10000.0);
+                    }
+                }
+        }
+
+        @parallel (width = 3, broadcast = [TopicSubscriptions])
+        (stream<MessageType.StringMessage, MessageType.ConsumerMessageMetadata> MessageOutStream) as
+            KafkaConsumerOp = KafkaConsumer (TopicSubscriptions) {
+            param
+                propertiesFile : "etc/consumer.properties" ;
+                groupId: "myConsumerGroup";
+            config
+                checkpoint: operatorDriven;
+                placement: partitionIsolation;
+        }
+
+        () as PrintOp = Custom(MessageOutStream as inputStream) {
+            logic
+                onTuple inputStream: {
+                    println(inputStream) ;
+                }
+        }
+}
+

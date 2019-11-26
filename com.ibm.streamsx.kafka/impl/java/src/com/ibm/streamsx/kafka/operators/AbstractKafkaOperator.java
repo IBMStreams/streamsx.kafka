@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,6 +46,7 @@ import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streamsx.kafka.DataGovernanceUtil;
 import com.ibm.streamsx.kafka.IGovernanceConstants;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.MsgFormatter;
 import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.ToolkitInfoReader;
@@ -54,6 +56,10 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 @Libraries({ "opt/downloaded/*", "impl/lib/*" })
 public abstract class AbstractKafkaOperator extends AbstractOperator implements StateHandler {
 
+    public static final String CLIENT_ID_PARAM = "clientId";
+    public static final String USER_LIB_PARAM = "userLib";
+    public static final String APP_CONFIG_NAME_PARAM = "appConfigName";
+    public static final String PROPERTIES_FILE_PARAM = "propertiesFile";
     public static final String SSL_DEBUG_PARAM = "sslDebug";
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaOperator.class);
@@ -71,14 +77,13 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     protected String[] userLib;
     protected String clientId = null;
 
-    protected Class<?> messageType;
-    protected Class<?> keyType;
     protected ConsistentRegionContext crContext;
     protected CheckpointContext chkptContext;
+    private Boolean inParallelRegion = null;
 
     private KafkaOperatorProperties kafkaProperties;
 
-    @Parameter(optional = true, name="propertiesFile", 
+    @Parameter(optional = true, name=PROPERTIES_FILE_PARAM, 
             description="Specifies the name of the properties file "
                     + "containing Kafka properties. A relative path is always "
                     + "interpreted as relative to the *application directory* of the "
@@ -87,7 +92,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         this.propertiesFile = propertiesFile;
     }
 
-    @Parameter(optional = true, name="appConfigName",
+    @Parameter(optional = true, name=APP_CONFIG_NAME_PARAM,
             description="Specifies the name of the application configuration "
                     + "containing Kafka properties.")
     public void setAppConfigName(String appConfigName) {
@@ -109,7 +114,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         }
     }
 
-    @Parameter(optional = true, name="userLib",
+    @Parameter(optional = true, name=USER_LIB_PARAM,
             description="Allows the user to specify paths to JAR files that should "
                     + "be loaded into the operators classpath. This is useful if "
                     + "the user wants to be able to specify their own partitioners. "
@@ -121,7 +126,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         this.userLib = userLib;
     }
 
-    @Parameter(optional = true, name="clientId",
+    @Parameter(optional = true, name=CLIENT_ID_PARAM,
             description="Specifies the client ID that should be used "
                     + "when connecting to the Kafka cluster. The value "
                     + "specified by this parameter will override the `client.id` "
@@ -140,6 +145,15 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         this.clientId = clientId;
     }
 
+    /**
+     * Determines if the operator is used within a parallel region.
+     * @return true, if the operator is used in a parallel region, false otherwise.
+     * @throws KafkaOperatorException The operator is not yet initialized.
+     */
+    public boolean isInParallelRegion() throws KafkaOperatorException {
+        if (inParallelRegion == null) throw new KafkaOperatorException ("operator must be initialized before");
+        return inParallelRegion.booleanValue();
+    }
 
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
@@ -151,6 +165,10 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         catch (Exception e) {
             logger.warn ("Could not determine toolkit name and version: " + e);
         }
+        List<String> paramNames = new LinkedList<String> (context.getParameterNames());
+        Collections.sort (paramNames);
+        logger.info ("Used operator parameters: " + paramNames);
+        this.inParallelRegion = new Boolean (context.getChannel() >= 0);
         crContext = context.getOptionalContext (ConsistentRegionContext.class);
         chkptContext = context.getOptionalContext (CheckpointContext.class);
         // load the Kafka properties
@@ -252,7 +270,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
         Map<String, String> appConfig = getOperatorContext().getPE().getApplicationConfiguration(appConfigName);
         if (appConfig.isEmpty()) {
-            logger.warn(Messages.getString("APPLICATION_CONFIG_NOT_FOUND", appConfigName)); //$NON-NLS-1$
+            logger.warn(Messages.getString("APPLICATION_CONFIGURATION_NOT_FOUND", appConfigName)); //$NON-NLS-1$
             return;
         }
 
@@ -271,6 +289,12 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
         return this.kafkaProperties;
     }
 
+    /**
+     * converts an attribute object to the Java primitive object
+     * @param type    Not used
+     * @param attrObj the attribute value as object
+     * @return        The corresponding Java primitive
+     */
     protected Object toJavaPrimitveObject(Class<?> type, Object attrObj) {
         if(attrObj instanceof RString) {
             attrObj = ((RString)attrObj).getString();

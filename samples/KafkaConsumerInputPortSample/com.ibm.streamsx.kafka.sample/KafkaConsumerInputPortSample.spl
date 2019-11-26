@@ -15,7 +15,7 @@ composite KafkaConsumerInputPortSample
 
         () as ProducerT1 = KafkaProducer (Data1) {
             param
-                propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+                propertiesFile : "etc/consumer.properties" ;
                 partitionAttribute: partitionNo;
                 topic: "t1";
         }
@@ -28,7 +28,7 @@ composite KafkaConsumerInputPortSample
 
         () as ProducerT2 = KafkaProducer (Data2) {
             param
-                propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+                propertiesFile : "etc/consumer.properties" ;
                 partitionAttribute: partitionNo;
                 topic: "t2";
         }
@@ -75,7 +75,7 @@ composite KafkaConsumerInputPortSample
             rstring topic, int32 partition, int64 offset> MessageOutStream) as
             KafkaConsumerOp = KafkaConsumer(TopicPartitionUpdateStream) {
             param
-                propertiesFile : getThisToolkitDir() + "/etc/consumer.properties" ;
+                propertiesFile : "etc/consumer.properties" ;
             config checkpoint: operatorDriven;
         }
 

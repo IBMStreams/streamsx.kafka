@@ -6,7 +6,8 @@
    <info:description>
 The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be used with following broker versions:
 
-* 0.10.2
+* 0.10.2 (with restrictions: `isolation.level=read_uncommitted` must be set for 
+  the `KafkaConsumer`, and the **guaranteeOrdering** parameter of the `KafkaProducer` cannot be used)
 * 0.11
 * 1.0
 * 1.1
@@ -15,13 +16,53 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 * 2.2
 * 2.3
 
+All Kafka versions below 2.3 do not support the **staticGroupMember** parameter of the `KafkaConsumer` operator.
+
 # Additional information
 Additional user documentation can be found in the 
 [https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/|toolkit documentation on GitHub].
 
 + What's new and what has changed
 
-This is an overview of changes for major and minor version upgrades. For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
+This is an overview of changes for major and minor version upgrades.
+For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
+
+++ What's new in version 3.0
+
+# New features
+
+* The included Kafka client has been upgraded from version 2.2.1 to 2.3.1.
+* The schema of the output port of the `KafkaProducer` operator supports optional types for the error description.
+* The optional input port of the `KafkaConsumer` operator can be used to change the *topic subscription*, not only the *partition assignment*.
+* The **guaranteeOrdering** parameter now enables the idempotent producer when set to `true`, which allows a higher throughput by allowing more
+  in-flight requests per connection (requires Kafka server version 0.11 or higher).
+* The `KafkaConsumer` operator now enables and benefits from group management when the user does not specify a group identifier.
+* Checkpoint reset of the `KafkaConsumer` is optimized in consistent region when the consumer is the only group member.
+* The `KafkaConsumer` operator can be configured as a static consumer group member (requires Kafka server version 2.3 or higher).
+  See also the *Static Consumer Group Membership* chapter in the KafkaConsumer's documentation.
+* The `KafkaConsumer` operator now uses `read_committed` as the default `isolation.level` configuration unless the user has specified a different value. 
+  In `read_committed` mode, the consumer will read only those transactional messages which have been successfully committed. 
+  Messages of aborted transactions are now skipped. The consumer will continue to read non-transactional messages as before. 
+  This new default setting is incompatible with Kafka 0.10.2.
+
+# Deprecated features
+
+The use of the input control port has been deprecated when the `KafkaConsumer` is used in a consistent region.
+
+# Incompatible changes
+
+* The toolkit requires at minimum Streams version 4.3.
+* The **guaranteeOrdering** parameter of the `KafkaProducer` operator is incompatible with Kafka version 0.10.x when used with value `true`.
+  The work-around for Kafka 0.10.x is given in the parameter description.
+* When the `KafkaConsumer` operator is configured with input port, the **topic**, **pattern**, **partition**, and **startPosition** 
+  parameters used to be ignored in previous versions. Now an SPL compiler failure is raised when one of these parameters is used 
+  together with the input port.
+* The default `isolation.level` configuration of the `KafkaConsumer` operator is incompatible with Kafka broker version 0.10.x. 
+  When connecting with Kafka 0.10.x, `isolation.level=read_uncommitted` must be used for the consumer configuration.
+
+++ What's new in version 2.2.1
+
+* bug fix: KafkaProducer: Lost output tuples on FinalMarker reception
 
 ++ What's new in version 2.2.1
 
@@ -169,8 +210,8 @@ of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configu
 can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/|toolkit documentation].
 
    </info:description>
-   <info:version>2.2.1</info:version>
-   <info:requiredProductVersion>4.2.0.0</info:requiredProductVersion>
+   <info:version>3.0.0</info:version>
+   <info:requiredProductVersion>4.3.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>
 </info:toolkitInfoModel>

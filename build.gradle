@@ -82,7 +82,7 @@ task archive(type: Tar) {
     baseName = "com.ibm.streamsx.kafka"
     version = toolkitVersion
     doLast {
-        ant.checksum file: archivePath
+        ant.checksum file: archivePath, algorithm: 'SHA-1', fileext: '.sha1'
     }
 }
 

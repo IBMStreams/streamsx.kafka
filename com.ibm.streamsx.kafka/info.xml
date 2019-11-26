@@ -57,12 +57,16 @@ The use of the input control port has been deprecated when the `KafkaConsumer` i
 * When the `KafkaConsumer` operator is configured with input port, the **topic**, **pattern**, **partition**, and **startPosition** 
   parameters used to be ignored in previous versions. Now an SPL compiler failure is raised when one of these parameters is used 
   together with the input port.
-* The default `isolation.level` configuration of the `KafkaConsumer` operator is incompatible with Kafka broker version 0.10.x 
+* The default `isolation.level` configuration of the `KafkaConsumer` operator is incompatible with Kafka broker version 0.10.x. 
   When connecting with Kafka 0.10.x, `isolation.level=read_uncommitted` must be used for the consumer configuration.
 
 ++ What's new in version 2.2.1
 
 * bug fix: KafkaProducer: Lost output tuples on FinalMarker reception
+
+++ What's new in version 2.2.1
+
+* bug fixes, see the release note on [https://github.com/IBMStreams/streamsx.kafka/releases/tag/v2.2.1|Github]
 
 ++ What's new in version 2.2.0
 
@@ -206,7 +210,7 @@ of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configu
 can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/|toolkit documentation].
 
    </info:description>
-   <info:version>3.0.0._dev</info:version>
+   <info:version>3.0.0</info:version>
    <info:requiredProductVersion>4.3.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

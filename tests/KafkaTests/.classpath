@@ -15,9 +15,9 @@
 			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/ad09811315f1d4f5756986575b0ea16b99cd686f/hamcrest-core-1.3-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.1.1/e6ad28d41e797cc2cfd4716068b4a5974b6ee6ae/kafka-clients-2.1.1-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.1.1/a7b72831768ccfd69128385130409ae1a0e52f5f/kafka-clients-2.1.1.jar">
+	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.1/7bf757fc4e58be63a26c04fb5eb2d8c1f93ea353/kafka-clients-2.3.1-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.1/21664b0318d201ec412f9b02357b07ba94009c87/kafka-clients-2.3.1.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.1.1/ddd11d88d3d589d2c988b40e155866298809f751/kafka-clients-2.1.1-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.1/2a0f31874b4543a1dca0d6375e663c9c5ff0950c/kafka-clients-2.3.1-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.5/f7d878153e86a1cdddf6b37850e00a9f8bff726f/commons-lang3-3.5-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.5/6c6c702c89bfff3cd9e80b04d668c5e190d588c6/commons-lang3-3.5.jar">
@@ -35,24 +35,24 @@
 			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-log4j12/1.7.21/bd44b1f0c34da545f0495c05f0cf74e2f3231b14/slf4j-log4j12-1.7.21-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/com.github.luben/zstd-jni/1.3.7-1/fb73a4e6b5afdf4ef62c714661a5650ec2038338/zstd-jni-1.3.7-1-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/com.github.luben/zstd-jni/1.3.7-1/7100c646bbb0acad54b7add33dab25ff4b3ba4df/zstd-jni-1.3.7-1.jar">
+	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/com.github.luben/zstd-jni/1.4.0-1/613644b5d81071cc72f52b984500034165a982a4/zstd-jni-1.4.0-1-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/com.github.luben/zstd-jni/1.4.0-1/8cc7f9b0f2bd53ef3bd0e38fccc678691f983474/zstd-jni-1.4.0-1.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/com.github.luben/zstd-jni/1.3.7-1/bfa93780f373e4253be050aafda05af0573c6cd8/zstd-jni-1.3.7-1-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/com.github.luben/zstd-jni/1.4.0-1/3584875946d9c4211a6b2642d9b68f0822693eea/zstd-jni-1.4.0-1-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.lz4/lz4-java/1.5.0/e38079cc05d15f0f023f58495b1f1d4533bedf8d/lz4-java-1.5.0-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.lz4/lz4-java/1.5.0/d36fb639f06aaa4f17307625f80e2e32f815672a/lz4-java-1.5.0.jar">
+	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.lz4/lz4-java/1.6.0/f70c1919da33149ca0dc1a3ab7bd99e332d7830d/lz4-java-1.6.0-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.lz4/lz4-java/1.6.0/b49e2b422a5b7145ba7aa0c3f60c13664a5c5acf/lz4-java-1.6.0.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.lz4/lz4-java/1.5.0/2511fe1703ba3137d78dd068c60e69a3b87ad5a5/lz4-java-1.5.0-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.lz4/lz4-java/1.6.0/ef1f0a5746e3dcd3c1fe145094db9389e5c368c9/lz4-java-1.6.0-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.1.7.2/73b98fff2c1dcd337dbdac7182bf747b5aee2873/snappy-java-1.1.7.2-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.1.7.2/307b286efd119ad2c6d4291128bf110bddc68088/snappy-java-1.1.7.2.jar">
+	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.1.7.3/83002a7c6641e17c16ecfad3342fb8e22033b775/snappy-java-1.1.7.3-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.1.7.3/241bb74a1eb37d68a4e324a4bc3865427de0a62d/snappy-java-1.1.7.3.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.1.7.2/2276814529c52cf4c7cceafe49725ef940f8b160/snappy-java-1.1.7.2-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.1.7.3/cfe26ce602b1b5ac81555f6a3e2f18aba60d6ae8/snappy-java-1.1.7.3-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.25/962153db4a9ea71b79d047dfd1b2a0d80d8f4739/slf4j-api-1.7.25-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.25/da76ca59f6a57ee3102f8f9bd9cee742973efa8a/slf4j-api-1.7.25.jar">
+	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.26/21c84cdf9da108216b5e402611d4af479b60cb8/slf4j-api-1.7.26-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.26/77100a62c2e6f04b53977b9f541044d7d722693d/slf4j-api-1.7.26.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.25/f003e89ddebdbaca5cf3fc7cc0c67c88c2ca1a3c/slf4j-api-1.7.25-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.26/83863db711c68b9d5542c5fa0cd801b7035281d7/slf4j-api-1.7.26-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/log4j/log4j/1.2.17/677abe279b68c5e7490d6d50c6951376238d7d3e/log4j-1.2.17-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/log4j/log4j/1.2.17/5af35056b4d257e4b64b9e8069c0746e8b08629f/log4j-1.2.17.jar">

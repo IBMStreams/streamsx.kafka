@@ -10,9 +10,9 @@
 	<classpathentry path="impl/java/bin" kind="output"/>
 	<classpathentry path="bin" kind="output"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8/"/>
-	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.0/78fe337629ee4be117d7e5d145e65ec440644b67/kafka-clients-2.3.0-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.0/e86de5ad2172a0de440bb55322ead62706b53a4e/kafka-clients-2.3.0.jar">
+	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.1/7bf757fc4e58be63a26c04fb5eb2d8c1f93ea353/kafka-clients-2.3.1-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.1/21664b0318d201ec412f9b02357b07ba94009c87/kafka-clients-2.3.1.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.0/9b5e1b82280e808f04830a7500e6294e4ed48a20/kafka-clients-2.3.0-javadoc.jar!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-clients/2.3.1/2a0f31874b4543a1dca0d6375e663c9c5ff0950c/kafka-clients-2.3.1-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry sourcepath="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.5/f7d878153e86a1cdddf6b37850e00a9f8bff726f/commons-lang3-3.5-sources.jar" kind="lib" path="/home/rolef/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.5/6c6c702c89bfff3cd9e80b04d668c5e190d588c6/commons-lang3-3.5.jar">

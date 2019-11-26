@@ -30,39 +30,63 @@
   
 <dl class="dl">
 
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopic.rstring">createMessageAddTopic(rstring)</a></dt>
+
+  <dd class="dd">Creates the JSON message to add a single topic to the operator's subscription to begin consuming from the default position.</dd>
+
+
+
   <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt;)</a></dt>
 
-  <dd class="dd">Creates the JSON message to add multiple topic-partitions to the operator.</dd>
+  <dd class="dd">Creates the JSON message to add multiple topic partitions to the operator's partition assignment.</dd>
 
 
 
   <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt;)</a></dt>
 
-  <dd class="dd">Creates the JSON message to add multiple topic-partitions to the operator.</dd>
+  <dd class="dd">Creates the JSON message to add multiple topic partitions to the operator's partition assignment.</dd>
 
 
 
   <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32">createMessageAddTopicPartition(rstring, int32)</a></dt>
 
-  <dd class="dd">Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the default position.</dd>
+  <dd class="dd">Creates the JSON message to add a single topic partition to the operator's partition assignment and  to begin consuming at the default position.</dd>
 
 
 
   <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32.int64">createMessageAddTopicPartition(rstring, int32, int64)</a></dt>
 
-  <dd class="dd">Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the specified offset.</dd>
+  <dd class="dd">Creates the JSON message to add a single topic partition to the operator's partition assignment  and to begin consuming at the specified offset.</dd>
+
+
+
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopics.list:.:rstring:.:">createMessageAddTopics(list&lt;rstring&gt;)</a></dt>
+
+  <dd class="dd">Creates the JSON message to add multiple topics to the operator's subscription to begin consuming from the default position.</dd>
+
+
+
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopic.rstring">createMessageRemoveTopic(rstring)</a></dt>
+
+  <dd class="dd">Creates the JSON message to remove a single topic from the operator's subscription.</dd>
 
 
 
   <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:">createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt;)</a></dt>
 
-  <dd class="dd">Creates the JSON message to remove multiple topic-partitions from the operator.</dd>
+  <dd class="dd">Creates the JSON message to remove multiple topic partitions from the operator's partition assignment.</dd>
 
 
 
   <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.rstring.int32">createMessageRemoveTopicPartition(rstring, int32)</a></dt>
 
-  <dd class="dd">Creates the JSON message to remove a single topic-partition from the operator.</dd>
+  <dd class="dd">Creates the JSON message to remove a single topic partition from the operator's partition assignment.</dd>
+
+
+
+  <dt class="dt dlterm"><a class="xref" href="../tk$com.ibm.streamsx.kafka/spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopics.list:.:rstring:.:">createMessageRemoveTopics(list&lt;rstring&gt;)</a></dt>
+
+  <dd class="dd">Creates the JSON message to remove multiple topics from the operator's subscription.</dd>
 
 
 </dl>

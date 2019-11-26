@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
 
 </div>
 
@@ -48,7 +48,7 @@
 <div class="section"><h2 class="title sectiontitle">Kafka Properties
 </h2>
 
-<p class="p">The operator implements Kafka's KafkaProducer API of the Kafka client version 2.2.1. As a result, it supports all Kafka properties that are supported by the underlying API. The producer properties for the Kafka producer 2.2 can be found in the <a class="xref" href="https://kafka.apache.org/22/documentation/#producerconfigs">Apache Kafka 2.2 documentation</a>.
+<p class="p">The operator implements Kafka's KafkaProducer API of the Kafka client version 2.3.1. As a result, it supports all Kafka properties that are supported by the underlying API. The producer properties for the Kafka producer 2.3 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#producerconfigs">Apache Kafka 2.3 documentation</a>.
 </p>
 
 <p class="p">When you reference files within your application, which are bundled with the Streams application bundle, for example an SSL truststore or a key tab file for Kerberos authentication, you can use the <tt class="ph tt">{applicationDir}</tt> placeholder in the property values. Before the configs are passed to the Kafka client, the <tt class="ph tt">{applicationDir}</tt> placeholder is replaced by the application directory of the application. Examples how to use the placeholder are shown below.
@@ -90,13 +90,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d13035e129">
+<th class="entry" colspan="1" valign="top" id="d13949e129">
 <p class="p">Property name
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d13035e135">
+<th class="entry" colspan="1" valign="top" id="d13949e135">
 <p class="p">Default Value
 </p>
 
@@ -108,13 +108,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">client.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p">Generated ID in the form: <tt class="ph tt">P-J&lt;JobId&gt;-&lt;operator name&gt;</tt>
 </p>
 
@@ -123,13 +123,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">key.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -138,13 +138,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">value.serializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p">See <strong class="ph b">Automatic Serialization</strong> section below
 </p>
 
@@ -153,14 +153,14 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">acks
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
-<p class="p">Controls the durability of records that are sent. Adjusted to <tt class="ph tt">all</tt> when in consistent region, and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>, otherwise <tt class="ph tt">acks</tt> is unchanged. The value <tt class="ph tt">0</tt> (fire and forget) is not recommended.
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
+<p class="p">Controls the durability of records that are sent. Adjusted to <tt class="ph tt">all</tt> when the <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, or when the <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt> in consistent region. Otherwise <tt class="ph tt">acks</tt> is unchanged. The value <tt class="ph tt">0</tt> (fire and forget) is not recommended.
 </p>
 
 </td>
@@ -168,14 +168,14 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">retries
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
-<p class="p">When <tt class="ph tt">0</tt> is provided as <strong class="ph b">retries</strong> and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt> <strong class="ph b">retries</strong> is adjusted to <tt class="ph tt">1</tt>.
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
+<p class="p">When the <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, or when the <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt> in consistent region, <strong class="ph b">retries</strong> is adjusted to a minimum of <tt class="ph tt">1</tt>.
 </p>
 
 </td>
@@ -183,13 +183,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">linger.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p"><tt class="ph tt">100</tt>
 </p>
 
@@ -198,13 +198,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">batch.size
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p"><tt class="ph tt">32768</tt>
 </p>
 
@@ -213,14 +213,14 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">max.in.flight.requests.per.connection
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
-<p class="p"><tt class="ph tt">1</tt> when <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, limited to <tt class="ph tt">5</tt> when provided and <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>, or <tt class="ph tt">10</tt> in all other cases.
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
+<p class="p">Limited to <tt class="ph tt">5</tt> when <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, or when <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt> in consistent region. <tt class="ph tt">10</tt> in all other cases when unset.
 </p>
 
 </td>
@@ -228,14 +228,14 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">enable.idempotence
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
-<p class="p"><tt class="ph tt">true</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
+<p class="p"><tt class="ph tt">true</tt> when <strong class="ph b">guaranteeOrdering</strong> parameter is <tt class="ph tt">true</tt>, or when in consistent region and the <strong class="ph b">consistentRegionPolicy</strong> parameter is <tt class="ph tt">Transactional</tt>.
 </p>
 
 </td>
@@ -243,14 +243,14 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">transactional.id
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
-<p class="p">Randomly generated ID in the form: <tt class="ph tt">tid-&lt;random_string&gt;</tt> only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
+<p class="p">Randomly generated ID in the form: <tt class="ph tt">tid-&lt;random_string&gt;</tt> only when in consistent region and the <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
 </td>
@@ -258,13 +258,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">transaction.timeout.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p">adjusted to a minimum of <tt class="ph tt">drain timeout + 120000 milliseconds</tt>, but not greater than <tt class="ph tt">900000</tt>. Adjusted only when in consistent region and <strong class="ph b">consistentRegionPolicy</strong> parameter is set to <tt class="ph tt">Transactional</tt>.
 </p>
 
@@ -273,13 +273,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">metric.reporters
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p">added to provided reporters: <tt class="ph tt">com.ibm.streamsx.kafka.clients.producer.ProducerMetricsReporter</tt>
 </p>
 
@@ -288,13 +288,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">metrics.sample.window.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p">adjusted to <tt class="ph tt">10000</tt>
 </p>
 
@@ -303,13 +303,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">client.dns.lookup
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p"><tt class="ph tt">use_all_dns_ips</tt>
 </p>
 
@@ -318,13 +318,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">reconnect.backoff.max.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p"><tt class="ph tt">10000</tt>
 </p>
 
@@ -333,13 +333,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">reconnect.backoff.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p"><tt class="ph tt">250</tt>
 </p>
 
@@ -348,13 +348,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e129 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e129 ">
 <p class="p">retry.backoff.ms
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e135 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e135 ">
 <p class="p"><tt class="ph tt">500</tt>
 </p>
 
@@ -369,7 +369,7 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 </div>
 
-<p class="p"><strong class="ph b">NOTE:</strong> Although properties are adjusted, users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be specified for the Kafka producer version 2.2, are supported by all Broker versions. An example for is the Zstandard compression algorithm, which is supported with broker version 2.1 and above.
+<p class="p"><strong class="ph b">NOTE:</strong> Although properties are adjusted, users can override any of the above properties by explicitly setting the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be specified for the Kafka producer version 2.3, are supported by all Broker versions. An example for such a config is the Zstandard compression algorithm, which is supported with broker version 2.1 and above.
 </p>
 
 </div>
@@ -395,13 +395,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d13035e562">
+<th class="entry" colspan="1" valign="top" id="d13949e573">
 <p class="p">Serializer
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d13035e568">
+<th class="entry" colspan="1" valign="top" id="d13949e579">
 <p class="p">SPL Types
 </p>
 
@@ -413,13 +413,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e562 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e573 ">
 <p class="p">org.apache.kafka.common.serialization.StringSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e568 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e579 ">
 <p class="p">rstring
 </p>
 
@@ -428,13 +428,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e562 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e573 ">
 <p class="p">org.apache.kafka.common.serialization.IntegerSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e568 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e579 ">
 <p class="p">int32, uint32
 </p>
 
@@ -443,13 +443,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e562 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e573 ">
 <p class="p">org.apache.kafka.common.serialization.LongSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e568 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e579 ">
 <p class="p">int64, uint64
 </p>
 
@@ -458,13 +458,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e562 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e573 ">
 <p class="p">org.apache.kafka.common.serialization.FloatSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e568 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e579 ">
 <p class="p">float32
 </p>
 
@@ -473,13 +473,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e562 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e573 ">
 <p class="p">org.apache.kafka.common.serialization.DoubleSerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e568 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e579 ">
 <p class="p">float64
 </p>
 
@@ -488,13 +488,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e562 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e573 ">
 <p class="p">org.apache.kafka.common.serialization.ByteArraySerializer
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e568 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e579 ">
 <p class="p">blob
 </p>
 
@@ -521,13 +521,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <thead class="thead" align="left">
 <tr class="row">
-<th class="entry" colspan="1" valign="top" id="d13035e693">
+<th class="entry" colspan="1" valign="top" id="d13949e704">
 <p class="p">Custom Metric
 </p>
 
 </th>
 
-<th class="entry" colspan="1" valign="top" id="d13035e699">
+<th class="entry" colspan="1" valign="top" id="d13949e710">
 <p class="p">Description
 </p>
 
@@ -539,13 +539,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 
 <tbody class="tbody">
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">connection-count
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The current number of active connections.
 </p>
 
@@ -554,13 +554,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">compression-rate-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average compression rate of record batches (as percentage, 100 means no compression).
 </p>
 
@@ -569,13 +569,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p"><em class="ph i">topic</em>:compression-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average compression rate of record batches for a topic (as percentage, 100 means no compression).
 </p>
 
@@ -584,13 +584,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">record-queue-time-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average time in ms record batches spent in the send buffer.
 </p>
 
@@ -599,13 +599,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">record-queue-time-max
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The maximum time in ms record batches spent in the send buffer.
 </p>
 
@@ -614,13 +614,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">record-send-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average number of records sent per second.
 </p>
 
@@ -629,13 +629,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">record-retry-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The total number of retried record sends
 </p>
 
@@ -644,13 +644,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p"><em class="ph i">topic</em>:record-send-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The total number of records sent for a topic.
 </p>
 
@@ -659,13 +659,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p"><em class="ph i">topic</em>:record-retry-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The total number of retried record sends for a topic
 </p>
 
@@ -674,13 +674,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p"><em class="ph i">topic</em>:record-error-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The total number of record sends that resulted in errors for a topic
 </p>
 
@@ -689,13 +689,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">records-per-request-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average number of records per request.
 </p>
 
@@ -704,13 +704,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">requests-in-flight
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The current number of in-flight requests awaiting a response.
 </p>
 
@@ -719,13 +719,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">request-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The number of requests sent per second
 </p>
 
@@ -734,13 +734,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">request-size-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average size of requests sent.
 </p>
 
@@ -749,13 +749,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">request-latency-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average request latency in ms
 </p>
 
@@ -764,13 +764,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">request-latency-max
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The maximum request latency in ms
 </p>
 
@@ -779,13 +779,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">batch-size-avg
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The average number of bytes sent per partition per-request.
 </p>
 
@@ -794,13 +794,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">outgoing-byte-rate
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The number of outgoing bytes sent to all servers per second
 </p>
 
@@ -809,13 +809,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">bufferpool-wait-time-total
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The total time an appender waits for space allocation in nanoseconds.
 </p>
 
@@ -824,13 +824,13 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 </tr>
 
 <tr class="row">
-<td class="entry" colspan="1" valign="top" headers="d13035e693 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e704 ">
 <p class="p">buffer-available-bytes
 </p>
 
 </td>
 
-<td class="entry" colspan="1" valign="top" headers="d13035e699 ">
+<td class="entry" colspan="1" valign="top" headers="d13949e710 ">
 <p class="p">The total amount of buffer memory that is not being used (either unallocated or in the free list).
 </p>
 
@@ -1025,7 +1025,7 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 <p class="p">The output port is asynchronous to the input port of the operator. The sequence of the submitted tuples may also differ from the sequence of the input tuples. Window punctuations from the input stream are not forwarded.
 </p>
 
-<p class="p">The schema of the output port must consist of one optional attribute of tuple type with the same schema as the input port and one optional attribute of type <tt class="ph tt">rstring</tt> or <tt class="ph tt">ustring</tt>, that takes a JSON formatted description of the occured error, or remains empty (zero length) for successfully produced tuples. Both attributes can have any names and can be declared in any sequence in the schema.
+<p class="p">The schema of the output port must consist of one optional attribute of tuple type with the same schema as the input port and one optional attribute of type <tt class="ph tt">rstring</tt>, <tt class="ph tt">ustring</tt>, <tt class="ph tt">optional&lt;rstring&gt;</tt>, or <tt class="ph tt">optional&lt;ustring&gt;</tt>, that takes a JSON formatted description of the occured error, or remains <em class="ph i">empty</em> for successfully produced tuples. Emptiness of the attribute means that the attribute contains a string with zero length when declared as <tt class="ph tt">rstring</tt> or <tt class="ph tt">ustring</tt>, and an empty optional (optional without a value) when declared as optional. Both attributes can have any names and can be declared in any sequence in the schema.
 </p>
 
 <p class="p"><strong class="ph b">Example for declaring the output stream as error output:</strong>
@@ -1058,8 +1058,7 @@ Please note that the generated JSON dows not contain line breaks as in the examp
 
 <div class="p">
 <pre class="pre codeblock">
-// 'failure' attribute will have zero length for successfully produced input tuples
-stream &lt;Inp inTuple, rstring failure&gt; ProduceStatus = KafkaProducer (Data as Inp) {
+stream &lt;Inp inTuple, optional&lt;rstring&gt; failure&gt; ProduceStatus = KafkaProducer (Data as Inp) {
     param
         outputErrorsOnly: false;
     ...
@@ -1265,10 +1264,16 @@ This operator supports 15 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__guaranteeOrdering"><!-- --></a><tt class="ph tt">guaranteeOrdering</tt></dt>
 
 <dd class="dd">
-<p class="p">If set to true, the operator guarantees that the order of records within a topic partition is the same as the order of processed tuples when it comes to retries. This implies that the operator sets the <tt class="ph tt">max.in.flight.requests.per.connection</tt> producer property automatically to 1 if retries are enabled, i.e. when the <tt class="ph tt">retries</tt> property is unequal 0, what is the operator default value.
+<p class="p">If set to true, the operator guarantees that the order of records within a topic partition is the same as the order of processed tuples when it comes to retries. This implies that the operator sets the <tt class="ph tt">enable.idempotence</tt> producer config automatically to <tt class="ph tt">true</tt>, <tt class="ph tt">acks</tt> to <tt class="ph tt">all</tt>, enables retries, and adjusts <tt class="ph tt">max.in.flight.requests.per.connection</tt> to an upper limit of 5.
 </p>
 
-<p class="p">If unset, the default value of this parameter is <tt class="ph tt">false</tt>, which means that the order can change due to retries. Please be aware that setting guaranteeOrdering to <tt class="ph tt">true</tt> degrades the producer throughput as only one PRODUCE request per topic partition is active at any time.
+<p class="p">If unset, the default value of this parameter is <tt class="ph tt">false</tt>, which means that the order can change due to retries as long as the producer configuration <tt class="ph tt">max.in.flight.requests.per.connection</tt> is greater than 1.
+</p>
+
+<p class="p"><strong class="ph b">Note for users of Kafka 0.10.x:</strong>
+</p>
+
+<p class="p">The idempotent producer is not supported for Kafka versions &lt; 0.11. When guaranteed record order is required with older Kafka servers, users must set the producer config <tt class="ph tt">max.in.flight.requests.per.connection=1</tt> instead of setting <strong class="ph b">guaranteeOrdering</strong> to <tt class="ph tt">true</tt>.
 </p>
 <dl class="dl">
 
@@ -1361,10 +1366,10 @@ This operator supports 15 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__outputErrorsOnly"><!-- --></a><tt class="ph tt">outputErrorsOnly</tt></dt>
 
 <dd class="dd">
-<p class="p">If set to <tt class="ph tt">true</tt>, the operator submits tuples to the optional output port only for the tuples that failed to produce completely. If set to <tt class="ph tt">false</tt>, the operator submits also tuples for the successfully produced input tuples.
+<p class="p">If set to <tt class="ph tt">true</tt>, the operator submits tuples to the optional output port only for the tuples that failed to produce. If set to <tt class="ph tt">false</tt>, the operator submits also tuples for the successfully produced input tuples.
 </p>
 
-<p class="p">If unset, the default value of this parameter is true. This parameter is ignored when the operator is not configured with an output port.
+<p class="p">If unset, the default value of this parameter is <tt class="ph tt">true</tt>. This parameter is ignored when the operator is not configured with an output port.
 </p>
 <dl class="dl">
 

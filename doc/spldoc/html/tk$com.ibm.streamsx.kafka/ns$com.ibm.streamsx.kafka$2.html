@@ -22,40 +22,40 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Configuration</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Configuration</p>
 
 </div>
 
 
 <div class="section">
-<p class="p">The operators use Kafka's Producer or Consumer API. As a consequence, you can specify all properties for the APIs to control the behavior of the operators. The producer configuration for Apache Kafka 2.2 can be found in the <a class="xref" href="https://kafka.apache.org/22/documentation/#producerconfigs">producer configs section of the Apache Kafka 2.2 documentation</a>, the configs for the Apache Kafka Consumer can be found in the <a class="xref" href="https://kafka.apache.org/22/documentation/#consumerconfigs">consumer configs section of the Apache Kafka 2.2 documentation</a>.
+<p class="p">The operators use Kafka's Producer or Consumer API. As a consequence, you can specify all properties for the APIs to control the behavior of the operators. The producer configuration for Apache Kafka 2.3 can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#producerconfigs">producer configs section of the Apache Kafka 2.3 documentation</a>, the configs for the Apache Kafka Consumer can be found in the <a class="xref" href="https://kafka.apache.org/documentation/#consumerconfigs">consumer configs section of the Apache Kafka 2.3 documentation</a>.
 </p>
 
-<div class="p">Properties can be specified in different ways:
+<p class="p">Properties can be specified in different ways:
+</p>
+
+<div class="p">
 <ul class="ul">
-<li class="li"> As an Application configuration
-<p class="p">  You must specify the name of the App Config in the <strong class="ph b">appConfigName</strong> parameter.
-</p>
-</li>
+<li class="li"> as an Application configuration - you must specify the name of the App Config in the <strong class="ph b">appConfigName</strong> parameter</li>
 
-<li class="li"> in a property file
-<p class="p">  You must specify the filename in the <strong class="ph b">propertiesFile</strong> parameter.
-</p>
-</li>
+<li class="li"> in a property file - you must specify the filename in the <strong class="ph b">propertiesFile</strong> parameter</li>
 
-<li class="li"> operator parameters <strong class="ph b">clientId</strong> and <strong class="ph b">groupId</strong> (KafkaConsumer operator only)</li>
+<li class="li"> operator parameters <strong class="ph b">clientId</strong> and <strong class="ph b">groupId</strong> (groupId for the KafkaConsumer operator only)</li>
 
 </ul>
 
 </div>
 
-<div class="p">Kafka properties can be specified by using these mechanisms simultaneously. The precedence is
+<p class="p">Kafka properties can be specified by using these mechanisms simultaneously. The precedence is
+</p>
+
+<div class="p">
 <ul class="ul">
 <li class="li"> parameter</li>
 
 <li class="li"> property file</li>
 
-<li class="li"> application configuration. Please note that an application configuration with instance scope takes precedence over a   configuration with same name at domain level.</li>
+<li class="li"> application configuration. For Streams version 4.x users: Please note that an application configuration with    instance scope takes precedence over a configuration with same name at domain level.</li>
 
 </ul>
 

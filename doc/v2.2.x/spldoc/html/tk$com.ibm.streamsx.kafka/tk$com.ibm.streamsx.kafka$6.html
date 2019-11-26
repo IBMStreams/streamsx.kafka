@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xml:lang="en-us" lang="en-us">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="copyright" content="(C) Copyright 2005"/>
+<meta name="DC.rights.owner" content="(C) Copyright 2005"/>
+<meta name="DC.Type" content="reference"/>
+<meta name="DC.Title" content="What's new in version 2.0.0"/>
+<meta name="DC.Format" content="XHTML"/>
+<meta name="DC.Identifier" content="spldoc_page"/>
+<link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
+<link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
+<title>What's new in version 2.0.0</title>
+</head>
+<body id="spldoc_page">
+
+
+<h1 class="title topictitle1">What's new in version 2.0.0</h1>
+
+<div class="body refbody">
+<div class="section">
+<p class="p">
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.1</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka$1.html">What's new and what has changed</a> &gt; What's new in version 2.0.0</p>
+
+</div>
+
+
+<div class="section">
+</div>
+
+<div class="section"><h2 class="title sectiontitle">New Features
+</h2>
+
+<p class="p">The included Kafka client has been upgraded from version 2.1.1 to 2.2.1. Support for Kafka broker 2.2 has been added.
+</p>
+
+<p class="p">The toolkit has enhancements for the KafkaConsumer when it is used in an autonomous region (i.e. not part of a consistent region):
+</p>
+
+<div class="p">
+<ul class="ul">
+<li class="li"> The KafkaConsumer operator can now participate in a consumer group with <strong class="ph b">startPosition</strong> parameter values <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>, and <tt class="ph tt">Time</tt>.</li>
+
+<li class="li"> After re-launch of the PE, the KafkaConsumer operator does not overwrite the initial fetch offset to what the <strong class="ph b">startPosition</strong> parameter is.</li>
+
+</ul>
+
+</div>
+
+<p class="p">To achieve this new startPosition handling, the application must include a <tt class="ph tt">JobControlPlane</tt> operator when startPosition is not <tt class="ph tt">Default</tt>.
+</p>
+
+</div>
+
+<div class="section"><h2 class="title sectiontitle">Incompatible changes, which may break existing applications
+</h2>
+
+<p class="p">The behavior of the <strong class="ph b">KafkaConsumer</strong> operator changes when
+</p>
+
+<div class="p">
+<ol class="ol">
+<li class="li"> the operator is <em class="ph i">not</em> used in a consistent region, and</li>
+
+<li class="li"> the <strong class="ph b">startPosition</strong> parameter is used with <tt class="ph tt">Beginning</tt>, <tt class="ph tt">End</tt>, <tt class="ph tt">Time</tt>, or <tt class="ph tt">Offset</tt>.</li>
+
+</ol>
+
+</div>
+
+<p class="p">In all other cases the behavior of the KafkaConsumer is unchanged. Details of the changes, including sample code, can be found in the  <a class="xref" href="https://ibmstreams.github.io/streamsx.kafka/docs/user/kafka_toolkit_1_vs_2/">Toolkit documentation on Github</a>.
+</p>
+
+<p class="p">Previous versions of the KafkaConsumer operator did <em class="ph i">not</em> enable group management in autonomous regions, with <strong class="ph b">startPosition</strong> different from <tt class="ph tt">Default</tt>, even when a group-ID was configured. Since toolkit version 2.0, group management is enabled with all <strong class="ph b">startPosition</strong> values except <tt class="ph tt">Offset</tt>.
+</p>
+
+<p class="p">The conditions for a consumer operator to be part of a consumer group are now identical for consistent and autonomous region:
+</p>
+
+<div class="p">
+<ol class="ol">
+<li class="li"> A group identifier must be specified</li>
+
+<li class="li"> The operator must not have a control input port</li>
+
+<li class="li"> The <strong class="ph b">partitions</strong> parameter must not be used</li>
+
+</ol>
+
+</div>
+
+<p class="p">Correct handling of the initial start position requires always a <strong class="ph b">JobControlPlane</strong> operator in the application graph, also when consistent region is not used. Without a <strong class="ph b">JobControlPlane</strong> in the application graph, the Consumer operator will fail to initialize when <strong class="ph b">startPosition</strong> is used and is not <tt class="ph tt">Default</tt>.
+</p>
+
+<p class="p">Since toolkit version 2.0, the <strong class="ph b">startPosition</strong> has effect only when the consumer operator is initially launched at job submission. When the consumer's PE is re-launched or when new PEs are launched after changing the width of a parallel region, the fetch position is <em class="ph i">not reset</em> to what <strong class="ph b">startPosition</strong> is - in opposite to previous versions. More precisely, the fetch position is now only then reset for a topic partition, when the consumer has not yet committed offsets for the partition. In all other cases, the consumer continues fetching at the last committed offset.
+</p>
+
+</div>
+
+</div>
+
+
+</body>
+</html>

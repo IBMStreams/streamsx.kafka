@@ -7,22 +7,22 @@
 <meta name="copyright" content="(C) Copyright 2005"/>
 <meta name="DC.rights.owner" content="(C) Copyright 2005"/>
 <meta name="DC.Type" content="reference"/>
-<meta name="DC.Title" content="What's new in version 2.2.0"/>
+<meta name="DC.Title" content="What's new in version 2.2.1"/>
 <meta name="DC.Format" content="XHTML"/>
 <meta name="DC.Identifier" content="spldoc_page"/>
 <link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
 <link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
-<title>What's new in version 2.2.0</title>
+<title>What's new in version 2.2.1</title>
 </head>
 <body id="spldoc_page">
 
 
-<h1 class="title topictitle1">What's new in version 2.2.0</h1>
+<h1 class="title topictitle1">What's new in version 2.2.1</h1>
 
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.1</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka$1.html">What's new and what has changed</a> &gt; What's new in version 2.2.0</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.0</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka$1.html">What's new and what has changed</a> &gt; What's new in version 2.2.1</p>
 
 </div>
 
@@ -30,11 +30,7 @@
 <div class="section">
 <div class="p">
 <ul class="ul">
-<li class="li"> The <tt class="ph tt">KafkaProducer</tt> operator supports an optional output port, configurable via the new <strong class="ph b">outputErrorsOnly</strong> operator parameter</li>
-
-<li class="li"> Exception handling of the <tt class="ph tt">KafkaProducer</tt> operator in autonomous region changed. The operator does not abort its PE anymore; it recovers internally instead.</li>
-
-<li class="li"> New custom metrics for the <tt class="ph tt">KafkaProducer</tt> operator: <tt class="ph tt">nFailedTuples</tt>, <tt class="ph tt">nPendingTuples</tt>, and <tt class="ph tt">nQueueFullPause</tt></li>
+<li class="li"> bug fix: KafkaProducer: Lost output tuples on FinalMarker reception</li>
 
 </ul>
 

@@ -22,14 +22,28 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Compatibility</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; Compatibility</p>
 
 </div>
 
 
 <div class="section">
-<p class="p">This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x. This toolkit contains the Kafka client library version 2.2.1. Note, that Kafka transactions cannot be used when you connect to a Kafka broker that is below version 0.11, and that Zstandard compression is incompatible with brokers below version 2.1.
+<p class="p">This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x. This toolkit contains the Kafka client library version 2.3.1.
 </p>
+
+<div class="p">
+<ul class="ul">
+<li class="li"> To use Kafka transactions with the <tt class="ph tt">KafkaProducer</tt>, the Kafka server must be at version 0.11 or higher.</li>
+
+<li class="li"> To use Zstandard compression with the <tt class="ph tt">KafkaProducer</tt>, the Kafka server must be at version 2.1 or higher.</li>
+
+<li class="li"> To use the <tt class="ph tt">guaranteeOrdering: true;</tt> parameter of the <tt class="ph tt">KafkaProducer</tt>, the Kafka server must be at version 0.11 or higher.</li>
+
+<li class="li"> To configure the <tt class="ph tt">KafkaConsumer</tt> operator as a static consumer group member, the Kafka server must be at version 2.3 or higher.</li>
+
+</ul>
+
+</div>
 
 </div>
 

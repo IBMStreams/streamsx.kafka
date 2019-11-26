@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 2.2.1</a> &gt; com.ibm.streamsx.kafka</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.0</a> &gt; com.ibm.streamsx.kafka</p>
 
 </div>
 
@@ -33,7 +33,7 @@
 
   <dl class="dl"><dt class="dt dlterm"><a class="xref" href="ns$com.ibm.streamsx.kafka$1.html">Compatibility</a>
 </dt>
-<dd class="dd">This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x. This toolkit contains the Kafka client library version 2.2.1. Note, that Kafka transactions cannot be used when you connect to a Kafka broker that is below version 0.11, and that Zstandard compression is incompatible with brokers below version 2.1. 
+<dd class="dd">This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.3.x. This toolkit contains the Kafka client library version 2.3.1. 
 </dd>
 </dl>
 
@@ -61,22 +61,34 @@
 <div class="section"><h2 class="title sectiontitle splhead-1">Functions</h2>
   
 <ul class="sl simple">
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopic.rstring">createMessageAddTopic(rstring)</a></strong>: Creates the JSON message to add a single topic to the operator's subscription to begin consuming from the default position.
 </li>
 
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt;)</a></strong>: Creates the JSON message to add multiple topic-partitions to the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartition:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to add multiple topic partitions to the operator's partition assignment.
 </li>
 
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32">createMessageAddTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the default position.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.list:.:Control.TopicPartitionOffset:.:">createMessageAddTopicPartition(list&lt;Control.TopicPartitionOffset&gt;)</a></strong>: Creates the JSON message to add multiple topic partitions to the operator's partition assignment.
 </li>
 
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32.int64">createMessageAddTopicPartition(rstring, int32, int64)</a></strong>: Creates the JSON message to add a single topic-partition to the operator and to begin consuming at the specified offset.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32">createMessageAddTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to add a single topic partition to the operator's partition assignment and  to begin consuming at the default position.
 </li>
 
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:">createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to remove multiple topic-partitions from the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopicPartition.rstring.int32.int64">createMessageAddTopicPartition(rstring, int32, int64)</a></strong>: Creates the JSON message to add a single topic partition to the operator's partition assignment  and to begin consuming at the specified offset.
 </li>
 
-<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.rstring.int32">createMessageRemoveTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to remove a single topic-partition from the operator.
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageAddTopics.list:.:rstring:.:">createMessageAddTopics(list&lt;rstring&gt;)</a></strong>: Creates the JSON message to add multiple topics to the operator's subscription to begin consuming from the default position.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopic.rstring">createMessageRemoveTopic(rstring)</a></strong>: Creates the JSON message to remove a single topic from the operator's subscription.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.list:.:Control.TopicPartition:.:">createMessageRemoveTopicPartition(list&lt;Control.TopicPartition&gt;)</a></strong>: Creates the JSON message to remove multiple topic partitions from the operator's partition assignment.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopicPartition.rstring.int32">createMessageRemoveTopicPartition(rstring, int32)</a></strong>: Creates the JSON message to remove a single topic partition from the operator's partition assignment.
+</li>
+
+<li class="sli"><strong class="ph b"><a class="xref" href="spl$com.ibm.streamsx.kafka$Functions.html#spldoc_compilationunit__function__createMessageRemoveTopics.list:.:rstring:.:">createMessageRemoveTopics(list&lt;rstring&gt;)</a></strong>: Creates the JSON message to remove multiple topics from the operator's subscription.
 </li>
 
 </ul>

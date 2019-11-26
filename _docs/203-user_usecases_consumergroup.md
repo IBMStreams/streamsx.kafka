@@ -2,7 +2,7 @@
 title: "Usecase: Kafka Consumer Group"
 permalink: /docs/user/UsecaseConsumerGroup/
 excerpt: "How to use this toolkit."
-last_modified_at: 2019-09-13T08:35:48+01:00
+last_modified_at: 2019-11-26T08:35:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -86,10 +86,10 @@ Without a consistent region, tuples can get lost within the Streams application 
 
 * No assignment of partitions is configured through the **partition** operator parameter.
 * A group identifier must be specified either by the consumer property `group.id`, or by using
-  the **groupId** parameter, which would have precedence over a bare property.
+  the **groupId** parameter, which would have precedence over a bare property. All operators of
+  the consumer group must share this group identifier.
 * When not in a consistent region, the **startPosition** parameter must not be specified or must
-  have the value `Default` (for toolkit versions < 2.0; toolkit version >= 2.0,
-  also support `Beginning`, `End`, and `Time`)
+  have the value `Default` (for toolkit versions < 2.0). Toolkit versions >= 2.0 also support `Beginning`, `End`, and `Time`.
 * The **startPosition** parameter must not be `Offset`.
 
 

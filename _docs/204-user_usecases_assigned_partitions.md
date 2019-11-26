@@ -2,7 +2,7 @@
 title: "Usecase: Assigned Partitions"
 permalink: /docs/user/UsecaseAssignedPartitions/
 excerpt: "How to use this toolkit."
-last_modified_at: 2019-09-13T08:10:48+01:00
+last_modified_at: 2019-11-26T08:10:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -13,7 +13,7 @@ sidebar:
 
 # Overview
 
-Multiple `KafkaConsumer` reading from the same topic(s). Each operator assigned a
+Multiple `KafkaConsumer` operators reading from the same topic(s). Each operator assigned a
 specific set of partitions. With keyed partitions it is guaranteed that a key is
 always processed by the same sub-flow/channel.
 

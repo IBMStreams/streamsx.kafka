@@ -39,8 +39,8 @@ There are three standard patterns for Streams reading messages from Kafka.
 * [**Kafka consumer group**](https://ibmstreams.github.io/streamsx.kafka/docs/user/UsecaseConsumerGroup/) - the partitions of a topic are automatically assigned to multiple `KafkaConsumer` invocations for consumption
 * [**Assigned partitions**](https://ibmstreams.github.io/streamsx.kafka/docs/user/UsecaseAssignedPartitions/) - Multiple `KafkaConsumer` invocations with each invocation assigned specific partitions.
 
-The KafkaConsumer operator needs a configuration with 
-[Kafka consumer properties](https://kafka.apache.org/10/documentation.html#newconsumerconfigs). These can be specified in a property file or in an application configuration. The following examples use a property file in the etc directory of the application's toolkit. Some operator parameters, like **groupId**, and **clientId** map directly to properties. Other properties are adjusted by the operator. Which one, can be reviewed in the [SPL documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/) of the operators.
+The KafkaConsumer operator needs a configuration with
+[Kafka consumer properties](https://kafka.apache.org/documentation.html#consumerconfigs). These can be specified in a property file or in an application configuration. The following examples use a property file in the etc directory of the application's toolkit. Some operator parameters, like **groupId**, and **clientId** map directly to properties. Other properties are adjusted by the operator. Which one, can be reviewed in the [SPL documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/) of the operators.
 
 **Property file example**
 ```
@@ -59,6 +59,7 @@ group.id=myConsumerGroup
 * [KafkaClientIdSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaClientIdSample)
 * [KafkaConsumerGroupWithConsistentRegion](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupWithConsistentRegion)
 * [KafkaConsumerInputPortSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerInputPortSample)
+* [KafkaConsumerGroupInputPortSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupInputPortSample)
 * [KafkaConsumerLoadSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerLoadSample)
 * [KafkaCRTransactionalProducer](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaCRTransactionalProducer)
 * [KafkaFloatSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaFloatSample)

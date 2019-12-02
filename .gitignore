@@ -1,4 +1,5 @@
 output/
+.classpath
 .toolkitList
 toolkit.xml
 .gradle

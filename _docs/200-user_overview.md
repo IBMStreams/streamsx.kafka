@@ -19,7 +19,7 @@ It is a source operator within your Streams application.
 The KafkaProducer operator creates Kafka messages from tuples and acts therefore as a sink operator within your Streams application.
 
 For the KafkaConsumer there is a one-to-one relationship between Kafka messages and tuples. For the KafkaProducer, there can be a relation of one-to-many between tuples and Kafka messages when multiple topics are specified.
-Read more about how to use these operators in the [SPL documentaion](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/).
+Read more about how to use these operators in the [SPL documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/).
 
 # Common consumer patterns and use cases
 

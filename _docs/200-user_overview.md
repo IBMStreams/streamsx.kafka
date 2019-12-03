@@ -2,7 +2,7 @@
 title: "Toolkit Usage Overview"
 permalink: /docs/user/overview/
 excerpt: "How to use this toolkit."
-last_modified_at: 2018-04-13T12:37:48+01:00
+last_modified_at: 2019-12-03T12:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -18,7 +18,7 @@ It is a source operator within your Streams application.
 
 The KafkaProducer operator creates Kafka messages from tuples and acts therefore as a sink operator within your Streams application.
 
-For both, the KafkaConsumer and the KafkaProducer there is a one-to-one relationship between tuples and Kafka messages.
+For the KafkaConsumer there is a one-to-one relationship between Kafka messages and tuples. For the KafkaProducer, there can be a relation of one-to-many between tuples and Kafka messages when multiple topics are specified.
 Read more about how to use these operators in the [SPL documentaion](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/).
 
 # Common consumer patterns and use cases
@@ -53,18 +53,19 @@ group.id=myConsumerGroup
 
 # Samples
 
-* [KafkaAppConfigSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAppConfigSample)
-* [KafkaAttrNameParamsSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAttrNameParamsSample)
-* [KafkaBlobSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaBlobSample)
-* [KafkaClientIdSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaClientIdSample)
-* [KafkaConsumerGroupWithConsistentRegion](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupWithConsistentRegion)
-* [KafkaConsumerInputPortSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerInputPortSample)
-* [KafkaConsumerGroupInputPortSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupInputPortSample)
-* [KafkaConsumerLoadSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerLoadSample)
-* [KafkaCRTransactionalProducer](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaCRTransactionalProducer)
-* [KafkaFloatSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaFloatSample)
-* [KafkaIntegerSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaIntegerSample)
-* [KafkaProducerCustomPartitioner](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaProducerCustomPartitioner)
-* [KafkaPublishToPartitionSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaPublishToPartitionSample)
-* [KafkaSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaSample)
-* [KafkaStartOffsetSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaStartOffsetSample)
+* [KafkaSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaSample) - most basic sample
+* [KafkaAppConfigSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAppConfigSample) - use an application configuration to configure consumer and producer
+* [KafkaAttrNameParamsSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAttrNameParamsSample) - specify non-default attribute names for the stream schema
+* [KafkaBlobSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaBlobSample) - consume blob type data for key and message
+* [KafkaClientIdSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaClientIdSample) - specify a unique client identifier for consumers in a parallel region
+* [KafkaConsumerLoadBalanceSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerLoadBalanceSample) - Kafka consumer group for load balancing
+* [KafkaConsumerGroupWithConsistentRegion](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupWithConsistentRegion) - create a consumer group with at-least-once processing in a consistent region
+* [KafkaConsumerInputPortSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerInputPortSample) - control the topic partitions to consume via control input port
+* [KafkaConsumerGroupInputPortSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupInputPortSample) - control the topics to subscribe for a consumer group via control port
+* [KafkaCRTransactionalProducer](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaCRTransactionalProducer) - produce messages within Kafka transactions
+* [KafkaFloatSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaFloatSample) - use SPL `float` type for Kafka message and key
+* [KafkaIntegerSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaIntegerSample) - use SPL `int32` type for Kafka message and key
+* [KafkaProducerCustomPartitioner](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaProducerCustomPartitioner) - use a custom partitioner to produce messages
+* [KafkaPublishToPartitionSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaPublishToPartitionSample) - produce data to a given topic partition
+* [KafkaStartOffsetSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaStartOffsetSample) - start consuming at a given offset
+* [KafkaJAASConfigSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaJAASConfigSample) - configure the operators with user authentication (JAAS)

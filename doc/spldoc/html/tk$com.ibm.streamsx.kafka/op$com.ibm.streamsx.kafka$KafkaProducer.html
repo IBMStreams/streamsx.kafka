@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.0</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaProducer</p>
 
 </div>
 
@@ -1025,7 +1025,7 @@ sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
 <p class="p">The output port is asynchronous to the input port of the operator. The sequence of the submitted tuples may also differ from the sequence of the input tuples. Window punctuations from the input stream are not forwarded.
 </p>
 
-<p class="p">The schema of the output port must consist of one optional attribute of tuple type with the same schema as the input port and one optional attribute of type <tt class="ph tt">rstring</tt>, <tt class="ph tt">ustring</tt>, <tt class="ph tt">optional&lt;rstring&gt;</tt>, or <tt class="ph tt">optional&lt;ustring&gt;</tt>, that takes a JSON formatted description of the occured error, or remains <em class="ph i">empty</em> for successfully produced tuples. Emptiness of the attribute means that the attribute contains a string with zero length when declared as <tt class="ph tt">rstring</tt> or <tt class="ph tt">ustring</tt>, and an empty optional (optional without a value) when declared as optional. Both attributes can have any names and can be declared in any sequence in the schema.
+<p class="p">The schema of the output port must consist of one optional attribute of tuple type with the same schema as the input port and one optional attribute of type <tt class="ph tt">rstring</tt>, <tt class="ph tt">ustring</tt>, <tt class="ph tt">optional&lt;rstring&gt;</tt>, or <tt class="ph tt">optional&lt;ustring&gt;</tt>, that takes a JSON formatted description of the occured error, or remains <em class="ph i">empty</em> for successfully produced tuples. Emptiness of the attribute means that the attribute contains a string with zero length when declared as <tt class="ph tt">rstring</tt> or <tt class="ph tt">ustring</tt>, and an empty optional (optional without a value) when declared as optional. Both attributes can have any names and can be declared in any order in the schema.
 </p>
 
 <p class="p"><strong class="ph b">Example for declaring the output stream as error output:</strong>
@@ -1050,7 +1050,7 @@ stream &lt;Inp failedTuple, rstring failure&gt; Errors = KafkaProducer (Data as 
 }
 </pre>
 
-Please note that the generated JSON dows not contain line breaks as in the example above, where the JSON has been broken into multiple lines to better show its structure.
+Please note that the generated JSON does not contain line breaks as in the example above, where the JSON has been broken into multiple lines to better show its structure.
 </div>
 
 <p class="p"><strong class="ph b">Example for declaring the output stream for both successfully produced input tuples and failures:</strong>

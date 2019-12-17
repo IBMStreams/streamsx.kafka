@@ -92,7 +92,7 @@ public class TrackingProducerClient extends AbstractKafkaProducerClient implemen
             // we are in consistent region mode
             // when in consistent region, ALL exceptions are recovered by resetting the region when there is no error port.
             // when there is an error output port, the retriable exceptions lead to reset of the region.
-            // The non-retriable exceptions are reported o the error output port
+            // The non-retriable exceptions are reported to the error output port
             if (operatorContext.getNumberOfStreamingOutputs() == 0) {
                 this.errorCategorizer = new RecoverAllErrors();
             } else {
@@ -407,7 +407,8 @@ public class TrackingProducerClient extends AbstractKafkaProducerClient implemen
     }
 
     /**
-     * Tries to cancel all send requests that are not yet done.
+     * Tries to cancel all send requests that are not yet done and 
+     * cleans all pending tuples with associated pending records.
      * 
      * @see com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient#tryCancelOutstandingSendRequests(boolean)
      */
@@ -416,12 +417,21 @@ public class TrackingProducerClient extends AbstractKafkaProducerClient implemen
         synchronized (pendingTuples) {
             pendingTuples.forEach ((seqNo, tp) -> {
                 tp.getPendingRecords().forEach (pr -> {
+                    // make sure that exceptions are not handled anymore:
+                    pr.setExceptionHandler (null);
+                    pr.setProducedHandler (null);
                     Future<?> future = pr.getFuture();
                     if (future != null && !future.isDone()) {
                         future.cancel (mayInterruptIfRunning);
                     }
                 });
+                tp.getPendingRecords().clear();
             });
+            pendingTuples.clear();
+            synchronized (pendingTuplesMonitor) {
+                pendingTuplesMonitor.notifyAll();
+            }
+            nPendingTuples.setValue (0L);
         }
     }
 
@@ -470,16 +480,10 @@ public class TrackingProducerClient extends AbstractKafkaProducerClient implemen
 
 
     private void initiateConsistentRegionResetOnce() {
+        // we set this true, but never false, as CR reset instantiates a 
+        // new instance of this class and forgets this one.
         if (!resetInitiatedOnce.getAndSet (true)) {
             tryCancelOutstandingSendRequests (/*mayInterruptIfRunning = */true);
-            pendingTuples.forEach((seqNo, tp) -> {
-                tp.getPendingRecords().clear();
-            });
-            pendingTuples.clear();
-            synchronized (pendingTuplesMonitor) {
-                pendingTuplesMonitor.notifyAll();
-            }
-            nPendingTuples.setValue (0L);
             try {
                 crContext.reset();
             }

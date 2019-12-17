@@ -14,7 +14,8 @@
 package com.ibm.streamsx.kafka.clients.producer;
 
 /**
- * This class treats all Exceptiona as recoverable.
+ * This class treats all Exceptiona as recoverable,
+ * which are instances of org.apache.kafka.common.errors.RetriableException.
  * @author The IBM Kafka toolkit maintainers
  * @sinve toolkit version 2.2
  */

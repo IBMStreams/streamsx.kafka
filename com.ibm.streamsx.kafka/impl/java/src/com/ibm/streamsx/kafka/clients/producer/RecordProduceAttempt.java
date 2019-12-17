@@ -53,7 +53,9 @@ public class RecordProduceAttempt {
             if (exception == null) {
                 if (trace.isEnabledFor(DEBUG_LEVEL))
                     trace.log (DEBUG_LEVEL, "record " + producerRecordSeqNumber + " successfully produced for topic '" + metadata.topic() + "'. Invoking produced handler...");
-                producedHandler.onRecordProduced (producerRecordSeqNumber, producerRecord, metadata);
+                if (producedHandler != null) {
+                    producedHandler.onRecordProduced (producerRecordSeqNumber, producerRecord, metadata);
+                }
                 return;
             }
             // when we are here, producing the record failed with an exception
@@ -63,7 +65,9 @@ public class RecordProduceAttempt {
             if (this.producerGeneration == RecordProduceAttempt.this.producerGeneration.get()) {
                 trace.log (DEBUG_LEVEL, "Invoking exception handler...");
                 final int nProducerGenerations = RecordProduceAttempt.this.producerGeneration.get() - initialProducerGeneration +1;
-                exceptionHandler.onRecordProduceException (producerRecordSeqNumber, tp, exception, nProducerGenerations);
+                if (exceptionHandler != null) {
+                    exceptionHandler.onRecordProduceException (producerRecordSeqNumber, tp, exception, nProducerGenerations);
+                }
             }
             else {
                 trace.log (DEBUG_LEVEL, MsgFormatter.format ("skipping exception handler. producer generation of callback = {0,number,#}. "

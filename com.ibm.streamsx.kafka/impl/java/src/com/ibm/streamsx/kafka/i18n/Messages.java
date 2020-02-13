@@ -64,6 +64,7 @@ public class Messages {
         locales.add(new Locale("de", "DE"));
         locales.add(new Locale("en", "US"));
         locales.add(new Locale("fr", "FR"));
+        locales.add(new Locale("es", "ES"));
         locales.add(new Locale("it", "IT"));
         locales.add(new Locale("ja", "JP"));
         locales.add(new Locale("ko", "KR"));

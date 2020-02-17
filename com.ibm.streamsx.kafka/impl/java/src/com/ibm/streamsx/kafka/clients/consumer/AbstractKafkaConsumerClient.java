@@ -43,6 +43,7 @@ import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -70,6 +71,10 @@ import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
  * Base class of all Kafka consumer client implementations.
  */
 public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient implements ConsumerClient, OffsetCommitCallback {
+
+    private static final long EXCEPTION_HISTORY_WINDOW_SIZE = 15000L;
+    private static final int POLL_EXCEPTION_SUPPRESS_COUNT = 2;
+    private final TimeWindowExceptionFilter pollExcFilter;
 
     protected static final String N_PARTITION_REBALANCES = "nPartitionRebalances";
 
@@ -191,6 +196,8 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             this.kafkaProperties.put (ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, ConsumerMetricsReporter.class.getCanonicalName());
         }
 
+        this.pollExcFilter = new TimeWindowExceptionFilter (EXCEPTION_HISTORY_WINDOW_SIZE, POLL_EXCEPTION_SUPPRESS_COUNT);
+        this.pollExcFilter.setPartitioned (true);
         this.timeouts = new ConsumerTimeouts (operatorContext, this.kafkaProperties);
         timeouts.adjust (this.kafkaProperties);
         maxPollRecords = getMaxPollRecordsFromProperties (this.kafkaProperties);
@@ -788,7 +795,6 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         // arrives in the event queue
         fetchPaused = consumer.paused().size() > 0;
         logger.log (DEBUG_LEVEL, "previously paused partitions: " + consumer.paused());
-        int nConsecutiveRuntimeExc = 0;
         while (eventQueue.isEmpty()) {
             boolean doPoll = true;
             // can wait for 100 ms; throws InterruptedException:
@@ -816,6 +822,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     lastPollTimestamp = System.currentTimeMillis();
                     EnqueResult r = pollAndEnqueue (pollTimeout, throttleSleepMillis > 0l);
                     final int nMessages = r.getNumRecords();
+                    if (nMessages > 0) {
+                        pollExcFilter.reset();
+                    }
                     final long nQueuedBytes = r.getSumTotalSize();
                     final Level l = Level.DEBUG;
                     //                    final Level l = DEBUG_LEVEL;
@@ -824,13 +833,16 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                                 nMessages, r.getSumKeySize(), r.getSumValueSize(), nQueuedBytes));
                     }
                     tryAdjustMinFreeMemory (nQueuedBytes, nMessages);
-                    nConsecutiveRuntimeExc = 0;
                     nPendingMessages.setValue (messageQueue.size());
                     if (throttleSleepMillis > 0l) {
                         synchronized (throttledPollWaitMonitor) {
                             throttledPollWaitMonitor.wait (throttleSleepMillis);
                         }
                     }
+                } catch (RetriableException e) {
+                    logger.warn ("Retriable exception (ignored, may succeed if retried): " + e, e);
+                    logger.info ("Going to sleep for 100 ms before next poll ...");
+                    Thread.sleep (100l);
                 } catch (SerializationException e) {
                     // The default deserializers of the operator do not 
                     // throw SerializationException, but custom deserializers may throw...
@@ -839,14 +851,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     // https://issues.apache.org/jira/browse/KAFKA-4740)
                     throw e;
                 } catch (Exception e) {
-                    // catches also 'java.io.IOException: Broken pipe' when SSL is used
-                    logger.warn ("Exception caugt: " + e, e);
-                    if (++nConsecutiveRuntimeExc >= 50) {
+                    if (pollExcFilter.filter(e)) {
+                        logger.warn(e);
+                    } else {
                         logger.error (e);
-                        throw new KafkaOperatorRuntimeException ("Consecutive number of exceptions too high (50).", e);
+                        throw new KafkaOperatorRuntimeException ("Consecutive number of exceptions too high.", e);
                     }
-                    logger.info ("Going to sleep for 100 ms before next poll ...");
-                    Thread.sleep (100l);
                 }
             }
         }

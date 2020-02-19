@@ -15,9 +15,7 @@ package com.ibm.streamsx.kafka.operators;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -45,8 +43,8 @@ import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.PerformanceLevel;
-import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient;
+import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
 import com.ibm.streamsx.kafka.clients.producer.TrackingProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.TransactionalCrProducerClient;
 import com.ibm.streamsx.kafka.i18n.Messages;
@@ -90,9 +88,11 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
     private AbstractKafkaProducerClient producer;
     private AtomicBoolean isResetting;
-    private String keyAttributeName = null;
-    private String partitionAttributeName = null;
-    private String timestampAttributeName = null;
+    private int keyAttributeIndex = -1;
+    private int partitionAttributeIndex = -1;
+    private int timestampAttributeIndex = -1;
+    private int topicAttributeIndex = -1;
+
     // AtLeastOnce as default in order to support also Kafka 0.10 out of the box in Consistent Region.
     private ConsistentRegionPolicy consistentRegionPolicy = ConsistentRegionPolicy.NonTransactional;
     private boolean guaranteeOrdering = false;
@@ -275,7 +275,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     public static void checkPartitionAttributeType(OperatorContextChecker checker) {
         if(!checker.getOperatorContext().getParameterNames().contains(PARTITIONATTR_PARAM_NAME)) {
             StreamSchema schema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
-            Attribute partition = schema.getAttribute("partition"); //$NON-NLS-1$
+            Attribute partition = schema.getAttribute(DEFAULT_PARTITION_ATTR_NAME); //$NON-NLS-1$
             if(partition != null) {
                 if(!checker.checkAttributeType(partition, MetaType.INT32)) {
                     checker.setInvalidContext(Messages.getString("PARTITION_ATTRIBUTE_NOT_INT32"), new Object[0]); //$NON-NLS-1$
@@ -387,15 +387,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             if(!checker.getOperatorContext().getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
                 // 'topicAttr' param also not specified, check for input attribute named "topic"
                 Attribute topicAttribute = streamSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
-                if(topicAttribute == null) {
-                    // "topic" input attribute does not exist...set invalid context
+                if (topicAttribute != null) {
+                    if (!checker.checkAttributeType (topicAttribute, MetaType.RSTRING, MetaType.BSTRING, MetaType.USTRING)) {
+                        checker.setInvalidContext(Messages.getString("TOPIC_ATTRIBUTE_NOT_STRING"), new Object[0]);
+                    }
+                } else {
+                    // no topic parameter, "topic" input attribute does not exist...set invalid context
                     checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
-                }
-                Set<MetaType> allowedTopicMTypes = new HashSet<>(Arrays.asList(
-                        MetaType.RSTRING, MetaType.BSTRING, MetaType.USTRING
-                        ));
-                if (!allowedTopicMTypes.contains (topicAttribute.getType().getMetaType())) {
-                    checker.setInvalidContext(Messages.getString("TOPIC_ATTRIBUTE_NOT_STRING"), new Object[0]);
                 }
             }
         }
@@ -441,7 +439,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
 
         if(keyAttribute != null) {
             keyType = keyAttribute.getType().getObjectType();
-            keyAttributeName = keyAttribute.getName();
+            keyAttributeIndex = keyAttribute.getIndex();
+        }
+        else {
+            keyAttributeIndex = -1;
         }
 
         // check for partition attribute
@@ -451,7 +452,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         } else {
             partitionAttribute = inputSchema.getAttribute(DEFAULT_PARTITION_ATTR_NAME);
         }
-        partitionAttributeName = partitionAttribute != null ? partitionAttribute.getName() : null;
+        partitionAttributeIndex = partitionAttribute != null ? partitionAttribute.getIndex() : -1;
 
         // check for timestamp attribute
         Attribute timestampAttribute = null;
@@ -460,7 +461,15 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         } else {
             timestampAttribute = inputSchema.getAttribute(DEFAULT_TIMESTAMP_ATTR_NAME);
         }
-        timestampAttributeName = timestampAttribute != null ? timestampAttribute.getName() : null;
+        timestampAttributeIndex = timestampAttribute != null ? timestampAttribute.getIndex() : -1;
+
+        Attribute topicAttribute = null;
+        if (topicAttr != null && topicAttr.getAttribute() != null) {
+            topicAttribute = topicAttr.getAttribute();
+        } else {
+            topicAttribute = inputSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
+        }
+        topicAttributeIndex = topicAttribute != null? topicAttribute.getIndex(): -1;
 
         // get message type
         messageType = messageAttr.getAttribute().getType().getObjectType();
@@ -535,10 +544,10 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
 
         List<String> topicList = getTopics(tuple);
-        Object key = keyAttributeName != null ? toJavaPrimitveObject(keyType, tuple.getObject(keyAttributeName)) : null;
+        Object key = keyAttributeIndex >=0? toJavaPrimitveObject(keyType, tuple.getObject(keyAttributeIndex)): null;
         Object value = toJavaPrimitveObject(messageType, messageAttr.getValue(tuple));
-        Integer partition = (partitionAttributeName != null) ? tuple.getInt(partitionAttributeName) : null;
-        Long timestamp = (timestampAttributeName) != null ? tuple.getLong(timestampAttributeName) : null;
+        Integer partition = partitionAttributeIndex >= 0? tuple.getInt(partitionAttributeIndex): null;
+        Long timestamp = timestampAttributeIndex >= 0? tuple.getLong(timestampAttributeIndex): null;
 
         // send message to all topics
         if (topicList.size() == 1) {
@@ -576,16 +585,15 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     private List<String> getTopics(Tuple tuple) {
         List<String> topicList;
 
-        if(this.topics != null && !this.topics.isEmpty()) {
+        if (this.topics != null && !this.topics.isEmpty()) {
             topicList = this.topics;
-        } else if(topicAttr != null) {
+        } else if (topicAttr != null) {
             topicList = Arrays.asList(topicAttr.getValue(tuple));
         } else {
-            // the context checker guarantees that this will be here
+            // the context checker guarantees that DEFAULT_TOPIC_ATTR_NAME is in the schema here
             // if the above 2 conditions are false
-            topicList = Arrays.asList(tuple.getString(DEFAULT_TOPIC_ATTR_NAME));
+            topicList = Arrays.asList(tuple.getString(topicAttributeIndex));
         }
-
         return topicList;
     }
 

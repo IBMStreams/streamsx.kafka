@@ -7,7 +7,7 @@ use com.ibm.streamsx.kafka::KafkaProducer ;
  * This sample is a Consistent Region sample that demonstrates the use of multiple consumers in a consumer group.
  * You can kill any of the PEs in the graph that produces Kafka messages. The result file should always be the same.
  */
-composite KafkaConsumerGroupWithConsistentRegion {
+public composite KafkaConsumerGroupWithConsistentRegion {
     param
         // settings for the consumer group
         expression <int32> $nConsumers: 3;   // number of consumers in the consumer group; can be different than number of partitions

@@ -8,7 +8,7 @@ type Message = rstring key, rstring message, int64 messageTimestamp ;
  * This sample demonstrates how to configure the KafkaConsumer
  * to begin consuming offsets from a specific offset.
  */
-composite KafkaStartOffsetSample
+public composite KafkaStartOffsetSample
 {
     graph
         // when using startPosition: Offset for the consumer operator, we need a JobControlPlane for correct restart behaviour
@@ -44,7 +44,7 @@ composite KafkaStartOffsetSample
 
 }
 
-composite KafkaMessageGenerator
+public composite KafkaMessageGenerator
 {
     graph
         (stream<Message> Beacon_4_out0) as Beacon_4 = Beacon()

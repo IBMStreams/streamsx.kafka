@@ -4,6 +4,7 @@ use com.ibm.streamsx.kafka::KafkaConsumer;
 use com.ibm.streamsx.kafka::KafkaProducer;
 use com.ibm.streamsx.avro::TupleToAvro;
 use com.ibm.streamsx.avro::AvroToJSON;
+use com.ibm.streamsx.kafka::MessageType;
 
 /*
  * This sample uses AVRO blob for message.
@@ -11,13 +12,11 @@ use com.ibm.streamsx.avro::AvroToJSON;
 composite KafkaAvroSample
 {
 	type
-		Message = blob message, rstring key;
 		tweetT = rstring username, rstring tweet, int64 tweettime;
 
 	graph
 		// Generate 100 tweets with a changing value for every tweet
-		stream<tweetT> GenerateTweet = Beacon()
-		{
+		stream<tweetT> GenerateTweet = Beacon() {
 			param
 				iterations: 100u;
 			output
@@ -26,7 +25,7 @@ composite KafkaAvroSample
 		}
 
 		// Batch the incoming tuples into Avro tuples with embedded schema
-		stream<Message> ConvertToAvro = TupleToAvro(GenerateTweet) {
+		stream<MessageType.BlobMessage> ConvertToAvro = TupleToAvro(GenerateTweet) {
 			param
 				outputAvroMessage: "message";
 				avroMessageSchemaFile: getThisToolkitDir()+"/etc/twitter.avsc";
@@ -35,8 +34,7 @@ composite KafkaAvroSample
 		}
 
 		// Set value for the key attribute
-		stream<Message> AvroMessages as O = Custom(ConvertToAvro as I)
-		{
+		stream<MessageType.BlobMessage> AvroMessages as O = Custom(ConvertToAvro as I) {
 			logic
 				onTuple I:{
 					I.key = "sample-key";
@@ -44,30 +42,28 @@ composite KafkaAvroSample
 				}
 		}
 
-		() as KafkaProducer1 = KafkaProducer(AvroMessages)
-		{
+		() as KafkaProducer1 = KafkaProducer(AvroMessages) {
 			param
 				topic : "test" ;
 				propertiesFile : "etc/producer.properties";
 		}
 
 
-		stream<Message> KafkaMessages = KafkaConsumer()
-		{
+		// messages get de-serialized into blob
+		stream <MessageType.BlobMessage> ReceivedMessages = KafkaConsumer() {
 			param
 				topic : "test" ;
 				propertiesFile : "etc/consumer.properties";
 		}
 
 		// Convert the blob to JSON
-		stream<rstring jsonMessage> ConvertAvroToJson = AvroToJSON(KafkaMessages) {
+		stream<rstring jsonMessage> ConvertAvroToJson = AvroToJSON(ReceivedMessages) {
 			param
 				inputAvroMessage: "message";
 		}
 
 		// Display the retrieved JSON message
-		() as DisplayJson = Custom(ConvertAvroToJson as I)
-		{
+		() as DisplayJson = Custom(ConvertAvroToJson as I) {
 			logic
 				onTuple I: println((rstring) I);
 		}

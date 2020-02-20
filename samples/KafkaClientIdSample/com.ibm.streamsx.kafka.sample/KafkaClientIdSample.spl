@@ -11,7 +11,7 @@ use com.ibm.streamsx.kafka::KafkaProducer ;
  * This sample is nearly identical to the KafkaConsumeLoadBalance 
  * sample, but with the addition of the 'clientId' parameter. 
  */
-composite KafkaClientIdSample
+public composite KafkaClientIdSample
 {
     type
         Message = rstring key, rstring message ;

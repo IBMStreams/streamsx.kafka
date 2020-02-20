@@ -9,7 +9,7 @@ use com.ibm.streamsx.kafka::MessageType;
 /*
  * This sample uses AVRO blob for message.
  */
-composite KafkaAvroSample
+public composite KafkaAvroSample
 {
 	type
 		tweetT = rstring username, rstring tweet, int64 tweettime;

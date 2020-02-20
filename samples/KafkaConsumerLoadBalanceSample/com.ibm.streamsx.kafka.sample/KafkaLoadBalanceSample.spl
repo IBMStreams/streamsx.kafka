@@ -13,7 +13,7 @@ use com.ibm.streamsx.kafka::KafkaProducer ;
  * The producer operator will generate 10 tuples/sec. Each consumer should be
  * receiving and submitting approximately 3 tuples/sec.
  */
-composite KafkaConsumerLoadSample
+public composite KafkaConsumerLoadSample
 {
 	type
 		Message = rstring key, rstring message ;

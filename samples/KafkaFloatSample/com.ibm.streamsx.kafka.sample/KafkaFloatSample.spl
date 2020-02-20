@@ -8,7 +8,7 @@ use com.ibm.streamsx.kafka::KafkaProducer ;
  * Kafka operators will automatically use the correct 
  * serializer and deserializer by examining the key and message types. 
  */
-composite KafkaFloatSample
+public composite KafkaFloatSample
 {
 	type
 		Message = float64 key, float64 message;

@@ -13,7 +13,7 @@ use com.ibm.streamsx.kafka::KafkaProducer ;
  *  2. The `partitioner.class` property must be set in the 
  *     KafkaProducers property file (producer.properties in this sample) 
  */
-composite KafkaProducerCustomPartitioner
+public composite KafkaProducerCustomPartitioner
 {
     type
         Message = rstring key, rstring message;

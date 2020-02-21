@@ -56,6 +56,7 @@ group.id=myConsumerGroup
 * [KafkaSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaSample) - most basic sample
 * [KafkaAppConfigSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAppConfigSample) - use an application configuration to configure consumer and producer
 * [KafkaAttrNameParamsSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAttrNameParamsSample) - specify non-default attribute names for the stream schema
+* [KafkaAvroSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAvroSample) - Use of Avro formatted data with Kafka
 * [KafkaBlobSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaBlobSample) - consume blob type data for key and message
 * [KafkaClientIdSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaClientIdSample) - specify a unique client identifier for consumers in a parallel region
 * [KafkaConsumerLoadBalanceSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerLoadBalanceSample) - Kafka consumer group for load balancing

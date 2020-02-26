@@ -263,7 +263,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
      * referring to.  
      */
     private static String parseFQAttributeName(String attrString) {
-        return attrString.split("_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+        return attrString.split(".get_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
     }
 
     /**

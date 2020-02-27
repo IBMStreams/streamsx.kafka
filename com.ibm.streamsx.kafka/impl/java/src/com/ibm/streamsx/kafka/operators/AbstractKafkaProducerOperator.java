@@ -42,6 +42,7 @@ import com.ibm.streams.operator.model.DefaultAttribute;
 import com.ibm.streams.operator.model.Parameter;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
+import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.PerformanceLevel;
 import com.ibm.streamsx.kafka.clients.producer.AbstractKafkaProducerClient;
 import com.ibm.streamsx.kafka.clients.producer.ConsistentRegionPolicy;
@@ -254,22 +255,13 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
     @CustomMetric (kind = Metric.Kind.COUNTER, name = "nFailedTuples", description = "Number of tuples that could not be produced for all topics")
     public void setnFailedTuples (Metric nFailedTuples) { }
 
-    /**
-     * Retrieving the value of a TupleAttribute parameter via OperatorContext.getParameterValues()
-     * returns a string in the form "InputPortName.AttributeName". However, this ends up being the
-     * C++ equivalent String, which looks like: "iport$0.get_myAttr()". 
-     * 
-     * This methods will return "myAttr", which is the name of the attribute that the parameter is
-     * referring to.  
-     */
-    private static String parseFQAttributeName(String attrString) {
-        return attrString.split(".get_")[1].replace("()", ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-    }
 
     /**
      * If the `partitionAttribute` is not defined, then the operator will look
      * for an input attribute called "partition". Here, we need to check that this
-     * input attribute is of type "int32". 
+     * input attribute is of type "int32".
+     * When the `partitionAttribute`parameter is used, the Streams compiler will do the
+     * attribute type check.
      */
     @ContextCheck(compile = true)
     public static void checkPartitionAttributeType(OperatorContextChecker checker) {
@@ -279,6 +271,95 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             if(partition != null) {
                 if(!checker.checkAttributeType(partition, MetaType.INT32)) {
                     checker.setInvalidContext(Messages.getString("PARTITION_ATTRIBUTE_NOT_INT32"), new Object[0]); //$NON-NLS-1$
+                }
+            }
+        }
+    }
+
+
+    /**
+     * If the `topicAttribute` is not defined, then the operator will look
+     * for an input attribute called "topic". Here, we need to check that this
+     * input attribute is of type "rstring".
+     * When the `topicAttribute`parameter is used, the Streams compiler will do the
+     * attribute type check.
+     * When neither the `topicAttribute` parameter is used nor a `topic` attribute with rstring type exists,
+     * the `topic` parameter must be used.
+     */
+    @ContextCheck(compile = true)
+    public static void checkTopicAttributeTypeOrTopicParameter(OperatorContextChecker checker) {
+        /*
+         * For topics, one of the following must be true: 
+         *  * the 'topic' parameter is specified that lists topics to write to
+         *  * the 'topicAttribute' parameter is specified that points to an input attribute containing the topic to write to
+         *  * neither of the above parameters are specified but the input schema contains an attribute named "topic"
+         *  
+         * An invalid context is set if none of the above conditions are true
+         */
+        final OperatorContext operatorContext = checker.getOperatorContext();
+        if(!operatorContext.getParameterNames().contains(TOPIC_PARAM_NAME)) {
+            // no topic parameter - check presence of topicAttribute parameter
+            if(!operatorContext.getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
+                // no topicAttribute parameter - check presence and type of 'topic' attribute
+                StreamSchema schema = operatorContext.getStreamingInputs().get(0).getStreamSchema();
+                Attribute topicAttribute = schema.getAttribute(DEFAULT_TOPIC_ATTR_NAME); //$NON-NLS-1$
+                if(topicAttribute != null) {
+                    if (!checker.checkAttributeType (topicAttribute, MetaType.RSTRING, MetaType.BSTRING, MetaType.USTRING)) {
+                        checker.setInvalidContext(Messages.getString("TOPIC_ATTRIBUTE_NOT_STRING"), new Object[0]);
+                    }
+                } else {
+                    // no topic parameter, "topic" input attribute does not exist...set invalid context
+                    checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
+                }
+            }
+        }
+    }
+
+
+    @ContextCheck(compile = true)
+    public static void checkDefaultMessageAttribute (OperatorContextChecker checker) {
+        /*
+         * When we specify a message attribute via `messageAttribute` parameter, the Streams compiler
+         * checks for presence of the given attribute and for the right type.
+         * When we do not specify the attribute, 'message' must be present in the input schema.
+         * We can check presence and type of this default attribute.
+         */
+        final OperatorContext operatorContext = checker.getOperatorContext();
+        if(!operatorContext.getParameterNames().contains (MESSAGEATTR_PARAM_NAME)) {
+            // no messageAttribute parameter - check presence of 'message' attribute in the schema
+            StreamSchema schema = operatorContext.getStreamingInputs().get(0).getStreamSchema();
+            Attribute messageAttribute = schema.getAttribute (DEFAULT_MESSAGE_ATTR_NAME); //$NON-NLS-1$
+            if (messageAttribute == null) {
+                checker.setInvalidContext (Messages.getString("MESSAGE_ATTRIBUTE_NOT_FOUND"), new Object[0]);
+                return;
+            }
+            if (!checker.checkAttributeType (messageAttribute, SUPPORTED_ATTR_TYPES)) {
+                final String msg = Messages.getString ("UNSUPPORTED_ATTR_TYPE", 
+                        operatorContext.getKind(), messageAttribute.getType().getLanguageType(), messageAttribute.getName());
+                checker.setInvalidContext (msg, new Object[0]);
+            }
+        }
+    }
+
+
+    @ContextCheck(compile = true)
+    public static void checkDefaultKeyAttribute (OperatorContextChecker checker) {
+        /*
+         * When we specify a key attribute via `keyAttribute` parameter, the Streams compiler
+         * checks for presence of the given attribute and for the right type.
+         * When we do not specify the attribute, 'key' would be the default key attribute in the input schema.
+         * We check the type of this default attribute if present.
+         */
+        final OperatorContext operatorContext = checker.getOperatorContext();
+        if(!operatorContext.getParameterNames().contains (KEYATTR_PARAM_NAME)) {
+            // no keyAttribute parameter - check presence of 'key' attribute in the schema
+            StreamSchema schema = operatorContext.getStreamingInputs().get(0).getStreamSchema();
+            Attribute keyAttribute = schema.getAttribute (DEFAULT_KEY_ATTR_NAME); //$NON-NLS-1$
+            if (keyAttribute != null) {
+                if (!checker.checkAttributeType (keyAttribute, SUPPORTED_ATTR_TYPES)) {
+                    final String msg = Messages.getString ("UNSUPPORTED_ATTR_TYPE", 
+                            operatorContext.getKind(), keyAttribute.getType().getLanguageType(), keyAttribute.getName());
+                    checker.setInvalidContext (msg, new Object[0]);
                 }
             }
         }
@@ -335,70 +416,6 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             checker.setInvalidContext (Messages.getString("PRODUCER_INVALID_OPORT_SCHEMA", opCtx.getKind()), new Object[0]); //$NON-NLS-1$
     }
 
-    @ContextCheck(runtime = true, compile = false)
-    public static void checkAttributes(OperatorContextChecker checker) {
-        StreamSchema streamSchema = checker.getOperatorContext().getStreamingInputs().get(0).getStreamSchema();
-
-        /*
-         * The message attribute must either be defined via the 'messageAttr' parameter, 
-         * or the input schema must contain an attribute named "message". Otherwise, 
-         * a context error is returned.
-         */
-        Attribute msgAttr;
-        List<String> messageAttrParamValues = checker.getOperatorContext().getParameterValues(MESSAGEATTR_PARAM_NAME);
-        if(messageAttrParamValues != null && !messageAttrParamValues.isEmpty()) {
-            msgAttr = streamSchema.getAttribute(parseFQAttributeName(messageAttrParamValues.get(0)));
-        } else {
-            // the 'messageAttr' parameter is not specified, so check if input schema contains an attribute named "message"
-            msgAttr = streamSchema.getAttribute(DEFAULT_MESSAGE_ATTR_NAME);
-        }
-
-        if(msgAttr != null) {
-            // validate the message attribute type
-            checker.checkAttributeType(msgAttr, SUPPORTED_ATTR_TYPES);
-        } else {
-            // the operator does not specify a message attribute, so set an invalid context
-            checker.setInvalidContext(Messages.getString("MESSAGE_ATTRIBUTE_NOT_FOUND"), new Object[0]); //$NON-NLS-1$
-        }
-
-        /*
-         * A key attribute can either be specified via the 'keyAttr' parameter,
-         * or the input schema can contain an attribute named "key". If neither is true, 
-         * then a 'null' key will be used when writing records to Kafka (i.e. do not 
-         * set an invalid context) 
-         */
-        List<String> keyParamValues = checker.getOperatorContext().getParameterValues(KEYATTR_PARAM_NAME);
-        Attribute keyAttr = (keyParamValues != null && !keyParamValues.isEmpty())? streamSchema.getAttribute(parseFQAttributeName(keyParamValues.get(0))): streamSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
-
-        // validate the key attribute type
-        if (keyAttr != null)
-            checker.checkAttributeType(keyAttr, SUPPORTED_ATTR_TYPES);
-
-        /*
-         * For topics, one of the following must be true: 
-         *  * the 'topic' parameter is specified that lists topics to write to
-         *  * the 'topicAttr' parameter is specified that points to an input attribute containing the topic to write to
-         *  * neither of the above parameters are specified but the input schema contains an attribute named "topic"
-         *  
-         * An invalid context is set if none of the above conditions are true
-         */
-        if(!checker.getOperatorContext().getParameterNames().contains(TOPIC_PARAM_NAME)) { 
-            // 'topic' param not specified, check for 'topicAttr' param
-            if(!checker.getOperatorContext().getParameterNames().contains(TOPICATTR_PARAM_NAME)) {
-                // 'topicAttr' param also not specified, check for input attribute named "topic"
-                Attribute topicAttribute = streamSchema.getAttribute(DEFAULT_TOPIC_ATTR_NAME);
-                if (topicAttribute != null) {
-                    if (!checker.checkAttributeType (topicAttribute, MetaType.RSTRING, MetaType.BSTRING, MetaType.USTRING)) {
-                        checker.setInvalidContext(Messages.getString("TOPIC_ATTRIBUTE_NOT_STRING"), new Object[0]);
-                    }
-                } else {
-                    // no topic parameter, "topic" input attribute does not exist...set invalid context
-                    checker.setInvalidContext(Messages.getString("TOPIC_NOT_SPECIFIED"), new Object[0]); //$NON-NLS-1$
-                }
-            }
-        }
-    }
-
 
     @ContextCheck(compile = true)
     public static void checkConsistentRegion(OperatorContextChecker checker) {
@@ -412,6 +429,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             }
         }
     }
+
 
     /**
      * Initialize this operator. Called once before any tuples are processed.
@@ -437,7 +455,15 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
             keyAttribute = inputSchema.getAttribute(DEFAULT_KEY_ATTR_NAME);
         }
 
+        final List<MetaType> supportedAttrTypes = Arrays.asList(SUPPORTED_ATTR_TYPES);
         if(keyAttribute != null) {
+            // check type
+            if (!supportedAttrTypes.contains (keyAttribute.getType().getMetaType())) {
+                final String msg = Messages.getString ("UNSUPPORTED_ATTR_TYPE", 
+                        context.getKind(), keyAttribute.getType().getLanguageType(), keyAttribute.getName());
+                logger.error (msg);
+                throw new KafkaOperatorException (msg);
+            }
             keyType = keyAttribute.getType().getObjectType();
             keyAttributeIndex = keyAttribute.getIndex();
         }
@@ -471,8 +497,15 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
         }
         topicAttributeIndex = topicAttribute != null? topicAttribute.getIndex(): -1;
 
-        // get message type
-        messageType = messageAttr.getAttribute().getType().getObjectType();
+        Attribute messageAttribute = messageAttr.getAttribute();
+        // check message attribute type
+        if (!supportedAttrTypes.contains (messageAttribute.getType().getMetaType())) {
+            final String msg = Messages.getString ("UNSUPPORTED_ATTR_TYPE", 
+                    context.getKind(), messageAttribute.getType().getLanguageType(), messageAttribute.getName());
+            logger.error (msg);
+            throw new KafkaOperatorException (msg);
+        }
+        messageType = messageAttribute.getType().getObjectType();
 
         crContext = context.getOptionalContext(ConsistentRegionContext.class);
         // isResetting can always be false when not in consistent region.

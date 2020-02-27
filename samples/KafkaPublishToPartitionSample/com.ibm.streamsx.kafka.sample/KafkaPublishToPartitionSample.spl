@@ -7,7 +7,7 @@ use com.ibm.streamsx.kafka::KafkaProducer ;
  * This is a very basic sample demonstrating how to use the KafkaConsumer 
  * and KafkaProducer operators.
  */
-composite KafkaPublishToPartitionSample
+public composite KafkaPublishToPartitionSample
 {
     type
         Message = rstring key, rstring message ;

@@ -210,7 +210,7 @@ of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configu
 can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/|toolkit documentation].
 
    </info:description>
-   <info:version>3.0.3</info:version>
+   <info:version>3.0.4</info:version>
    <info:requiredProductVersion>4.3.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

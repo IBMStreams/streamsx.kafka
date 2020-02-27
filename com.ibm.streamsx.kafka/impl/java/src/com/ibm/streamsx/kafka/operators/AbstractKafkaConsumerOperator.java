@@ -135,11 +135,12 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private CountDownLatch resettingLatch;
     private CountDownLatch processThreadEndedLatch;
     private Object monitor = new Object();
-    private boolean hasOutputTopic;
-    private boolean hasOutputKey;
-    private boolean hasOutputOffset;
-    private boolean hasOutputPartition;
-    private boolean hasOutputTimetamp;
+    private int outputMessageAttrIdx = -1;
+    private int outputKeyAttrIdx = -1;
+    private int outputTopicAttrIdx = -1;
+    private int outputTimetampAttrIdx = -1;
+    private int outputPartitionAttrIdx = -1;
+    private int outputOffsetAttrIdx = -1;
 
     // The number of messages in which the value was malformed and could not be deserialized
     private Metric nMalformedMessages;
@@ -710,13 +711,14 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             shutdown = new AtomicBoolean(false);
 
             StreamSchema outputSchema = context.getStreamingOutputs().get(0).getStreamSchema();
-            hasOutputKey = outputSchema.getAttribute(outputKeyAttrName) != null;
-            hasOutputTopic = outputSchema.getAttribute(outputTopicAttrName) != null;
-            hasOutputTimetamp = outputSchema.getAttribute(outputMessageTimestampAttrName) != null;
-            hasOutputPartition = outputSchema.getAttribute(outputPartitionAttrName) != null;
-            hasOutputOffset = outputSchema.getAttribute(outputOffsetAttrName) != null;
+            outputMessageAttrIdx = outputSchema.getAttributeIndex (outputMessageAttrName);
+            outputKeyAttrIdx = outputSchema.getAttributeIndex (outputKeyAttrName);
+            outputTopicAttrIdx = outputSchema.getAttributeIndex (outputTopicAttrName);
+            outputTimetampAttrIdx = outputSchema.getAttributeIndex (outputMessageTimestampAttrName);
+            outputPartitionAttrIdx = outputSchema.getAttributeIndex (outputPartitionAttrName);
+            outputOffsetAttrIdx = outputSchema.getAttributeIndex (outputOffsetAttrName);
 
-            Class<?> keyClass = hasOutputKey ? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
+            Class<?> keyClass = outputKeyAttrIdx >= 0? getAttributeType(context.getStreamingOutputs().get(0), outputKeyAttrName)
                     : String.class; // default to String.class for key type
             Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
             KafkaOperatorProperties kafkaProperties = getKafkaProperties();
@@ -1005,9 +1007,9 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
         final StreamingOutput<OutputTuple> out = getOutput(0);
         OutputTuple tuple = out.newTuple();
-        setTuple(tuple, outputMessageAttrName, record.value());
+        setTuple(tuple, outputMessageAttrName, outputMessageAttrIdx, record.value());
 
-        if (hasOutputKey) {
+        if (outputKeyAttrIdx >= 0) {
             // if record.key() is null, we have no evidence that this happend really by a malformed key.
             // It can also be an unkeyed message. So, dropping the message seems not appropriate in this case.
             // 
@@ -1022,45 +1024,45 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             //                nMalformedMessages.increment();
             //                return;
             //            }
-            setTuple(tuple, outputKeyAttrName, record.key());
+            setTuple(tuple, outputKeyAttrName, outputKeyAttrIdx, record.key());
         }
 
-        if (hasOutputTopic) {
-            tuple.setString(outputTopicAttrName, record.topic());
+        if (outputTopicAttrIdx >= 0) {
+            tuple.setString(outputTopicAttrIdx, record.topic());
         }
 
-        if(hasOutputOffset) {
-            tuple.setLong(outputOffsetAttrName, record.offset());
+        if (outputOffsetAttrIdx >= 0) {
+            tuple.setLong(outputOffsetAttrIdx, record.offset());
         }
 
-        if(hasOutputPartition) {
-            tuple.setInt(outputPartitionAttrName, record.partition());
+        if (outputPartitionAttrIdx >= 0) {
+            tuple.setInt(outputPartitionAttrIdx, record.partition());
         }
 
-        if(hasOutputTimetamp) {
-            tuple.setLong(outputMessageTimestampAttrName, record.timestamp());
+        if (outputTimetampAttrIdx >= 0) {
+            tuple.setLong(outputTimetampAttrIdx, record.timestamp());
         }
         out.submit(tuple);
     }
 
-    private void setTuple(OutputTuple tuple, String attrName, Object attrValue) throws Exception {
-        if(attrValue == null)
+    private void setTuple(OutputTuple tuple, final String attrName, final int attrIndex, final Object attrValue) throws Exception {
+        if (attrValue == null || attrIndex < 0)
             return; // do nothing
 
         if (attrValue instanceof String || attrValue instanceof RString)
-            tuple.setString(attrName, (String) attrValue);
+            tuple.setString(attrIndex, (String) attrValue);
         else if (attrValue instanceof Integer)
-            tuple.setInt(attrName, (Integer) attrValue);
+            tuple.setInt(attrIndex, (Integer) attrValue);
         else if (attrValue instanceof Double)
-            tuple.setDouble(attrName, (Double) attrValue);
+            tuple.setDouble(attrIndex, (Double) attrValue);
         else if (attrValue instanceof Float)
-            tuple.setFloat(attrName, (Float) attrValue);
+            tuple.setFloat(attrIndex, (Float) attrValue);
         else if (attrValue instanceof Long)
-            tuple.setLong(attrName, (Long) attrValue);
+            tuple.setLong(attrIndex, (Long) attrValue);
         else if (attrValue instanceof Byte)
-            tuple.setByte(attrName, (Byte) attrValue);
+            tuple.setByte(attrIndex, (Byte) attrValue);
         else if (attrValue instanceof byte[])
-            tuple.setBlob(attrName, ValueFactory.newBlob((byte[]) attrValue));
+            tuple.setBlob(attrIndex, ValueFactory.newBlob((byte[]) attrValue));
         else
             throw new Exception(Messages.getString("UNSUPPORTED_TYPE_EXCEPTION", (attrValue.getClass().getTypeName()), attrName)); //$NON-NLS-1$
     }

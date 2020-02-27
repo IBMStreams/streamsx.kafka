@@ -8,7 +8,7 @@ use com.ibm.streamsx.kafka::KafkaProducer ;
  * name that contains the Kafka properties. Each property in the application 
  * configuration will be loaded as a Kafka property. 
  */
-composite KafkaAppConfigSample
+public composite KafkaAppConfigSample
 {
     type
         Message = rstring key, rstring message;

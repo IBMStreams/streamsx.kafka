@@ -2,7 +2,7 @@ namespace com.ibm.streamsx.kafka.sample ;
 
 use com.ibm.streamsx.kafka::* ;
 
-composite KafkaConsumerGroupInputPortSample {
+public composite KafkaConsumerGroupInputPortSample {
 
     graph
         // ================ producers that continuously populate the topics t1 and t2

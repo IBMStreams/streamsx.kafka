@@ -6,7 +6,7 @@
    <info:description>
 The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be used with following broker versions:
 
-* 0.10.2 (with restrictions: `isolation.level=read_uncommitted` must be set for 
+* 0.10.2 (with restrictions: `isolation.level=read_uncommitted` must be set for
   the `KafkaConsumer`, and the **guaranteeOrdering** parameter of the `KafkaProducer` cannot be used)
 * 0.11
 * 1.0
@@ -15,198 +15,22 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 * 2.1
 * 2.2
 * 2.3
+* 2.4
 
 All Kafka versions below 2.3 do not support the **staticGroupMember** parameter of the `KafkaConsumer` operator.
 
 # Additional information
-Additional user documentation can be found in the 
+Additional user documentation can be found in the
 [https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/|toolkit documentation on GitHub].
 
 + What's new and what has changed
 
-This is an overview of changes for major and minor version upgrades.
-For details see the [https://github.com/IBMStreams/streamsx.kafka/releases|Releases in public Github].
-
-++ What's new in version 3.0
-
-# New features
-
-* The included Kafka client has been upgraded from version 2.2.1 to 2.3.1.
-* The schema of the output port of the `KafkaProducer` operator supports optional types for the error description.
-* The optional input port of the `KafkaConsumer` operator can be used to change the *topic subscription*, not only the *partition assignment*.
-* The **guaranteeOrdering** parameter now enables the idempotent producer when set to `true`, which allows a higher throughput by allowing more
-  in-flight requests per connection (requires Kafka server version 0.11 or higher).
-* The `KafkaConsumer` operator now enables and benefits from group management when the user does not specify a group identifier.
-* Checkpoint reset of the `KafkaConsumer` is optimized in consistent region when the consumer is the only group member.
-* The `KafkaConsumer` operator can be configured as a static consumer group member (requires Kafka server version 2.3 or higher).
-  See also the *Static Consumer Group Membership* chapter in the KafkaConsumer's documentation.
-* The `KafkaConsumer` operator now uses `read_committed` as the default `isolation.level` configuration unless the user has specified a different value. 
-  In `read_committed` mode, the consumer will read only those transactional messages which have been successfully committed. 
-  Messages of aborted transactions are now skipped. The consumer will continue to read non-transactional messages as before. 
-  This new default setting is incompatible with Kafka 0.10.2.
-
-# Deprecated features
-
-The use of the input control port has been deprecated when the `KafkaConsumer` is used in a consistent region.
-
-# Incompatible changes
-
-* The toolkit requires at minimum Streams version 4.3.
-* The **guaranteeOrdering** parameter of the `KafkaProducer` operator is incompatible with Kafka version 0.10.x when used with value `true`.
-  The work-around for Kafka 0.10.x is given in the parameter description.
-* When the `KafkaConsumer` operator is configured with input port, the **topic**, **pattern**, **partition**, and **startPosition** 
-  parameters used to be ignored in previous versions. Now an SPL compiler failure is raised when one of these parameters is used 
-  together with the input port.
-* The default `isolation.level` configuration of the `KafkaConsumer` operator is incompatible with Kafka broker version 0.10.x. 
-  When connecting with Kafka 0.10.x, `isolation.level=read_uncommitted` must be used for the consumer configuration.
-
-++ What's new in version 2.2.1
-
-* bug fix: KafkaProducer: Lost output tuples on FinalMarker reception
-
-++ What's new in version 2.2.1
-
-* bug fixes, see the release note on [https://github.com/IBMStreams/streamsx.kafka/releases/tag/v2.2.1|Github]
-
-++ What's new in version 2.2.0
-
-* The `KafkaProducer` operator supports an optional output port, configurable via the new **outputErrorsOnly** operator parameter
-* Exception handling of the `KafkaProducer` operator in autonomous region changed. The operator does not abort its PE anymore; it recovers internally instead.
-* New custom metrics for the `KafkaProducer` operator: `nFailedTuples`, `nPendingTuples`, and `nQueueFullPause`
-
-++ What's new in version 2.1.0
-
-* The following consumer and producer configurations are setup by the operators per default:
-  * client.dns.lookup = use_all_dns_ips
-  * reconnect.backoff.max.ms = 10000 (Kafka's default is 1000)
-  * reconnect.backoff.ms = 250 (Kafka's default is 50)
-  * retry.backoff.ms = 500 (Kafka's default is 100)
-* new optional operator parameter **sslDebug**
-* bug fixes, see the release note on [https://github.com/IBMStreams/streamsx.kafka/releases/tag/v2.1.0|Github]
-* support for Kafka broker version 2.3
-
-++ What's new in version 2.0.1
-
-* bug fixes, see the release note on [https://github.com/IBMStreams/streamsx.kafka/releases/tag/v2.0.1|Github]
-
-++ What's new in version 2.0.0
-
-# New Features
-
-The included Kafka client has been upgraded from version 2.1.1 to 2.2.1. Support for Kafka broker 2.2 has been added.
-
-The toolkit has enhancements for the KafkaConsumer when it is used in an autonomous region (i.e. not part of a consistent region):
-
-* The KafkaConsumer operator can now participate in a consumer group with **startPosition** parameter values `Beginning`, `End`, and `Time`.
-* After re-launch of the PE, the KafkaConsumer operator does not overwrite the initial fetch offset to what the **startPosition** parameter is.
-
-To achieve this new startPosition handling, the application must include a `JobControlPlane` operator when startPosition is not `Default`.
-
-# Incompatible changes, which may break existing applications
-
-The behavior of the **KafkaConsumer** operator changes when
-
-1. the operator is *not* used in a consistent region, and
-2. the **startPosition** parameter is used with `Beginning`, `End`, `Time`, or `Offset`.
-
-In all other cases the behavior of the KafkaConsumer is unchanged. Details of the changes, including sample code, can be found in the 
-[https://ibmstreams.github.io/streamsx.kafka/docs/user/kafka_toolkit_1_vs_2/|Toolkit documentation on Github].
-
-Previous versions of the KafkaConsumer operator did *not* enable group management in autonomous regions, with **startPosition** different from `Default`,
-even when a group-ID was configured. Since toolkit version 2.0, group management is enabled with all **startPosition** values except `Offset`.
-
-The conditions for a consumer operator to be part of a consumer group
-are now identical for consistent and autonomous region:
-
-  1. A group identifier must be specified
-  2. The operator must not have a control input port
-  3. The **partitions** parameter must not be used
-
-Correct handling of the initial start position requires always a **JobControlPlane** operator in the application graph, also when
-consistent region is not used. Without a **JobControlPlane** in the application graph, the Consumer operator will fail to initialize
-when **startPosition** is used and is not `Default`.
-
-Since toolkit version 2.0, the **startPosition** has effect only when the consumer operator is initially launched at job submission.
-When the consumer's PE is re-launched or when new PEs are launched after changing the width of a parallel region, the fetch position
-is *not reset* to what **startPosition** is - in opposite to previous versions. More precisely, the fetch position is now only then reset
-for a topic partition, when the consumer has not yet committed offsets for the partition. In all other cases, the consumer
-continues fetching at the last committed offset.
-
-++ What's new in version 1.9.4
-
-* Bug fix: Support for resetToInitialState when checkpointing in an autonomous region is configured
-* Changed offset commit failure handling of the consumer when in consistent region: Commit failures do no longer restart the PE
-
-++ What's new in version 1.9.3
-
-* Bug fix: Kafka consumer encounters race condition due to changed behavior of Kafka consumer client 2.1 during partition re-balancing
-
-++ What's new in version 1.9.2
-
-* Kafka properties can now contain the `{applicationDir}` placeholder. This placeholder is replaced by the application directory at runtime before the properties are passed to the Kafka client library. As an example, you can specify the following property value for the SSL truststore location: `ssl.truststore.location={applicationDir}/etc/myTruststore.jks` and put the truststore file into the `etc` directory of your application.
-
-++ What's new in version 1.9.1
-
-* improved low memory detection for the consumer when records are queued in the consumer
-
-* No adjustment of **retries** producer configuration to 10, as long as consistent region policy is not `Transactional`. The version 2.1.1 producer's default **retries** config (2,147,483,647) is used instead when not specified.
-
-++ What's new in version 1.9.0
-
-* Upgrade of kafka-clients from version 1.0 to 2.1.1
-
-* The KafkaProducer can now be flushed after a fixed number of tuples, new optional parameter **flush**.
-
-* Bug fix: KafkaConsumer can create invalid checkpoint when group management is active. When Kafka's group management is used in a consistent region, the `maxConsecutiveResetAttempts` should be increased (default value is 5).
-
-++ What's new in version 1.8.0
-
-* The KafkaConsumer can subscribe dynamically to multiple topics by specifying a regular expression for the new **pattern** parameter. Assignment of partitions happens for matching topics at the time of periodic check. When someone creates a new topic with a name that matches, a rebalance will happen almost immediately and the consumers will start consuming from the new topic.
-
-* The control port of the KafkaConsumer allows assignment with default fetch position. New SPL functions to generate the JSON string for the control port have been added.
-
-* KafkaConsumer: Offsets can be committed after a *time period*, not only when a tuple count is reached. The new **commitPeriod** operator parameter lets you specify a time period in seconds for committing offsets of submitted tuples.
-
-* KafkaConsumer: The time policy for offset commit is now the default policy when not in consistent region. The time policy avoids too high commit request rates, which can occur with count based policy and high tuple rates. The default commit interval is 5 seconds.
-
-* The operators can now be configured with a `config checkpoint` clause when used in an autonomous region. The KafkaProducer operator simply ignores the config instead of throwing an error at compile time. The KafkaConsumer operator can be configured with operator driven and periodic checkpointing. Checkpointing is in effect when the operator is configured with the optional input port. Then, the operator checkpoints or restores the assigned partitions and resumes fetching at last committed offset.
-
-++ What's new in version 1.7.3
-
-* Bug fix: No default compression for the producer anymore (producer config `compression.type` is Kafka's default). Reverted a change made in version 1.6.0.
-
-++ What's new in version 1.7.2
-
-* Bug fix: Reduce trace level for metric dump to `trace`.
-
-++ What's new in version 1.7.1
-
-* operator metrics which got invalid for an operator are flagged with a value of -1, for example the metric for the partition related consumer lag after de-assignment of a partition from a consumer operator
-
-* when not in a consistent region, offsets are committed when partitions are re-balanced within a consumer group. After re-assignment, messages are fetched beginning with the previously committed offsets. The periodic commit controlled by the **commitCount** parameter is reset after rebalance.
-
-++ What's new in version 1.7.0
-
-* The default value for the **commitCount** parameter has changed from 500 to 2000.
-
-* SPL types for standard messages have been added to the toolkit
-
-++ What's new in version 1.6.0
-
-* The KafkaProducer exposes many performance metrics of the producer client as operator metrics
-
-* The most important producer configs have default values, which result in higher reliability and throughput. These are `retries`, `compression.type`, `linger.ms`, `batch.size`, and `max.in.flight.requests.per.connection`.
-
-* New operator parameter **guaranteeOrdering** for the KafkaProducer, which guarantees that the sequence in a topic partition is the same as the order of tuples in case of retries.
-
-* Queue control for the KafkaProducer operator to stabilize the maximum queue time and to avoid timeouts sending records
-
-* The KafkaConsumer operator exposes some performance metrics of the consumer client as operator metrics, like the lag for each topic partition.
+For changes in this toolkit release, see [https://github.com/IBMStreams/streamsx.kafka/blob/develop/com.ibm.streamsx.kafka/CHANGELOG.md|the change log in public Github]
 
 + Using Red Hat AMQ Streams or other Kafka clusters configured with TLS and client authentication
 
-Red Hat AMQ Streams is a Kafka distribution for the OpenShift container platform. How to use the operators 
-of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configured similar to what AMQ Streams supports, 
+Red Hat AMQ Streams is a Kafka distribution for the OpenShift container platform. How to use the operators
+of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configured similar to what AMQ Streams supports,
 can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/|toolkit documentation].
 
    </info:description>

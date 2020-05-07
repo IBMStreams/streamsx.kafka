@@ -1,21 +1,21 @@
 # Changes
 ==========
 ## v3.0.4:
-* #203 KafkaConsumer: assign output attributes via index rather than attribute name
-* #206 Make main composites of samples public.
+* [#203](https://github.com/IBMStreams/streamsx.kafka/issues/203) KafkaConsumer: assign output attributes via index rather than attribute name
+* [#206](https://github.com/IBMStreams/streamsx.kafka/issues/206) Make main composites of samples public.
   This allows using the samples with _streamsx_ Python package.
-* #208 KafkaProducer: message or key attribute with underline causes error at context checker.
+* [#208](https://github.com/IBMStreams/streamsx.kafka/issues/208) KafkaProducer: message or key attribute with underline causes error at context checker.
   All previous versions back to 1.0.0 are affected by this issue.
 * New sample: [KafkaAvroSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaAvroSample)
 
 ## v3.0.3:
-* #198 - The "nConsecutiveRuntimeExc" variable never reaches 50 when exceptions occur
+* [#198](https://github.com/IBMStreams/streamsx.kafka/issues/198) - The "nConsecutiveRuntimeExc" variable never reaches 50 when exceptions occur
 
 ## v3.0.2
-* #200 - I18n update
+* [#200](https://github.com/IBMStreams/streamsx.kafka/issues/200) - I18n update
 
 ## v3.0.1
-* #196 - KafkaProducer: Consistent region reset can trigger addtional reset
+* [#196](https://github.com/IBMStreams/streamsx.kafka/issues/196) - KafkaProducer: Consistent region reset can trigger addtional reset
 
 ## v3.0.0
 ### Changes and enhancements
@@ -50,7 +50,7 @@ The use of the input control port has been deprecated when the `KafkaConsumer` i
   When connecting with Kafka 0.10.x, `isolation.level=read_uncommitted` must be used for the consumer configuration.
 
 ## v2.2.1
-* #179 - KafkaProducer: Lost output tuples on FinalMarker reception
+* [#179](https://github.com/IBMStreams/streamsx.kafka/issues/179) - KafkaProducer: Lost output tuples on FinalMarker reception
 
 ## v2.2.0
 * The `KafkaProducer` operator supports an optional output port, configurable via the new **outputErrorsOnly** operator parameter
@@ -60,8 +60,8 @@ The use of the input control port has been deprecated when the `KafkaConsumer` i
 ## v2.1.0
 ### Changes and enhancements
 * This toolkit version has been tested also with Kafka 2.3
-* #169 new optional operator parameter **sslDebug**. For debugging SSL issues see also the [toolkit documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/debugging_ssl_issues/)
-* #167 changed default values for following consumer and producer configurations:
+* [#169](https://github.com/IBMStreams/streamsx.kafka/issues/169) new optional operator parameter **sslDebug**. For debugging SSL issues see also the [toolkit documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/debugging_ssl_issues/)
+* [#167](https://github.com/IBMStreams/streamsx.kafka/issues/167) changed default values for following consumer and producer configurations:
 
   - `client.dns.lookup = use_all_dns_ips`
   - `reconnect.backoff.max.ms = 10000` (Kafka's default is 1000)
@@ -71,21 +71,21 @@ The use of the input control port has been deprecated when the `KafkaConsumer` i
 * Changed exception handling for the KafkaProducer when not used in a consistent region: https://github.com/IBMStreams/streamsx.kafka/issues/163#issuecomment-505402607
 
 ### Bug fixes
-* #163 KafkaProducer's exception handling makes the operator lose tuples when in CR
-* #164 on reset() the KafkaProducerOperator should instantiate a new producer instance
-* #166 Resource leak in KafkaProducer when reset to initial state in a CR
+* [#163](https://github.com/IBMStreams/streamsx.kafka/issues/163) KafkaProducer's exception handling makes the operator lose tuples when in CR
+* [#164](https://github.com/IBMStreams/streamsx.kafka/issues/164) on reset() the KafkaProducerOperator should instantiate a new producer instance
+* [#166](https://github.com/IBMStreams/streamsx.kafka/issues/166) Resource leak in KafkaProducer when reset to initial state in a CR
 
 ## v2.0.1
-* #171 Resetting from checkpoint will fail when sequence id is >1000
+* [#171](https://github.com/IBMStreams/streamsx.kafka/issues/171) Resetting from checkpoint will fail when sequence id is >1000
 
 ## v2.0.0
 ### Changes and enhancements
 
-* The included Kafka client has been upgraded from version 2.1.1 to 2.2.1, #160
-* Support for Kafka broker 2.2 has been added, #161
+* The included Kafka client has been upgraded from version 2.1.1 to 2.2.1, [#160](https://github.com/IBMStreams/streamsx.kafka/issues/160)
+* Support for Kafka broker 2.2 has been added, [#161](https://github.com/IBMStreams/streamsx.kafka/issues/161)
 - The toolkit has enhancements for the **KafkaConsumer** when it is used in an autonomous region (i.e. not part of a consistent region):
-    - The KafkaConsumer operator can now participate in a consumer group with **startPosition** parameter values `Beginning`, 'End`, and `Time`, #94
-    - After re-launch of the PE, the KafkaConsumer operator does not overwrite the initial fetch offset to what the **startPosition** parameter is, i.e. after PE re-launch the consumer starts consuming at last committed offset, #107
+    - The KafkaConsumer operator can now participate in a consumer group with **startPosition** parameter values `Beginning`, 'End`, and `Time`, [#94](https://github.com/IBMStreams/streamsx.kafka/issues/94)
+    - After re-launch of the PE, the KafkaConsumer operator does not overwrite the initial fetch offset to what the **startPosition** parameter is, i.e. after PE re-launch the consumer starts consuming at last committed offset, [#107](https://github.com/IBMStreams/streamsx.kafka/issues/107)
 
 The new **startPosition** handling requires that the application always includes a **JobControlPlane** operator when **startPosition** is different from `Default`.
 
@@ -98,7 +98,7 @@ The behavior of the KafkaConsumer operator changes when
 In all other cases the behavior of the KafkaConsumer is unchanged. Details of the changed behavior, including sample code that breaks, can be found in the [Toolkit documentation on Github](https://ibmstreams.github.io/streamsx.kafka/docs/user/kafka_toolkit_1_vs_2/).
 
 ## v1.9.5
-* #171 Resetting from checkpoint will fail when sequence id is >1000
+* [#171](https://github.com/IBMStreams/streamsx.kafka/issues/171) Resetting from checkpoint will fail when sequence id is >1000
 
 ## Older releases
 Please consult the release notes for the release you are interested in.

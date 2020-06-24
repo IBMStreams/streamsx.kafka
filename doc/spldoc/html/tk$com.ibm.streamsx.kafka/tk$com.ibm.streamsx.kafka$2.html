@@ -7,80 +7,29 @@
 <meta name="copyright" content="(C) Copyright 2005"/>
 <meta name="DC.rights.owner" content="(C) Copyright 2005"/>
 <meta name="DC.Type" content="reference"/>
-<meta name="DC.Title" content="What's new in version 3.0"/>
+<meta name="DC.Title" content="Using Red Hat AMQ Streams or other Kafka clusters configured with TLS and client authentication"/>
 <meta name="DC.Format" content="XHTML"/>
 <meta name="DC.Identifier" content="spldoc_page"/>
 <link rel="stylesheet" type="text/css" href="../../html/commonltr.css"/>
 <link rel="stylesheet" type="text/css" href="../../html/spldoc.css"/>
-<title>What's new in version 3.0</title>
+<title>Using Red Hat AMQ Streams or other Kafka clusters configured with TLS and client authentication</title>
 </head>
 <body id="spldoc_page">
 
 
-<h1 class="title topictitle1">What's new in version 3.0</h1>
+<h1 class="title topictitle1">Using Red Hat AMQ Streams or other Kafka clusters configured with TLS and client authentication</h1>
 
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.4</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka$1.html">What's new and what has changed</a> &gt; What's new in version 3.0</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.0.4</a> &gt; Using Red Hat AMQ Streams or other Kafka clusters configured with TLS and client authentication</p>
 
 </div>
 
 
 <div class="section">
-</div>
-
-<div class="section"><h2 class="title sectiontitle">New features
-</h2>
-
-<div class="p">
-<ul class="ul">
-<li class="li"> The included Kafka client has been upgraded from version 2.2.1 to 2.3.1.</li>
-
-<li class="li"> The schema of the output port of the <tt class="ph tt">KafkaProducer</tt> operator supports optional types for the error description.</li>
-
-<li class="li"> The optional input port of the <tt class="ph tt">KafkaConsumer</tt> operator can be used to change the <em class="ph i">topic subscription</em>, not only the <em class="ph i">partition assignment</em>.</li>
-
-<li class="li"> The <strong class="ph b">guaranteeOrdering</strong> parameter now enables the idempotent producer when set to <tt class="ph tt">true</tt>, which allows a higher throughput by allowing more   in-flight requests per connection (requires Kafka server version 0.11 or higher).</li>
-
-<li class="li"> The <tt class="ph tt">KafkaConsumer</tt> operator now enables and benefits from group management when the user does not specify a group identifier.</li>
-
-<li class="li"> Checkpoint reset of the <tt class="ph tt">KafkaConsumer</tt> is optimized in consistent region when the consumer is the only group member.</li>
-
-<li class="li"> The <tt class="ph tt">KafkaConsumer</tt> operator can be configured as a static consumer group member (requires Kafka server version 2.3 or higher).   See also the <em class="ph i">Static Consumer Group Membership</em> chapter in the KafkaConsumer's documentation.</li>
-
-<li class="li"> The <tt class="ph tt">KafkaConsumer</tt> operator now uses <tt class="ph tt">read_committed</tt> as the default <tt class="ph tt">isolation.level</tt> configuration unless the user has specified a different value.    In <tt class="ph tt">read_committed</tt> mode, the consumer will read only those transactional messages which have been successfully committed.    Messages of aborted transactions are now skipped. The consumer will continue to read non-transactional messages as before.    This new default setting is incompatible with Kafka 0.10.2.</li>
-
-</ul>
-
-</div>
-
-</div>
-
-<div class="section"><h2 class="title sectiontitle">Deprecated features
-</h2>
-
-<p class="p">The use of the input control port has been deprecated when the <tt class="ph tt">KafkaConsumer</tt> is used in a consistent region.
+<p class="p">Red Hat AMQ Streams is a Kafka distribution for the OpenShift container platform. How to use the operators of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configured similar to what AMQ Streams supports, can be read in the <a class="xref" href="https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/">toolkit documentation</a>.
 </p>
-
-</div>
-
-<div class="section"><h2 class="title sectiontitle">Incompatible changes
-</h2>
-
-<div class="p">
-<ul class="ul">
-<li class="li"> The toolkit requires at minimum Streams version 4.3.</li>
-
-<li class="li"> The <strong class="ph b">guaranteeOrdering</strong> parameter of the <tt class="ph tt">KafkaProducer</tt> operator is incompatible with Kafka version 0.10.x when used with value <tt class="ph tt">true</tt>.   The work-around for Kafka 0.10.x is given in the parameter description.</li>
-
-<li class="li"> When the <tt class="ph tt">KafkaConsumer</tt> operator is configured with input port, the <strong class="ph b">topic</strong>, <strong class="ph b">pattern</strong>, <strong class="ph b">partition</strong>, and <strong class="ph b">startPosition</strong>    parameters used to be ignored in previous versions. Now an SPL compiler failure is raised when one of these parameters is used    together with the input port.</li>
-
-<li class="li"> The default <tt class="ph tt">isolation.level</tt> configuration of the <tt class="ph tt">KafkaConsumer</tt> operator is incompatible with Kafka broker version 0.10.x.    When connecting with Kafka 0.10.x, <tt class="ph tt">isolation.level=read_uncommitted</tt> must be used for the consumer configuration.</li>
-
-</ul>
-
-</div>
 
 </div>
 

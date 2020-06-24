@@ -16,6 +16,7 @@ The Kafka toolkit integrates IBM Streams with Apache Kafka brokers. It can be us
 * 2.2
 * 2.3
 * 2.4
+* 2.5
 
 All Kafka versions below 2.3 do not support the **staticGroupMember** parameter of the `KafkaConsumer` operator.
 

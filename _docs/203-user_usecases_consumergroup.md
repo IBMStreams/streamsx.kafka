@@ -57,7 +57,7 @@ and they get (potentially) reassigned by the broker.
 
 Partition de-assignment and re-assignment can happen when
 
-* Group management related timers expire, for example the heart-beet timeout `session.timeout.ms`
+* Group management related timers expire, for example the heart-beat timeout `session.timeout.ms`
   or the poll timeout `max.poll.interval.ms`.
 * The broker node being the group coordinator goes down
 * Meta data of the subscribed topic changes, for example the number of partitions
@@ -77,7 +77,7 @@ Partition re-assignment makes the consumer replay Kafka messages beginning with 
 * Consistent region: Supported (periodic only)
 * Checkpointing via `config checkpoint`: Supported, but ignored. The operator does not save any data.
 
-When the operator is used in a consistent region, at least once processing through the Streams application is guaranteed.
+When the operator is used in a consistent region, at-least-once processing through the Streams application is guaranteed.
 Without a consistent region, tuples can get lost within the Streams application when a PE restarts.
 
 # Operator configuration

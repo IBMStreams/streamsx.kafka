@@ -24,13 +24,12 @@ The following steps should be followed to generate a new release:
    1. Run `gradle build` to build the sample
    1. Run the sample: `streamtool submitjob output/<sample_name>/<sample_name>.sab`
    1. **DELETE** the toolkit from `/tmp`
-* Merge `release/vX.Y.Z` into *both* `master` and `develop`:
+* Merge `release/vX.Y.Z` into `develop`:
    * `gradle clean`
    * `git add com.ibm.streamsx.kafka/info.xml`
    * `git commit -m "Update version to vX.Y.Z"`
    * `git flow release finish vX.Y.Z`
-* Push `master` and `develop` to Github repo: `git push`
+* Push `develop` to Github repo: `git push`
 * Push the tag to the Github repo: `git push --tags`
 * Generate a release on Github using the pushed tag
 * DONE!
- 

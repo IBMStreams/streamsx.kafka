@@ -2,7 +2,7 @@
 title: "Toolkit Usage Overview"
 permalink: /docs/user/overview/
 excerpt: "How to use this toolkit."
-last_modified_at: 2019-12-03T12:37:48+01:00
+last_modified_at: 2020-08-04T12:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -20,6 +20,19 @@ The KafkaProducer operator creates Kafka messages from tuples and acts therefore
 
 For the KafkaConsumer there is a one-to-one relationship between Kafka messages and tuples. For the KafkaProducer, there can be a relation of one-to-many between tuples and Kafka messages when multiple topics are specified.
 Read more about how to use these operators in the [SPL documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/SPLDoc/).
+
+# Kafka client versions
+The Kafka toolkit contains the Java Kafka clients package. Which toolkit version ships with which kafka-clients version, can be found in the following table.
+
+| Kafka toolkit version | kafka-clients version |
+| --- | --- |
+| 3.0.x | 2.3.1 |
+| 2.x | 2.2.1 |
+| 1.9.x | 2.1.1 |
+| 1.3.0 - 1.8.x | 1.0.0 |
+| 1.1.0 - 1.2.x | 0.10.2.1 |
+| 1.0.0 | 0.10.2 |
+
 
 # Common consumer patterns and use cases
 

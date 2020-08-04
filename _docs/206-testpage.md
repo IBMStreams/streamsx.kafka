@@ -11,14 +11,6 @@ sidebar:
 {% include toc %}
 {%include editme %}
 
----
-layout: docs
-title: Getting Started with Kafka Operators
-description:  Getting Started Guide for IBM Streams Kafka Toolkit operators
-weight: 10
-published: true
----
-
 ## Introduction
 
 The IBM Streams Kafka Toolkit is designed to get you connected to your messaging servers as quickly as possible. Kafka is an ideal messaging server for stream computing. This guide will get you sending and receiving messages in no time, and will highlight some of the best practices. We will also cover how to get the Kafka operators running in a consistent region.
@@ -97,15 +89,15 @@ host.name=myhost.mycompany.com
   `use com.ibm.streamsx.kafka::KafkaConsumer;`
 
 5. **Configure the Kafka Producer to send messages to a Kafka Broker.** You must:
-    * **Create a producer.properties file and place it in the `etc` directory of your application.** This ensures that it will be included in the .sab application bundle (important for cloud and HA deployment). The following is a sample producer.properties file. See <a target="_blank" href="https://kafka.apache.org/23/documentation.html#producerconfigs">here</a> for more producer configuration details.
+    * **Create a producer.properties file and place it in the `etc` directory of your application.** This ensures that it will be included in the .sab application bundle (important for cloud and HA deployment). The following is a sample producer.properties file. See <a target="_blank" href="http://kafka.apache.org/documentation.html#producerconfigs">here</a> for more producer configuration details.
         <pre><code>bootstrap.servers=broker.host.1:9092,broker.host.2:9092,broker.host.3:9092</code></pre>
     * **Specify the location of the producer.properties file in the KafkaProducer operator using the propertiesFile parameter.** You can specify either an absolute or a relative file path, where the path is relative to the application directory:
 
-        `propertiesFile : etc/producer.properties;`
+        `propertiesFile : etc/producer.properties`
     * **Specify the Kafka topic to send messages to.** This can be done via the rstring topic attribute in the incoming tuple or you can specify this using the topic parameter in the KafkaProducer (see the highlighted code in the beacon operator below).
 
 
-    Here is the sample beacon and KafkaProducer code from the <a target="_blank" href="https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaSample">KafkaSample</a>:
+    Here is the sample beacon and KafkaProducer code from the <a target="_blank" href="https://github.com/IBMStreams/streamsx.kafka/tree/master/samples/KafkaSample">KafkaSample</a>:
 
     <pre><code>//create some messages and send to KafkaProducer
     stream&lt;<b style="color:blue">rstring topic, rstring key, rstring message</b>&gt; OutputStream = Beacon() {
@@ -131,7 +123,7 @@ host.name=myhost.mycompany.com
     <div class="alert alert-success" role="alert"><b>Notice: </b>We don't specify the topic as a parameter, but instead as a part of the incoming tuple. This means that each incoming tuple can be directed towards a different topic.</div>
 
 6. **Configure the Kafka Consumer to receive messages from the Kafka Broker.** You must:
-    * **Create a consumer.properties file and place it in the `etc` directory of your application.** Here is a sample consumer.properties file (for more details on Kafka Consumer configs, see <a target="_blank" href="https://kafka.apache.org/23/documentation.html#consumerconfigs">here</a>:
+    * **Create a consumer.properties file and place it in the `etc` directory of your application.** Here is a sample consumer.properties file (for more details on Kafka Consumer configs, see <a target="_blank" href="http://kafka.apache.org/documentation.html#consumerconfigs">here</a>:
         <pre><code>bootstrap.servers=broker.host.1:9092,broker.host.2:9092,broker.host.3:9092</code></pre>
     * **Specify the location of the consumer.properties file in the KafkaConsumer operator using the propertiesFile parameter:**
 
@@ -165,13 +157,13 @@ To start a consistent region with a KafkaConsumer, you must:
 * **Specify triggerCount parameter for operatorDriven trigger** - The trigger count gives you control over the approximate number of messages between checkpointing. If you are using a periodic trigger for your consistent region, you do not need to specify this.
 Here is the KafkaConsumer from the <a target="_blank" href="https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupWithConsistentRegion">KafkaConsumerGroupWithConsistentRegion</a> sample:
 <pre class="source-code"><code>    //Read in from a kafka server and start consistent region
-    <b style="color:blue">@consistent (trigger=periodic, period=60.0 /*seconds*/)</b>
+     <b style="color:blue">@consistent (trigger=periodic, period=60.0 /*seconds*/)
     stream <rstring message, int32 partition, rstring key> ConsumedMsgs = KafkaConsumer()
     {
         param
-            propertiesFile: &quot;etc/consumer.properties&quot; ;
-            topic: $topic ;
-            groupId: &quot;myGroupId&quot; ;
+            propertiesFile: "etc/consumer.properties";
+            topic: $topic;
+            groupId: "myGroupId";
     }
 </code></pre>
 
@@ -201,7 +193,7 @@ Here is a simple example of using three consumers to read from a 3-partition top
 
 If you would like to consume in parallel within a consistent region, check out this <a target="_blank" href="https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerGroupWithConsistentRegion">KafkaConsumerGroupWithConsistentRegion sample</a>.
 
-You find more information about the common consumer patterns for parallel processing  in the
+The common consumer patterns for parallel processing are described in the
 <a target="_blank" href="https://ibmstreams.github.io/streamsx.kafka/docs/user/overview/"> user documentation</a> of the streamsx.kafka toolkit for the
 <a target="_blank" href="https://ibmstreams.github.io/streamsx.kafka/docs/user/UsecaseConsumerGroup/"> consumer group</a> with dynamic partition assignment, and for
 <a target="_blank" href="https://ibmstreams.github.io/streamsx.kafka/docs/user/UsecaseAssignedPartitions/"> user defined partition assignment</a>.
@@ -214,7 +206,6 @@ You find more information about the common consumer patterns for parallel proces
 
 ## Additional Resources
 * <a target="_blank" href="https://ibmstreams.github.io/streamsx.kafka/">Streams Kafka toolkit project page</a>
-
 * <a target="_blank" href="https://ibmstreams.github.io/streamsx.kafka/doc/spldoc/html/index.html">Streams Kafka Toolkit SPLDoc</a>
-
 * <a target="_blank" href="http://kafka.apache.org/documentation.html">Kafka Documentation website</a>
+

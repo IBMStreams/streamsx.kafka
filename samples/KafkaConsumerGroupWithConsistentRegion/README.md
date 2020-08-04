@@ -9,7 +9,7 @@ before the reset happened. The application design must reflect this property of 
 
 To make this sample work, these preconditions must be met:
 * The Streams instance or domain must be configured with a checkpoint repository.
-* The version of the Kafka broker must be 0.10.2 or higher.
+* The version of the Kafka broker must be 0.11 or higher.
 
 
 ### Setup

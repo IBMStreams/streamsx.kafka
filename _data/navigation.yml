@@ -40,6 +40,9 @@ userdocs:
       - title: "KafkaConsumer Design"
         url: /docs/user/KafkaConsumerDesign
 
+      - title: "Improving Consumer Throughput"
+        url: /docs/user/ImprovingApplicationThroughput
+
       - title: "Consuming big messages"
         url: /docs/user/ConsumingBigMessages
 

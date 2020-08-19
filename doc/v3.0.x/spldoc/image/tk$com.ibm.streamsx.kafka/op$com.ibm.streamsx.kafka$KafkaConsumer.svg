@@ -99,23 +99,21 @@ fm9nWLz9/69lxAQUAAJR65/Ot3QZAAAAAElFTkSuQmCC"
       ><set attributeName="visibility" from="hidden" end="sdt1.mouseout" to="visible" begin="sdt1.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"
-    ><rect x="47.65" y="-15.0" width="429.17996" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="122.0"
-      /><text x="48.65" y="-2.0"
+    ><rect x="47.65" y="0.0" width="429.17996" style="fill:rgb(230,230,255);stroke:rgb(0,0,80);" rx="2.0" ry="2.0" height="107.0"
+      /><text x="48.65" y="13.0"
       >Optional: appConfigName, clientId, commitCount, </text
-      ><text x="48.65" y="13.0"
-      >commitPeriod, groupId, outputKeyAttributeName, </text
       ><text x="48.65" y="28.0"
-      >outputMessageAttributeName, outputTimestampAttributeName, </text
+      >commitPeriod, groupId, outputKeyAttributeName, </text
       ><text x="48.65" y="43.0"
-      >outputOffsetAttributeName, outputPartitionAttributeName, </text
+      >outputMessageAttributeName, outputTimestampAttributeName, </text
       ><text x="48.65" y="58.0"
-      >outputTopicAttributeName, partition, pattern, propertiesFile, </text
+      >outputOffsetAttributeName, outputPartitionAttributeName, </text
       ><text x="48.65" y="73.0"
-      >sslDebug, startOffset, startPosition, startPositionStr, </text
+      >outputTopicAttributeName, partition, pattern, propertiesFile, </text
       ><text x="48.65" y="88.0"
-      >startTime, staticGroupMember, topic, triggerCount, </text
+      >sslDebug, startOffset, startPosition, startTime, </text
       ><text x="48.65" y="103.0"
-      >userLib</text
+      >staticGroupMember, topic, triggerCount, userLib</text
       ><set attributeName="visibility" from="hidden" end="sdt2.mouseout" to="visible" begin="sdt2.mouseover"
     /></g
     ><g visibility="hidden" style="stroke:none;font-style:italic;font-size:12px;font-family:&apos;Helvetica&apos;,&apos;SansSerif&apos;;"

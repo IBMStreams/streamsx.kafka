@@ -93,6 +93,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     public static final String PATTERN_PARAM = "pattern"; //$NON-NLS-1$
     public static final String PARTITION_PARAM = "partition"; //$NON-NLS-1$
     public static final String START_POSITION_PARAM = "startPosition"; //$NON-NLS-1$
+    public static final String START_POSITION_STR_PARAM = "startPositionStr"; //$NON-NLS-1$
     public static final String START_TIME_PARAM = "startTime"; //$NON-NLS-1$
     public static final String TRIGGER_COUNT_PARAM = "triggerCount"; //$NON-NLS-1$
     public static final String COMMIT_COUNT_PARAM = "commitCount"; //$NON-NLS-1$
@@ -120,7 +121,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
     private List<String> topics;
     private Pattern pattern;
     private List<Integer> partitions;
-    private List<Long> startOffsets;
+    private List<Long> startOffsets = null;
     private StartPosition startPosition = DEFAULT_START_POSITION;
     private int triggerCount;
     private int commitCount = 0;
@@ -323,10 +324,27 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                     + "\\n"
                     + "Note, that using a startPosition other than `Default` requires the application always to have a **JobControlPlane** "
                     + "operator in its graph. The **startPosition** is effective only when the Consumer has not yet committed offsets "
-                    + "during the Streams job's life cycle."
+                    + "during the Streams job's life cycle.\\n"
+                    + "\\n"
+                    + "When you need to specify the start position as an `rstring` type expression, "
+                    + "for example when you want to use a submission time value as start position, use the **startPositionStr** parameter instead. "
+                    + "This parameter is incompatible with the **startPositionStr** parameter. Specify only one of them."
                     + "")
     public void setStartPosition(StartPosition startPosition) {
         this.startPosition = startPosition;
+    }
+
+    @Parameter(optional = true, name=START_POSITION_STR_PARAM, 
+            description="Specifies where the operator should start "
+                    + "reading from topics. Use this parameter when you need to specify the start position as an `rstring` expression, "
+                    + "for example when you want to use a submission time value as start position.\\n"
+                    + "\\n"
+                    + "The supported values, conditions, and restrictions are the same as for the **startPosition** parameter.\\n"
+                    + "\\n"
+                    + "This parameter is incompatible with the **startPosition** parameter. Specify only one of them."
+                    + "")
+    public void setStartPositionStr (String startPosition) {
+        this.startPosition = StartPosition.ofString (startPosition);
     }
 
     @Parameter(optional = true, name=PARTITION_PARAM,
@@ -514,7 +532,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         List<StreamingInput<Tuple>> inputPorts = opCtx.getStreamingInputs();
 
         if (opCtx.getOptionalContext (ConsistentRegionContext.class) == null
-                && paramNames.contains (START_POSITION_PARAM)
+                && (paramNames.contains (START_POSITION_PARAM) || paramNames.contains (START_POSITION_STR_PARAM))
                 && inputPorts.size() == 0) {
             System.err.println (Messages.getString ("WARN_ENSURE_JCP_ADDED_STARTPOS_NOT_DEFAULT", opCtx.getKind()));
         }
@@ -538,6 +556,19 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
         }
     }
 
+    @ContextCheck (compile = true)
+    public static void checkStartPositionCustomLitString (OperatorContextChecker checker) {
+        // Only one of startPosition and startPositionStr must be specified.
+        // Do the checks only when no input port is configured
+        OperatorContext opCtx = checker.getOperatorContext();
+        if (opCtx.getNumberOfStreamingInputs() == 0) {
+            Set<String> paramNames = opCtx.getParameterNames();
+            if (paramNames.contains (START_POSITION_PARAM) && paramNames.contains(START_POSITION_STR_PARAM)) {
+                checker.setInvalidContext (Messages.getString ("PARAMETERS_EXCLUDE_EACH_OTHER", START_POSITION_PARAM, START_POSITION_STR_PARAM), new Object[0]); //$NON-NLS-1$
+            }
+        }
+    }
+
     @ContextCheck(compile = true)
     public static void checkInputPort(OperatorContextChecker checker) {
         List<StreamingInput<Tuple>> inputPorts = checker.getOperatorContext().getStreamingInputs();
@@ -548,11 +579,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
              *  * topic
              *  * pattern
              *  * partition
+             *  * startPositionStr
              *  * startPosition
              */
             if(paramNames.contains(TOPIC_PARAM) 
                     || paramNames.contains(PATTERN_PARAM)
                     || paramNames.contains(PARTITION_PARAM) 
+                    || paramNames.contains(START_POSITION_STR_PARAM) 
                     || paramNames.contains(START_POSITION_PARAM)) {
                 checker.setInvalidContext (Messages.getString("PARAMS_INCOMPATIBLE_WITH_INPUT_PORT"), new Object[0]); //$NON-NLS-1$
             }
@@ -723,6 +756,13 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             Class<?> valueClass = getAttributeType(context.getStreamingOutputs().get(0), outputMessageAttrName);
             KafkaOperatorProperties kafkaProperties = getKafkaProperties();
 
+            if (this.startPosition == StartPosition.Time && !context.getParameterNames().contains(START_TIME_PARAM)) {
+                throw new KafkaConfigurationException (Messages.getString("START_TIME_PARAM_NOT_FOUND"));
+            }
+            if (this.startPosition == StartPosition.Offset && !context.getParameterNames().contains(START_OFFSET_PARAM)) {
+                throw new KafkaConfigurationException (Messages.getString("START_OFFSET_PARAM_NOT_FOUND"));
+            }
+
             // set the group ID property if the groupId parameter is specified
             if (groupId != null && !groupId.isEmpty()) {
                 kafkaProperties.setProperty (ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -741,7 +781,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
             }
 
             if (this.staticGroupMember) {
-                // calculate a unique group.instance.id that is consistent accross operator restarts
+                // calculate a unique group.instance.id that is consistent across operator restarts
                 final ProcessingElement pe = context.getPE();
                 final int iidH = pe.getInstanceId().hashCode();
                 final int opnH = context.getName().hashCode();

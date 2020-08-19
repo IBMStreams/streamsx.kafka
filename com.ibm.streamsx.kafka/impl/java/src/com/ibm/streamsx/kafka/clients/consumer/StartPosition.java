@@ -13,6 +13,37 @@
  */
 package com.ibm.streamsx.kafka.clients.consumer;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 public enum StartPosition {
-    Beginning, End, Default, Time, Offset;
+    Beginning ("beginning", "begin", "first", "start"),
+    End ("end", "last", "latest", "oldest"),
+    Default ("default"),
+    Time ("time", "timestamp"),
+    Offset ("offset", "offs");
+
+    private Set<String> matches = new HashSet<>();
+
+    /**
+     * @param matchesLower
+     */
+    private StartPosition (String... matchesLower) {
+        Collections.addAll (this.matches, matchesLower);
+    }
+
+    /**
+     * Returns the enum from a String match
+     * @param s The String
+     * @return the StartPosition that matches the String
+     * @throws IllegalArgumentException invalid String value
+     */
+    public static StartPosition ofString (final String s) {
+        final String sL = s.toLowerCase();
+        for (StartPosition sp: StartPosition.values()) {
+            if (sp.matches.contains(sL)) return sp;
+        }
+        throw new IllegalArgumentException("Illegal String value for StartPosition: " + s);
+    }
 }

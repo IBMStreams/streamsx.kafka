@@ -1,5 +1,9 @@
 # Changes
 ==========
+
+## v3.1.0:
+* [#213](https://github.com/IBMStreams/streamsx.kafka/issues/213) KafkaConsumer: dynamic startPosition parameter
+
 ## v3.0.4:
 * [#203](https://github.com/IBMStreams/streamsx.kafka/issues/203) KafkaConsumer: assign output attributes via index rather than attribute name
 * [#206](https://github.com/IBMStreams/streamsx.kafka/issues/206) Make main composites of samples public.

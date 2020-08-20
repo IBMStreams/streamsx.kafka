@@ -83,3 +83,4 @@ group.id=myConsumerGroup
 * [KafkaPublishToPartitionSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaPublishToPartitionSample) - produce data to a given topic partition
 * [KafkaStartOffsetSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaStartOffsetSample) - start consuming at a given offset
 * [KafkaJAASConfigSample](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaJAASConfigSample) - configure the operators with user authentication (JAAS)
+* [KafkaConsumerVariableStartPositionSampl](https://github.com/IBMStreams/streamsx.kafka/tree/develop/samples/KafkaConsumerVariableStartPositionSample) - use of submission time parameters for start position

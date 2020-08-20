@@ -30,13 +30,15 @@ bootstrap.servers=mybroker1:9092,mybroker2:9092,mybroker3:9092
 2. Make sure you created a topic with name **test** when the Kafka server does not automatically create topics
 3. In Streams Quickstart Edition, submit the application bundle with
 
-    streamtool submitjob output/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample.sab \
-    -P start.position=Beginning -P start.timestamp.millis=234
+       streamtool submitjob output/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample.sab \
+       -P start.position=Beginning
 
-    streamtool submitjob output/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample.sab \
-    -P start.position=Time -P start.timestamp.millis=<timestamp>
+   when you want to read from the beginning of the Kafka log, or when you want to start reading at a specific timestamp:
+   
+       streamtool submitjob output/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample/com.ibm.streamsx.kafka.sample.KafkaConsumerVariableStartPositionSample.sab \
+       -P start.position=Time -P start.timestamp.millis=<timestamp>
 
-**Hint:** In a Linux console, you get the current timestamp in milliseconds since Epoch with `echo $(($(date +%s%N)/1000000))`, so you could use the submission timeparameters
+**Hint:** In a Linux console, you get the current timestamp in milliseconds since Epoch with `echo $(($(date +%s%N)/1000000))`, so you could use the submission time parameters
 
     -P start.position=Time -P start.timestamp.millis=$(($(date +%s%N)/1000000-120000))
 

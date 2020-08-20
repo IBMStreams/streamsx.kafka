@@ -1,6 +1,9 @@
 # Changes
 ==========
 
+## latest (develop branch)
+* [#214](https://github.com/IBMStreams/streamsx.kafka/issues/214) Add sample with KafkaConsumer and start position as submission time value
+
 ## v3.1.0:
 * [#213](https://github.com/IBMStreams/streamsx.kafka/issues/213) KafkaConsumer: dynamic startPosition parameter
 

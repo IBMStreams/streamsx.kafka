@@ -1,0 +1,60 @@
+namespace com.ibm.streamsx.kafka.sample;
+
+use com.ibm.streamsx.kafka::KafkaConsumer;
+use com.ibm.streamsx.kafka::KafkaProducer;
+use com.ibm.streamsx.kafka::MessageType;
+
+/*
+ * This sample demonstrates how to use a submission time value as the start 
+ * position for the KafkaConsumer.
+ *
+ * The producer operator will generate 50 tuples/sec after an initial delay of 10 seconds.
+ */
+public composite KafkaConsumerVariableStartPositionSample {
+
+param
+    expression <rstring> $startPosition: getSubmissionTimeValue("start.position", "Default");
+    // when we want to use also a timestamp as the start position ("start.position" = "Time"),
+    // we must also be able to specify a start timestamp via submission time parameter
+    expression <int64> $startTimeMillis: (int64)getSubmissionTimeValue("start.timestamp.millis", "0");
+
+    expression <int32> $parallelWidth: (int32)getSubmissionTimeValue("num.kafka.consumers", "1");
+    expression <rstring> $topic: "test";
+
+    graph
+        // all start positions apart from "Default" require a JobControlPlane operator for the KafkaConsumer
+        () as JCP = JobControlPlane() {}
+        
+        @parallel(width = $parallelWidth)
+        stream<MessageType.StringMessage, MessageType.ConsumerMessageMetadata> KafkaMessages = KafkaConsumer() {
+            param
+                topic: $topic;
+                groupId: "KafkaConsumerVariableStartPositionSample_" + (rstring)jobID();
+                propertiesFile: "etc/consumer.properties";
+                startPositionStr: $startPosition;
+                startTime: $startTimeMillis;
+        }
+
+        () as PrintOut = Custom (KafkaMessages) {
+            logic
+                onTuple KafkaMessages: {
+                    println (KafkaMessages);
+                }
+        }
+
+
+        stream<MessageType.StringMessage> Messages = Beacon() {
+            param
+                period: 0.02;
+                initDelay: 10.0;
+            output
+                Messages: key = "key_" + (rstring) IterationCount(),
+                          message = "msg_" + (rstring) IterationCount();
+        }
+
+        () as KafkaSink = KafkaProducer (Messages) {
+            param
+                topic: $topic;
+                propertiesFile: "etc/producer.properties";
+        }
+}

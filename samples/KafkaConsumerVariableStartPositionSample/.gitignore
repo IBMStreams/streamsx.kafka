@@ -1,0 +1,5 @@
+/.apt_generated/
+/.settings
+/output/
+/.toolkitList
+toolkit.xml

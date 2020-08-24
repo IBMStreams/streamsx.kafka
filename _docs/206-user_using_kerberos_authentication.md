@@ -56,18 +56,21 @@ The `sasl.kerberos.service.name` property is the name of the Kerberos service us
 
 ### Kerberos configuration
 
-The essential Kerberos configuration information is the default realm and the default KDC. The KDC is the Key Distribution Center (Kerberos Server). These two pieces of information can be specified as System properties
+The essential Kerberos configuration information for the client is the default realm and the default KDC. The KDC is the Key Distribution Center (Kerberos Server). These two pieces of information can be specified as System properties
 
 - `java.security.krb5.realm`
 - `java.security.krb5.kdc`
 
 If you set one of these properties you must set them both.
 
-Often this is done with configuration file **krb5.conf**, which contains the Kerberos client configuration. The security provider uses following search order for this file:
+Often the configuration this is done with configuration file **krb5.conf**, which contains the Kerberos configuration for the client. The security provider uses following search order for this file:
 
 1. Java System property `java.security.krb5.conf` for example `java.security.krb5.conf=/user_directory/krb5.conf`
+
    **Cannot be used with krb5.conf in `<application dir>/etc` as the application dir is not known when configuring the property.**
+
 2. *Java install*/lib/security/krb5.conf, which is `$STREAMS_INSTALL/java/jre/lib/security/krb5.conf` in a Streams runtime environment
+
 3. `/etc/krb5.conf`
 
 The system properties are specified as `vmArg` parameter to the operators. Example:
@@ -78,8 +81,8 @@ The system properties are specified as `vmArg` parameter to the operators. Examp
         topic: "topic";
         propertiesFile: "etc/consumer.properties";
         vmArg: "-Djava.security.krb5.realm=EXAMPLE.DOMAIN.COM", // per convention, realms are upper case
-          "-Djava.security.krb5.kdc=kdc_host.domain.com"  // per convention, hostnames are lowercase
-}
+          "-Djava.security.krb5.kdc=kdc_host.domain.com";  // per convention, hostnames are lowercase
+    }
 
 # Useful links
 

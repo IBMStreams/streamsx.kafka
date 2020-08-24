@@ -42,7 +42,7 @@ The `principal` value is the Kerberos principal, for example `user/host@REALM`. 
 
 Debugging should be disabled (set to `false`) once the setup succeeded. Permanent debugging floods the stdout/stderr trace of the PE and has a negative impact to the performance.
 
-**Don't forget to add a terminating semicolon to the `sasl.jaas.config` value.**
+**Don't forget to terminate the `sasl.jaas.config` value with a semicolon.**
 
 #### Other security related Kafka properties required for Kerberos
 
@@ -63,7 +63,7 @@ The essential Kerberos configuration information for the client is the default r
 
 If you set one of these properties you must set them both.
 
-Often the configuration this is done with configuration file **krb5.conf**, which contains the Kerberos configuration for the client. The security provider uses following search order for this file:
+Often the configuration is done with configuration file **krb5.conf**, which contains the Kerberos configuration for the client. The security provider uses following search order for this file:
 
 1. Java System property `java.security.krb5.conf` for example `java.security.krb5.conf=/user_directory/krb5.conf`
 

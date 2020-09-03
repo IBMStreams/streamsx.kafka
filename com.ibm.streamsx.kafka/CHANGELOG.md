@@ -91,7 +91,7 @@ The use of the input control port has been deprecated when the `KafkaConsumer` i
 * The included Kafka client has been upgraded from version 2.1.1 to 2.2.1, [#160](https://github.com/IBMStreams/streamsx.kafka/issues/160)
 * Support for Kafka broker 2.2 has been added, [#161](https://github.com/IBMStreams/streamsx.kafka/issues/161)
 - The toolkit has enhancements for the **KafkaConsumer** when it is used in an autonomous region (i.e. not part of a consistent region):
-    - The KafkaConsumer operator can now participate in a consumer group with **startPosition** parameter values `Beginning`, 'End`, and `Time`, [#94](https://github.com/IBMStreams/streamsx.kafka/issues/94)
+    - The KafkaConsumer operator can now participate in a consumer group with **startPosition** parameter values `Beginning`, `End`, and `Time`, [#94](https://github.com/IBMStreams/streamsx.kafka/issues/94)
     - After re-launch of the PE, the KafkaConsumer operator does not overwrite the initial fetch offset to what the **startPosition** parameter is, i.e. after PE re-launch the consumer starts consuming at last committed offset, [#107](https://github.com/IBMStreams/streamsx.kafka/issues/107)
 
 The new **startPosition** handling requires that the application always includes a **JobControlPlane** operator when **startPosition** is different from `Default`.

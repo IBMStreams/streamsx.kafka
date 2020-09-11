@@ -1,7 +1,8 @@
 # Changes
 ==========
 
-## latest (develop branch)
+## v3.1.1
+* [#216](https://github.com/IBMStreams/streamsx.kafka/issues/216) Toolkit includes a vulnerable version of log4j.
 * [#214](https://github.com/IBMStreams/streamsx.kafka/issues/214) Add sample with KafkaConsumer and start position as submission time value
 
 ## v3.1.0:

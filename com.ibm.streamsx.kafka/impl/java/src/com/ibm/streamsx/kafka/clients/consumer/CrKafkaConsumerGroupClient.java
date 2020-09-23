@@ -51,17 +51,21 @@ import javax.management.ObjectName;
 import javax.management.ReflectionException;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerPartitionAssignor;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.RangeAssignor;
 import org.apache.kafka.clients.consumer.RoundRobinAssignor;
+import org.apache.kafka.clients.consumer.internals.PartitionAssignorAdapter;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.ibm.distillery.utils.exc.MsgFormatErrorException;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ConsistentRegionMXBean;
 import com.ibm.streams.operator.control.Controllable;
@@ -149,13 +153,55 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         this.crGroupCoordinatorMXBeanName = createMBeanObjectName ("consumergroup").getCanonicalName();
         this.assignedPartitionsOffsetManager = new OffsetManager();
         this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
-        ConsistentRegionContext crContext = getCrContext();
-        // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed
-        if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {
-            String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
-            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            trace.info (MsgFormatter.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+        
+        // make sure to use the eager rebalancing protocol by selecting/overwriting the appropriate partition assignor:
+        final String unsetAssignmentStrategy = singleTopic? RangeAssignor.class.getCanonicalName(): RoundRobinAssignor.class.getCanonicalName();
+        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG)) {
+            // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed,
+            // or RangeAssignor when a single topic is subscribed
+            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy);
+            trace.warn (MsgFormatter.format("consumer config ''{0}'' has been set to {1}", ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy));
         }
+        else {
+            ConsumerConfig config = new ConsumerConfig (kafkaProperties);
+            List<ConsumerPartitionAssignor> assignors = PartitionAssignorAdapter.getAssignorInstances (config.getList(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG), config.originals());
+            List<ConsumerPartitionAssignor> eagerOnlyAssignors = new ArrayList<>();
+            for (ConsumerPartitionAssignor assignor: assignors) {
+                final String assignorClassName = assignor.getClass().getCanonicalName();
+                trace.info (MsgFormatter.format("Verifying partition assignor {0} for rebalance protocols in CR", assignorClassName));
+                if (assignor.supportedProtocols().contains (ConsumerPartitionAssignor.RebalanceProtocol.COOPERATIVE)) {
+                    trace.warn(MsgFormatter.format ("The partition assignor {0} cannot be used in consistent region as it "
+                            + "supports rebalance protocol ''{1}''. In consistent region, a partition assignment strategy "
+                            + "that supports ''{2}'' only must be used.",
+                            assignorClassName,
+                            ConsumerPartitionAssignor.RebalanceProtocol.COOPERATIVE,
+                            ConsumerPartitionAssignor.RebalanceProtocol.EAGER));
+                }
+                else {
+                    // assume EAGER is the only alternative to COOPERATIVE
+                    eagerOnlyAssignors.add (assignor);
+                    trace.info (MsgFormatter.format ("Partition assignor supported in CR: {0}", assignorClassName));
+                }
+            }
+            // set the remaining EAGER-only assigner or our assignment strategy
+            if (eagerOnlyAssignors.isEmpty()) {
+                trace.warn (MsgFormatter.format("consumer config ''{0}'' has been overwritten with {1}", ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy));
+                kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy);
+            }
+            else {
+                String assignorClassNames = "";
+                for (ConsumerPartitionAssignor a: eagerOnlyAssignors) {
+                    assignorClassNames += ",";
+                    assignorClassNames += a.getClass().getCanonicalName();
+                }
+                assignorClassNames = assignorClassNames.substring (1); // remove first ','
+                if (assignors.size() != eagerOnlyAssignors.size()) {
+                    trace.warn (MsgFormatter.format("consumer config ''{0}'' has been set to remaining {1}", ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignorClassNames));
+                    kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignorClassNames);
+                }
+            }
+        }
+        ConsistentRegionContext crContext = getCrContext();
         trace.info (MsgFormatter.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
         isGroupManagementActive.setValue (1L);

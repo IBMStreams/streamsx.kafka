@@ -626,7 +626,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
     /**
      * Callback function of the ConsumerRebalanceListener, which is called in the context of KafkaConsumer.poll(...)
-     * before partitions are re-assigned. 
+     * before partitions are re-assigned. For consistent region, we intentionally do not support incremental rebalancing.
+     * So we can (still) assume, that always eager rebalancing is happening, where the complete assignment is revoked followed 
+     * by a new assignment.
      * onPartitionsRevoked is ignored when the client has initially subscribed to topics or when the client has been reset.
      * In all other cases a reset of the consistent region is triggered. Polling for messsages is stopped.
      * @param partitions current partition assignment  
@@ -634,12 +636,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
-        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
+        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: revoked partitions = {1}", state, partitions));
+        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: assigned partitions = {1}", state, getAssignedPartitions()));
         getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         // remove the content of the queue. It contains uncommitted messages.
         // They will be fetched again after rebalance.
         getMessageQueue().clear();
-        setConsumedTopics (null);
+        // Do not update the assignedPartitions here. We need this state on partition assignment.
+        //removeAssignedPartitions (partitions);
         if (state == ClientState.RECORDS_FETCHED) {
             ClientState newState = ClientState.CR_RESET_PENDING;
             trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
@@ -655,11 +659,33 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         }
     }
 
+    /**
+     * Callback function of the ConsumerRebalanceListener, which is called in the context of KafkaConsumer.poll(...).
+     * In eager rebalance protocol, this callback is called if the member has missed a rebalance and fallen out of the
+     * group. It is invoked on the set of all owned partitions (unless empty). The member will then rejoin the group 
+     * with onPartitionsRevoked/onPartitionsAssigned cycle.
+     * 
+     * For consistent region, we intentionally do not support incremental rebalancing, which can miss the 
+     * {@link #onPartitionsRevoked(Collection)}.
+     * 
+     * @param partitions - current partition assignment (assuming eager rebalancing protocol)
+     * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsRevoked(java.util.Collection)
+     */
+    @Override
+    public void onPartitionsLost (Collection<TopicPartition> partitions) {
+        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: old partition assignment = {1}", state, getAssignedPartitions()));
+        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: lost partitions = {1}", state, partitions));
+
+        getMessageQueue().clear();
+        // Do not update the assignedPartitions here. We need this state on partition assignment.
+        //removeAssignedPartitions (partitions);
+    }
 
 
     /**
      * Callback function of the ConsumerRebalanceListener, which is called in the context of KafkaConsumer.poll(...)
-     * after partitions are re-assigned. 
+     * after partitions are re-assigned. For consistent region, we intentionally do not support incremental rebalancing.
+     * So we can (still) assume, that always eager rebalancing is happening, where the complete assignment is passed.
      * onPartitionsAssigned performs following:
      * <ul>
      * <li>
@@ -684,7 +710,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * </li>
      * </ul>
      *
-     * @param newAssignedPartitions new partition assignment  
+     * @param newAssignedPartitions new partition assignment; with eager rebalancing protocol this is always the complete assignment.
      * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsAssigned(java.util.Collection)
      */
     @Override
@@ -692,9 +718,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         trace.info (MsgFormatter.format ("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
         Set<TopicPartition> gonePartitions = new HashSet<>(getAssignedPartitions());
         gonePartitions.removeAll (newAssignedPartitions);
-        getAssignedPartitions().clear();
-        getAssignedPartitions().addAll (newAssignedPartitions);
-        nAssignedPartitions.setValue (newAssignedPartitions.size());
+        clearAssignedPartitions();
+        addAssignedPartitions(newAssignedPartitions);
         trace.info ("topic partitions that are not assigned anymore: " + gonePartitions);
 
         synchronized (assignedPartitionsOffsetManager) {
@@ -706,7 +731,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
             assignedPartitionsOffsetManager.updateTopics (newAssignedPartitions);
         }
-        setConsumedTopics (newAssignedPartitions);
         trace.log (DEBUG_LEVEL, "onPartitionsAssigned() assignedPartitionsOffsetManager = " + assignedPartitionsOffsetManager);
         trace.log (DEBUG_LEVEL, "onPartitionsAssigned() assignedPartitions = " + getAssignedPartitions());
         switch (state) {

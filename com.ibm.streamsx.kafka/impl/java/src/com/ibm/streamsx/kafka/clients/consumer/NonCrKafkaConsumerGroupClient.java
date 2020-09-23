@@ -204,22 +204,44 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
 
 
     /**
-     * Callback method of the ConsumerRebalanceListener
+     * Callback method of the ConsumerRebalanceListener.
+     * For incremental cooperative rebalancing we must assume that only a part of the assigned partitions can be revoked without
+     * being followed by an {@link #onPartitionsAssigned(Collection)}.
+     * The eager rebalancing protocol revokes always the complete partition assignment followed by {@link #onPartitionsAssigned(Collection)}.
+     * @param partitions The revoked partitions. 
      * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsRevoked(java.util.Collection)
      */
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
         getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
-        trace.info("onPartitionsRevoked: old partition assignment = " + partitions);
+        // Since Kafka 2.4 we MUST NOT assume any more that the complete assignment is revoked.
+        // KIP-429 (incremental cooperative rebalancing) allows that a part of the assignment 
+        // is being revoked.
+        Set<TopicPartition> assignment = getConsumer().assignment();
+        trace.info("onPartitionsRevoked: assignment = " + assignment);
+        trace.info("onPartitionsRevoked: revoked = " + partitions);
+        Set<TopicPartition> remainingAssignment = removeAssignedPartitions (partitions);
+        trace.info("onPartitionsRevoked: remaining partition assignment = " + remainingAssignment);
+        final boolean allRevoked = remainingAssignment.isEmpty();
         // remove the content of the queue. It contains uncommitted messages.
-        // They will fetched again after rebalance.
-        getMessageQueue().clear();
+        // They will fetched again after rebalance by this or a different consumer.
+        if (allRevoked) {
+            getMessageQueue().clear();
+        }
+        else {
+            getMessageQueue().removeIf(rec -> partitions.contains(new TopicPartition(rec.topic(), rec.partition())));
+        }
+
         OffsetManager offsetManager = getOffsetManager();
-        setConsumedTopics (null);
         try {
-            awaitMessageQueueProcessed();
-            // the post-condition is, that all messages from the queue have submitted as 
-            // tuples and its offsets +1 are stored in OffsetManager.
+            if (allRevoked) {
+                //TODO: what is the benefit of waiting here?
+                // We must be prepared anyway for the case that a consumer record belonging to a removed 
+                // partition is in-flight for tuple submission, what can cause a stale entry in the offset manager.
+                awaitMessageQueueProcessed();
+                // the post-condition is, that all messages from the queue have submitted as 
+                // tuples and its offsets +1 are stored in OffsetManager.
+            }
             final boolean commitSync = true;
             final boolean commitPartitionWise = false;
             CommitInfo offsets = new CommitInfo (commitSync, commitPartitionWise);
@@ -234,30 +256,88 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             if (!offsets.isEmpty()) {
                 commitOffsets (offsets);
             }
-            // reset the counter for periodic commit
-            resetCommitPeriod (System.currentTimeMillis());
+            // reset the counter for periodic commit only when all partitions have been committed
+            if (allRevoked) {
+                resetCommitPeriod (System.currentTimeMillis());
+            }
         }
         catch (InterruptedException | RuntimeException e) {
             // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
         }
         finally {
-            offsetManager.clear();
+            synchronized (offsetManager) {
+                if (allRevoked) {
+                    offsetManager.clear();
+                }
+                else {
+                    for (TopicPartition tp: partitions) {
+                        offsetManager.remove (tp.topic(), tp.partition());
+                    }
+                }
+            }
         }
     }
 
     /**
-     * Callback method of the ConsumerRebalanceListener
+     * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsLost(java.util.Collection)
+     */
+    @Override
+    public void onPartitionsLost (Collection<TopicPartition> partitions) {
+        trace.info("onPartitionsLost: lost = " + partitions);
+        Set<TopicPartition> remainingAssignment = removeAssignedPartitions (partitions);
+        trace.info("onPartitionsLost: remaining partition assignment = " + remainingAssignment);
+        final boolean allLost = remainingAssignment.isEmpty();
+        if (allLost) {
+            getMessageQueue().clear();
+        }
+        else {
+            getMessageQueue().removeIf(rec -> partitions.contains(new TopicPartition(rec.topic(), rec.partition())));
+        }
+        try {
+            if (allLost) {
+                //TODO: what is the benefit of waiting here?
+                // We must be prepared anyway for the case that a consumer record belonging to a removed 
+                // partition is in-flight for tuple submission, what can cause a stale entry in the offset manager.
+                awaitMessageQueueProcessed();
+                // the post-condition is, that all messages from the queue have submitted as 
+                // tuples and its offsets +1 are stored in OffsetManager.
+            }
+        }
+        catch (InterruptedException e) {
+            // Ignore InterruptedException.
+        }
+        finally {
+            // cleanup offset manager by lost partitions
+            OffsetManager offsetManager = getOffsetManager();
+            synchronized (offsetManager) {
+                if (allLost) {
+                    offsetManager.clear();
+                }
+                else {
+                    for (TopicPartition tp: partitions) {
+                        offsetManager.remove (tp.topic(), tp.partition());
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Callback method of the ConsumerRebalanceListener.
+     * For incremental cooperative rebalancing we must assume that we get only the incrementally added partitions,
+     * not the complete assignment. The callback can also be called without prior {@link #onPartitionsRevoked(Collection)}.
+     * The eager rebalancing protocol passes always the complete partition assignment after {@link #onPartitionsRevoked(Collection)}.
+     * 
      * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsAssigned(java.util.Collection)
+     * @param partitions The added topic partitions
      */
     @Override
     public void onPartitionsAssigned (Collection<TopicPartition> partitions) {
-        trace.info("onPartitionsAssigned: new partition assignment = " + partitions);
-        getAssignedPartitions().clear();
-        getAssignedPartitions().addAll(partitions);
-        nAssignedPartitions.setValue(partitions.size());
-        OffsetManager offsetManager = getOffsetManager();
-        offsetManager.clear();
-        setConsumedTopics (partitions);
+        trace.info("onPartitionsAssigned: new/added partition assignment = " + partitions);
+        Set<TopicPartition> newAssignment = addAssignedPartitions (partitions);
+        trace.info("onPartitionsAssigned: changed partition assignment = " + newAssignment);
+
         // override the fetch offset according to initialStartPosition for 
         // those partitions, which are never committed within the group
         final StartPosition startPos = getInitialStartPosition();
@@ -293,14 +373,20 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         } catch (InterruptedException e) {
             trace.debug ("onPartitionsAssigned(): thread interrupted");
         }
+        OffsetManager offsetManager = getOffsetManager();
+        synchronized (offsetManager) {
+            // cleanup the offset for added partitions we have not owned before.
+            for (TopicPartition tp: partitions) {
+                offsetManager.remove (tp.topic(), tp.partition());
+            }
+        }
+
     }
 
 
     /**
-     * Assignments cannot be updated.
-     * This method should not be called because operator control port and this client implementation are incompatible.
-     * A context check should exist to detect this mis-configuration.
-     * We only log the method call. 
+     * Changes the subscription of the consumer via control port.
+     * 
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override

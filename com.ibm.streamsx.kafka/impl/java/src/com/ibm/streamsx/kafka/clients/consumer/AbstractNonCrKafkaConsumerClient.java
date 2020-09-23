@@ -374,7 +374,7 @@ public abstract class AbstractNonCrKafkaConsumerClient extends AbstractKafkaCons
             synchronized (offsetManager) {
                 final String topic = submittedRecord.topic();
                 final int partition = submittedRecord.partition();
-                offsetManager.savePosition (topic, partition, submittedRecord.offset() +1l, /*autoCreateTopci=*/true);
+                offsetManager.savePosition (topic, partition, submittedRecord.offset() +1L, /*autoCreateTopic=*/true);
             }
         } catch (Exception e) {
             // is not caught when autoCreateTopic is 'true'

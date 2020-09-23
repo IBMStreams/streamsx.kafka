@@ -36,9 +36,9 @@ public class KafkaSplDoc {
             ;
 
     public static final String CONSUMER_WHERE_TO_FIND_PROPERTIES = ""
-            + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.3.1. As a result, it supports all "
-            + "Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.3 "
-            + "can be found in the [https://kafka.apache.org/23/documentation.html#consumerconfigs|Apache Kafka 2.3 documentation].\\n"
+            + "The operator implements Kafka's KafkaConsumer API of the Kafka client version 2.5.1. As a result, it supports all "
+            + "Kafka configurations that are supported by the underlying API. The consumer configs for the Kafka consumer 2.5 "
+            + "can be found in the [https://kafka.apache.org/25/documentation.html#consumerconfigs|Apache Kafka 2.5 documentation].\\n"
             + "\\n"
             + "When you reference files within your application, which are bundled with the Streams application bundle, for example "
             + "an SSL truststore or a key tab file for Kerberos authentication, you can use the `{applicationDir}` placeholder in the "
@@ -340,7 +340,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "**To benefit from this feature, the Kafka server must be at minimum version 2.3.**\\n"
             + "\\n"
-            + "Since version 2.3, Kafka supports [https://kafka.apache.org/23/documentation/#static_membership|static group membership], "
+            + "Since version 2.3, Kafka supports [https://kafka.apache.org/25/documentation/#static_membership|static group membership], "
             + "more detailed in this [https://www.confluent.io/blog/kafka-rebalance-protocol-static-membership|confluent blog post].\\n"
             + "\\n"
             + "Streams applications can benefit from this feature as it avoids unnecessary consumer group rebalances "
@@ -371,10 +371,10 @@ public class KafkaSplDoc {
 
     public static final String PRODUCER_WHERE_TO_FIND_PROPERTIES = ""
 
-            + "The operator implements Kafka's KafkaProducer API of the Kafka client version 2.3.1. As a result, "
+            + "The operator implements Kafka's KafkaProducer API of the Kafka client version 2.5.1. As a result, "
             + "it supports all Kafka properties that are supported by the "
-            + "underlying API. The producer properties for the Kafka producer 2.3 "
-            + "can be found in the [https://kafka.apache.org/23/documentation/#producerconfigs|Apache Kafka 2.3 documentation].\\n"
+            + "underlying API. The producer properties for the Kafka producer 2.5 "
+            + "can be found in the [https://kafka.apache.org/25/documentation/#producerconfigs|Apache Kafka 2.5 documentation].\\n"
             + "\\n"
             + "When you reference files within your application, which are bundled with the Streams application bundle, for example "
             + "an SSL truststore or a key tab file for Kerberos authentication, you can use the `{applicationDir}` placeholder in the "
@@ -435,7 +435,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "**NOTE:** Although properties are adjusted, users can override any of the above properties by explicitly setting "
             + "the property value in either a properties file or in an application configuration. Not all properties or possible property values, which can be "
-            + "specified for the Kafka producer version 2.3, are supported by all Broker versions. An example for such a config is the Zstandard "
+            + "specified for the Kafka producer version 2.5, are supported by all Broker versions. An example for such a config is the Zstandard "
             + "compression algorithm, which is supported with broker version 2.1 and above.\\n"
             ;
 

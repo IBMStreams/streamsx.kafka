@@ -213,7 +213,6 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
-        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         // Since Kafka 2.4 we MUST NOT assume any more that the complete assignment is revoked.
         // KIP-429 (incremental cooperative rebalancing) allows that a part of the assignment 
         // is being revoked.
@@ -337,11 +336,12 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         trace.info("onPartitionsAssigned: new/added partition assignment = " + partitions);
         Set<TopicPartition> newAssignment = addAssignedPartitions (partitions);
         trace.info("onPartitionsAssigned: changed partition assignment = " + newAssignment);
+        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
 
-        // override the fetch offset according to initialStartPosition for 
-        // those partitions, which are never committed within the group
-        final StartPosition startPos = getInitialStartPosition();
         try {
+            // override the fetch offset according to initialStartPosition for 
+            // those partitions, which are never committed within the group
+            final StartPosition startPos = getInitialStartPosition();
             for (TopicPartition tp: partitions) {
                 switch (startPos) {
                 case Default:
@@ -373,14 +373,15 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         } catch (InterruptedException e) {
             trace.debug ("onPartitionsAssigned(): thread interrupted");
         }
-        OffsetManager offsetManager = getOffsetManager();
-        synchronized (offsetManager) {
-            // cleanup the offset for added partitions we have not owned before.
-            for (TopicPartition tp: partitions) {
-                offsetManager.remove (tp.topic(), tp.partition());
+        if (partitions.size() > 0) {
+            OffsetManager offsetManager = getOffsetManager();
+            synchronized (offsetManager) {
+                // cleanup the offset for added partitions we have not owned before.
+                for (TopicPartition tp: partitions) {
+                    offsetManager.remove (tp.topic(), tp.partition());
+                }
             }
         }
-
     }
 
 

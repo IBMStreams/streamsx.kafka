@@ -684,7 +684,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
         trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: revoked partitions = {1}", state, partitions));
         trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: assigned partitions = {1}", state, getAssignedPartitions()));
-        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         // remove the content of the queue. It contains uncommitted messages.
         // They will be fetched again after rebalance.
         getMessageQueue().clear();
@@ -762,6 +761,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
     @Override
     public void onPartitionsAssigned (Collection<TopicPartition> newAssignedPartitions) {
         trace.info (MsgFormatter.format ("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
+        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         Set<TopicPartition> gonePartitions = new HashSet<>(getAssignedPartitions());
         gonePartitions.removeAll (newAssignedPartitions);
         clearAssignedPartitions();

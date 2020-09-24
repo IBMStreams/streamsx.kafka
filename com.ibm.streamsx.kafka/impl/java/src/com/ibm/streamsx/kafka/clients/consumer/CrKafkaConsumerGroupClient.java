@@ -65,7 +65,6 @@ import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.ibm.distillery.utils.exc.MsgFormatErrorException;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ConsistentRegionMXBean;
 import com.ibm.streams.operator.control.Controllable;
@@ -682,8 +681,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
+        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: owned partitions = {1}", state, getAssignedPartitions()));
         trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: revoked partitions = {1}", state, partitions));
-        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: assigned partitions = {1}", state, getAssignedPartitions()));
         // remove the content of the queue. It contains uncommitted messages.
         // They will be fetched again after rebalance.
         getMessageQueue().clear();
@@ -706,9 +705,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
     /**
      * Callback function of the ConsumerRebalanceListener, which is called in the context of KafkaConsumer.poll(...).
-     * In eager rebalance protocol, this callback is called if the member has missed a rebalance and fallen out of the
+     * With eager rebalance protocol, this callback is called if the member has missed a rebalance and fallen out of the
      * group. It is invoked on the set of all owned partitions (unless empty). The member will then rejoin the group 
-     * with onPartitionsRevoked/onPartitionsAssigned cycle.
+     * with onPartitionsRevoked(?)/onPartitionsAssigned cycle.
      * 
      * For consistent region, we intentionally do not support incremental rebalancing, which can miss the 
      * {@link #onPartitionsRevoked(Collection)}.
@@ -718,12 +717,22 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsLost (Collection<TopicPartition> partitions) {
-        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: old partition assignment = {1}", state, getAssignedPartitions()));
+        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: owned partitions = {1}", state, getAssignedPartitions()));
         trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: lost partitions = {1}", state, partitions));
 
         getMessageQueue().clear();
         // Do not update the assignedPartitions here. We need this state on partition assignment.
         //removeAssignedPartitions (partitions);
+        ClientState newState = ClientState.CR_RESET_PENDING;
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
+        sendStopPollingEventAsync();
+        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: initiating consistent region reset", state));
+        try {
+            crMxBean.reset (true);
+        } catch (Exception e) {
+            throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+        }
     }
 
 
@@ -766,7 +775,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         gonePartitions.removeAll (newAssignedPartitions);
         clearAssignedPartitions();
         addAssignedPartitions(newAssignedPartitions);
-        trace.info ("topic partitions that are not assigned anymore: " + gonePartitions);
+        trace.info ("onPartitionsAssigned(): topic partitions that are not assigned anymore: " + gonePartitions);
 
         synchronized (assignedPartitionsOffsetManager) {
             if (!gonePartitions.isEmpty()) {

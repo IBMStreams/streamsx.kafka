@@ -217,10 +217,10 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         // KIP-429 (incremental cooperative rebalancing) allows that a part of the assignment 
         // is being revoked.
         Set<TopicPartition> assignment = getConsumer().assignment();
-        trace.info("onPartitionsRevoked: assignment = " + assignment);
-        trace.info("onPartitionsRevoked: revoked = " + partitions);
+        trace.info("onPartitionsRevoked: current assignment: " + assignment);
+        trace.info("onPartitionsRevoked: revoked: " + partitions);
         Set<TopicPartition> remainingAssignment = removeAssignedPartitions (partitions);
-        trace.info("onPartitionsRevoked: remaining partition assignment = " + remainingAssignment);
+        trace.info("onPartitionsRevoked: remaining partition assignment: " + remainingAssignment);
         final boolean allRevoked = remainingAssignment.isEmpty();
         // remove the content of the queue. It contains uncommitted messages.
         // They will fetched again after rebalance by this or a different consumer.
@@ -234,7 +234,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         OffsetManager offsetManager = getOffsetManager();
         try {
             if (allRevoked) {
-                //TODO: what is the benefit of waiting here?
+                //TODO: What is the benefit of waiting here?
                 // We must be prepared anyway for the case that a consumer record belonging to a removed 
                 // partition is in-flight for tuple submission, what can cause a stale entry in the offset manager.
                 awaitMessageQueueProcessed();
@@ -251,6 +251,9 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                         offsets.put (tp, offsetManager.getOffset (tp.topic(), tp.partition()));
                     }
                 }
+            }
+            if (trace.isEnabledFor(DEBUG_LEVEL)) {
+                trace.log(DEBUG_LEVEL, "onPartitionsRevoked: committing offsets: " + offsets);
             }
             if (!offsets.isEmpty()) {
                 commitOffsets (offsets);
@@ -282,9 +285,9 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
      */
     @Override
     public void onPartitionsLost (Collection<TopicPartition> partitions) {
-        trace.info("onPartitionsLost: lost = " + partitions);
+        trace.info("onPartitionsLost: lost: " + partitions);
         Set<TopicPartition> remainingAssignment = removeAssignedPartitions (partitions);
-        trace.info("onPartitionsLost: remaining partition assignment = " + remainingAssignment);
+        trace.info("onPartitionsLost: remaining partition assignment: " + remainingAssignment);
         final boolean allLost = remainingAssignment.isEmpty();
         if (allLost) {
             getMessageQueue().clear();
@@ -294,7 +297,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
         }
         try {
             if (allLost) {
-                //TODO: what is the benefit of waiting here?
+                //TODO: What is the benefit of waiting here?
                 // We must be prepared anyway for the case that a consumer record belonging to a removed 
                 // partition is in-flight for tuple submission, what can cause a stale entry in the offset manager.
                 awaitMessageQueueProcessed();
@@ -335,7 +338,11 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
     public void onPartitionsAssigned (Collection<TopicPartition> partitions) {
         trace.info("onPartitionsAssigned: new/added partition assignment = " + partitions);
         Set<TopicPartition> newAssignment = addAssignedPartitions (partitions);
-        trace.info("onPartitionsAssigned: changed partition assignment = " + newAssignment);
+        if (partitions.size() > 0) {
+            trace.info("onPartitionsAssigned: changed partition assignment: " + newAssignment);
+        } else {
+            trace.info("onPartitionsAssigned: partition assignment is unchanged: " + newAssignment);
+        }
         getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
 
         try {
@@ -420,10 +427,19 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
             }
             subscriptionChanged = !newSubscription.equals (oldSubscription);
             if (!subscriptionChanged) {
-                trace.info("subscriptiopn has not changed: " + newSubscription);
+                trace.info("Subscriptiopn is unchanged: " + newSubscription);
             } else {
-                if (newSubscription.isEmpty()) {
-                    // no partition rebalance will happen, where we ususally commit offsets. Commit now.
+                if (newSubscription.size() > 0) {
+                    trace.info("Subscription changed. New subscription: " + newSubscription);
+                }
+                else {
+                    // With Kafka client 2.3, no partition rebalance happened when we only unsubscribe, so that the 
+                    // onPartitionsRevoked callback has not been called, where we usually commit offsets before we give
+                    // away partitions.
+                    // With Kafka client 2.5.1, the things are different. The onPartitionsRevoked callback is called,
+                    // so that we could commit the offsets there and remove the following code block, but it is also safe,
+                    // to preserve the old logic and commit now.
+                    trace.info("Unsubscribing all topics. Going to commit offsets.");
                     // remove the content of the queue. It contains uncommitted messages.
                     getMessageQueue().clear();
                     OffsetManager offsetManager = getOffsetManager();
@@ -452,6 +468,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                     catch (InterruptedException | RuntimeException e) {
                         // Ignore InterruptedException, RuntimeException from commitOffsets is already traced.
                     }
+                    // avoid committing offsets in onPartitionsRevoked (if called)
                     offsetManager.clear();
                 }
                 subscribe (newSubscription, this);

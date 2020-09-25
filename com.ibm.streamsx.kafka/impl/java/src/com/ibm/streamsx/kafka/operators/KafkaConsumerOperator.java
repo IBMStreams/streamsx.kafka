@@ -117,7 +117,9 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
             + "\\n"
             + "# Supported Kafka Versions\\n"
             + "\\n"
-            + "This version of the toolkit supports **Apache Kafka 0.10.2, 0.11, 1.0, 1.1, and all 2.x versions up to 2.5**.\\n"
+            + "This version of the toolkit supports **Apache Kafka 0.10.2, 0.11, 1.0, 1.1, and all 2.x versions up to 2.6**.\\n"
+            + "\\n"
+            + KafkaSplDoc.CONSUMER_CONNECT_WITH_KAFKA_010
             + "\\n"
             + "# Kafka Properties\\n"
             + "\\n"
@@ -146,6 +148,8 @@ public class KafkaConsumerOperator extends AbstractKafkaConsumerOperator {
             + KafkaSplDoc.CONSUMER_KAFKA_GROUP_MANAGEMENT
             + "\\n"
             + KafkaSplDoc.CONSUMER_STATIC_GROUP_MEMBERSHIP
+            + "\\n"
+            + KafkaSplDoc.CONSUMER_INCREMENTAL_COOPERATIVE_REBALANCING
             + "\\n"
             + KafkaSplDoc.CONSUMER_CHECKPOINTING_CONFIG
             + "\\n"

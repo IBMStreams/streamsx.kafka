@@ -1,6 +1,11 @@
 # Changes
 ==========
 
+## v3.2.0
+* [#220](https://github.com/IBMStreams/streamsx.kafka/issues/220) SPL doc: Add hints, what to do when the toolkit is used with Kafka version 0.10
+* [#218](https://github.com/IBMStreams/streamsx.kafka/issues/218) support incremental cooperative rebalancing
+* [#217](https://github.com/IBMStreams/streamsx.kafka/issues/217) upgrade kafka-clients from 2.3.1 to 2.5.1, for more information, see also the [release page](https://github.com/IBMStreams/streamsx.kafka/releases/tag/v3.2.0)
+
 ## v3.1.1
 * [#216](https://github.com/IBMStreams/streamsx.kafka/issues/216) Toolkit includes a vulnerable version of log4j.
 * [#214](https://github.com/IBMStreams/streamsx.kafka/issues/214) Add sample with KafkaConsumer and start position as submission time value

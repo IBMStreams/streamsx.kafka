@@ -1,5 +1,7 @@
 # Changes
 ==========
+## develop/latest
+* [#222](https://github.com/IBMStreams/streamsx.kafka/issues/222) KafkaConsumer: Reset of CR may fail when partitions are revoked before the reset actually happens
 
 ## v3.1.1
 * [#216](https://github.com/IBMStreams/streamsx.kafka/issues/216) Toolkit includes a vulnerable version of log4j.

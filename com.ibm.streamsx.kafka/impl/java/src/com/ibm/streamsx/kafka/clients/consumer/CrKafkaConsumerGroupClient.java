@@ -808,7 +808,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 }
                 seekFailedPartitions.remove (tp);
             }
-            catch (IllegalArgumentException topicPartitionNotAssigned) {
+            catch (IllegalStateException topicPartitionNotAssigned) {
                 // when this happens the ConsumerRebalanceListener will be called later
                 trace.warn (MsgFormatter.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
             } catch (InterruptedException e) {

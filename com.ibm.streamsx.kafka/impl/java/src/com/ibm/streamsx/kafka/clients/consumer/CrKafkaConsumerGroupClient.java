@@ -67,6 +67,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ConsistentRegionMXBean;
+import com.ibm.streams.operator.control.ConsistentRegionMXBean.State;
 import com.ibm.streams.operator.control.Controllable;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
@@ -152,7 +153,7 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         this.crGroupCoordinatorMXBeanName = createMBeanObjectName ("consumergroup").getCanonicalName();
         this.assignedPartitionsOffsetManager = new OffsetManager();
         this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
-        
+
         // make sure to use the eager rebalancing protocol by selecting/overwriting the appropriate partition assignor:
         final String unsetAssignmentStrategy = singleTopic? RangeAssignor.class.getCanonicalName(): RoundRobinAssignor.class.getCanonicalName();
         if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG)) {
@@ -538,8 +539,17 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onReset (final Checkpoint checkpoint) throws InterruptedException {
+        ClientState newState = ClientState.CR_RESET_PENDING;
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
         resetPrepareDataBeforeStopPolling(checkpoint);
+        //until here a group rebalancing can happen or be initiated
         sendStopPollingEvent();
+        try {
+            this.crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
+        } catch (IOException e) {
+            trace.warn("onReset(): JCP access failed: " + e.getMessage());
+        }
         resetPrepareDataAfterStopPolling (checkpoint);
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
@@ -556,6 +566,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onResetToInitialState() throws InterruptedException {
+        ClientState newState = ClientState.CR_RESET_PENDING;
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
+        try {
+            this.crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
+        } catch (IOException e) {
+            trace.warn("onReset(): JCP access failed: " + e.getMessage());
+        }
         Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET_TO_INIT, true);
         sendEvent (event);
         event.await();
@@ -689,15 +707,26 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         // Do not update the assignedPartitions here. We need this state on partition assignment.
         //removeAssignedPartitions (partitions);
         if (state == ClientState.RECORDS_FETCHED) {
+            boolean resetPending;
+            try {
+                resetPending = this.crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true, getOperatorContext().getName());
+            } catch (IOException e) {
+                trace.warn("JCP access failed: " + e.getMessage());
+                resetPending = false;
+            }
             ClientState newState = ClientState.CR_RESET_PENDING;
             trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
             sendStopPollingEventAsync();
-            trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
-            try {
-                crMxBean.reset (true);
-            } catch (Exception e) {
-                throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+            if (!resetPending) {
+                trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
+                try {
+                    crMxBean.reset (true);
+                } catch (Exception e) {
+                    throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+                }
+            } else {
+                trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: consistent region reset already initiated", state));
             }
             // this callback is called within the context of a poll() invocation.
         }
@@ -727,12 +756,24 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
         state = newState;
         sendStopPollingEventAsync();
-        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: initiating consistent region reset", state));
+        boolean resetPending;
         try {
-            crMxBean.reset (true);
-        } catch (Exception e) {
-            throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+            resetPending = this.crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true, getOperatorContext().getName());
+        } catch (IOException e1) {
+            trace.warn("JCP access failed: " + e1.getMessage());
+            resetPending = false;
         }
+        if (!resetPending) {
+            try {
+                trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: initiating consistent region reset", state));
+                crMxBean.reset (true);
+            } catch (Exception e) {
+                throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+            }
+        } else {
+            trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: consistent region reset already initiated", state));
+        }
+
     }
 
 
@@ -887,9 +928,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 }
                 seekFailedPartitions.remove (tp);
             }
-            catch (IllegalArgumentException topicPartitionNotAssigned) {
-                // when this happens the ConsumerRebalanceListener will be called later
-                trace.warn (MsgFormatter.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
+            catch (IllegalStateException topicPartitionNotAssigned) {
+                // when this happens the ConsumerRebalanceListener will be called later or we are in the middle of revocation/assignment
+                trace.info (MsgFormatter.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
             } catch (InterruptedException e) {
                 trace.log (DEBUG_LEVEL, "interrupted creating or saving offset to JCP control variable");
                 // leave for-loop

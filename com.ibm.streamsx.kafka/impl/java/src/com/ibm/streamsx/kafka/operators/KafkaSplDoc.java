@@ -82,7 +82,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "**Activation**\\n"
             + "\\n"
-            + "Use following consumer property:\\n"
+            + "Use following consumer property for all consumers within the consumer group:\\n"
             + "`partition.assignment.strategy=org.apache.kafka.clients.consumer.CooperativeStickyAssignor`\\n"
             + "\\n"
             + "All other assignors use the EAGER rebalance protocol, which always revokes all partitions from all consumers followed by a re-assignment "

@@ -81,7 +81,7 @@ The system properties are specified as `vmArg` parameter to the operators. Examp
         topic: "topic";
         propertiesFile: "etc/consumer.properties";
         vmArg: "-Djava.security.krb5.realm=EXAMPLE.DOMAIN.COM", // per convention, realms are upper case
-          "-Djava.security.krb5.kdc=kdc_host.domain.com";  // per convention, hostnames are lowercase
+          "-Djava.security.krb5.kdc=kdc-host.domain.com";  // per convention, hostnames are lowercase
     }
 
 # Useful links

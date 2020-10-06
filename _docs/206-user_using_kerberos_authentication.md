@@ -12,8 +12,6 @@ sidebar:
 {%include editme %}
 # Abstract
 
-**This document is stil work in progress.**
-
 This document describes how to use the SPL operators of the streamsx.kafka toolkit to
 connect with Kerberos secured Kafka servers.
 

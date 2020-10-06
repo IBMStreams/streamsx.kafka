@@ -67,13 +67,13 @@ Often the configuration is done with configuration file **krb5.conf**, which con
 
 1. Java System property `java.security.krb5.conf` for example `java.security.krb5.conf=/user_directory/krb5.conf`
 
-   **Cannot be used with krb5.conf in `<application dir>/etc` as the application dir is not known when configuring the property.**
+   Since [toolkit version 3.1.2](https://github.com/IBMStreams/streamsx.kafka/releases/tag/v3.1.2) the Kerberos configuration file can also be placed within the *etc* directory of the application to get included into the application bundle. This is useful in containerized environments like Cloud Pak for Data and in Streaming Analytics Service in the IBM cloud. Use the `{applicationDir}` placeholder like this: `java.security.krb5.conf={applicationDir}/etc/krb5.conf`.
 
 2. *Java install*/lib/security/krb5.conf, which is `$STREAMS_INSTALL/java/jre/lib/security/krb5.conf` in a Streams runtime environment
 
 3. `/etc/krb5.conf`
 
-The system properties are specified as `vmArg` parameter to the operators. Example:
+The system properties are specified as `vmArg` parameter to the operators. Examples:
 
     stream <MessageType.StringMessage> ReceivedMsgs = KafkaConsumer() {
       param
@@ -82,6 +82,16 @@ The system properties are specified as `vmArg` parameter to the operators. Examp
         propertiesFile: "etc/consumer.properties";
         vmArg: "-Djava.security.krb5.realm=EXAMPLE.DOMAIN.COM", // per convention, realms are upper case
           "-Djava.security.krb5.kdc=kdc_host.domain.com";  // per convention, hostnames are lowercase
+    }
+
+or
+
+    stream <MessageType.StringMessage> ReceivedMsgs = KafkaConsumer() {
+      param
+        groupId: "group1";
+        topic: "topic";
+        propertiesFile: "etc/consumer.properties";
+        vmArg: "-Djava.security.krb5.conf={applicationDir}/etc/myKrb5.conf";
     }
 
 # Useful links

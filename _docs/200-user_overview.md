@@ -26,7 +26,8 @@ The Kafka toolkit contains the Java Kafka clients package. Which toolkit version
 
 | Kafka toolkit version | kafka-clients version |
 | --- | --- |
-| 3.0.x | 2.3.1 |
+| 3.2.x | 2.5.1 |
+| 3.0.x - 3.1.x | 2.3.1 |
 | 2.x | 2.2.1 |
 | 1.9.x | 2.1.1 |
 | 1.3.0 - 1.8.x | 1.0.0 |

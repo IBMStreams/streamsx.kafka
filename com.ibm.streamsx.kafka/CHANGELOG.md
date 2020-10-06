@@ -1,6 +1,7 @@
 # Changes
 ==========
-## develop/latest
+## v3.1.2
+* [#224](https://github.com/IBMStreams/streamsx.kafka/issues/224) Application directory cannot be used as file location for files specified via system property and vmArg
 * [#222](https://github.com/IBMStreams/streamsx.kafka/issues/222) KafkaConsumer: Reset of CR may fail when partitions are revoked before the reset actually happens
 
 ## v3.1.1

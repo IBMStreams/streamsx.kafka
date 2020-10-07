@@ -2,7 +2,7 @@
 title: "Usecase: Assigned Partitions"
 permalink: /docs/user/UsecaseAssignedPartitions/
 excerpt: "How to use this toolkit."
-last_modified_at: 2019-11-26T08:10:48+01:00
+last_modified_at: 2020-10-07T09:10:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -74,8 +74,7 @@ can only have a single operator driven source.
 * **partition** - set to specific partition to consume
     * With manual invocation of multiple operators partitions are explicitly defined, e.g. `partition: 0, 1;`
     * With UDP `getChannel()` can be used, e.g. simple case of 1-1 channel to partition: `partition: getChannel();`
-* No assignment of group identifier via **groupId** parameter or Kafka properties - more precisely,
-  when the **partition** parameter is used, a group identifier has no effect for the operator configuration
+* **groupId** - can be used to identify the consumers by the server to get started with last committed offset when a Streams job is cancelled and re-submitted; crucial for the mode of partition assignment (manual/automatic), is the use of the **partition** parameter.
 
 ## Operator placement
 
@@ -105,7 +104,7 @@ channel is a separate consisitent region with one trigger operator, so that an o
 consistent region can be configured.
 
 ```
-composite Assigned3Partitions {
+public composite Assigned3Partitions {
 param
     expression <int32> $nPartitions: (int32) getSubmissionTimeValue ("nPartitions", "3");
 graph

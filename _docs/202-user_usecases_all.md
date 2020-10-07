@@ -2,7 +2,7 @@
 title: "Usecase: Consume All Partitions"
 permalink: /docs/user/UsecaseAllPartitions/
 excerpt: "How to use this toolkit."
-last_modified_at: 2019-11-26T08:35:48+01:00
+last_modified_at: 2020-10-07T09:35:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -19,7 +19,8 @@ A single `KafkaConsumer` operator consumes all messages from a topic regardless 
 
 Without a partition specification, the operator will consume from all partitions of the topic.
 The partitions of the subscribed topic are assigned by Kafka, and the operator represents a consumer
-group with only one member. The operator will automatically be assigned new partitions, when partitions
+group with only one member. When no group identifier is specified, the consumer operator creates an identifier.
+The operator will automatically be assigned new partitions, when partitions
 are added to the topic. On the other side, partition de-assignment and re-assignment can happen when
 
 * Group management related timers expire

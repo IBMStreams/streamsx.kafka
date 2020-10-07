@@ -2,7 +2,7 @@
 title: "Usecase: Kafka Consumer Group"
 permalink: /docs/user/UsecaseConsumerGroup/
 excerpt: "How to use this toolkit."
-last_modified_at: 2019-11-26T08:35:48+01:00
+last_modified_at: 2020-10-07T09:35:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -117,7 +117,7 @@ or
 ## Without consistent region
 
 ```
-composite ConsumerGroup {
+public composite ConsumerGroup {
 param
     expression <int32> $N: (int32) getSubmissionTimeValue ("consumerGroupSize", "3");
 graph
@@ -129,7 +129,7 @@ graph
             groupId: "myConsumerGroup";
             outputMessageAttributeName: "json";
             outputKeyAttributeName: "messageKey";
-            commitCount: 1000;      // commit every 1000 messages
+            commitPeriopd: 10.0;      // commit offsets every 10 seconds
         config placement: partitionExlocation ("A");
     }
 
@@ -155,7 +155,7 @@ consumers outside of the Streams application.
 ## Consumer group in a consistent region, group-ID specified in property file
 
 ```
-composite ConsumerGroupCR {
+public composite ConsumerGroupCR {
 param
     expression <int32> $N: (int32) getSubmissionTimeValue ("consumerGroupSize", "3");
 graph
@@ -186,7 +186,7 @@ graph
 }
 ```
 
-The `etc/consumer.properties` file must contain a line with
+As the **groupId** parameter is not used, the `etc/consumer.properties` file must contain a line with
 ```
 group.id=myConsumerGroup
 ```

@@ -1,5 +1,10 @@
 # Changes
 ==========
+## latest/develop
+* [#220](https://github.com/IBMStreams/streamsx.kafka/issues/220) SPL doc: Add hints, what to do when the toolkit is used with Kafka version 0.10
+* [#218](https://github.com/IBMStreams/streamsx.kafka/issues/218) support incremental cooperative rebalancing
+* [#217](https://github.com/IBMStreams/streamsx.kafka/issues/217) upgrade kafka-clients from 2.3.1 to 2.5.1
+
 ## v3.1.3
 * [#223](https://github.com/IBMStreams/streamsx.kafka/issues/223) I18n: update message translation
 

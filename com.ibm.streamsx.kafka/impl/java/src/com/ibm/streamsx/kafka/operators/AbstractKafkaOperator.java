@@ -28,6 +28,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Level;
@@ -44,6 +45,7 @@ import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.state.StateHandler;
 import com.ibm.streams.operator.types.Blob;
 import com.ibm.streams.operator.types.RString;
+import com.ibm.streams.operator.version.Product;
 import com.ibm.streamsx.kafka.DataGovernanceUtil;
 import com.ibm.streamsx.kafka.IGovernanceConstants;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
@@ -157,7 +159,27 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
+        Properties systemProps = System.getProperties();
+        final String applicationDirectory = context.getPE().getApplicationDirectory().getAbsolutePath();
+        // resolve {applicationDir} token in System properties as early as possible
+        Set <String> keys = systemProps.stringPropertyNames();
+        boolean traceAppDirOnce = true;
+        for (String key: keys) {
+            String propVal = systemProps.getProperty (key);
+            if (propVal == null) continue;
+            if (propVal.contains (KafkaOperatorProperties.TOKEN_APP_DIR)) {
+                final String resolvedVal = propVal.replace (KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory);
+                final String oldVal = System.setProperty(key, resolvedVal);
+                if (traceAppDirOnce) {
+                    traceAppDirOnce = false;
+                    logger.info(MsgFormatter.format("{0} = {1}", KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory));
+                }
+                logger.info (MsgFormatter.format("{0} resolved in system property {1} = {2}", KafkaOperatorProperties.TOKEN_APP_DIR, key, oldVal));
+            }
+        }
+
         super.initialize(context);
+        logger.info("Streams version: " + Product.getVersion());
         try {
             ToolkitInfoReader tkr = new ToolkitInfoReader (context);
             logger.info ("Toolkit information: name = " + tkr.getToolkitName() + ", version = " + tkr.getToolkitVersion());

@@ -67,7 +67,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.ibm.streams.operator.OperatorContext;
 import com.ibm.streams.operator.control.ConsistentRegionMXBean;
-import com.ibm.streams.operator.control.ConsistentRegionMXBean.State;
 import com.ibm.streams.operator.control.Controllable;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;

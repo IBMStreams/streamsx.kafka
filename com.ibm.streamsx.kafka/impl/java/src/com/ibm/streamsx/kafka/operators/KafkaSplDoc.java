@@ -56,6 +56,16 @@ public class KafkaSplDoc {
             + "        principal=\\\"kafka/host.domain@EXAMPLE.DOMAIN.COM\\\";\\n"
             + "\\n"
             + "\\n"
+            + "The `{applicationDir}` placeholder can also be used to reference files that are configured as system properties, "
+            + "for example when you must specify the Kerberos client configuration, which is typically done for Linux servers system wide "
+            + "in `/etc/krb5.conf`.\\n"
+            + "\\n"
+            + "In containerized environments and in cloud infrastructures, you cannot configure a system file, however. "
+            + "In such a scenario you want to bundle the Kerberos config file with your application and pass the file as a "
+            + "system property to the Java Virtual Machine using the **vmArg** operator parameter like this:\\n"
+            + "\\n"
+            + "    vmArg: \\\"-Djava.security.krb5.conf={applicationDir}/etc/krb5.conf\\\";"
+            + "\\n"
             ;
 
     public static final String CONSUMER_CONNECT_WITH_KAFKA_010 = ""
@@ -405,7 +415,7 @@ public class KafkaSplDoc {
             + "When a `group.instance.id` is detected, the operator automatically increases the default session timeout when "
             + "no user-provided session timeout is given."
             + "";
-    
+
     public static final String PRODUCER_CHECKPOINTING_CONFIG = ""
             + "# Checkpointing behavior in an autonomous region\\n"
             + "\\n"
@@ -435,6 +445,16 @@ public class KafkaSplDoc {
             + "        useKeytab=\\\"{applicationDir}/etc/myKeytab.keytab\\\" \\\\\\n"
             + "        principal=\\\"kafka/host.domain@EXAMPLE.DOMAIN.COM\\\";\\n"
             + "\\n"
+            + "\\n"
+            + "The `{applicationDir}` placeholder can also be used to reference files that are configured as system properties, "
+            + "for example when you must specify the Kerberos client configuration, which is typically done for Linux servers system wide "
+            + "in `/etc/krb5.conf`.\\n"
+            + "\\n"
+            + "In containerized environments and in cloud infrastructures, you cannot configure a system file, however. "
+            + "In such a scenario you want to bundle the Kerberos config file with your application and pass the file as a "
+            + "system property to the Java Virtual Machine using the **vmArg** operator parameter like this:\\n"
+            + "\\n"
+            + "    vmArg: \\\"-Djava.security.krb5.conf={applicationDir}/etc/krb5.conf\\\";"
             + "\\n"
             ;
 

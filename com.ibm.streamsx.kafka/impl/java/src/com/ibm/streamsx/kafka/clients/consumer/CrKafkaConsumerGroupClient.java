@@ -51,11 +51,14 @@ import javax.management.ObjectName;
 import javax.management.ReflectionException;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerPartitionAssignor;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.RangeAssignor;
 import org.apache.kafka.clients.consumer.RoundRobinAssignor;
+import org.apache.kafka.clients.consumer.internals.PartitionAssignorAdapter;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.log4j.Logger;
@@ -149,13 +152,55 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
         this.crGroupCoordinatorMXBeanName = createMBeanObjectName ("consumergroup").getCanonicalName();
         this.assignedPartitionsOffsetManager = new OffsetManager();
         this.gson = (new GsonBuilder()).enableComplexMapKeySerialization().create();
-        ConsistentRegionContext crContext = getCrContext();
-        // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed
-        if (!(singleTopic || kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG))) {
-            String assignmentStrategy = RoundRobinAssignor.class.getCanonicalName();
-            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignmentStrategy);
-            trace.info (MsgFormatter.format ("Multiple topics specified or possible by using a pattern. Using the ''{0}'' partition assignment strategy for group management", assignmentStrategy));
+
+        // make sure to use the eager rebalancing protocol by selecting/overwriting the appropriate partition assignor:
+        final String unsetAssignmentStrategy = singleTopic? RangeAssignor.class.getCanonicalName(): RoundRobinAssignor.class.getCanonicalName();
+        if (!kafkaProperties.containsKey (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG)) {
+            // if no partition assignment strategy is specified, set the round-robin when multiple topics can be subscribed,
+            // or RangeAssignor when a single topic is subscribed
+            kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy);
+            trace.warn (MsgFormatter.format("consumer config ''{0}'' has been set to {1}", ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy));
         }
+        else {
+            ConsumerConfig config = new ConsumerConfig (kafkaProperties);
+            List<ConsumerPartitionAssignor> assignors = PartitionAssignorAdapter.getAssignorInstances (config.getList(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG), config.originals());
+            List<ConsumerPartitionAssignor> eagerOnlyAssignors = new ArrayList<>();
+            for (ConsumerPartitionAssignor assignor: assignors) {
+                final String assignorClassName = assignor.getClass().getCanonicalName();
+                trace.info (MsgFormatter.format("Verifying partition assignor {0} for rebalance protocols in CR", assignorClassName));
+                if (assignor.supportedProtocols().contains (ConsumerPartitionAssignor.RebalanceProtocol.COOPERATIVE)) {
+                    trace.warn(MsgFormatter.format ("The partition assignor {0} cannot be used in consistent region as it "
+                            + "supports rebalance protocol ''{1}''. In consistent region, a partition assignment strategy "
+                            + "that supports ''{2}'' only must be used.",
+                            assignorClassName,
+                            ConsumerPartitionAssignor.RebalanceProtocol.COOPERATIVE,
+                            ConsumerPartitionAssignor.RebalanceProtocol.EAGER));
+                }
+                else {
+                    // assume EAGER is the only alternative to COOPERATIVE
+                    eagerOnlyAssignors.add (assignor);
+                    trace.info (MsgFormatter.format ("Partition assignor supported in CR: {0}", assignorClassName));
+                }
+            }
+            // set the remaining EAGER-only assigner or our assignment strategy
+            if (eagerOnlyAssignors.isEmpty()) {
+                trace.warn (MsgFormatter.format("consumer config ''{0}'' has been overwritten with {1}", ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy));
+                kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, unsetAssignmentStrategy);
+            }
+            else {
+                String assignorClassNames = "";
+                for (ConsumerPartitionAssignor a: eagerOnlyAssignors) {
+                    assignorClassNames += ",";
+                    assignorClassNames += a.getClass().getCanonicalName();
+                }
+                assignorClassNames = assignorClassNames.substring (1); // remove first ','
+                if (assignors.size() != eagerOnlyAssignors.size()) {
+                    trace.warn (MsgFormatter.format("consumer config ''{0}'' has been set to remaining {1}", ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignorClassNames));
+                    kafkaProperties.put (ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, assignorClassNames);
+                }
+            }
+        }
+        ConsistentRegionContext crContext = getCrContext();
         trace.info (MsgFormatter.format ("CR timeouts: reset: {0}, drain: {1}", crContext.getResetTimeout(), crContext.getDrainTimeout()));
         ClientState newState = ClientState.INITIALIZED;
         isGroupManagementActive.setValue (1L);
@@ -493,8 +538,17 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onReset (final Checkpoint checkpoint) throws InterruptedException {
+        ClientState newState = ClientState.CR_RESET_PENDING;
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
         resetPrepareDataBeforeStopPolling(checkpoint);
+        //until here a group rebalancing can happen or be initiated
         sendStopPollingEvent();
+        try {
+            this.crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
+        } catch (IOException e) {
+            trace.warn("onReset(): JCP access failed: " + e.getMessage());
+        }
         resetPrepareDataAfterStopPolling (checkpoint);
         Event event = new Event(com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET, checkpoint, true);
         sendEvent (event);
@@ -511,6 +565,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onResetToInitialState() throws InterruptedException {
+        ClientState newState = ClientState.CR_RESET_PENDING;
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
+        try {
+            this.crGroupCoordinatorMxBean.setRebalanceResetPending (false, getOperatorContext().getName());
+        } catch (IOException e) {
+            trace.warn("onReset(): JCP access failed: " + e.getMessage());
+        }
         Event event = new Event (com.ibm.streamsx.kafka.clients.consumer.Event.EventType.RESET_TO_INIT, true);
         sendEvent (event);
         event.await();
@@ -626,7 +688,9 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
     /**
      * Callback function of the ConsumerRebalanceListener, which is called in the context of KafkaConsumer.poll(...)
-     * before partitions are re-assigned. 
+     * before partitions are re-assigned. For consistent region, we intentionally do not support incremental rebalancing.
+     * So we can (still) assume, that always eager rebalancing is happening, where the complete assignment is revoked followed 
+     * by a new assignment.
      * onPartitionsRevoked is ignored when the client has initially subscribed to topics or when the client has been reset.
      * In all other cases a reset of the consistent region is triggered. Polling for messsages is stopped.
      * @param partitions current partition assignment  
@@ -634,32 +698,88 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      */
     @Override
     public void onPartitionsRevoked (Collection<TopicPartition> partitions) {
-        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: old partition assignment = {1}", state, partitions));
-        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
+        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: owned partitions = {1}", state, getAssignedPartitions()));
+        trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: revoked partitions = {1}", state, partitions));
         // remove the content of the queue. It contains uncommitted messages.
         // They will be fetched again after rebalance.
         getMessageQueue().clear();
-        setConsumedTopics (null);
+        // Do not update the assignedPartitions here. We need this state on partition assignment.
+        //removeAssignedPartitions (partitions);
         if (state == ClientState.RECORDS_FETCHED) {
+            boolean resetPending;
+            try {
+                resetPending = this.crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true, getOperatorContext().getName());
+            } catch (IOException e) {
+                trace.warn("JCP access failed: " + e.getMessage());
+                resetPending = false;
+            }
             ClientState newState = ClientState.CR_RESET_PENDING;
             trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
             state = newState;
             sendStopPollingEventAsync();
-            trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
-            try {
-                crMxBean.reset (true);
-            } catch (Exception e) {
-                throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+            if (!resetPending) {
+                trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: initiating consistent region reset", state));
+                try {
+                    crMxBean.reset (true);
+                } catch (Exception e) {
+                    throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+                }
+            } else {
+                trace.info (MsgFormatter.format ("onPartitionsRevoked() [{0}]: consistent region reset already initiated", state));
             }
             // this callback is called within the context of a poll() invocation.
         }
     }
 
+    /**
+     * Callback function of the ConsumerRebalanceListener, which is called in the context of KafkaConsumer.poll(...).
+     * With eager rebalance protocol, this callback is called if the member has missed a rebalance and fallen out of the
+     * group. It is invoked on the set of all owned partitions (unless empty). The member will then rejoin the group 
+     * with onPartitionsRevoked(?)/onPartitionsAssigned cycle.
+     * 
+     * For consistent region, we intentionally do not support incremental rebalancing, which can miss the 
+     * {@link #onPartitionsRevoked(Collection)}.
+     * 
+     * @param partitions - current partition assignment (assuming eager rebalancing protocol)
+     * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsRevoked(java.util.Collection)
+     */
+    @Override
+    public void onPartitionsLost (Collection<TopicPartition> partitions) {
+        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: owned partitions = {1}", state, getAssignedPartitions()));
+        trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: lost partitions = {1}", state, partitions));
+
+        getMessageQueue().clear();
+        // Do not update the assignedPartitions here. We need this state on partition assignment.
+        //removeAssignedPartitions (partitions);
+        ClientState newState = ClientState.CR_RESET_PENDING;
+        trace.log (DEBUG_LEVEL, MsgFormatter.format ("client state transition: {0} -> {1}", state, newState));
+        state = newState;
+        sendStopPollingEventAsync();
+        boolean resetPending;
+        try {
+            resetPending = this.crGroupCoordinatorMxBean.getAndSetRebalanceResetPending (true, getOperatorContext().getName());
+        } catch (IOException e1) {
+            trace.warn("JCP access failed: " + e1.getMessage());
+            resetPending = false;
+        }
+        if (!resetPending) {
+            try {
+                trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: initiating consistent region reset", state));
+                crMxBean.reset (true);
+            } catch (Exception e) {
+                throw new KafkaOperatorRuntimeException ("Failed to reset the consistent region: " + e.getMessage(), e);
+            }
+        } else {
+            trace.info (MsgFormatter.format ("onPartitionsLost() [{0}]: consistent region reset already initiated", state));
+        }
+
+    }
 
 
     /**
      * Callback function of the ConsumerRebalanceListener, which is called in the context of KafkaConsumer.poll(...)
-     * after partitions are re-assigned. 
+     * after partitions are re-assigned. For consistent region, we intentionally do not support incremental rebalancing.
+     * So we can (still) assume, that always eager rebalancing is happening, where the complete assignment is passed.
      * onPartitionsAssigned performs following:
      * <ul>
      * <li>
@@ -684,18 +804,18 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
      * </li>
      * </ul>
      *
-     * @param newAssignedPartitions new partition assignment  
+     * @param newAssignedPartitions new partition assignment; with eager rebalancing protocol this is always the complete assignment.
      * @see org.apache.kafka.clients.consumer.ConsumerRebalanceListener#onPartitionsAssigned(java.util.Collection)
      */
     @Override
     public void onPartitionsAssigned (Collection<TopicPartition> newAssignedPartitions) {
         trace.info (MsgFormatter.format ("onPartitionsAssigned() [{0}]: new partition assignment = {1}", state, newAssignedPartitions));
+        getOperatorContext().getMetrics().getCustomMetric (N_PARTITION_REBALANCES).increment();
         Set<TopicPartition> gonePartitions = new HashSet<>(getAssignedPartitions());
         gonePartitions.removeAll (newAssignedPartitions);
-        getAssignedPartitions().clear();
-        getAssignedPartitions().addAll (newAssignedPartitions);
-        nAssignedPartitions.setValue (newAssignedPartitions.size());
-        trace.info ("topic partitions that are not assigned anymore: " + gonePartitions);
+        clearAssignedPartitions();
+        addAssignedPartitions(newAssignedPartitions);
+        trace.info ("onPartitionsAssigned(): topic partitions that are not assigned anymore: " + gonePartitions);
 
         synchronized (assignedPartitionsOffsetManager) {
             if (!gonePartitions.isEmpty()) {
@@ -706,7 +826,6 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
             }
             assignedPartitionsOffsetManager.updateTopics (newAssignedPartitions);
         }
-        setConsumedTopics (newAssignedPartitions);
         trace.log (DEBUG_LEVEL, "onPartitionsAssigned() assignedPartitionsOffsetManager = " + assignedPartitionsOffsetManager);
         trace.log (DEBUG_LEVEL, "onPartitionsAssigned() assignedPartitions = " + getAssignedPartitions());
         switch (state) {
@@ -809,8 +928,8 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
                 seekFailedPartitions.remove (tp);
             }
             catch (IllegalStateException topicPartitionNotAssigned) {
-                // when this happens the ConsumerRebalanceListener will be called later
-                trace.warn (MsgFormatter.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
+                // when this happens the ConsumerRebalanceListener will be called later or we are in the middle of revocation/assignment
+                trace.info (MsgFormatter.format ("seekPartitions(): seek failed for partition {0}: {1}", tp, topicPartitionNotAssigned.getLocalizedMessage()));
             } catch (InterruptedException e) {
                 trace.log (DEBUG_LEVEL, "interrupted creating or saving offset to JCP control variable");
                 // leave for-loop

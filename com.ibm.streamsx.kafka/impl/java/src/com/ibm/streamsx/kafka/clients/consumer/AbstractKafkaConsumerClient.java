@@ -83,12 +83,12 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private static final double MAX_USED_RATIO = 1.0 - MEM_FREE_TOTAL_RATIO;
     private static final long CONSUMER_CLOSE_TIMEOUT_MS = 2000;
 
-    /** default value in Kafka 2.1.1 for max.poll.records */
+    /** default value in Kafka 2.5.x for max.poll.records and max.poll.interval.ms */
     private static final int DEFAULT_MAX_POLL_RECORDS_CONFIG = 500;
     private static final long DEFAULT_MAX_POLL_INTERVAL_MS_CONFIG = 300_000l;
     private static final long DEFAULT_CONSUMER_POLL_TIMEOUT_MS = 100l;
     private static final int MESSAGE_QUEUE_SIZE_MULTIPLIER = 100;
-    /** default value in Kafka 2.1.1 for fetch.max.bytes */
+    /** default value in Kafka 2.5.x for fetch.max.bytes */
     private static final long DEFAULT_FETCH_MAX_BYTES = 52_428_800;
 
     private OffsetCommitCallback offsetCommitCallback = this;
@@ -120,7 +120,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
     private final Metric nLowMemoryPause;
     private final Metric nQueueFullPause;
     private final Metric nConsumedTopics;
-    protected final Metric nAssignedPartitions;
+    private final Metric nAssignedPartitions;
     protected final Metric nFailedControlTuples;
     protected final Metric isGroupManagementActive;
 
@@ -241,17 +241,19 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
      * Maintains the custom metric "nConsumedTopics"
      * @param topicPartitions A collection of topic partitions. Multiple occurrences of the same topic will be counted as one single topic.
      *                        A null value sets the metric value to 0.
+     * @return the new number of consumed topics
      */
-    protected void setConsumedTopics (Collection<TopicPartition> topicPartitions) {
+    private int setConsumedTopics (Collection<TopicPartition> topicPartitions) {
         if (topicPartitions == null) {
             this.nConsumedTopics.setValue (0L);
-            return;
+            return 0;
         }
         Set <String> topics = new HashSet<> (topicPartitions.size());
         if (topicPartitions != null) {
             topicPartitions.forEach (tp -> topics.add (tp.topic()));
         }
         this.nConsumedTopics.setValue (topics.size());
+        return topics.size();
     }
 
     /**
@@ -277,12 +279,51 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
 
 
     /**
-     * @return the assignedPartitions
+     * @return the assignedPartitions as an immutable set.
      */
     public final Set<TopicPartition> getAssignedPartitions() {
-        return assignedPartitions;
+        return Collections.unmodifiableSet(assignedPartitions);
     }
 
+    /**
+     * Clears the collection of assigned partitions.
+     * Maintains the custom metrics "nAssignedPartitions" and "nConsumedTopics".
+     */
+    public final void clearAssignedPartitions() {
+        this.assignedPartitions.clear();
+        this.nAssignedPartitions.setValue (0L);
+        setConsumedTopics(null);
+    }
+
+    /**
+     * Adds partitions to the collection of assigned partitions.
+     * Maintains the custom metrics "nAssignedPartitions" and "nConsumedTopics".
+     * @param increment The partitions to be added.
+     * @return an immutable view of the resulting assigned partitions.
+     */
+    public final Set<TopicPartition> addAssignedPartitions (final Collection<TopicPartition> increment) {
+        if (increment != null) {
+            this.assignedPartitions.addAll(increment);
+        }
+        setConsumedTopics (this.assignedPartitions);
+        this.nAssignedPartitions.setValue (this.assignedPartitions.size());
+        return Collections.unmodifiableSet(this.assignedPartitions);
+    }
+
+    /**
+     * Removes partitions from the collection of assigned partitions.
+     * Maintains the custom metrics "nAssignedPartitions" and "nConsumedTopics".
+     * @param decrement The partitions to be removed
+     * @return an immutable view of the resulting assigned partitions.
+     */
+    public final Set<TopicPartition> removeAssignedPartitions (final Collection<TopicPartition> decrement) {
+        if (decrement != null) {
+            this.assignedPartitions.removeAll (decrement);
+        }
+        setConsumedTopics (this.assignedPartitions);
+        this.nAssignedPartitions.setValue (this.assignedPartitions.size());
+        return Collections.unmodifiableSet(this.assignedPartitions);
+    }
 
     /**
      * Gets the OffsetCommitCallback, which is used as callback for asynchronous offset commit. 
@@ -513,7 +554,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
             Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>(1);
             for (TopicPartition tp: offsetMap.keySet()) {
                 // do not commit for partitions we are not assigned
-                if (!currentAssignment.contains (tp)) continue;
+                if (!currentAssignment.contains (tp)) {
+                    continue;
+                }
                 map.clear();
                 map.put (tp, offsetMap.get (tp));
                 if (offsets.isCommitSynchronous()) {
@@ -1152,6 +1195,9 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
         logger.info("Subscribing. pattern = " + (pattern == null? "null": pattern.pattern())); //$NON-NLS-1$
         if (pattern == null) {
             consumer.unsubscribe();
+            setConsumedTopics (null);
+            this.assignedPartitions = new HashSet<TopicPartition> ();
+            nAssignedPartitions.setValue (0L);
         }
         else {
             tryCreateCustomMetric (N_PARTITION_REBALANCES, "Number of partition rebalances within the consumer group", Metric.Kind.COUNTER);

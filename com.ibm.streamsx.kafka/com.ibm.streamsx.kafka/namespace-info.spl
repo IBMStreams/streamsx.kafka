@@ -2,21 +2,24 @@
  * This SPL namespace contains all functions and operators that are required to integrate with Kafka message brokers.
  *
  * + Compatibility
- * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.5.x.
- * This toolkit contains the Kafka client library version 2.3.1.
+ * This toolkit is compatible with Kafka brokers version 0.10.2 and later including 2.6.x.
+ * This toolkit contains the Kafka client library version 2.5.1.
  * 
  * * To use Kafka transactions with the `KafkaProducer`, the Kafka server must be at version 0.11 or higher.
  * * To use Zstandard compression with the `KafkaProducer`, the Kafka server must be at version 2.1 or higher.
  * * To use the `guaranteeOrdering: true;` parameter of the `KafkaProducer`, the Kafka server must be at version 0.11 or higher.
  * * To configure the `KafkaConsumer` operator as a static consumer group member, the Kafka server must be at version 2.3 or higher.
+ * * To use the `KafkaConsumer` operator with Kafka 0.10, `isolation.level=read_uncommitted` must be configured.
+ * 
+ * Additional information about restrictions can be found in parameter descriptions for the specific operators.
  *
  * + Configuration
  *
  * The operators use Kafka's Producer or Consumer API. As a consequence, you can specify all properties for the APIs to control
- * the behavior of the operators. The producer configuration for Apache Kafka 2.3 can be found in the
- * [https://kafka.apache.org/23/documentation/#producerconfigs|producer configs section of the Apache Kafka 2.3 documentation],
- * the configs for the Apache Kafka Consumer can be found in the
- * [https://kafka.apache.org/23/documentation/#consumerconfigs|consumer configs section of the Apache Kafka 2.3 documentation].
+ * the behavior of the operators. The producer configuration for Apache Kafka 2.5 can be found in the
+ * [https://kafka.apache.org/25/documentation/#producerconfigs|producer configs section of the Apache Kafka 2.5 documentation],
+ * the configs for the Apache Kafka 2.5 consumer can be found in the
+ * [https://kafka.apache.org/25/documentation/#consumerconfigs|consumer configs section of the Apache Kafka 2.5 documentation].
  *
  * Properties can be specified in different ways:
  * 

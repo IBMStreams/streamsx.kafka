@@ -119,7 +119,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     @Parameter(optional = true, name=USER_LIB_PARAM,
             description="Allows the user to specify paths to JAR files that should "
                     + "be loaded into the operators classpath. This is useful if "
-                    + "the user wants to be able to specify their own partitioners. "
+                    + "the user wants to be able to specify their own partitioners or assignors. "
                     + "The value of this parameter can either point to a specific JAR file, "
                     + "or to a directory. In the case of a directory, the operator will "
                     + "load all files ending in `.jar` onto the classpath. By default, "

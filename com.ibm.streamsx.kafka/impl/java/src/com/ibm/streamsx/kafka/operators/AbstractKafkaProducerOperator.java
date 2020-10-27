@@ -141,7 +141,7 @@ public abstract class AbstractKafkaProducerOperator extends AbstractKafkaOperato
                     + "deprecated and can be removed in a future version. `AtLeastOnce` is equivalent to `NonTransactional`.\\n"
                     + "\\n"
                     + "This parameter is ignored if the operator is not part of a consistent region. "
-                    + "The default value is `NonTransactional`. **NOTE**: Kafka brokers older than version v0.11 "
+                    + "The default value is `NonTransactional`. **NOTE**: Kafka brokers older than version 0.11 "
                     + "do not support transactions.")
     public void setConsistentRegionPolicy(ConsistentRegionPolicy consistentRegionPolicy) {
         this.consistentRegionPolicy = consistentRegionPolicy;

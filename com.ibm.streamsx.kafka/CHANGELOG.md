@@ -1,6 +1,7 @@
 # Changes
 ==========
 ## latest/develop
+* [#226](https://github.com/IBMStreams/streamsx.kafka/issues/226) Makefiles of sample application prepared for CP4D Streams build service, supports build with [VS Code](https://marketplace.visualstudio.com/items?itemName=IBM.ibm-streams)
 * [#220](https://github.com/IBMStreams/streamsx.kafka/issues/220) SPL doc: Add hints, what to do when the toolkit is used with Kafka version 0.10
 * [#218](https://github.com/IBMStreams/streamsx.kafka/issues/218) support incremental cooperative rebalancing
 * [#217](https://github.com/IBMStreams/streamsx.kafka/issues/217) upgrade kafka-clients from 2.3.1 to 2.5.1

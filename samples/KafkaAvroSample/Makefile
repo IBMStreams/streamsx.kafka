@@ -17,9 +17,11 @@ ifeq ($(STREAMSX_AVRO_TOOLKIT),)
   endif
 endif
 
-
-SPL_PATH = ../..:$(STREAMS_INSTALL)/toolkits/com.ibm.streamsx.kafka:$(STREAMSX_AVRO_TOOLKIT)
-
+ifdef STREAMS_BUILDSERVICE
+  SPL_PATH = ../toolkits:$(STREAMS_INSTALL)/toolkits
+else
+  SPL_PATH = ../..:$(STREAMS_INSTALL)/toolkits/com.ibm.streamsx.kafka:$(STREAMSX_AVRO_TOOLKIT)
+endif
 
 all:
 	$(SPLC) $(SPLC_FLAGS) -M $(SPL_MAIN_COMPOSITE) --output-directory $(OUTPUT_DIR) -t $(SPL_PATH); \

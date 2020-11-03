@@ -27,7 +27,7 @@ Additional user documentation can be found in the
 
 + What's new and what has changed
 
-For changes in this toolkit release, see [https://github.com/IBMStreams/streamsx.kafka/blob/develop/com.ibm.streamsx.kafka/CHANGELOG.md|the change log in public Github]
+For changes in this toolkit release, see [https://github.com/IBMStreams/streamsx.kafka/blob/v3.2.0/com.ibm.streamsx.kafka/CHANGELOG.md|the change log in public Github]
 
 + Using Red Hat AMQ Streams or other Kafka clusters configured with TLS and client authentication
 

@@ -53,7 +53,7 @@ public class KafkaSplDoc {
             + "        debug=true \\\\\\n"
             + "        credsType=both \\\\\\n"
             + "        useKeytab=\\\"{applicationDir}/etc/myKeytab.keytab\\\" \\\\\\n"
-            + "        principal=\\\"kafka/host.domain@EXAMPLE.DOMAIN.COM\\\";\\n"
+            + "        principal=\\\"kafka-client@EXAMPLE.DOMAIN.COM\\\";\\n"
             + "\\n"
             + "\\n"
             + "The `{applicationDir}` placeholder can also be used to reference files that are configured as system properties, "
@@ -65,6 +65,8 @@ public class KafkaSplDoc {
             + "system property to the Java Virtual Machine using the **vmArg** operator parameter like this:\\n"
             + "\\n"
             + "    vmArg: \\\"-Djava.security.krb5.conf={applicationDir}/etc/krb5.conf\\\";"
+            + "\\n"
+            + "More about accessing a kerberized Kafka cluster can be found in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingKerberos/|Kerberos chapter of the toolkit documentation]."
             + "\\n"
             ;
 
@@ -443,7 +445,7 @@ public class KafkaSplDoc {
             + "        debug=true \\\\\\n"
             + "        credsType=both \\\\\\n"
             + "        useKeytab=\\\"{applicationDir}/etc/myKeytab.keytab\\\" \\\\\\n"
-            + "        principal=\\\"kafka/host.domain@EXAMPLE.DOMAIN.COM\\\";\\n"
+            + "        principal=\\\"kafka-client@EXAMPLE.DOMAIN.COM\\\";\\n"
             + "\\n"
             + "\\n"
             + "The `{applicationDir}` placeholder can also be used to reference files that are configured as system properties, "
@@ -455,6 +457,8 @@ public class KafkaSplDoc {
             + "system property to the Java Virtual Machine using the **vmArg** operator parameter like this:\\n"
             + "\\n"
             + "    vmArg: \\\"-Djava.security.krb5.conf={applicationDir}/etc/krb5.conf\\\";"
+            + "\\n"
+            + "More about accessing a kerberized Kafka cluster can be found in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingKerberos/|Kerberos chapter of the toolkit documentation]."
             + "\\n"
             ;
 

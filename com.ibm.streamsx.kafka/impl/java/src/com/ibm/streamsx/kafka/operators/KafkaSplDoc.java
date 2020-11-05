@@ -66,7 +66,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "    vmArg: \\\"-Djava.security.krb5.conf={applicationDir}/etc/krb5.conf\\\";"
             + "\\n"
-            + "More about accessing a kerberized Kafka cluster can be found in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingKerberos/|Kerberos chapter of the toolkit documentation]."
+            + "More about accessing a kerberized Kafka cluster can be found in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingKerberos/|Kerberos chapter of the toolkit documentation].\\n"
             + "\\n"
             ;
 
@@ -458,7 +458,7 @@ public class KafkaSplDoc {
             + "\\n"
             + "    vmArg: \\\"-Djava.security.krb5.conf={applicationDir}/etc/krb5.conf\\\";"
             + "\\n"
-            + "More about accessing a kerberized Kafka cluster can be found in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingKerberos/|Kerberos chapter of the toolkit documentation]."
+            + "More about accessing a kerberized Kafka cluster can be found in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingKerberos/|Kerberos chapter of the toolkit documentation].\\n"
             + "\\n"
             ;
 

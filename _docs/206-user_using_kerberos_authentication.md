@@ -69,18 +69,18 @@ Briefly, the required steps are
 - create principals for each Kafka broker.
 - create a keytab file (one for each broker, or a common file that contains keys for all principals), safely transfer them to the brokers
 - prepare the Kerberos configuration file `krb5.conf` - all brokers can have the same file
-- create a JAAS configuration file - make sure to configure the login module that is included in the security provider of the JRE that runs the brokers.
+- create a JAAS configuration file for each broker - make sure to configure the login module which is included in the security provider of the JRE that runs the brokers.
   For IBM Java, use `com.ibm.security.auth.module.Krb5LoginModule`, for openJDK or Oracle Java use `com.sun.security.auth.module.Krb5LoginModule` and
   the corresponding parameters of the login module.
-- configure GSSAPI in the brokers configuration files, typically `server.properties`.
-- For SASL_SSL, also the TLS encryption settings must be configured.
+- configure GSSAPI in the brokers' configuration files, typically `server.properties`.
+- For SASL_SSL, server certificates and perhaps a truststore for Kafka clients must be provided, and the TLS encryption settings must be configured.
 
 ## Operator setup
 
 ### Precondition
 
 1. You have created principals in the KDC for the consumer and the producer.
-2. You have created a keytab file for the principal and have transferred it in a secure manner to the Streams servers or to your SPL projects *etc* directory.
+2. You have created a keytab files for the principals and have transferred them in a secure manner to the Streams servers or to your SPL projects *etc* directory.
 
 When you create a consumer group by using user defined parallelism (`@parallel` annotation in SPL) you most
 likely share one principal and one keytab file with all replicated consumers.
@@ -89,7 +89,7 @@ likely share one principal and one keytab file with all replicated consumers.
 
 IBM Streams uses the IBM JSSE2 security provider. This must be taken into account when setting up the JAAS configuration
 as part of the consumer or producer configuration. The properties for the security configuration of consumers and producers
-are the same. Their values can be different when different principals and keytab files are used. The term *Kafka properties*
+are the same, but their values can be different when different principals and keytab files are used. The term *Kafka properties*
 will be used interchangeably with both configurations. A Kafka property can span
 several lines in a property file. In this case, a line must be terminated with backslash.
 
@@ -129,7 +129,27 @@ The `sasl.kerberos.service.name` property must be the primary principal name tha
 Often it is simply "kafka". For example, when the service principals of the Kafka brokers are `kafka260/<hostname>@<REALM>`,
 the `sasl.kerberos.service.name` property would be set to `kafka260`.
 
-### Kerberos configuration
+#### Exanmple for a producer or consumer configuration with TLS and Kerberos
+
+    bootstrap.servers=kafka-0.localdomain:9093, \
+        kafka-1.localdomain:9093, \
+        kafka-2.localdomain:9093
+
+    security.protocol=SASL_SSL
+    sasl.mechanism=GSSAPI
+    sasl.jaas.config=com.ibm.security.auth.module.Krb5LoginModule required \
+        debug=true \
+        credsType=both \
+        useKeytab="{applicationDir}/etc/producer.keytab" \
+        principal="kafka-producer@LOCALDOMAIN" ;
+    sasl.kerberos.service.name=kafka
+
+    # an optional truststore for server certificate verification
+    # can also be placed in the applications etc dir
+    ssl.truststore.location={applicationDir}/etc/truststore.jks
+    ssl.truststore.password=passw=rd
+
+### Kerberos client configuration
 
 The essential Kerberos configuration information for the client is the default realm and the default KDC. The KDC is the Key Distribution Center (Kerberos Server). These two pieces of information can be specified as System properties
 
@@ -151,7 +171,8 @@ The Java security provider uses following search order for this file:
    application bundle. This is useful in containerized environments like Cloud Pak for Data and in
    Streaming Analytics Service in the IBM cloud as far as the requirements for time synchronization and hostname
    resolution are met within the containers. Use the `{applicationDir}` placeholder like this:
-   `java.security.krb5.conf={applicationDir}/etc/krb5.conf`.
+   `java.security.krb5.conf={applicationDir}/etc/krb5.conf`. Please note that the application must be rebuilt
+   and re-deployed in this case when the Kerberos config file needs to be changed.
 
 2. *Java install*/lib/security/krb5.conf, which is `$STREAMS_INSTALL/java/jre/lib/security/krb5.conf` in a Streams runtime environment
 
@@ -179,6 +200,53 @@ or
         propertiesFile: "etc/consumer.properties";
         vmArg: "-Djava.security.krb5.conf={applicationDir}/etc/myKrb5.conf";
     }
+
+#### Example kerberos client configuration (krb5.conf)
+
+    [logging]
+     default = FILE:/var/log/krb5libs.log
+     kdc = FILE:/var/log/krb5kdc.log
+     admin_server = FILE:/var/log/kadmind.log
+
+    [libdefaults]
+     dns_lookup_realm = false
+     ticket_lifetime = 24h
+     renew_lifetime = 7d
+     forwardable = true
+     rdns = false
+     pkinit_anchors = FILE:/etc/pki/tls/certs/ca-bundle.crt
+     default_realm = LOCALDOMAIN
+     default_ccache_name = KEYRING:persistent:%{uid}
+
+    [realms]
+     LOCALDOMAIN = {
+      kdc = kdc-0.localdomain
+      admin_server = kdc-0.localdomain
+     }
+
+    [domain_realm]
+     .localdomain = LOCALDOMAIN
+     localdomain = LOCALDOMAIN
+
+### Operator debugging
+
+There are different options to troubleshoot when things are not working as expected:
+
+- The Kafka client exposes some Kerberos related information when the PE trace level is DEBUG.
+- The `debug=true` parameter value in the login module (`sasl.jaas.config` Kafka property) enables full debugging of the Login module.
+- System properties `com.ibm.security.jgss.debug=all` and `com.ibm.security.krb5.Krb5Debug=all` enable full debugging of all
+  JGSS (Java Generic Security Service) categories.
+
+Example of a Kafka Producer with full debug enabled:
+
+    () as KafkaSink = KafkaProducer (Data) {
+        param
+            topic: $topic;
+            propertiesFile: "etc/producer.properties";
+            vmArg: "-Djava.security.krb5.conf={applicationDir}/etc/kafka-krb5.conf",
+                   "-Dcom.ibm.security.jgss.debug=all",
+                   "-Dcom.ibm.security.krb5.Krb5Debug=all";
+        }
 
 # Useful links
 

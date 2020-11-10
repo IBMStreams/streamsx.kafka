@@ -329,7 +329,7 @@ Properties for every broker's *server.properties*:
     listeners=SASL_PLAINTEXT://kafka-0.localdomain:9093
     advertised.listeners=SASL_PLAINTEXT://kafka-0.localdomain:9093
 
-When going to **SSL and GSSAPI**, change following properties:
+When going to **SSL and GSSAPI**, change following properties from the list above:
 
     security.inter.broker.protocol=SASL_SSL
     listeners=SASL_SSL://kafka-0.localdomain:9093

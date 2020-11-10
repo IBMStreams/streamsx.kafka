@@ -28,9 +28,8 @@ This document does *not* describe
 - how to create ACLs to fine-grain access to Kafka resources
 
 This description, especially configuring JAAS and the brokers, is mainly based on the
-[Confluent documentation](https://docs.confluent.io/5.5.2/kafka/authentication_sasl/authentication_sasl_gssapi.html#clients).
-
-Please note, that links to the Confluent documentation link to the Confluent platform 5.5.2, which includes
+[Confluent documentation](https://docs.confluent.io/5.5.2/kafka/authentication_sasl/authentication_sasl_gssapi.html#).
+Please note, that links to the Confluent documentation refer to the Confluent platform 5.5.2, which includes
 Kafka version 2.5.1, and therefore refers to this Kafka version. The steps described here, have been verified
 with Kafka 2.1.1.
 
@@ -44,7 +43,7 @@ In this description, we setup four virtual machines:
 - one zookeeper node for the Kafka brokers
 
 The zookeper node will act as the KDC for Kerberos (Kerberos server). Note, that in real-world scenarios,
-a Kerberos server should always run on a dedicated server with no other services enabled.
+a Kerberos server should always run on a dedicated host with no other services enabled.
 
 The virtual machines require at least Java 8 to run Kafka. The 1.8 openjdk that ships with the Linux
 distribution, is a good choice. openjdk 1.8 can also be used to run the zookeeper.
@@ -54,7 +53,7 @@ a separate zookeeper on the VM that acts as zookeeper. Simply install the same K
 machines in the same manner and use the zookeeper that is distributed with Kafka.
 
 To easily copy around files with *scp*, you should also create SSH keypairs on every system and add the
-public key to all *authorized_keys* files on all VMs. Do this for the normal user and fro root, so that you
+public key to all *authorized_keys* files on all VMs. Do this for the normal user and for root, so that you
 can copy around files as root and as normal user.
 
 ### Meeting the requirements for Kerberos
@@ -69,11 +68,11 @@ system (VMware has this option) or, if the virtualization does not offer such an
 to configure NTP.
 
 For hostname resolution, make sure that all servers participating in a realm,
-(KDC, possibly zookeepers, Kafka servers, Kafka clients) resolve all names in the same fashion,
+(KDC, possibly zookeepers, Kafka servers, Kafka clients) resolve all hostnames in the same address,
 and report their own FQDN in the `hostname` command. On RHEL 7, use the *hostnamectl set-hostname * command
 to change the system's hostname.
 
-When using */etc/hosts* for forward name resolution, make sure that all VMs use the same version
+When using */etc/hosts* for forward hostname resolution, make sure that all VMs use the same version
 of that file and that the own hostname is never resolved to the loopback address *127.0.0.1*:
 
     127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
@@ -85,8 +84,8 @@ of that file and that the own hostname is never resolved to the loopback address
     192.168.245.110   zk-0.localdomain      zk-0
 
 This description, uses *localdomain* as the domain. According to the Kerberos conventions, we are going to use the realm
-LOCALDOMAIN later on, which is the uppercase version of the domain. You can also use another domain and realm for your setup,
-but make sure to replace things when you copy&paste commands.
+LOCALDOMAIN later on, which is the uppercase version of the domain. You can, of course, use another domain and realm
+for your setup, but make sure to replace things when you copy&paste commands.
 
 On all VMs install following rpms (as root):
 
@@ -96,7 +95,8 @@ On the zookeeper node, install in addition
 
     # yum install krb5-server
 
-to make it play the KDC. FYI: The krb5 packages contain the MIT implementation. It is not the heimdal implementation.
+to enable it being the KDC. FYI: The *krb5\** packages contain the MIT implementation of Kerberos.
+It is not the heimdal implementation.
 
 ## Setup the KDC
 
@@ -135,7 +135,7 @@ content after installation of the krb5-server package. Replace the realm *EXAMPL
 This file contains the Kerberos client configuration. The server that we are using as the KDC will also be a Kerberos client,
 allowing users to authenticate via Kerberos to services that is hosts.
 From the default file, uncomment all lines starting with comment (#) and replace the realm *EXAMPLE.COM* with your realm.
-Replace also the Domain in lowercase with your domain in the *\[domain_realm\]* section.
+Replace also the domain in lowercase with your domain in the *\[domain_realm\]* section.
 
 Make sure you set *rdns* to `false` if you have no revers DNS zone within your domain, or more generally, if
 revers hostname resolution does not work.
@@ -189,7 +189,7 @@ Run following command to create the database for your realm:
     Enter KDC database master key:
     Re-enter KDC database master key to verify:
 
-Replace LOCALDOMAIN by your realm if it is different.
+Replace *LOCALDOMAIN* by your realm if it is different.
 
 ### Start and enable Kerberos services as system services
 
@@ -212,7 +212,7 @@ The user should be the user, that you run Kafka as. Replace *rolef* by your user
 
 Enter passwords for the root and the user prinicipal. These principals allow you to use the *kadmin* tool
 as root or a normal user from any host within your adminstrative domain, for example from a Kafka broker instead
-of using the local version *kadmin.local* being logged in as as *root* to the KDC.
+of using the local version *kadmin.local* being logged in as *root* to the KDC.
 
 ## Configure Kafka servers to be kerberized
 
@@ -221,8 +221,8 @@ of using the local version *kadmin.local* being logged in as as *root* to the KD
 For every Kafka broker, we create service principals and keys. The keys go into keytab files. We do everything directly as root on the KDC,
 and create one file for the keys of all Kafka brokers. We could also generate separate keytab files for each Kafka broker,
 directly on the Kafka node as the user running Kafka, but for this excercise it is sufficient to have one common file, that
-we later distribute to all Kafka brokers. The keytab files are not required on the KDC, more precisely they should not stay
-here as they contain sensible data for the principals comparable with passwords belonging to user logins.
+we later distribute to all Kafka brokers. The keytab files are not required on the KDC, more precisely, they should not stay
+there as they contain sensible data for the principals comparable with passwords belonging to user logins.
 
 For every Kafka broker, run following command on the KDC:
 
@@ -252,9 +252,9 @@ You can list the content of the keytab file with
     # klist -e -k -t /etc/security/keytabs/kafka-servers.keytab
 
 Distribute the keytab file to all broker nodes. It can be placed in any directory that can be accessed by the
-user under which Kafka is running. On the broker nodes we install it in *<KAFKA_HOME>/private/keytab/*. KAFKA_HOME
+user under which Kafka is running. On the broker nodes we install it in *\<KAFKA_HOME\>/private/keytab/*. KAFKA_HOME
 is the directory, which also contains the *config/*, *bin/*, and *libs/* folder. The directory must be created
-before copying the file. Then run following on every Kafka broker to transfer the keytabs file:
+before copying the file. Then run following command on every Kafka broker to transfer the keytabs file:
 
     $ mkdir -p <KAFKA_HOME>/private/keytab
     $ cd <KAFKA_HOME>/private/keytab
@@ -263,7 +263,7 @@ before copying the file. Then run following on every Kafka broker to transfer th
 In the commands, replace KAFKA_HOME, and the hostname of your KDC (zookeeper) server.
 After this step, the keytab file can be deleted from the KDC server.
 
-Note: As alternative, you can create the keytab file for every broker directly on each Kafka broker, for example on host
+As alternative, you can create the keytab file for every broker directly on each Kafka broker. For example, on host
 kafka-0.localdomain you would run:
 
     $ mkdir -p <KAFKA_HOME>/private/keytab
@@ -273,10 +273,20 @@ kafka-0.localdomain you would run:
 You will be prompted for the password of your admin principal. With this alternative, every broker gets an individual
 keytab file for the service principal.
 
+### Configure Kerberos
+
+To configure Kerberos, for example the default realm and the settings for the realm, copy the previously
+prepared file */etc/krb5.conf* from the zookeeper node (KDC) to all broker nodes to their
+*/etc* directory. For example, on every Kafka host run following command:
+
+    # scp root@zk-0.localdomain:/etc/krb5.conf /etc/
+
+/etc/krb5.conf is one of the default locations of the JVM's security provider to look for Kerberos settings.
+
 ### Configure JAAS for the broker nodes
 
 On every broker, create a JAAS configuration file. You can use any filename for it. Here we create the JAAS config
-in <KAFKA_HOME>/config/kafka_server_jaas_krb5.conf*:
+in *\<KAFKA_HOME\>/config/kafka_server_jaas_krb5.conf*:
 
     KafkaServer {
         com.sun.security.auth.module.Krb5LoginModule required
@@ -288,23 +298,25 @@ in <KAFKA_HOME>/config/kafka_server_jaas_krb5.conf*:
 
 When Kafka runs on openJDK, use the `com.sun.security.auth.module.Krb5LoginModule` class as the login module. Add
 the right location for the keytab file, and use the service principal for the node, where you are creating the config.
+On the node *kafka-1.localdomain* you would use the principal *kafka/kafka-1.localdomain@LOCALDOMAIN*.
 
 Add the JAAS config file to the KAFKA_OPTS environment variable:
 
     $ export KAFKA_OPTS="-Djava.security.auth.login.config=/home/rolef/kafka/kafka_2.12-2.1.1/config/kafka_server_jaas_krb5.conf"
 
 Make sure you add the right path to the previously created JAAS config file.
-You can also add this variable to the *~/.bashrc* on every Kafka node.
+You can also add this environment variable to the *~/.bashrc* on every Kafka node.
 
 ### Configure the server properties
 
 First, we are going to configure GSSAPI without SSL. Switching to GSSAPI over SSL later on demand is only little effort.
-On every broker, edit *<KAFKA_HOME>/config/server.properties*. Ensure following:
+On every broker, edit *\<KAFKA_HOME\>/config/server.properties*. Ensure following:
 
 - every broker has a unique *broker.id*.
 - enter the right hostname (FQDN) for each broker in *listeners* and *advertised_listeners*.
-- *sasl.kerberos.service.name* is the primary principal name that the Kafka brokers, i.e. the
-  first part of *kafka/kafka-0.localdomain@LOCALDOMAIN*
+- *sasl.kerberos.service.name* is the primary principal name that the Kafka brokers, for example the
+  first part of the service principal *kafka/kafka-0.localdomain@LOCALDOMAIN*.
+
 
     broker.id=0
     sasl.enabled.mechanisms=GSSAPI
@@ -320,8 +332,10 @@ When going to **SSL and GSSAPI**, change following properties:
     listeners=SASL_SSL://kafka-0.localdomain:9093
     advertised.listeners=SASL_SSL://kafka-0.localdomain:9093
 
-In addition, create keystores and a truststore (if the brokers do not trust the certificates they present each other)
-and create following properties (give them the values of your environment) on every broker:
+In addition, create keystores and a truststore (if the brokers do not trust the
+certificates they present each other, and for Kafka clients) and create following
+properties (give them the values of your environment) on every broker. Make sure
+you replace the paths and password from the example below by your values:
 
     ssl.keystore.location=/home/rolef/kafka/kafka_2.12-2.1.1/private/ssl/kafka-0.localdomain.jks
     ssl.keystore.password=passw0rrd

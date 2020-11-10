@@ -319,6 +319,7 @@ On every broker, edit *\<KAFKA_HOME\>/config/server.properties*. Ensure followin
 - *sasl.kerberos.service.name* is the primary principal name that the Kafka brokers, for example the
   first part of the service principal *kafka/kafka-0.localdomain@LOCALDOMAIN*.
 
+Properties for every broker's *server.properties*:
 
     broker.id=0
     sasl.enabled.mechanisms=GSSAPI

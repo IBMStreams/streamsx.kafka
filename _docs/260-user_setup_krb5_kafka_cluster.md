@@ -254,7 +254,7 @@ You can list the content of the keytab file with
 Distribute the keytab file to all broker nodes. It can be placed in any directory that can be accessed by the
 user under which Kafka is running. On the broker nodes we install it in *\<KAFKA_HOME\>/private/keytab/*. KAFKA_HOME
 is the directory, which also contains the *config/*, *bin/*, and *libs/* folder. The directory must be created
-before copying the file. Then run following command on every Kafka broker to transfer the keytabs file:
+before copying the file. Run following commands on every Kafka broker to transfer the keytabs file:
 
     $ mkdir -p <KAFKA_HOME>/private/keytab
     $ cd <KAFKA_HOME>/private/keytab
@@ -281,7 +281,7 @@ prepared file */etc/krb5.conf* from the zookeeper node (KDC) to all broker nodes
 
     # scp root@zk-0.localdomain:/etc/krb5.conf /etc/
 
-/etc/krb5.conf is one of the default locations of the JVM's security provider to look for Kerberos settings.
+The file */etc/krb5.conf* is one of the default locations of the JVM's security provider to look for Kerberos settings.
 
 ### Configure JAAS for the broker nodes
 
@@ -296,9 +296,11 @@ in *\<KAFKA_HOME\>/config/kafka_server_jaas_krb5.conf*:
         principal="kafka/kafka-0.localdomain@LOCALDOMAIN";
     };
 
-When Kafka runs on openJDK, use the `com.sun.security.auth.module.Krb5LoginModule` class as the login module. Add
-the right location for the keytab file, and use the service principal for the node, where you are creating the config.
-On the node *kafka-1.localdomain* you would use the principal *kafka/kafka-1.localdomain@LOCALDOMAIN*.
+When Kafka runs on openJDK, use the `com.sun.security.auth.module.Krb5LoginModule` class as the login module.
+When using IBM Java, use `com.ibm.security.auth.module.Krb5LoginModule` and the the parameters described in the
+Javadoc of the [IBM security provider](https://www.ibm.com/support/knowledgecenter/SSYKE2_7.1.0/com.ibm.java.security.api.71.doc/jgss/com/ibm/security/auth/module/Krb5LoginModule.html).
+Add the right location for the keytab file, and use the service principal for the node, where you are creating the config.
+For example, on the node *kafka-1.localdomain* you would use the principal *kafka/kafka-1.localdomain@LOCALDOMAIN*.
 
 Add the JAAS config file to the KAFKA_OPTS environment variable:
 

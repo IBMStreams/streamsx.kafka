@@ -337,8 +337,7 @@ When going to **SSL and GSSAPI**, change following properties from the list abov
 
 In addition, create keystores and a truststore (if the brokers do not trust the
 certificates they present each other, and for Kafka clients) and create following
-properties (give them the values of your environment) on every broker. Make sure
-you replace the paths and password from the example below by your values:
+properties on every broker. Replace the paths and password from the example below by your values:
 
     ssl.keystore.location=/home/rolef/kafka/kafka_2.12-2.1.1/private/ssl/kafka-0.localdomain.jks
     ssl.keystore.password=passw0rrd

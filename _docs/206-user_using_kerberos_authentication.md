@@ -256,5 +256,6 @@ Keep in mind, that nearly all resources in the Internet refer to Oracle Java or 
 
 [Confluent Kerberos client security](https://docs.confluent.io/5.5.2/kafka/authentication_sasl/authentication_sasl_gssapi.html#clients)
 
-
 [IBM Kerberos login module](https://www.ibm.com/support/knowledgecenter/SSYKE2_7.1.0/com.ibm.java.security.api.71.doc/jgss/com/ibm/security/auth/module/Krb5LoginModule.html)
+
+[MIT Kerberos documentation](https://web.mit.edu/Kerberos/krb5-1.15/doc/index.html)

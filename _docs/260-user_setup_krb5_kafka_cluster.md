@@ -387,3 +387,12 @@ directory of the KDC host.
 Follow [this article](https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingKerberos/) from the toolkit
 documentation to configure the Kafka toolkit operators to connect with a kerberized Kafka cluster.
 
+# Useful links
+
+[Kerberos security related documentation for Confluent platform](https://docs.confluent.io/5.5.2/kafka/authentication_sasl/authentication_sasl_gssapi.html#)
+
+[Oracle/openJDK Kerberos login module](https://docs.oracle.com/javase/8/docs/jre/api/security/jaas/spec/com/sun/security/auth/module/Krb5LoginModule.html)
+
+[IBM Kerberos login module](https://www.ibm.com/support/knowledgecenter/SSYKE2_7.1.0/com.ibm.java.security.api.71.doc/jgss/com/ibm/security/auth/module/Krb5LoginModule.html)
+
+[MIT Kerberos documentation](https://web.mit.edu/Kerberos/krb5-1.15/doc/index.html)

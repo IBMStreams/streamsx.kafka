@@ -58,6 +58,9 @@ userdocs:
       - title: "Debugging SSL issues"
         url: /docs/user/debugging_ssl_issues
 
+      - title: "Setup kerberized Kafka cluster"
+        url: /docs/user/SetupKrb5KafkaCluster
+
 # developer documentation links
 developerdocs:
   - title: Developer documentation

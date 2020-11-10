@@ -2,7 +2,7 @@
 title: "Using streamsx.kafka with Kerberos secured Kafka servers"
 permalink: /docs/user/UsingKerberos/
 excerpt: "How to configure the toolkit operators for use with Kerberos secured Kafka servers"
-last_modified_at: 2020-11-06T12:37:48+01:00
+last_modified_at: 2020-11-10T12:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -15,8 +15,8 @@ sidebar:
 This document describes how to use the SPL operators of the streamsx.kafka toolkit to
 connect with a Kerberos secured Kafka cluster.
 
-Please note, that external links to the Confluent documentation link to the Confluent platform 5.5.2, which includes and
-therefore refers to Kafka version 2.5.1.
+Please note, that external links to the Confluent documentation link to the Confluent platform 5.5.2, which includes
+Kafka version 2.5.1. and therefore refers to this Kafka version.
 
 ## Preface
 
@@ -227,6 +227,8 @@ or
     [domain_realm]
      .localdomain = LOCALDOMAIN
      localdomain = LOCALDOMAIN
+
+If you want to learn more about this configuration file, use `man krb5.conf`.
 
 ### Operator debugging
 

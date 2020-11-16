@@ -75,6 +75,8 @@ Briefly, the required steps are
 - configure GSSAPI in the brokers' configuration files, typically `server.properties`.
 - For SASL_SSL, server certificates and perhaps a truststore for Kafka clients must be provided, and the TLS encryption settings must be configured.
 
+How to setup a kerberized Kafka cluster for test purpose, can be read in [this article of the toolkit documentation](https://ibmstreams.github.io/streamsx.kafka/docs/user/SetupKrb5KafkaCluster/).
+
 ## Operator setup
 
 ### Precondition

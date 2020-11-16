@@ -374,12 +374,12 @@ If you have not yet created principals for consumers and producers, login to the
     # kadmin.local
     kadmin.local:  addprinc -randkey kafka-producer@LOCALDOMAIN
     kadmin.local:  addprinc -randkey kafka-consumer@LOCALDOMAIN
-    kadmin.local:  ktadd -k /tmp/kafka-producer@LOCALDOMAIN
-    kadmin.local:  ktadd -k /tmp/kafka-consumer@LOCALDOMAIN
+    kadmin.local:  ktadd -k /tmp/kafka-producer.keytab kafka-producer@LOCALDOMAIN
+    kadmin.local:  ktadd -k /tmp/kafka-consumer.keytab kafka-consumer@LOCALDOMAIN
     kadmin.local:  quit
 
 You are free in the primary principal names. You can also use the same principal for producers and consumers.
-The commands above create principals and keytab files in */tmp*.
+The commands above create principals in the KDC database and keytab files in */tmp*.
 After creation, these files will be owned by root and will be readable by root only. Transfer the keytab files
 to your Streams development project in a secure manner and delete them from the */tmp*
 directory of the KDC host.

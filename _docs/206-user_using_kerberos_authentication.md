@@ -110,7 +110,7 @@ can be included automatically into the Streams Application Bundle when the appli
 
     useKeytab="{applicationDir}/etc/consumer.keytab"
 
-The `principal` value is the Kerberos principal of the consumer or prooducer, for example `kafka-consumer-client@MY-DOMAIN.COM`.
+The `principal` value is the Kerberos principal of the consumer or producer, for example `kafka-consumer-client@MY-DOMAIN.COM`.
 Here, *MY-DOMAIN.COM* is the Kerberos REALM.
 
 

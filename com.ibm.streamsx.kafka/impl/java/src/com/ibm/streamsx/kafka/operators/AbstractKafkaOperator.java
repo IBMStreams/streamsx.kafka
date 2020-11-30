@@ -28,7 +28,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.log4j.Level;
@@ -63,6 +62,7 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
     public static final String APP_CONFIG_NAME_PARAM = "appConfigName";
     public static final String PROPERTIES_FILE_PARAM = "propertiesFile";
     public static final String SSL_DEBUG_PARAM = "sslDebug";
+    public static final String KRB5_DEBUG_PARAM = "krb5Debug";
 
     private static final Logger logger = Logger.getLogger(AbstractKafkaOperator.class);
     protected static final Level DEBUG_LEVEL = SystemProperties.getDebugLevelOverride();
@@ -107,12 +107,29 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
                     + "The default value for this parameter is `false`.\\n"
                     + "The parameter is ignored when the `javax.net.debug` property is set via the **vmArg** parameter.")
     public void setSslDebug (boolean sslDebug) {
-        final String javaxNetDebug = System.getProperty ("javax.net.debug");
-        if (sslDebug && javaxNetDebug == null) {
-            System.setProperty ("javax.net.debug", "true");
+        final String propName = "javax.net.debug";
+        final String existingPropVal = System.getProperty (propName);
+        if (sslDebug && existingPropVal == null) {
+            System.setProperty (propName, "true");
         }
-        if (javaxNetDebug != null || sslDebug) {
-            System.out.println ("Property javax.net.debug: " + System.getProperty ("javax.net.debug"));
+        if (existingPropVal != null || sslDebug) {
+            System.out.println ("Property " + propName + ": " + System.getProperty (propName));
+        }
+    }
+
+    @Parameter(optional = true, name = KRB5_DEBUG_PARAM,
+            description = "If Kerberos debugging is enabled, all Kerberos related protocol data and information "
+                    + "is logged to the console. This setting is equivalent to **vmArg: \\\"-Dcom.ibm.security.krb5.Krb5Debug=all\\\";**. "
+                    + "The default value for this parameter is `false`.\\n"
+                    + "The parameter is ignored when the `com.ibm.security.krb5.Krb5Debug` property is set via the **vmArg** parameter.")
+    public void setKrb5Debug (boolean krb5Debug) {
+        final String propName = "com.ibm.security.krb5.Krb5Debug";
+        final String existingPropVal = System.getProperty (propName);
+        if (krb5Debug && existingPropVal == null) {
+            System.setProperty (propName, "all");
+        }
+        if (existingPropVal != null || krb5Debug) {
+            System.out.println ("Property " + propName + ": " + System.getProperty (propName));
         }
     }
 
@@ -159,26 +176,8 @@ public abstract class AbstractKafkaOperator extends AbstractOperator implements 
 
     @Override
     public synchronized void initialize(OperatorContext context) throws Exception {
-        Properties systemProps = System.getProperties();
-        final String applicationDirectory = context.getPE().getApplicationDirectory().getAbsolutePath();
-        // resolve {applicationDir} token in System properties as early as possible
-        Set <String> keys = systemProps.stringPropertyNames();
-        boolean traceAppDirOnce = true;
-        for (String key: keys) {
-            String propVal = systemProps.getProperty (key);
-            if (propVal == null) continue;
-            if (propVal.contains (KafkaOperatorProperties.TOKEN_APP_DIR)) {
-                final String resolvedVal = propVal.replace (KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory);
-                final String oldVal = System.setProperty(key, resolvedVal);
-                if (traceAppDirOnce) {
-                    traceAppDirOnce = false;
-                    logger.info(MsgFormatter.format("{0} = {1}", KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory));
-                }
-                logger.info (MsgFormatter.format("{0} resolved in system property {1} = {2}", KafkaOperatorProperties.TOKEN_APP_DIR, key, oldVal));
-            }
-        }
-
         super.initialize(context);
+        SystemProperties.resolveApplicationDir (context.getPE().getApplicationDirectory().getAbsolutePath());
         logger.info("Streams version: " + Product.getVersion());
         try {
             ToolkitInfoReader tkr = new ToolkitInfoReader (context);

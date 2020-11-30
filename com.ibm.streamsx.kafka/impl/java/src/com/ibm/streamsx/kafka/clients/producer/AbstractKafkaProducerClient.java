@@ -33,6 +33,7 @@ import com.ibm.streams.operator.Tuple;
 import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streamsx.kafka.KafkaMetricException;
 import com.ibm.streamsx.kafka.MsgFormatter;
+import com.ibm.streamsx.kafka.SystemProperties;
 import com.ibm.streamsx.kafka.clients.AbstractKafkaClient;
 import com.ibm.streamsx.kafka.clients.metrics.CustomMetricUpdateListener;
 import com.ibm.streamsx.kafka.clients.metrics.MetricsFetcher;
@@ -161,6 +162,8 @@ public abstract class AbstractKafkaProducerClient extends AbstractKafkaClient {
     }
 
     protected final synchronized void createProducer() {
+        final String applicationDirectory = getOperatorContext().getPE().getApplicationDirectory().getAbsolutePath();
+        SystemProperties.resolveApplicationDir (applicationDirectory);
         producer = new KafkaProducer<>(this.kafkaProperties);
         producerGenerationMetric.increment();
         if (metricsFetcher == null) {

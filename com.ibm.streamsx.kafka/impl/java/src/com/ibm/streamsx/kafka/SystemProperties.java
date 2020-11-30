@@ -13,7 +13,13 @@
  */
 package com.ibm.streamsx.kafka;
 
+import java.util.Properties;
+import java.util.Set;
+
 import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
+import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
 /**
  * Convenience methods for access to system properties for tweeking Producer and Consumer.
@@ -34,6 +40,8 @@ public class SystemProperties {
     private static final String KAFKA_OP_TRACE_DEBUG = "kafka.op.trace.debug";
     private static final String KAFKA_METRICS_TRACE_DEBUG = "kafka.metrics.trace.debug";
     private static final String KAFKA_OP_LEGACY = "kafka.op.legacy";
+
+    private static final Logger trace = Logger.getLogger(SystemProperties.class);
 
     /**
      * The system property kafka.op.trace.debug can be used to override the severity for debug messages.
@@ -134,6 +142,68 @@ public class SystemProperties {
         catch (Exception e) {
             System.err.println (KAFKA_PREFETCH_MIN_FREE_MB + ": " + e);
             return 0L;
+        }
+    }
+
+    /**
+     * Replaces the {applicationDir} token in System properties by the given application directory
+     * @param applicationDirectory the application directory of the application
+     */
+    public static void resolveApplicationDir (final String applicationDirectory) {
+        //        resolve0 (applicationDirectory);
+        resolve1 (applicationDirectory);
+    }
+
+
+    /**
+     * @param applicationDirectory
+     */
+    @SuppressWarnings("unused")
+    private static void resolve0 (final String applicationDirectory) {
+        Properties systemProps = System.getProperties();
+        // resolve {applicationDir} token in System properties as early as possible
+        Set <String> keys = systemProps.stringPropertyNames();
+        boolean traceAppDirOnce = true;
+        for (String key: keys) {
+            String propVal = systemProps.getProperty (key);
+            if (propVal == null) continue;
+            if (propVal.contains (KafkaOperatorProperties.TOKEN_APP_DIR)) {
+                final String resolvedVal = propVal.replace (KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory);
+                final String oldVal = System.setProperty(key, resolvedVal);
+                if (traceAppDirOnce) {
+                    traceAppDirOnce = false;
+                    trace.info(MsgFormatter.format("{0} = {1}", KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory));
+                }
+                trace.info (MsgFormatter.format("{0} resolved in system property {1} = {2}", KafkaOperatorProperties.TOKEN_APP_DIR, key, oldVal));
+            }
+        }
+    }
+
+    /**
+     * @param applicationDirectory
+     */
+    private static void resolve1 (final String applicationDirectory) {
+        Properties systemProps = System.getProperties();
+        Properties props = new Properties(systemProps);
+        Set <String> keys = systemProps.stringPropertyNames();
+        boolean traceAppDirOnce = true;
+        boolean replaced = false;
+        for (String key: keys) {
+            String propVal = systemProps.getProperty (key);
+            if (propVal == null) continue;
+            if (propVal.contains (KafkaOperatorProperties.TOKEN_APP_DIR)) {
+                final String resolvedVal = propVal.replace (KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory);
+                replaced = true;
+                props.setProperty(key, resolvedVal);
+                if (traceAppDirOnce) {
+                    traceAppDirOnce = false;
+                    trace.info(MsgFormatter.format("{0} = {1}", KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory));
+                }
+                trace.info (MsgFormatter.format("{0} resolved in system property {1} = {2}", KafkaOperatorProperties.TOKEN_APP_DIR, key, propVal));
+            }
+        }
+        if (replaced) {
+            System.setProperties (props);
         }
     }
 }

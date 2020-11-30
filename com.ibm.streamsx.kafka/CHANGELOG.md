@@ -1,5 +1,9 @@
 # Changes
 ==========
+## develop/latest
+* added operator parameter *krb5Debug*
+* [#227](https://github.com/IBMStreams/streamsx.kafka/issues/227) Expansion of {applicationDir} in vmArg does not work
+
 ## v3.2.0
 * [#226](https://github.com/IBMStreams/streamsx.kafka/issues/226) Makefiles of sample application prepared for CP4D Streams build service, supports build with [VS Code](https://marketplace.visualstudio.com/items?itemName=IBM.ibm-streams)
 * [#220](https://github.com/IBMStreams/streamsx.kafka/issues/220) SPL doc: Add hints, what to do when the toolkit is used with Kafka version 0.10

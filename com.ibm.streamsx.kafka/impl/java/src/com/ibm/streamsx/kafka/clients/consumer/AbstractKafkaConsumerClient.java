@@ -378,6 +378,7 @@ public abstract class AbstractKafkaConsumerClient extends AbstractKafkaClient im
                     maxPollRecords = getMaxPollRecordsFromProperties(kafkaProperties);
                     maxPollIntervalMs = getMaxPollIntervalMsFromProperties(kafkaProperties);
                     fetchMaxBytes = getFetchMaxBytesFromProperties (kafkaProperties);
+                    SystemProperties.resolveApplicationDir(getOperatorContext().getPE().getApplicationDirectory().getAbsolutePath());
                     consumer = new KafkaConsumer<>(kafkaProperties);
                     processing.set (true);
                 }

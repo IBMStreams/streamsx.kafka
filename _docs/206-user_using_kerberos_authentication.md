@@ -2,7 +2,7 @@
 title: "Using streamsx.kafka with Kerberos secured Kafka servers"
 permalink: /docs/user/UsingKerberos/
 excerpt: "How to configure the toolkit operators for use with Kerberos secured Kafka servers"
-last_modified_at: 2020-11-10T12:37:48+01:00
+last_modified_at: 2020-12-10T10:55:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -176,11 +176,21 @@ The Java security provider uses following search order for this file:
    `java.security.krb5.conf={applicationDir}/etc/krb5.conf`. Please note that the application must be rebuilt
    and re-deployed in this case when the Kerberos config file needs to be changed.
 
+   For **containerized environments**, like Cloud Pak for Data, the Kerberos configuration file can be installed on a physical volume
+   (PV), which is mounted to all application pods via a PVC in the pod definition, so that the config file is seen on all pods with the same path.
+   This approach has the advantage that the application needs not to be rebuild when the Kerberos client configuration changes.
+
 2. *Java install*/lib/security/krb5.conf, which is `$STREAMS_INSTALL/java/jre/lib/security/krb5.conf` in a Streams runtime environment
 
-   In a default Streams installation there is no such file.
+   In a default Streams installation there is no such file. You would have to install the `krb5.conf` file on all application hosts.
+   When a host is added to the Streams environment, the file must be installed on the new host as well. This option cannot be used in containerized
+   environments like Cloud Pak for Data.
 
 3. `/etc/krb5.conf`
+
+   You would have to install the `krb5.conf` file on all application hosts.
+   When a host is added to the Streams environment, the file must be installed on the new host as well. This option cannot be used in containerized
+   environments like Cloud Pak for Data.
 
 The system properties are specified as `vmArg` parameter to the operators. Examples:
 

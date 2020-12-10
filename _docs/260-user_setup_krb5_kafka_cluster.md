@@ -61,7 +61,7 @@ can copy around files as root and as normal user.
 Kerberos requires
 
 - Time synchronization between all VMs and other potential Kerberos client machines
-- Forward hostname resolution (revers resolution is optional)
+- Forward hostname resolution (reverse resolution is optional)
 
 When using virtual machines, it may be sufficient to enable time synchronization with the host
 system (VMware has this option) or, if the virtualization does not offer such an option,
@@ -137,8 +137,8 @@ allowing users to authenticate via Kerberos to services that is hosts.
 From the default file, uncomment all lines starting with comment (#) and replace the realm *EXAMPLE.COM* with your realm.
 Replace also the domain in lowercase with your domain in the *\[domain_realm\]* section.
 
-Make sure you set *rdns* to `false` if you have no revers DNS zone within your domain, or more generally, if
-revers hostname resolution does not work.
+Make sure you set *rdns* to `false` if you have no reverse DNS zone within your domain, or more generally, if
+reverse hostname resolution does not work.
 
 In the section for your realm (in the example below *LOCALDOMAIN*) add your KDC, i.e. the FQDN of
 the zookeeper node, as *kdc* and *admin_server*:

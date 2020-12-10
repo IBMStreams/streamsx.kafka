@@ -78,6 +78,7 @@ public abstract class AbstractKafkaClient {
      */
     public AbstractKafkaClient (OperatorContext operatorContext, KafkaOperatorProperties kafkaProperties, boolean isConsumer) {
 
+        SystemProperties.resolveApplicationDir(operatorContext.getPE().getApplicationDirectory().getAbsolutePath());
         this.operatorContext = operatorContext;
         logger.info ("instantiating client: " + getThisClassName() + " (magic " + getImplementationMagic() + ")");
         this.jcpContext = operatorContext.getOptionalContext (ControlPlaneContext.class);

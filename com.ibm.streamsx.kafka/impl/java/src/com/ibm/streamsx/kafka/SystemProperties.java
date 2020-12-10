@@ -148,21 +148,23 @@ public class SystemProperties {
     /**
      * Replaces the {applicationDir} token in System properties by the given application directory
      * @param applicationDirectory the application directory of the application
+     * @return true if the token has been replaced, false otherwise
      */
-    public static void resolveApplicationDir (final String applicationDirectory) {
+    public static boolean resolveApplicationDir (final String applicationDirectory) {
         //        resolve0 (applicationDirectory);
-        resolve1 (applicationDirectory);
+        return resolve0 (applicationDirectory);
     }
 
 
     /**
+     * adds a single property
      * @param applicationDirectory
      */
-    @SuppressWarnings("unused")
-    private static void resolve0 (final String applicationDirectory) {
+    private static boolean resolve0 (final String applicationDirectory) {
         Properties systemProps = System.getProperties();
         // resolve {applicationDir} token in System properties as early as possible
         Set <String> keys = systemProps.stringPropertyNames();
+        boolean replaced = false;
         boolean traceAppDirOnce = true;
         for (String key: keys) {
             String propVal = systemProps.getProperty (key);
@@ -170,19 +172,27 @@ public class SystemProperties {
             if (propVal.contains (KafkaOperatorProperties.TOKEN_APP_DIR)) {
                 final String resolvedVal = propVal.replace (KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory);
                 final String oldVal = System.setProperty(key, resolvedVal);
+                replaced = true;
                 if (traceAppDirOnce) {
                     traceAppDirOnce = false;
                     trace.info(MsgFormatter.format("{0} = {1}", KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory));
                 }
                 trace.info (MsgFormatter.format("{0} resolved in system property {1} = {2}", KafkaOperatorProperties.TOKEN_APP_DIR, key, oldVal));
+                StackTraceElement[] stackTrace = (new Throwable()).getStackTrace();
+                trace.info("resolved at " + stackTrace[0]);
+                trace.info("resolved at " + stackTrace[1]);
+                trace.info("resolved at " + stackTrace[2]);
             }
         }
+        return replaced;
     }
 
     /**
+     * Replaces the entire properties instance
      * @param applicationDirectory
      */
-    private static void resolve1 (final String applicationDirectory) {
+    @SuppressWarnings("unused")
+    private static boolean resolve1 (final String applicationDirectory) {
         Properties systemProps = System.getProperties();
         Properties props = new Properties(systemProps);
         Set <String> keys = systemProps.stringPropertyNames();
@@ -200,10 +210,15 @@ public class SystemProperties {
                     trace.info(MsgFormatter.format("{0} = {1}", KafkaOperatorProperties.TOKEN_APP_DIR, applicationDirectory));
                 }
                 trace.info (MsgFormatter.format("{0} resolved in system property {1} = {2}", KafkaOperatorProperties.TOKEN_APP_DIR, key, propVal));
+                StackTraceElement[] stackTrace = (new Throwable()).getStackTrace();
+                trace.info("resolved at " + stackTrace[0]);
+                trace.info("resolved at " + stackTrace[1]);
+                trace.info("resolved at " + stackTrace[2]);
             }
         }
         if (replaced) {
             System.setProperties (props);
         }
+        return replaced;
     }
 }

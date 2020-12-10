@@ -168,17 +168,16 @@ The Java security provider uses following search order for this file:
 
 1. Java System property `java.security.krb5.conf` for example `java.security.krb5.conf=/user_directory/krb5.conf`
 
-   Since [toolkit version 3.1.2](https://github.com/IBMStreams/streamsx.kafka/releases/tag/v3.1.2) the Kerberos
-   configuration file can also be placed within the *etc* directory of the application to get included into the
-   application bundle. This is useful in containerized environments like Cloud Pak for Data and in
-   Streaming Analytics Service in the IBM cloud as far as the requirements for time synchronization and hostname
-   resolution are met within the containers. Use the `{applicationDir}` placeholder like this:
-   `java.security.krb5.conf={applicationDir}/etc/krb5.conf`. Please note that the application must be rebuilt
-   and re-deployed in this case when the Kerberos config file needs to be changed.
-
    For **containerized environments**, like Cloud Pak for Data, the Kerberos configuration file can be installed on a physical volume
    (PV), which is mounted to all application pods via a PVC in the pod definition, so that the config file is seen on all pods with the same path.
    This approach has the advantage that the application needs not to be rebuild when the Kerberos client configuration changes.
+
+   Since [toolkit version 3.1.2](https://github.com/IBMStreams/streamsx.kafka/releases/tag/v3.1.2) the Kerberos
+   configuration file can also be placed within the *etc* directory of the application to get included into the
+   application bundle. This is useful in the Streaming Analytics Service in the IBM cloud as far as the requirements for time synchronization and hostname
+   resolution are met within the containers. Use the `{applicationDir}` placeholder like this:
+   `java.security.krb5.conf={applicationDir}/etc/krb5.conf`. Please note that the application must be rebuilt
+   and re-deployed in this case when the Kerberos config file needs to be changed.
 
 2. *Java install*/lib/security/krb5.conf, which is `$STREAMS_INSTALL/java/jre/lib/security/krb5.conf` in a Streams runtime environment
 

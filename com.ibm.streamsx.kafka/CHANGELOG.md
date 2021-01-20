@@ -1,6 +1,6 @@
 # Changes
 ==========
-## develop/latest
+## v3.2.1
 * added operator parameter *krb5Debug*
 * [#227](https://github.com/IBMStreams/streamsx.kafka/issues/227) Expansion of {applicationDir} in vmArg does not work
 

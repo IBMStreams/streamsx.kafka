@@ -103,7 +103,7 @@ fm9nWLz9/69lxAQUAAJR65/Ot3QZAAAAAElFTkSuQmCC"
       /><text x="48.65" y="-2.0"
       >Optional: appConfigName, clientId, commitCount, </text
       ><text x="48.65" y="13.0"
-      >commitPeriod, groupId, outputKeyAttributeName, </text
+      >commitPeriod, groupId, krb5Debug, outputKeyAttributeName, </text
       ><text x="48.65" y="28.0"
       >outputMessageAttributeName, outputTimestampAttributeName, </text
       ><text x="48.65" y="43.0"

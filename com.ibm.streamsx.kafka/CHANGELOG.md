@@ -1,5 +1,8 @@
 # Changes
 ==========
+## v3.2.2
+* [228](https://github.com/IBMStreams/streamsx.kafka/issues/228) KafkaConsumer: support submission time parameter for multiple topics
+
 ## v3.2.1
 * added operator parameter *krb5Debug*
 * [#227](https://github.com/IBMStreams/streamsx.kafka/issues/227) Expansion of {applicationDir} in vmArg does not work

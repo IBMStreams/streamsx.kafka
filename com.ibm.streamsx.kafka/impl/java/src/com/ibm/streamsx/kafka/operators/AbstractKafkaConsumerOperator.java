@@ -374,17 +374,30 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
 
     }
 
-    @Parameter(optional = true, name=TOPIC_PARAM,
+    @Parameter(optional = true, name=TOPIC_PARAM, cardinality = -1,
             description="Specifies the topic or topics that the consumer should "
                     + "subscribe to. To assign the consumer to specific partitions, "
                     + "use the **partitions** parameter in addition. To specify multiple topics "
                     + "from which the operator should consume, separate the "
-                    + "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`. "
+                    + "topic names by comma, for example `topic: \\\"topic1\\\", \\\"topic2\\\";`, "
+                    + "or `topic: \\\"topic1,topic2\\\";`. The second form can also be used to provide multiple topics "
+                    + "from a submission time parameter. "
                     + "To subscribe to multiple topics that match a regular expression, use the **pattern** parameter.\\n"
                     + "\\n"
                     + "This parameter is incompatible with the optional input port.")
     public void setTopics(List<String> topics) {
-        this.topics = topics;
+        if (topics != null) {
+            List<String> topicList = new ArrayList<>();
+            for (String t: topics) {
+                for (String tp: t.split(",")) {
+                    String topic = tp.trim();
+                    if (topic.length() > 0) {
+                        topicList.add(topic);
+                    }
+                }
+            }
+            this.topics = topicList;
+        }
     }
 
     @Parameter (optional = true, name = PATTERN_PARAM,

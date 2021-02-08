@@ -22,7 +22,7 @@
 <div class="body refbody">
 <div class="section">
 <p class="p">
-<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.2.1</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
+<a class="xref" href="../toolkits/toolkits.html">Kafka Toolkit</a> &gt; <a class="xref" href="tk$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka 3.2.2</a> &gt; <a class="xref" href="ns$com.ibm.streamsx.kafka.html">com.ibm.streamsx.kafka</a> &gt; KafkaConsumer</p>
 
 </div>
 
@@ -2049,7 +2049,7 @@ This operator supports 24 parameters.
 <dt class="dt dlterm"><a name="spldoc_operator__parameter__topic"><!-- --></a><tt class="ph tt">topic</tt></dt>
 
 <dd class="dd">
-<p class="p">Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the <strong class="ph b">partitions</strong> parameter in addition. To specify multiple topics from which the operator should consume, separate the topic names by comma, for example <tt class="ph tt">topic: "topic1", "topic2";</tt>. To subscribe to multiple topics that match a regular expression, use the <strong class="ph b">pattern</strong> parameter.
+<p class="p">Specifies the topic or topics that the consumer should subscribe to. To assign the consumer to specific partitions, use the <strong class="ph b">partitions</strong> parameter in addition. To specify multiple topics from which the operator should consume, separate the topic names by comma, for example <tt class="ph tt">topic: "topic1", "topic2";</tt>, or <tt class="ph tt">topic: "topic1,topic2";</tt>. The second form can also be used to provide multiple topics from a submission time parameter. To subscribe to multiple topics that match a regular expression, use the <strong class="ph b">pattern</strong> parameter.
 </p>
 
 <p class="p">This parameter is incompatible with the optional input port.

@@ -2,7 +2,7 @@
 title: "KafkaConsumer operator design"
 permalink: /docs/user/KafkaConsumerDesign/
 excerpt: "Describes the design of the KafkaConsumer operator."
-last_modified_at: 2019-03-05T12:37:48+01:00
+last_modified_at: 2021-03-24T09:12:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -66,7 +66,7 @@ The operator will automatically select the appropriate deserializers for the key
 | org.apache.kafka.common.serialization.FloatDeserializer | float32 |
 | org.apache.kafka.common.serialization.ByteArrayDeserializer | blob |
 
-All thses deserializers are extended by a corresponding wrapper that catches `SerializationException`.
+All these deserializers are extended by a corresponding wrapper that catches `SerializationException`.
 
 Users can override this behaviour and specify which deserializer to use by setting the `key.deserializer` and `value.deserializer` properties.
 
@@ -76,7 +76,7 @@ The operator is capable of taking advantage of Kafka's group management function
 
  * A group-ID must be specified by the user. This can be done by using the **groupId** parameter or the `group.id` consumer property in an app option or property file.
  * None of the topics specified by the **topics** parameter can specify which partition to be assigned to, i.e. the **partition** parameter must not be used.
- * The **startPosition** parameter must be `Default` or not specified when the operator is *not* within a consistent region for toolkit versions below 2.0.0.
+ * **For toolkit versions below 2.0.0:** The **startPosition** parameter must be `Default` or not specified when the operator is *not* within a consistent region.
  * When in consistent region, the toolkit version must be 1.5.0 or higher. Older toolkits do not support consumer groups when in consistent region.
 
 The custom metric **isGroupManagementActive** indicates whether the operator is part of a consumer group. Then the metric's value is 1.
@@ -96,15 +96,18 @@ After checkpointing, the operator will start consuming messages from the Kafka b
 The operator will seek to the offset position saved in the checkpoint. The operator will begin consuming records starting from this position.
 
 #### ResetToInitialState
-The first time the operator was started, the initial offset that the KafkaConsumer client would begin reading from was stored in the JCP operator. When `resetToInitialState()` is called, the operator will retrieve this initial offset from the JCP and seek to this position. The operator will begin consumer records starting from this position.
+The first time the operator was started, the initial offset that the KafkaConsumer client would begin reading from was stored in the JCP operator. When `resetToInitialState()` is called, the operator will retrieve this initial offset from the JCP and seek to this position. The operator will begin consume records starting from this position.
 
 For details about the consistent region handling when operators are a group of consumers, read [this article](https://ibmstreams.github.io/streamsx.kafka/docs/user/ConsumerGroupConsistentRegion/).
 
 ### Input Ports
 
-The operator has a control input port, that can be used to assign and de-assign topic partitions with offsets from which the operator is to consume tuples.
-When the operator is configured with the optional input port, the parameters **topic**, **pattern**, **partition**, **startPosition** and related are ignored. Kafka's group
-management is disabled when the control port is used because the consumer manually assigns to topic partitions.
+The operator has a control input port, that can be used to add or remove subscription or to (manually) assign and de-assign topic partitions with offsets from which the operator is to consume tuples.
+When the operator is configured with the optional input port, the parameters **topic**, **pattern**, **partition**, **startPosition** and related must not be used. When a _topic subscription_ is added via control port, Kafka's group management is enabled. Topic partitions are assigned by Kafka. When individual partitions are assigned via control port, group management is disabled.
+
+Assignments and subscriptions via control port cannot be mixed. Note, that it is not possible to use both assignment and subscription, it is also not possible to subscribe after a previous assignment and unassignment, and vice versa.
+
+Use of control port in consistent region is deprecated and not recommended. Managing _subscriptions_ via control port is not supported in consistent regions. Managing _partition assignments_ is supported in a consistent region.
 
 ### Output Ports
 

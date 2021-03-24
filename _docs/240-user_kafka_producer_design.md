@@ -2,7 +2,7 @@
 title: "KafkaProducer operator design"
 permalink: /docs/user/KafkaProducerDesign/
 excerpt: "Describes the design of the KafkaProducer operator."
-last_modified_at: 2018-01-10T12:37:48+01:00
+last_modified_at: 2021-03-24T09:37:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -67,7 +67,8 @@ the input attributes that contain the message and key values, respectively. Each
 
 ### Output Ports
 
-The operator does not have any output ports.
+Since toolkit version 2.2.0, the operator can be configured with an optional output port for status tuples. Dependent on the **outputErrorsOnly** parameter, the operator submits tuples
+only for failed input tuples or for each input tuple. The stream schema must contain one tuple attribute that mirrors the input tuple, and one attribute that contains an optional error description for failed input tuples. Details can be found in the SPL documentation.
 
 ### Consistent Region Strategy
 

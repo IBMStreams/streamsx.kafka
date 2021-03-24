@@ -2,13 +2,13 @@
 
 Welcome to the Kafka Toolkit. This toolkit enables SPL applications to integrate with Apache Kafka.
 
-This version of the toolkit currently supports: Apache Kafka 0.10.2, 0.11, 1.0, 1.1, and 2.0 to 2.5. For the older
-Kafka versions 0.9 and 0.10.0, please use the Kafka operators from the [com.ibm.streamsx.messaging](https://github.com/IBMStreams/streamsx.messaging) toolkit.
+This version of the toolkit currently supports: Apache Kafka 0.10.2, 0.11, 1.0, 1.1, and 2.0 to 2.7. The older
+Kafka versions 0.9 and 0.10.0, are not supported any more. Using the Kafka operators from the [com.ibm.streamsx.messaging](https://github.com/IBMStreams/streamsx.messaging) toolkit for these server versions is not recommended.
 
 ## Event Streams cloud service (Message Hub)
 
 For building applications that connect to the IBM Cloud Event Streams service, it is recommended that the [**com.ibm.streamsx.messagehub**](https://github.com/IBMStreams/streamsx.messagehub) toolkit be used.
-This toolkit provides functionality on top of the Kafka toolkit to simplify the configuration needed to connect to the cloud service.
+This toolkit provides functionality on top of the Kafka toolkit to simplify the configuration needed to connect to the public cloud service.
 
 
 ## Migrating from com.ibm.streamsx.messaging

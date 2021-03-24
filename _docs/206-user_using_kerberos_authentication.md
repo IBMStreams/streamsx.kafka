@@ -2,7 +2,7 @@
 title: "Using streamsx.kafka with Kerberos secured Kafka servers"
 permalink: /docs/user/UsingKerberos/
 excerpt: "How to configure the toolkit operators for use with Kerberos secured Kafka servers"
-last_modified_at: 2020-12-10T10:55:48+01:00
+last_modified_at: 2021-03-10T10:55:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -16,7 +16,7 @@ This document describes how to use the SPL operators of the streamsx.kafka toolk
 connect with a Kerberos secured Kafka cluster.
 
 Please note, that external links to the Confluent documentation link to the Confluent platform 5.5.2, which includes
-Kafka version 2.5.1. and therefore refers to this Kafka version.
+Kafka version 2.5.1. Links to Confluent documentation therefore refer to the Kafka version 2.5.1.
 
 ## Preface
 
@@ -82,7 +82,7 @@ How to setup a kerberized Kafka cluster for test purpose, can be read in [this a
 ### Precondition
 
 1. You have created principals in the KDC for the consumer and the producer.
-2. You have created a keytab files for the principals and have transferred them in a secure manner to the Streams servers or to your SPL projects *etc* directory.
+2. You have created keytab files for the principals and have transferred them in a secure manner to the Streams servers or to your SPL projects *etc* directory.
 
 When you create a consumer group by using user defined parallelism (`@parallel` annotation in SPL) you most
 likely share one principal and one keytab file with all replicated consumers.

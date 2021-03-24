@@ -14,9 +14,10 @@
 package com.ibm.streamsx.kafka;
 
 /**
+ * This exception indicates that the JSON received from control port cannot be parsed/understood by the operator.
  * @author IBM Kafka toolkit maintainers
  */
-public class ControlportJsonParseException extends KafkaOperatorRuntimeException {
+public class ControlPortJsonParseException extends KafkaOperatorRuntimeException {
 
     private static final long serialVersionUID = 1L;
 
@@ -39,21 +40,21 @@ public class ControlportJsonParseException extends KafkaOperatorRuntimeException
     /**
      * 
      */
-    public ControlportJsonParseException() {
+    public ControlPortJsonParseException() {
         super();
     }
 
     /**
      * @param message
      */
-    public ControlportJsonParseException (String message) {
+    public ControlPortJsonParseException (String message) {
         super (message);
     }
 
     /**
      * @param cause
      */
-    public ControlportJsonParseException(Throwable cause) {
+    public ControlPortJsonParseException(Throwable cause) {
         super(cause);
     }
 
@@ -61,7 +62,7 @@ public class ControlportJsonParseException extends KafkaOperatorRuntimeException
      * @param message
      * @param cause
      */
-    public ControlportJsonParseException(String message, Throwable cause) {
+    public ControlPortJsonParseException(String message, Throwable cause) {
         super(message, cause);
     }
 
@@ -71,7 +72,7 @@ public class ControlportJsonParseException extends KafkaOperatorRuntimeException
      * @param enableSuppression
      * @param writableStackTrace
      */
-    public ControlportJsonParseException(String message, Throwable cause, boolean enableSuppression,
+    public ControlPortJsonParseException(String message, Throwable cause, boolean enableSuppression,
             boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }

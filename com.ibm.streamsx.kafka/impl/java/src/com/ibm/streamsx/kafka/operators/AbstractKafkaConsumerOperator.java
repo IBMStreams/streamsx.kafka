@@ -48,7 +48,7 @@ import com.ibm.streams.operator.state.Checkpoint;
 import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streams.operator.types.RString;
 import com.ibm.streams.operator.types.ValueFactory;
-import com.ibm.streamsx.kafka.ControlportJsonParseException;
+import com.ibm.streamsx.kafka.ControlPortJsonParseException;
 import com.ibm.streamsx.kafka.Features;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
@@ -1211,7 +1211,7 @@ public abstract class AbstractKafkaConsumerOperator extends AbstractKafkaOperato
                         nFailedControlTuples.increment();
                     }
                 }
-            } catch (ControlportJsonParseException e) {
+            } catch (ControlPortJsonParseException e) {
                 logger.error("Could not process control tuple. Parsing JSON '" + e.getJson() + "' failed.");
                 logger.error (e.getLocalizedMessage(), e);
                 nFailedControlTuples.increment();

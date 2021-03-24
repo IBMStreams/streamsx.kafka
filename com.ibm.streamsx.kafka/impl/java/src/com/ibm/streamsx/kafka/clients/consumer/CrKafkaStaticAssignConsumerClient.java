@@ -41,6 +41,8 @@ import com.ibm.streams.operator.state.ConsistentRegionContext;
 import com.ibm.streamsx.kafka.KafkaClientInitializationException;
 import com.ibm.streamsx.kafka.KafkaConfigurationException;
 import com.ibm.streamsx.kafka.KafkaOperatorException;
+import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
+import com.ibm.streamsx.kafka.UnsupportedControlPortActionException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -282,15 +284,16 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
     protected void processControlPortActionEvent(ControlPortAction update) {
         // trace with info. to see this method call is important, and it happens not frequently.
         logger.info ("processControlPortActionEvent(): update = " + update);
-        try {
-            // create a map of current topic partitions and their offsets
-            Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
+        // create a map of current topic partitions and their offsets
+        Map<TopicPartition, Long /* offset */> currentTopicPartitionOffsets = new HashMap<TopicPartition, Long>();
 
-            Set<TopicPartition> topicPartitions = getConsumer().assignment();
-            topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
+        Set<TopicPartition> topicPartitions = getConsumer().assignment();
+        topicPartitions.forEach(tp -> currentTopicPartitionOffsets.put(tp, getConsumer().position(tp)));
 
-            switch (update.getActionType()) {
-            case ADD_ASSIGNMENT:
+        final ControlPortActionType actionType = update.getActionType();
+        switch (actionType) {
+        case ADD_ASSIGNMENT:
+            try {
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     // offset can be -2, -1, or a valid offset o >= 0
                     // -2 means 'seek to beginning', -1 means 'seek to end'
@@ -305,7 +308,11 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                     createJcpCvFromOffsetManagerl();
                 }
                 break;
-            case REMOVE_ASSIGNMENT:
+            } catch (Exception e) {
+                throw new KafkaOperatorRuntimeException (e.getMessage(), e);
+            } 
+        case REMOVE_ASSIGNMENT:
+            try {
                 update.getTopicPartitionOffsetMap().forEach((tp, offset) -> {
                     currentTopicPartitionOffsets.remove(tp);
                 });
@@ -322,12 +329,12 @@ public class CrKafkaStaticAssignConsumerClient extends AbstractCrKafkaConsumerCl
                     createJcpCvFromOffsetManagerl();
                 }
                 break;
-            default:
-                throw new Exception ("processControlPortActionEvent: unimplemented action: " + update.getActionType());
-            }
-        } catch (Exception e) {
-            throw new RuntimeException (e.getLocalizedMessage(), e);
-        } 
+            } catch (Exception e) {
+                throw new KafkaOperatorRuntimeException (e.getMessage(), e);
+            } 
+        default:
+            throw new UnsupportedControlPortActionException ("processControlPortActionEvent(): action: " + actionType + " not supported by this client: " + getThisClassName());
+        }
     }
 
     /**

@@ -35,6 +35,7 @@ import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.MsgFormatter;
+import com.ibm.streamsx.kafka.UnsupportedControlPortActionException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.i18n.Messages;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
@@ -423,7 +424,7 @@ public class NonCrKafkaConsumerGroupClient extends AbstractNonCrKafkaConsumerCli
                 });
                 break;
             default:
-                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + actionType);
+                throw new UnsupportedControlPortActionException ("processControlPortActionEvent(): action: " + actionType + " not supported by this client: " + getThisClassName());
             }
             subscriptionChanged = !newSubscription.equals (oldSubscription);
             if (!subscriptionChanged) {

@@ -76,6 +76,7 @@ import com.ibm.streamsx.kafka.KafkaOperatorNotRegisteredException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.MsgFormatter;
+import com.ibm.streamsx.kafka.UnsupportedControlPortActionException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.MergeKey;
 import com.ibm.streamsx.kafka.clients.consumer.CrConsumerGroupCoordinator.TP;
@@ -1267,16 +1268,14 @@ public class CrKafkaConsumerGroupClient extends AbstractCrKafkaConsumerClient im
 
 
     /**
-     * Assignments cannot be updated.
+     * Assignments/subscriptions cannot be updated.
      * This method should not be called because operator control port and this client implementation are incompatible.
      * A context check should exist to detect this mis-configuration.
-     * We only log the method call. 
      * @see com.ibm.streamsx.kafka.clients.consumer.AbstractKafkaConsumerClient#processControlPortActionEvent(com.ibm.streamsx.kafka.clients.consumer.ControlPortAction)
      */
     @Override
     protected void processControlPortActionEvent (ControlPortAction update) {
-        trace.warn("processControlPortActionEvent(): update = " + update + "; update of assignments/subscription not supported by this client: " + getThisClassName());
-        nFailedControlTuples.increment();
+        throw new UnsupportedControlPortActionException ("update = " + update.getActionType() + "; update of assignments/subscriptions are not supported in consistent region by this client: " + getThisClassName());
     }
 
 

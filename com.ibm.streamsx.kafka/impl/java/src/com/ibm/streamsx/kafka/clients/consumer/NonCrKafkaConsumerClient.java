@@ -34,6 +34,7 @@ import com.ibm.streamsx.kafka.KafkaOperatorException;
 import com.ibm.streamsx.kafka.KafkaOperatorResetFailedException;
 import com.ibm.streamsx.kafka.KafkaOperatorRuntimeException;
 import com.ibm.streamsx.kafka.MsgFormatter;
+import com.ibm.streamsx.kafka.UnsupportedControlPortActionException;
 import com.ibm.streamsx.kafka.clients.OffsetManager;
 import com.ibm.streamsx.kafka.properties.KafkaOperatorProperties;
 
@@ -340,7 +341,7 @@ public class NonCrKafkaConsumerClient extends AbstractNonCrKafkaConsumerClient {
                 }
                 break;
             default:
-                throw new Exception ("processControlPortActionEvent(): unimplemented action: " + actionType);
+                throw new UnsupportedControlPortActionException ("processControlPortActionEvent(): action: " + actionType + " not supported by this client: " + getThisClassName());
             }
             // getChkptContext().getKind() is not reported properly. Streams Build 20180710104900 (4.3.0.0) never returns OPERATOR_DRIVEN
             if (doNewAssign && getCheckpointKind() == Kind.OPERATOR_DRIVEN) {

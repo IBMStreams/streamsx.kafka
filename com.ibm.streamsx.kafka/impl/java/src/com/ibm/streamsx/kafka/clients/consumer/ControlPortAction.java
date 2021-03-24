@@ -26,7 +26,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.ibm.streamsx.kafka.ControlportJsonParseException;
+import com.ibm.streamsx.kafka.ControlPortJsonParseException;
 import com.ibm.streamsx.kafka.i18n.Messages;
 
 public class ControlPortAction {
@@ -105,21 +105,21 @@ public class ControlPortAction {
      * Creates a ControlPortAction from a JSON formatted String
      * @param json The JSON string
      * @return a ControlPortAction object
-     * @throws ControlportJsonParseException parsing JSON failed
+     * @throws ControlPortJsonParseException parsing JSON failed
      */
-    public static ControlPortAction fromJSON (String json) throws ControlportJsonParseException {
+    public static ControlPortAction fromJSON (String json) throws ControlPortJsonParseException {
         JsonObject jsonObj = null;
         try {
             jsonObj = gson.fromJson (json, JsonObject.class);
         }
         catch (Exception e) {
-            ControlportJsonParseException exc = new ControlportJsonParseException (e.getMessage(), e);
+            ControlPortJsonParseException exc = new ControlPortJsonParseException (e.getMessage(), e);
             exc.setJson (json);
             throw exc;
         }
 
         if (jsonObj == null) {
-            ControlportJsonParseException exc = new ControlportJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "action", json==null? "null": json));
+            ControlPortJsonParseException exc = new ControlPortJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "action", json==null? "null": json));
             exc.setJson(json);
             throw exc;
         }
@@ -131,18 +131,18 @@ public class ControlPortAction {
                 action = JsonAction.valueOf (jsonObj.get ("action").getAsString().toUpperCase()); //$NON-NLS-1$
             }
             catch (Exception e) {
-                ControlportJsonParseException exc = new ControlportJsonParseException (e.getMessage(), e);
+                ControlPortJsonParseException exc = new ControlPortJsonParseException (e.getMessage(), e);
                 exc.setJson (json);
                 throw exc;
             }
         } else {
-            ControlportJsonParseException exc = new ControlportJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "action", json));
+            ControlPortJsonParseException exc = new ControlPortJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "action", json));
             exc.setJson (json);
             throw exc;
         }
 
         if (jsonObj.has ("topicPartitionOffsets") && jsonObj.has ("topics")) { //$NON-NLS-1$
-            final ControlportJsonParseException exc = new ControlportJsonParseException (Messages.getString ("INVALID_JSON", json));
+            final ControlPortJsonParseException exc = new ControlPortJsonParseException (Messages.getString ("INVALID_JSON", json));
             exc.setJson (json);
             throw exc;
         }
@@ -159,13 +159,13 @@ public class ControlPortAction {
             while (it.hasNext()) {
                 JsonObject tpo = it.next().getAsJsonObject();
                 if(!tpo.has ("topic")) { //$NON-NLS-1$
-                    ControlportJsonParseException exc = new ControlportJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "topic", json));
+                    ControlPortJsonParseException exc = new ControlPortJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "topic", json));
                     exc.setJson (json);
                     throw exc;
                 }
 
                 if(!tpo.has("partition")) { //$NON-NLS-1$
-                    ControlportJsonParseException exc = new ControlportJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "partition", json));
+                    ControlPortJsonParseException exc = new ControlPortJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "partition", json));
                     exc.setJson (json);
                     throw exc;
                 }
@@ -177,7 +177,7 @@ public class ControlPortAction {
                 }
                 catch (Exception e) {
                     // Handle Number format errors
-                    ControlportJsonParseException exc = new ControlportJsonParseException (e.getMessage(), e);
+                    ControlPortJsonParseException exc = new ControlPortJsonParseException (e.getMessage(), e);
                     exc.setJson (json);
                     throw exc;
                 }
@@ -191,7 +191,7 @@ public class ControlPortAction {
             while (it.hasNext()) {
                 JsonObject tpc = it.next().getAsJsonObject();
                 if(!tpc.has ("topic")) { //$NON-NLS-1$
-                    ControlportJsonParseException exc = new ControlportJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "topic", json));
+                    ControlPortJsonParseException exc = new ControlPortJsonParseException (Messages.getString("INVALID_JSON_MISSING_KEY", "topic", json));
                     exc.setJson (json);
                     throw exc;
                 }
@@ -201,7 +201,7 @@ public class ControlPortAction {
                 }
                 catch (Exception e) {
                     // Handle Number format errors
-                    ControlportJsonParseException exc = new ControlportJsonParseException (e.getMessage(), e);
+                    ControlPortJsonParseException exc = new ControlPortJsonParseException (e.getMessage(), e);
                     exc.setJson (json);
                     throw exc;
                 }

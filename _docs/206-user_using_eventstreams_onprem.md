@@ -1,8 +1,8 @@
 ---
-title: "Using streamsx.kafka with IBM Eventstreams on-premises"
+title: "Using streamsx.kafka with IBM Event Streams on-premises"
 permalink: /docs/user/UsingEventStreamsOnPrem/
 excerpt: "How to configure the toolkit operators for use with Eventstreams on-premise"
-last_modified_at: 2021-04-13T10:55:48+01:00
+last_modified_at: 2021-04-13T11:50:48+01:00
 redirect_from:
    - /theme-setup/
 sidebar:
@@ -16,7 +16,12 @@ This document describes how to use the SPL operators of the streamsx.kafka toolk
 connect with Eventstreams installed on-premises.
 
 **For a connection with Event Streams as IBM Cloud service, this article does not apply.**
-Please use the [streamsx.messagehub toolkit](https://github.com/IBMStreams/streamsx.messagehub) for this purpose.
+Please use the [streamsx.messagehub](https://github.com/IBMStreams/streamsx.messagehub) toolkit for this purpose.
+
+# What is IBM Event Streams
+
+IBM Event Streams is a Kafka distribution for [IBM cloud private](https://www.ibm.com/docs/en/cloud-private/3.2.0?topic=paks-event-streams).
+Please note, that it has been deprecated in IBM Cloud Pak for Integration. IBM recommends to use the Confluent Platform instead.
 
 # How to connect
 
@@ -31,3 +36,6 @@ The properties can be specified
 - in a text file (use the **propertiesFile** parameter to denote the filename), or
 - in an application configuration (use the **appConfigName** parameter to denote the name of the application configuration)
 
+# Useful links
+
+[Event Streams documentation](https://ibm.github.io/event-streams/)

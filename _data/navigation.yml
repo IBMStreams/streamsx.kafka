@@ -28,6 +28,9 @@ userdocs:
       - title: "Redhat AMQ Streams"
         url: /docs/user/UsingRHAmqStreams
 
+      - title: "Event Streams on-premises"
+        url: /docs/user/UsingEventStreamsOnPrem
+
       - title: "Kerberos authentication"
         url: /docs/user/UsingKerberos
 

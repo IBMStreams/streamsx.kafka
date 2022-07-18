@@ -59,8 +59,8 @@ task removeSrc(type: Delete) {
     delete 'build/release/com.ibm.streamsx.kafka/data'
     delete 'build/release/com.ibm.streamsx.kafka/impl/java'
     delete fileTree ('build/release/com.ibm.streamsx.kafka/opt/downloaded') {
-        // log4j 1.2 is also part of the Streams Java Operator API so any version in the toolkit will be ignored.
-        include 'log4j-1.2.*.jar'
+        // log4j is also part of the Streams Java Operator API so any version in the toolkit will be ignored.
+        include 'log4j-2.17.2.*.jar'
     }
 }
 

@@ -38,8 +38,12 @@ Red Hat AMQ Streams is a Kafka distribution for the OpenShift container platform
 of this toolkit with Red Hat AMQ Streams or with a Kafka cluster that is configured similar to what AMQ Streams supports,
 can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingRHAmqStreams/|toolkit documentation].
 
++ What's new in streamsx.kafka version 3.2.4
+
+Upgrade slf4j-log4j12 version 1.7.30 to 1.7.36
+    
    </info:description>
-   <info:version>3.2.3</info:version>
+   <info:version>3.2.4</info:version>
    <info:requiredProductVersion>4.3.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>

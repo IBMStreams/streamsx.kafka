@@ -1,10 +1,12 @@
 # Changes
 ==========
+## v3.2.4
+* [228](https://github.com/IBMStreams/streamsx.kafka/issues/230) create a new release to fix log4j issue 
+* slf4j-log4j12 upgraded to version: '1.7.36'
+
 ## v3.2.3
 * [228](https://github.com/IBMStreams/streamsx.kafka/issues/230) create a new release to fix log4j issue
 
-# Changes
-==========
 ## v3.2.2
 * [228](https://github.com/IBMStreams/streamsx.kafka/issues/228) KafkaConsumer: support submission time parameter for multiple topics
 

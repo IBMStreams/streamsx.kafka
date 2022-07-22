@@ -1,5 +1,8 @@
 # Changes
 ==========
+## v3.2.5
+Upgrade slf4j-reload4j version 1.7.30 to 1.7.36
+
 ## v3.2.4
 * [228](https://github.com/IBMStreams/streamsx.kafka/issues/230) create a new release to fix log4j issue 
 * slf4j-log4j12 upgraded to version: '1.7.36'

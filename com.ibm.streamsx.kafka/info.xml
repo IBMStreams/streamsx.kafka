@@ -41,9 +41,14 @@ can be read in the [https://ibmstreams.github.io/streamsx.kafka/docs/user/UsingR
 + What's new in streamsx.kafka version 3.2.4
 
 Upgrade slf4j-log4j12 version 1.7.30 to 1.7.36
+
++ What's new in streamsx.kafka version 3.2.5
+
+Upgrade slf4j-reload4j version 1.7.30 to 1.7.36
+    
     
    </info:description>
-   <info:version>3.2.4</info:version>
+   <info:version>3.2.5</info:version>
    <info:requiredProductVersion>4.3.0.0</info:requiredProductVersion>
  </info:identity>
  <info:dependencies/>
